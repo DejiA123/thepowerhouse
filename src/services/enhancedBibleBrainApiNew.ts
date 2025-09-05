@@ -1,6 +1,5 @@
-// Enhanced Bible Brain API with working version IDs
-import { bibleBrainServiceFixed } from './bibleBrainServiceFixed';
-import { normalizeVersionId, getFallbackVersions, VERSION_DISPLAY_NAMES } from './bibleBrainVersionMapping';
+// Enhanced Bible Brain API with working version IDs  
+import { bibleBrainWorkingService } from './bibleBrainWorkingService';
 import type { BibleVersion, BibleChapter } from '@/types/bible';
 
 export interface EnhancedBibleVersion extends BibleVersion {
@@ -19,7 +18,7 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log('🔍 Enhanced Bible Brain API: Fetching Bible versions...');
       
-      const versions = await bibleBrainServiceFixed.getVersions();
+      const versions = await bibleBrainWorkingService.getVersions();
       
       // Transform to enhanced versions with additional metadata
       const enhancedVersions = versions.map(version => this.enhanceVersion(version));
@@ -73,36 +72,15 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log(`🔍 Enhanced Bible Brain API: Fetching ${book} chapter ${chapter} (version: ${version})`);
       
-      // Normalize version to ensure we use working version IDs
-      const normalizedVersion = normalizeVersionId(version);
-      if (normalizedVersion !== version) {
-        console.log(`🔄 Version normalized from '${version}' to '${normalizedVersion}'`);
-      }
-      
-      const chapterData = await bibleBrainServiceFixed.getChapter(normalizedVersion, book, chapter);
+      const chapterData = await bibleBrainWorkingService.getChapter(version, book, chapter);
       
       if (!chapterData) {
         console.error('❌ Enhanced Bible Brain API: No chapter data received');
         return null;
       }
       
-      // Transform to our standard format
-      const standardChapter: BibleChapter = {
-        book: chapterData.book,
-        chapter: chapterData.chapter,
-        verses: chapterData.verses.map(verse => ({
-          book: verse.book,
-          chapter: verse.chapter,
-          verse: verse.verse,
-          text: verse.text
-        })),
-        text: chapterData.verses.map(v => v.text).join(' '),
-        reference: `${book} ${chapter}`,
-        version: normalizedVersion
-      };
-      
-      console.log(`✅ Enhanced Bible Brain API: Successfully loaded ${standardChapter.verses.length} verses`);
-      return standardChapter;
+      console.log(`✅ Enhanced Bible Brain API: Successfully loaded ${chapterData.verses.length} verses`);
+      return chapterData;
     } catch (error) {
       console.error('❌ Enhanced Bible Brain API chapter error:', error);
       return null;
@@ -114,9 +92,7 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log(`🎵 Enhanced Bible Brain API: Getting audio for ${book} chapter ${chapter} (version: ${version})`);
       
-      // Normalize version for audio as well
-      const normalizedVersion = normalizeVersionId(version);
-      const audioUrl = await bibleBrainServiceFixed.getAudio(normalizedVersion, book, chapter);
+      const audioUrl = await bibleBrainWorkingService.getAudio(version, book, chapter);
       
       if (audioUrl) {
         console.log(`✅ Enhanced Bible Brain API: Found audio URL`);
@@ -133,12 +109,31 @@ export const enhancedBibleBrainApiNew = {
 
   // Get fallback versions if API fails
   getFallbackVersions(): EnhancedBibleVersion[] {
-    return getFallbackVersions().map(version => ({
-      ...version,
-      category: VERSION_DISPLAY_NAMES[version.id]?.category as EnhancedBibleVersion['category'] || 'Traditional',
-      popularity: version.id === 'KJVPCE' ? 95 : 50,
-      hasAudio: true
-    }));
+    console.log('⚠️ Using fallback versions');
+    return [
+      {
+        id: 'ENGKJV2014',
+        version: 'ENGKJV2014', 
+        name: 'King James Version',
+        abbreviation: 'KJV',
+        language: 'English',
+        source: 'bible-brain' as const,
+        category: 'Traditional',
+        popularity: 95,
+        hasAudio: true
+      },
+      {
+        id: 'ENGNIV2011',
+        version: 'ENGNIV2011',
+        name: 'New International Version', 
+        abbreviation: 'NIV',
+        language: 'English',
+        source: 'bible-brain' as const,
+        category: 'Modern',
+        popularity: 90,
+        hasAudio: true
+      }
+    ];
   },
 
   // Search functionality (placeholder)

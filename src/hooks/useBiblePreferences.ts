@@ -13,7 +13,7 @@ export interface BiblePreferences {
 }
 
 const DEFAULT_PREFERENCES: BiblePreferences = {
-  preferredTranslation: 'ASV', // Use confirmed working Bible Brain version ID
+  preferredTranslation: 'ENGKJV2014', // Use confirmed working Bible Brain version ID
   preferredBook: 'Genesis',
   preferredChapter: 1,
   autoPlayNext: true,
@@ -42,48 +42,42 @@ export const useBiblePreferences = () => {
           console.log(`🔍 Migration check: Current translation = '${parsed.preferredTranslation}'`);
           const translationMap: { [key: string]: string } = {
             // Migrate all to confirmed working Bible Brain IDs
-            'kjv': 'ASV', // Fallback to working ASV
-            'niv': 'ASV', // Fallback to working ASV
-            'esv': 'ASV', // Fallback to working ASV
-            'nlt': 'ASV', // Fallback to working ASV
-            'amp': 'ASV', // Fallback to working ASV
-            'gnt': 'ASV', // Fallback to working ASV
-            'nkjv': 'ASV', // Fallback to working ASV
-            'nasb': 'ASV', // Fallback to working ASV
-            'asv': 'ASV', // Keep ASV
-            'ylt': 'YLT', // Keep YLT if it works
-            'web': 'WEB', // Keep WEB if it works
-            'rev': 'ASV', // Fallback to working ASV
+            'kjv': 'ENGKJV2014',
+            'niv': 'ENGNIV2011', 
+            'esv': 'ENGLSV2014',
+            'nlt': 'ENGNLTP2014',
+            'amp': 'ENGAMP2015',
+            'nkjv': 'ENGNKJP2014',
+            'asv': 'ENGKJV2014', // Fallback to KJV
+            'ylt': 'ENGKJV2014', // Fallback to KJV
+            'web': 'ENGKJV2014', // Fallback to KJV
             // Uppercase versions
-            'KJV': 'ASV',
-            'NIV': 'ASV',
-            'ESV': 'ASV',
-            'NLT': 'ASV',
-            'AMP': 'ASV',
-            'GNT': 'ASV',
-            'NKJV': 'ASV',
-            'NASB': 'ASV',
-            'ASV': 'ASV',
-            'YLT': 'YLT',
-            'WEB': 'WEB',
-            'REV': 'ASV',
-            // Bible Brain versions that need migration
-            'KJVPCE': 'ASV', // This was causing the error
-            'ENGKJV': 'ASV',
-            'ENGESV': 'ASV',
-            'ENGNIV': 'ASV',
-            'ENGNLT': 'ASV',
-            'ENGAMP': 'ASV',
-            'ENGNKJV': 'ASV',
-            'ENGNAS': 'ASV',
-            'ENGASV': 'ASV',
-            'ENGREV': 'ASV',
-            'ENGWEB': 'WEB',
+            'KJV': 'ENGKJV2014',
+            'NIV': 'ENGNIV2011',
+            'ESV': 'ENGLSV2014',
+            'NLT': 'ENGNLTP2014',
+            'AMP': 'ENGAMP2015',
+            'NKJV': 'ENGNKJP2014',
+            'ASV': 'ENGKJV2014',
+            'YLT': 'ENGKJV2014',
+            'WEB': 'ENGKJV2014',
+            // Old Bible Brain versions that need migration
+            'KJVPCE': 'ENGKJV2014',
+            'ENGKJV': 'ENGKJV2014',
+            'ENGESV': 'ENGLSV2014',
+            'ENGNIV': 'ENGNIV2011',
+            'ENGNLT': 'ENGNLTP2014',
+            'ENGAMP': 'ENGAMP2015',
+            'ENGNKJV': 'ENGNKJP2014',
+            'ENGNAS': 'ENGKJV2014',
+            'ENGASV': 'ENGKJV2014',
+            'ENGREV': 'ENGKJV2014',
+            'ENGWEB': 'ENGKJV2014',
             // Invalid/problematic versions
-            'EN1ESV': 'ASV', // This was causing the original error
-            'CGTCBT': 'ASV',
-            'UNKNOWN': 'ASV',
-            'INVALID': 'ASV',
+            'EN1ESV': 'ENGKJV2014',
+            'CGTCBT': 'ENGKJV2014',
+            'UNKNOWN': 'ENGKJV2014',
+            'INVALID': 'ENGKJV2014',
           };
           
           const oldTranslation = parsed.preferredTranslation;
@@ -102,10 +96,10 @@ export const useBiblePreferences = () => {
         }
         
         // Force migration for any problematic versions (aggressive migration)
-        const problematicVersions = ['ENGNIV', 'EN1ESV', 'ENGKJV', 'ENGESV', 'KJVPCE'];
+        const problematicVersions = ['ENGNIV', 'EN1ESV', 'ENGKJV', 'ENGESV', 'KJVPCE', 'ASV', 'YLT', 'WEB'];
         if (problematicVersions.includes(parsed.preferredTranslation)) {
-          console.log(`🔄 FORCE MIGRATION: Converting ${parsed.preferredTranslation} to ASV`);
-          parsed.preferredTranslation = 'ASV';
+          console.log(`🔄 FORCE MIGRATION: Converting ${parsed.preferredTranslation} to ENGKJV2014`);
+          parsed.preferredTranslation = 'ENGKJV2014';
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
             console.log('✅ Force migration completed');
