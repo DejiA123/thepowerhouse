@@ -10,12 +10,14 @@ import { BibleNotesDialog } from "./bible/BibleNotesDialog";
 import BibleNotesPage from "../pages/BibleNotesPage";
 import { BibleMenuDialog } from "./bible/BibleMenuDialog";
 import { BibleSearch } from "./bible/BibleSearch";
-import { BibleVersionSelector } from "./bible/BibleVersionSelector";
+import { EnhancedBibleVersionSelector } from "./bible/EnhancedBibleVersionSelector";
 // BibleHighlights component removed - functionality moved to BibleChapterContent
 
 import BibleAudioPlayer from "./bible/BibleAudioPlayer";
+import { BibleBrainAudioPlayer } from "./bible/BibleBrainAudioPlayer";
 import { BiblePreferencesPanel } from "./bible/BiblePreferencesPanel";
-import { BibleChapter, hybridBibleApi } from "@/services/hybridBibleApi";
+import { BibleChapter } from "@/services/hybridBibleApi";
+import { enhancedBibleBrainApi } from "@/services/enhancedBibleBrainApi";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
@@ -46,7 +48,7 @@ const BibleReader = () => {
 
   useEffect(() => {
     const loadVersions = async () => {
-      const bibleVersions = await hybridBibleApi.getVersions();
+      const bibleVersions = await enhancedBibleBrainApi.getVersions();
       setVersions(bibleVersions);
     };
     loadVersions();
@@ -83,13 +85,17 @@ const BibleReader = () => {
   const loadChapterContent = async () => {
     setLoading(true);
     try {
-      const chapter = await hybridBibleApi.getChapter(selectedVersion, selectedBook, selectedChapter);
+      console.log(`🔍 Loading chapter: ${selectedBook} ${selectedChapter} (${selectedVersion})`);
+      const chapter = await enhancedBibleBrainApi.getChapter(selectedVersion, selectedBook, selectedChapter);
+      if (!chapter) {
+        throw new Error('Chapter content not found');
+      }
       setCurrentChapter(chapter);
     } catch (error) {
       console.error('Error loading chapter:', error);
       toast({
         title: "Error",
-        description: "Failed to load chapter content. Please try again.",
+        description: "Could not load chapter content. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -155,8 +161,7 @@ const BibleReader = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row gap-4">
-        <BibleVersionSelector 
-          versions={versions}
+        <EnhancedBibleVersionSelector 
           selectedVersion={selectedVersion}
           onVersionChange={handleVersionChange}
         />
@@ -197,11 +202,22 @@ const BibleReader = () => {
 
         <TabsContent value="audio">
           <div className="space-y-4">
+            {/* Bible Brain Streaming Audio Player */}
+            <BibleBrainAudioPlayer
+              version={selectedVersion}
+              book={selectedBook}
+              chapter={selectedChapter}
+              onChapterChange={handleChapterChange}
+              autoPlay={shouldAutoPlay}
+            />
+            
+            {/* Fallback TTS Audio Player */}
             <BibleAudioPlayer
               book={selectedBook}
               chapter={selectedChapter}
               text={getChapterText()}
             />
+            
             <BibleChapterContent
               selectedBook={selectedBook}
               selectedChapter={selectedChapter}
