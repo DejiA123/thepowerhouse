@@ -1,20 +1,18 @@
 // Bible Brain API Version Mapping and Validation
 import type { BibleVersion } from '@/types/bible';
 
-// Known working Bible Brain version IDs from testing
+// Known working Bible Brain version IDs from actual API testing
 export const KNOWN_WORKING_VERSIONS = [
-  'KJVPCE', // King James Version - Public Domain
-  'ASV', // American Standard Version
-  'WEB', // World English Bible
-  'YLT', // Young's Literal Translation
+  'ASV', // American Standard Version - confirmed working
+  'YLT', // Young's Literal Translation - confirmed working
+  'WEB', // World English Bible - confirmed working
 ] as const;
 
-// Version display mapping for better user experience
+// Version display mapping for confirmed working versions
 export const VERSION_DISPLAY_NAMES: Record<string, { name: string; abbreviation: string; category: string }> = {
-  'KJVPCE': { name: 'King James Version', abbreviation: 'KJV', category: 'Traditional' },
   'ASV': { name: 'American Standard Version', abbreviation: 'ASV', category: 'Traditional' },
-  'WEB': { name: 'World English Bible', abbreviation: 'WEB', category: 'Modern' },
   'YLT': { name: "Young's Literal Translation", abbreviation: 'YLT', category: 'Literal' },
+  'WEB': { name: 'World English Bible', abbreviation: 'WEB', category: 'Modern' },
 };
 
 // Convert any version ID to a known working one
@@ -24,9 +22,9 @@ export const normalizeVersionId = (versionId: string): string => {
     return versionId;
   }
   
-  // Default fallback to KJV
-  console.log(`🔄 Normalizing unknown version '${versionId}' to 'KJVPCE'`);
-  return 'KJVPCE';
+  // Default fallback to ASV (confirmed working)
+  console.log(`🔄 Normalizing unknown version '${versionId}' to 'ASV'`);
+  return 'ASV';
 };
 
 // Get fallback versions if API fails

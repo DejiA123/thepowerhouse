@@ -1,5 +1,5 @@
-// Enhanced Bible Brain API with proper Bible Brain API v4 integration
-import { bibleBrainServiceNew } from './bibleBrainServiceNew';
+// Enhanced Bible Brain API with working version IDs
+import { bibleBrainServiceFixed } from './bibleBrainServiceFixed';
 import { normalizeVersionId, getFallbackVersions, VERSION_DISPLAY_NAMES } from './bibleBrainVersionMapping';
 import type { BibleVersion, BibleChapter } from '@/types/bible';
 
@@ -19,7 +19,7 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log('🔍 Enhanced Bible Brain API: Fetching Bible versions...');
       
-      const versions = await bibleBrainServiceNew.getVersions();
+      const versions = await bibleBrainServiceFixed.getVersions();
       
       // Transform to enhanced versions with additional metadata
       const enhancedVersions = versions.map(version => this.enhanceVersion(version));
@@ -79,7 +79,7 @@ export const enhancedBibleBrainApiNew = {
         console.log(`🔄 Version normalized from '${version}' to '${normalizedVersion}'`);
       }
       
-      const chapterData = await bibleBrainServiceNew.getChapter(normalizedVersion, book, chapter);
+      const chapterData = await bibleBrainServiceFixed.getChapter(normalizedVersion, book, chapter);
       
       if (!chapterData) {
         console.error('❌ Enhanced Bible Brain API: No chapter data received');
@@ -116,7 +116,7 @@ export const enhancedBibleBrainApiNew = {
       
       // Normalize version for audio as well
       const normalizedVersion = normalizeVersionId(version);
-      const audioUrl = await bibleBrainServiceNew.getAudio(normalizedVersion, book, chapter);
+      const audioUrl = await bibleBrainServiceFixed.getAudio(normalizedVersion, book, chapter);
       
       if (audioUrl) {
         console.log(`✅ Enhanced Bible Brain API: Found audio URL`);
