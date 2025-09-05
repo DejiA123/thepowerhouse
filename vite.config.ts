@@ -27,13 +27,9 @@ export default defineConfig(({ mode }) => ({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
       },
-      maxParallelFileOps: 2,
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor';
-            }
             if (id.includes('@radix-ui')) {
               return 'radix-vendor';
             }
@@ -59,16 +55,10 @@ export default defineConfig(({ mode }) => ({
     },
     chunkSizeWarningLimit: 500,
     target: 'es2015',
-    minify: 'terser',
-    sourcemap: false,
+    minify: true,
+    sourcemap: true,
     assetsInlineLimit: 0,
     reportCompressedSize: false,
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@supabase/supabase-js'],

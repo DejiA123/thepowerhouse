@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+console.log('AuthContext.tsx: React loaded:', !!React);
+console.log('AuthContext.tsx: createContext available:', !!React.createContext);
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
