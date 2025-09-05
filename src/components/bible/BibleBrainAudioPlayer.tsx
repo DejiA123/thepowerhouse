@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { bibleBrainAudioService } from "@/services/bibleBrainAudioService";
+import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 
 interface BibleBrainAudioPlayerProps {
@@ -107,7 +107,7 @@ export const BibleBrainAudioPlayer = ({
 
       console.log(`🎵 Loading Bible Brain audio for ${book} chapter ${chapter} (${version})`);
       
-      const url = await bibleBrainAudioService.getChapterAudio(version, book, chapter);
+      const url = await enhancedBibleBrainApiNew.getAudio(version, book, chapter);
       
       if (url) {
         setAudioUrl(url);

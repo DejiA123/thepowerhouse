@@ -17,7 +17,8 @@ import BibleAudioPlayer from "./bible/BibleAudioPlayer";
 import { BibleBrainAudioPlayer } from "./bible/BibleBrainAudioPlayer";
 import { BiblePreferencesPanel } from "./bible/BiblePreferencesPanel";
 import { BibleChapter } from "@/services/hybridBibleApi";
-import { enhancedBibleBrainApi } from "@/services/enhancedBibleBrainApi";
+import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
+import { testBibleBrainApi } from "@/services/bibleBrainApiTest";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useToast } from "@/hooks/use-toast";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
@@ -48,7 +49,10 @@ const BibleReader = () => {
 
   useEffect(() => {
     const loadVersions = async () => {
-      const bibleVersions = await enhancedBibleBrainApi.getVersions();
+      // Test the API to understand its structure
+      await testBibleBrainApi();
+      
+      const bibleVersions = await enhancedBibleBrainApiNew.getVersions();
       setVersions(bibleVersions);
     };
     loadVersions();
@@ -86,7 +90,7 @@ const BibleReader = () => {
     setLoading(true);
     try {
       console.log(`🔍 Loading chapter: ${selectedBook} ${selectedChapter} (${selectedVersion})`);
-      const chapter = await enhancedBibleBrainApi.getChapter(selectedVersion, selectedBook, selectedChapter);
+      const chapter = await enhancedBibleBrainApiNew.getChapter(selectedVersion, selectedBook, selectedChapter);
       if (!chapter) {
         throw new Error('Chapter content not found');
       }
