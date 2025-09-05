@@ -28,39 +28,22 @@ export default defineConfig(({ mode }) => ({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
       },
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('@radix-ui')) {
-              return 'radix-vendor';
-            }
-            if (id.includes('@tiptap')) {
-              return 'tiptap-vendor';
-            }
-            if (id.includes('lucide-react') || id.includes('class-variance-authority') || id.includes('clsx') || id.includes('tailwind-merge')) {
-              return 'ui-vendor';
-            }
-            if (id.includes('@supabase')) {
-              return 'supabase-vendor';
-            }
-            if (id.includes('recharts')) {
-              return 'charts-vendor';
-            }
-            if (id.includes('date-fns') || id.includes('zod') || id.includes('cmdk')) {
-              return 'utils-vendor';
-            }
-            return 'vendor';
-          }
+        // Force React and React-DOM into main chunk to prevent loading issues
+        manualChunks: {
+          'react-core': ['react', 'react-dom'],
+          'vendor': ['@supabase/supabase-js', 'lucide-react', 'class-variance-authority', 'clsx', 'tailwind-merge'],
         },
       },
     },
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 1000,
     target: 'es2015',
-    minify: true,
+    minify: false, // Disable minification to prevent React import issues
     sourcemap: true,
     assetsInlineLimit: 0,
     reportCompressedSize: false,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@supabase/supabase-js'],
+    force: true, // Force pre-bundling
   }
 }))

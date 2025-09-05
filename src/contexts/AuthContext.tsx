@@ -2,8 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+// Debug React availability
 console.log('AuthContext.tsx: React loaded:', !!React);
 console.log('AuthContext.tsx: createContext available:', !!React.createContext);
+console.log('AuthContext.tsx: React namespace:', Object.keys(React));
+
+// Ensure React.createContext is available before using it
+if (!React || !React.createContext) {
+  console.error('AuthContext.tsx: React.createContext is not available!');
+  throw new Error('React is not properly loaded');
+}
 
 interface AuthContextType {
   user: User | null;
