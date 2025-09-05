@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { audioService } from '@/services/audioService';
-import { hybridBibleApi } from '@/services/hybridBibleApi';
+import { enhancedBibleBrainApiNew } from '@/services/enhancedBibleBrainApiNew';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { enhancedTTSService, EnhancedVoiceSettings } from '@/services/enhancedTTSService';
 import { iosAudioService, IOSAudioSettings } from '@/services/iosAudioService';

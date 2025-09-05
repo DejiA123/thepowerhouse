@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, BookOpen, Settings2 } from "lucide-react";
-import { hybridBibleApi } from "@/services/hybridBibleApi";
+import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
 import { bibleBooks } from "./BibleBookList";
 import { useToast } from "@/hooks/use-toast";
 import { normalizeBookApiName } from "./bookUtils";
@@ -139,7 +139,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       // 1) Try API-backed search first (fastest when supported)
       let apiResults: SearchResult[] = [];
       try {
-        const verses = await hybridBibleApi.search(version, raw);
+        const verses = await enhancedBibleBrainApiNew.search(version, raw);
         apiResults = (verses || []).map(v => {
           // Map result.book (pretty name) to apiName
           const found = allBooks.find(b => b.name.toLowerCase() === (v.book || '').toLowerCase())
@@ -170,7 +170,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
           for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
             if (runIdRef.current !== currentRun) { cancelled = true; break outer; }
             if (Date.now() > deadline) break outer;
-            const chapterData = await hybridBibleApi.getChapter(version, bookInfo.apiName, chapter);
+            const chapterData = await enhancedBibleBrainApiNew.getChapter(version, bookInfo.apiName, chapter);
             if (chapterData?.verses) {
               for (const v of chapterData.verses) {
                 const verseText = String(v.text || '');

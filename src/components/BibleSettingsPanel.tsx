@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, Book, Volume2, Type, Palette, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
-import { hybridBibleApi } from "@/services/hybridBibleApi";
+import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
 import { EnhancedBibleVersionSelector } from "@/components/bible/EnhancedBibleVersionSelector";
 
 interface BibleSettingsPanelProps {
@@ -43,7 +43,7 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
 
   const loadVersions = async () => {
     try {
-      const bibleVersions = await hybridBibleApi.getVersions();
+      const bibleVersions = await enhancedBibleBrainApiNew.getVersions();
       setVersions(bibleVersions);
     } catch (error) {
       console.error('Error loading Bible versions:', error);

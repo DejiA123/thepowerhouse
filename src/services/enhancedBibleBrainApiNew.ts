@@ -1,5 +1,6 @@
 // Enhanced Bible Brain API with proper Bible Brain API v4 integration
 import { bibleBrainServiceNew } from './bibleBrainServiceNew';
+import { normalizeVersionId, getFallbackVersions, VERSION_DISPLAY_NAMES } from './bibleBrainVersionMapping';
 import type { BibleVersion, BibleChapter } from '@/types/bible';
 
 export interface EnhancedBibleVersion extends BibleVersion {
@@ -72,7 +73,13 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log(`🔍 Enhanced Bible Brain API: Fetching ${book} chapter ${chapter} (version: ${version})`);
       
-      const chapterData = await bibleBrainServiceNew.getChapter(version, book, chapter);
+      // Normalize version to ensure we use working version IDs
+      const normalizedVersion = normalizeVersionId(version);
+      if (normalizedVersion !== version) {
+        console.log(`🔄 Version normalized from '${version}' to '${normalizedVersion}'`);
+      }
+      
+      const chapterData = await bibleBrainServiceNew.getChapter(normalizedVersion, book, chapter);
       
       if (!chapterData) {
         console.error('❌ Enhanced Bible Brain API: No chapter data received');
@@ -91,7 +98,7 @@ export const enhancedBibleBrainApiNew = {
         })),
         text: chapterData.verses.map(v => v.text).join(' '),
         reference: `${book} ${chapter}`,
-        version: version
+        version: normalizedVersion
       };
       
       console.log(`✅ Enhanced Bible Brain API: Successfully loaded ${standardChapter.verses.length} verses`);
@@ -107,7 +114,9 @@ export const enhancedBibleBrainApiNew = {
     try {
       console.log(`🎵 Enhanced Bible Brain API: Getting audio for ${book} chapter ${chapter} (version: ${version})`);
       
-      const audioUrl = await bibleBrainServiceNew.getAudio(version, book, chapter);
+      // Normalize version for audio as well
+      const normalizedVersion = normalizeVersionId(version);
+      const audioUrl = await bibleBrainServiceNew.getAudio(normalizedVersion, book, chapter);
       
       if (audioUrl) {
         console.log(`✅ Enhanced Bible Brain API: Found audio URL`);
@@ -124,52 +133,12 @@ export const enhancedBibleBrainApiNew = {
 
   // Get fallback versions if API fails
   getFallbackVersions(): EnhancedBibleVersion[] {
-    return [
-      {
-        id: 'KJVPCE',
-        version: 'KJVPCE',
-        name: 'King James Version',
-        abbreviation: 'KJV',
-        language: 'English',
-        source: 'bible-brain',
-        category: 'Traditional',
-        popularity: 95,
-        hasAudio: true
-      },
-      {
-        id: 'ESVSRB',
-        version: 'ESVSRB',
-        name: 'English Standard Version',
-        abbreviation: 'ESV',
-        language: 'English',
-        source: 'bible-brain',
-        category: 'Modern',
-        popularity: 90,
-        hasAudio: true
-      },
-      {
-        id: 'ASV',
-        version: 'ASV',
-        name: 'American Standard Version',
-        abbreviation: 'ASV',
-        language: 'English',
-        source: 'bible-brain',
-        category: 'Traditional',
-        popularity: 40,
-        hasAudio: true
-      },
-      {
-        id: 'NASB',
-        version: 'NASB',
-        name: 'New American Standard Bible',
-        abbreviation: 'NASB',
-        language: 'English',
-        source: 'bible-brain',
-        category: 'Modern',
-        popularity: 80,
-        hasAudio: true
-      }
-    ];
+    return getFallbackVersions().map(version => ({
+      ...version,
+      category: VERSION_DISPLAY_NAMES[version.id]?.category as EnhancedBibleVersion['category'] || 'Traditional',
+      popularity: version.id === 'KJVPCE' ? 95 : 50,
+      hasAudio: true
+    }));
   },
 
   // Search functionality (placeholder)

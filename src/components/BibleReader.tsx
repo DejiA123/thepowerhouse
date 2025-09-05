@@ -16,7 +16,7 @@ import { EnhancedBibleVersionSelector } from "./bible/EnhancedBibleVersionSelect
 import BibleAudioPlayer from "./bible/BibleAudioPlayer";
 import { BibleBrainAudioPlayer } from "./bible/BibleBrainAudioPlayer";
 import { BiblePreferencesPanel } from "./bible/BiblePreferencesPanel";
-import { BibleChapter } from "@/services/hybridBibleApi";
+import type { BibleChapter } from "@/types/bible";
 import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
 import { testBibleBrainApi } from "@/services/bibleBrainApiTest";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";

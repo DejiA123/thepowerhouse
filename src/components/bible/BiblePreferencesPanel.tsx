@@ -7,7 +7,7 @@ import { Settings, RotateCcw, Save, BookOpen } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { hybridBibleApi } from "@/services/hybridBibleApi";
+import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
 
 import type { BibleVersion } from '@/types/bible';
 
@@ -30,7 +30,7 @@ export const BiblePreferencesPanel = () => {
     const loadVersions = async () => {
       setLoading(true);
       try {
-        const bibleVersions = await hybridBibleApi.getVersions();
+        const bibleVersions = await enhancedBibleBrainApiNew.getVersions();
         setVersions(bibleVersions);
         console.log('BiblePreferencesPanel: Loaded versions:', bibleVersions);
       } catch (error) {

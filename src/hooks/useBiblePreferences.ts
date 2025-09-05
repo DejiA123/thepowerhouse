@@ -13,7 +13,7 @@ export interface BiblePreferences {
 }
 
 const DEFAULT_PREFERENCES: BiblePreferences = {
-  preferredTranslation: 'ENGKJV', // Use Bible Brain version ID
+  preferredTranslation: 'KJVPCE', // Use valid Bible Brain version ID
   preferredBook: 'Genesis',
   preferredChapter: 1,
   autoPlayNext: true,
@@ -41,39 +41,46 @@ export const useBiblePreferences = () => {
         if (parsed.preferredTranslation) {
           console.log(`🔍 Migration check: Current translation = '${parsed.preferredTranslation}'`);
           const translationMap: { [key: string]: string } = {
-            // Lowercase versions - only convert problematic ones
-            'kjv': 'ENGKJV',
-            'niv': 'ENGKJV', // NIV requires special permissions, fallback to KJV
-            'esv': 'ENGESV', // ESV should work
-            'nlt': 'ENGKJV', // NLT requires special permissions, fallback to KJV
-            'amp': 'ENGKJV', // AMP requires special permissions, fallback to KJV
-            'gnt': 'ENGKJV', // GNT requires special permissions, fallback to KJV
-            'nkjv': 'ENGKJV', // NKJV requires special permissions, fallback to KJV
-            'nasb': 'ENGNAS', // NASB should work
-            'asv': 'ENGASV', // ASV should work
-            'rev': 'ENGREV', // REV should work
-            'web': 'ENGWEB', // WEB should work
-            // Uppercase versions - only convert problematic ones
-            'KJV': 'ENGKJV',
-            'NIV': 'ENGKJV', // NIV requires special permissions, fallback to KJV
-            'ESV': 'ENGESV', // ESV should work
-            'NLT': 'ENGKJV', // NLT requires special permissions, fallback to KJV
-            'AMP': 'ENGKJV', // AMP requires special permissions, fallback to KJV
-            'GNT': 'ENGKJV', // GNT requires special permissions, fallback to KJV
-            'NKJV': 'ENGKJV', // NKJV requires special permissions, fallback to KJV
-            'NASB': 'ENGNAS', // NASB should work
-            'ASV': 'ENGASV', // ASV should work
-            'REV': 'ENGREV', // REV should work
-            'WEB': 'ENGWEB', // WEB should work
-            // Bible Brain versions that need migration - only problematic ones
-            'ENGNIV': 'ENGKJV', // NIV requires special permissions, fallback to KJV
-            'ENGNLT': 'ENGKJV', // NLT requires special permissions, fallback to KJV
-            'ENGAMP': 'ENGKJV', // AMP requires special permissions, fallback to KJV
-            'ENGNKJV': 'ENGKJV', // NKJV requires special permissions, fallback to KJV
-            // Unknown/invalid versions
-            'CGTCBT': 'ENGKJV', // Unknown version, fallback to KJV
-            'UNKNOWN': 'ENGKJV', // Unknown version, fallback to KJV
-            'INVALID': 'ENGKJV', // Invalid version, fallback to KJV
+            // Migrate all to valid Bible Brain IDs
+            'kjv': 'KJVPCE',
+            'niv': 'KJVPCE', // Fallback to KJV
+            'esv': 'KJVPCE', // Fallback to KJV for reliability
+            'nlt': 'KJVPCE', // Fallback to KJV
+            'amp': 'KJVPCE', // Fallback to KJV
+            'gnt': 'KJVPCE', // Fallback to KJV
+            'nkjv': 'KJVPCE', // Fallback to KJV
+            'nasb': 'KJVPCE', // Fallback to KJV
+            'asv': 'ASV', // Keep ASV if it works
+            'rev': 'KJVPCE', // Fallback to KJV
+            'web': 'KJVPCE', // Fallback to KJV
+            // Uppercase versions
+            'KJV': 'KJVPCE',
+            'NIV': 'KJVPCE',
+            'ESV': 'KJVPCE',
+            'NLT': 'KJVPCE',
+            'AMP': 'KJVPCE',
+            'GNT': 'KJVPCE',
+            'NKJV': 'KJVPCE',
+            'NASB': 'KJVPCE',
+            'ASV': 'ASV',
+            'REV': 'KJVPCE',
+            'WEB': 'KJVPCE',
+            // Bible Brain versions that need migration
+            'ENGKJV': 'KJVPCE',
+            'ENGESV': 'KJVPCE',
+            'ENGNIV': 'KJVPCE',
+            'ENGNLT': 'KJVPCE',
+            'ENGAMP': 'KJVPCE',
+            'ENGNKJV': 'KJVPCE',
+            'ENGNAS': 'KJVPCE',
+            'ENGASV': 'ASV',
+            'ENGREV': 'KJVPCE',
+            'ENGWEB': 'KJVPCE',
+            // Invalid/problematic versions
+            'EN1ESV': 'KJVPCE', // This was causing the current error
+            'CGTCBT': 'KJVPCE',
+            'UNKNOWN': 'KJVPCE',
+            'INVALID': 'KJVPCE',
           };
           
           const oldTranslation = parsed.preferredTranslation;
@@ -91,10 +98,11 @@ export const useBiblePreferences = () => {
           }
         }
         
-        // Force migration for ENGNIV if it's still there (aggressive migration)
-        if (parsed.preferredTranslation === 'ENGNIV') {
-          console.log('🔄 FORCE MIGRATION: Converting ENGNIV to ENGKJV');
-          parsed.preferredTranslation = 'ENGKJV';
+        // Force migration for any problematic versions (aggressive migration)
+        const problematicVersions = ['ENGNIV', 'EN1ESV', 'ENGKJV', 'ENGESV'];
+        if (problematicVersions.includes(parsed.preferredTranslation)) {
+          console.log(`🔄 FORCE MIGRATION: Converting ${parsed.preferredTranslation} to KJVPCE`);
+          parsed.preferredTranslation = 'KJVPCE';
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
             console.log('✅ Force migration completed');
