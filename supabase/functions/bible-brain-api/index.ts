@@ -123,22 +123,94 @@ serve(async (req) => {
 
 async function getVersions(baseUrl: string, apiKey: string) {
   try {
-    const response = await fetch(`${baseUrl}/bibles?key=${apiKey}&v=4`)
+    console.log('🔍 Bible Brain Edge Function: Fetching comprehensive Bible versions...')
     
-    if (!response.ok) {
-      throw new Error(`Bible Brain API error: ${response.status}`)
+    // Enhanced version fetching to get more comprehensive results
+    let allBibles: any[] = []
+    let page = 1
+    const maxPages = 20 // Fetch more pages for comprehensive coverage
+    
+    // Fetch multiple pages to get more versions
+    while (page <= maxPages) {
+      try {
+        const response = await fetch(`${baseUrl}/bibles?key=${apiKey}&v=4&page=${page}&limit=25`)
+        
+        if (!response.ok) {
+          console.error(`❌ Bible Brain API error on page ${page}: ${response.status}`)
+          break
+        }
+        
+        const data = await response.json()
+        
+        if (!data.data || !Array.isArray(data.data)) {
+          break
+        }
+        
+        allBibles = allBibles.concat(data.data)
+        
+        // Check if we have more pages
+        if (data.meta?.pagination?.total_pages && page >= data.meta.pagination.total_pages) {
+          break
+        }
+        
+        page++
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+      } catch (pageError) {
+        console.error(`❌ Error fetching page ${page}:`, pageError)
+        break
+      }
     }
     
-    const data = await response.json()
-    const bibles = data.data || []
+    console.log(`📚 Fetched ${allBibles.length} total Bible versions from ${page - 1} pages`)
     
-    const versions = bibles.map((bible: any) => ({
+    // Enhanced English language detection
+    const englishPatterns = [
+      'english', 'eng', 'en:', 'en-', 'king james', 'new international', 
+      'english standard', 'new living', 'new american standard', 'amplified',
+      'kjv', 'niv', 'esv', 'nlt', 'nasb', 'nkjv', 'amp', 'rsv', 'asv'
+    ]
+    
+    const englishBibles = allBibles.filter(bible => {
+      const name = (bible.name || '').toLowerCase()
+      const abbr = (bible.abbr || '').toLowerCase()
+      const languageName = (bible.language?.name || '').toLowerCase()
+      const languageCode = (bible.language?.iso || bible.language?.code || '').toLowerCase()
+      
+      const searchText = `${name} ${abbr} ${languageName} ${languageCode}`
+      
+      return englishPatterns.some(pattern => 
+        searchText.includes(pattern.toLowerCase())
+      )
+    })
+    
+    console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Found ${englishBibles.length} English Bible versions`)
+    
+    const versions = englishBibles.map((bible: any) => ({
       name: bible.name || bible.vernacular_title || bible.language?.name || 'Unknown',
       abbreviation: bible.abbr || bible.id || '',
-      language: bible.language?.name || 'Unknown',
+      language: bible.language?.name || 'English',
       version: bible.id,
-      source: 'bible-brain'
+      source: 'bible-brain',
+      hasAudio: bible.audio || false,
+      year: bible.date || null,
+      publisher: bible.publisher || null
     }))
+    
+    // Sort by popularity (common versions first)
+    const popularityOrder = ['NIV', 'KJV', 'ESV', 'NLT', 'NASB', 'NKJV', 'AMP', 'RSV', 'ASV']
+    versions.sort((a, b) => {
+      const aIndex = popularityOrder.indexOf(a.abbreviation.toUpperCase())
+      const bIndex = popularityOrder.indexOf(b.abbreviation.toUpperCase())
+      
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+      if (aIndex !== -1) return -1
+      if (bIndex !== -1) return 1
+      
+      return a.name.localeCompare(b.name)
+    })
     
     return new Response(
       JSON.stringify({ success: true, data: versions }),

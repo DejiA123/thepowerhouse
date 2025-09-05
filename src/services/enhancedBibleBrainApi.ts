@@ -1,19 +1,39 @@
 import { bibleBrainService, BibleBrainVersion, BibleBrainChapter, BibleBrainVerse } from './bibleBrainService';
+import { enhancedBibleBrainService } from './enhancedBibleBrainService';
 import { mapVersionToBibleBrain } from './bibleBrainVersions';
 import type { BibleVersion, BibleVerse, BibleChapter } from '@/types/bible';
 
 
 export const enhancedBibleBrainApi = {
-  // Get available Bible versions (Bible Brain only)
+  // Get available Bible versions (Enhanced Bible Brain with comprehensive English translations)
   async getVersions(): Promise<BibleVersion[]> {
     try {
-      console.log('🔍 Enhanced Bible API: Fetching versions from Bible Brain...');
+      console.log('🔍 Enhanced Bible API: Fetching comprehensive English versions from Bible Brain...');
       
-      // Use Bible Brain only
+      // Use the enhanced service to get ALL English translations
+      const enhancedVersions = await enhancedBibleBrainService.getAllEnglishVersions();
+      
+      if (enhancedVersions.length > 0) {
+        console.log(`✅ Enhanced Bible API: Found ${enhancedVersions.length} English versions from Enhanced Bible Brain`);
+        
+        // Convert enhanced versions to standard BibleVersion format
+        return enhancedVersions.map((version) => ({
+          id: version.id,
+          version: version.version,
+          name: version.name,
+          abbreviation: version.abbreviation,
+          language: version.language,
+          source: version.source
+        }));
+      }
+      
+      console.log('⚠️ Enhanced Bible API: No enhanced versions found, falling back to basic service');
+      
+      // Fallback to basic Bible Brain service
       const bibleBrainVersions = await bibleBrainService.getVersions();
       
       if (bibleBrainVersions.length > 0) {
-        console.log(`✅ Enhanced Bible API: Found ${bibleBrainVersions.length} versions from Bible Brain`);
+        console.log(`✅ Enhanced Bible API: Found ${bibleBrainVersions.length} versions from basic Bible Brain`);
         
         return bibleBrainVersions.map((version: any) => ({
           id: version.version,
@@ -25,11 +45,19 @@ export const enhancedBibleBrainApi = {
         }));
       }
       
-      console.log('❌ Enhanced Bible API: No versions found from Bible Brain');
+      console.log('❌ Enhanced Bible API: No versions found from any service');
       return [];
     } catch (error) {
       console.error('❌ Enhanced Bible API: Error fetching versions:', error);
-      return [];
+      // Return fallback versions on error
+      return enhancedBibleBrainService.getFallbackVersions().map(version => ({
+        id: version.id,
+        version: version.version,
+        name: version.name,
+        abbreviation: version.abbreviation,
+        language: version.language,
+        source: version.source
+      }));
     }
   },
 

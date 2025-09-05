@@ -7,6 +7,7 @@ import { ChevronLeft, Book, Volume2, Type, Palette, Settings } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { hybridBibleApi } from "@/services/hybridBibleApi";
+import { EnhancedBibleVersionSelector } from "@/components/bible/EnhancedBibleVersionSelector";
 
 interface BibleSettingsPanelProps {
   onBack: () => void;
@@ -95,27 +96,20 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Bible Translation */}
+        {/* Enhanced Bible Translation Selector */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Book className="w-5 h-5" />
             Bible Translation
           </h2>
           
-          <Select value={preferences.preferredTranslation} onValueChange={handleTranslationChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select translation" />
-            </SelectTrigger>
-            <SelectContent>
-              {versions.map((version) => (
-                <SelectItem key={version.abbreviation} value={version.abbreviation}>
-                  {version.name} ({version.abbreviation.toUpperCase()})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="text-sm text-gray-600 mb-4">
-            Choose your preferred Bible translation for reading and study.
+          <EnhancedBibleVersionSelector 
+            selectedVersion={preferences.preferredTranslation}
+            onVersionChange={handleTranslationChange}
+          />
+          
+          <div className="text-sm text-gray-600">
+            Choose from over 100 available English Bible translations for reading and study.
           </div>
         </div>
 
