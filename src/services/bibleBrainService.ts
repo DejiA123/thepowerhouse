@@ -220,13 +220,6 @@ export const bibleBrainService = {
 
   async getChapter(version: string, book: string, chapter: number, isFallback: boolean = false): Promise<BibleBrainChapter | null> {
     try {
-              // Force migration for problematic translations only
-        const problematicVersions = ['ENGNIV', 'ENGNLT', 'ENGAMP', 'ENGNKJV', 'CGTCBT', 'UNKNOWN', 'INVALID'];
-        if (problematicVersions.includes(version) && !isFallback) {
-          console.log(`🔄 FORCE MIGRATION: Converting ${version} to ENGKJV before API call`);
-          return await this.getChapter('ENGKJV', book, chapter, true);
-        }
-      
       console.log(`🔍 Bible Brain: Fetching ${book} chapter ${chapter} (version: ${version})`);
       
       // Try Supabase Edge Function first
@@ -255,9 +248,56 @@ export const bibleBrainService = {
         return null;
       }
       
+      // First, get the Bible information to find available text filesets
+      const bibleInfoUrl = `${BIBLE_BRAIN_DIRECT_URL}/${version}?key=${BIBLE_BRAIN_API_KEY}&v=4`;
+      console.log(`🔍 Fetching Bible info: ${bibleInfoUrl}`);
+      
+      const bibleInfoResponse = await fetch(bibleInfoUrl);
+      if (!bibleInfoResponse.ok) {
+        console.error(`❌ Bible info API error: ${bibleInfoResponse.status}`);
+        
+        // Try fallback if not already in fallback mode
+        if (!isFallback) {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter, true);
+        }
+        return null;
+      }
+      
+      const bibleInfo = await bibleInfoResponse.json();
+      console.log(`🔍 Bible info response:`, bibleInfo);
+      
+      if (!bibleInfo.data || !bibleInfo.data.filesets) {
+        console.error(`❌ No filesets found for ${version}`);
+        if (!isFallback) {
+          return await this.getChapter('ENGKJV', book, chapter, true);
+        }
+        return null;
+      }
+      
+      // Find text filesets
+      let textFileset = null;
+      for (const [source, filesets] of Object.entries(bibleInfo.data.filesets)) {
+        if (Array.isArray(filesets)) {
+          textFileset = filesets.find((fs: any) => 
+            fs.type === 'text_plain' || fs.type === 'text_format'
+          );
+          if (textFileset) break;
+        }
+      }
+      
+      if (!textFileset) {
+        console.error(`❌ No text fileset found for ${version}`);
+        if (!isFallback) {
+          return await this.getChapter('ENGKJV', book, chapter, true);
+        }
+        return null;
+      }
+      
+      console.log(`🔍 Using text fileset: ${textFileset.id} (${textFileset.type})`);
+      
       // Use the correct Bible Brain API endpoint for chapter content
-      // Based on testing, the correct format is: /api/bibles/{BibleId}/chapters/{chapter}
-      const chapterUrl = `${BIBLE_BRAIN_DIRECT_URL}/${version}/chapters/${chapter}?key=${BIBLE_BRAIN_API_KEY}&v=4`;
+      const chapterUrl = `${BIBLE_BRAIN_DIRECT_URL}/${version}/filesets/${textFileset.id}/${bibleBrainBook}/${chapter}?key=${BIBLE_BRAIN_API_KEY}&v=4`;
       console.log(`🔍 Bible Brain Chapter URL: ${chapterUrl}`);
       
       const response = await fetch(chapterUrl);
@@ -267,32 +307,11 @@ export const bibleBrainService = {
         console.error(`❌ Bible Brain chapter API error: ${response.status}`);
         console.error(`❌ Response: ${errorText}`);
         
-        // Handle specific error cases
-        if (response.status === 403) {
-          console.error(`❌ Permission denied for ${version}. This translation may require special permissions.`);
-          console.log(`🔍 Fallback check: isFallback=${isFallback}, version=${version}`);
-          
-          // Only try fallback if this is not already a fallback attempt
-          if (!isFallback) {
-            const fallbackVersions = ['ENGKJV', 'ENGESV', 'ENGNAS', 'ENGASV', 'ENGREV', 'ENGWEB'];
-            const fallbackVersion = fallbackVersions.find(v => v !== version);
-            
-            console.log(`🔍 Available fallback versions: ${fallbackVersions.join(', ')}`);
-            console.log(`🔍 Selected fallback version: ${fallbackVersion}`);
-            
-            if (fallbackVersion) {
-              console.log(`🔄 Attempting fallback to ${fallbackVersion} for ${book} chapter ${chapter}`);
-              return await this.getChapter(fallbackVersion, book, chapter, true);
-            } else {
-              console.log(`❌ No fallback version found for ${version}`);
-            }
-          } else {
-            console.log(`⚠️ Skipping fallback - already in fallback mode`);
-          }
-        } else if (response.status === 404) {
-          console.error(`❌ Chapter not found for ${version}. This translation may not be available.`);
+        // Try fallback if not already in fallback mode
+        if (!isFallback) {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter, true);
         }
-        
         return null;
       }
 
@@ -305,25 +324,23 @@ export const bibleBrainService = {
         return null;
       }
       
-      // Filter verses for the specific book and chapter
-      const bookVerses = data.data.filter((verse: any) => 
-        verse.book_id === bibleBrainBook && verse.chapter === chapter
-      );
+      console.log(`🔍 Found ${data.data.length} verses for ${book} chapter ${chapter}`);
       
-      console.log(`🔍 Found ${bookVerses.length} verses for ${book} chapter ${chapter}`);
-      
-      if (bookVerses.length === 0) {
+      if (data.data.length === 0) {
         console.error(`❌ No verses found for ${book} chapter ${chapter}`);
+        if (!isFallback) {
+          return await this.getChapter('ENGKJV', book, chapter, true);
+        }
         return null;
       }
       
       // Transform the response to match our interface
-      const verses = bookVerses.map((verse: any) => ({
+      const verses = data.data.map((verse: any, index: number) => ({
         book: book,
         chapter: chapter,
-        verse: String(verse.verse_start || verse.verse_start_alt || ''),
+        verse: String(verse.verse_start || verse.verse_sequence || index + 1),
         text: verse.verse_text || '',
-        reference: `${book} ${chapter}:${verse.verse_start || verse.verse_start_alt || ''}`,
+        reference: `${book} ${chapter}:${verse.verse_start || verse.verse_sequence || index + 1}`,
         version: version
       }));
       

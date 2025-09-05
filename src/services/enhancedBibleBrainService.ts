@@ -1,6 +1,26 @@
 // Enhanced Bible Brain Service with comprehensive English translations support
 import type { BibleVersion, BibleVerse, BibleChapter } from '@/types/bible';
 
+// Book mapping for Bible Brain API
+const BIBLE_BRAIN_BOOK_MAP: Record<string, string> = {
+  'genesis': 'GEN', 'exodus': 'EXO', 'leviticus': 'LEV', 'numbers': 'NUM',
+  'deuteronomy': 'DEU', 'joshua': 'JOS', 'judges': 'JDG', 'ruth': 'RUT',
+  '1-samuel': '1SA', '2-samuel': '2SA', '1-kings': '1KI', '2-kings': '2KI',
+  '1-chronicles': '1CH', '2-chronicles': '2CH', 'ezra': 'EZR', 'nehemiah': 'NEH',
+  'esther': 'EST', 'job': 'JOB', 'psalms': 'PSA', 'proverbs': 'PRO',
+  'ecclesiastes': 'ECC', 'song-of-solomon': 'SNG', 'isaiah': 'ISA', 'jeremiah': 'JER',
+  'lamentations': 'LAM', 'ezekiel': 'EZK', 'daniel': 'DAN', 'hosea': 'HOS',
+  'joel': 'JOL', 'amos': 'AMO', 'obadiah': 'OBA', 'jonah': 'JON',
+  'micah': 'MIC', 'nahum': 'NAM', 'habakkuk': 'HAB', 'zephaniah': 'ZEP',
+  'haggai': 'HAG', 'zechariah': 'ZEC', 'malachi': 'MAL', 'matthew': 'MAT',
+  'mark': 'MRK', 'luke': 'LUK', 'john': 'JHN', 'acts': 'ACT', 'romans': 'ROM',
+  '1-corinthians': '1CO', '2-corinthians': '2CO', 'galatians': 'GAL', 'ephesians': 'EPH',
+  'philippians': 'PHP', 'colossians': 'COL', '1-thessalonians': '1TH', '2-thessalonians': '2TH',
+  '1-timothy': '1TI', '2-timothy': '2TI', 'titus': 'TIT', 'philemon': 'PHM',
+  'hebrews': 'HEB', 'james': 'JAS', '1-peter': '1PE', '2-peter': '2PE',
+  '1-john': '1JN', '2-john': '2JN', '3-john': '3JN', 'jude': 'JUD', 'revelation': 'REV'
+};
+
 export interface EnhancedBibleVersion extends BibleVersion {
   category?: 'Traditional' | 'Modern' | 'Paraphrase' | 'Study' | 'Regional' | 'Other';
   popularity?: number;
@@ -295,5 +315,134 @@ export const enhancedBibleBrainService = {
     return allVersions
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
       .slice(0, limit);
+  },
+
+  // Get chapter content with verse text
+  async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
+    try {
+      console.log(`🔍 Enhanced Bible Brain: Fetching ${book} chapter ${chapter} (version: ${version})`);
+      
+      // Get the correct book ID for Bible Brain API
+      const bibleBrainBook = BIBLE_BRAIN_BOOK_MAP[book.toLowerCase()];
+      if (!bibleBrainBook) {
+        console.error(`❌ Unknown book: ${book}`);
+        return null;
+      }
+      
+      // First get the Bible info to find available text filesets
+      const bibleInfoUrl = `${BIBLE_BRAIN_DIRECT_URL}/${version}?key=${BIBLE_BRAIN_API_KEY}&v=4`;
+      console.log(`🔍 Fetching Bible info: ${bibleInfoUrl}`);
+      
+      const bibleInfoResponse = await fetch(bibleInfoUrl);
+      if (!bibleInfoResponse.ok) {
+        console.error(`❌ Bible info API error: ${bibleInfoResponse.status}`);
+        const errorText = await bibleInfoResponse.text();
+        console.error(`❌ Error response: ${errorText}`);
+        
+        // Try fallback to KJV if this is not already KJV
+        if (version !== 'ENGKJV') {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter);
+        }
+        return null;
+      }
+      
+      const bibleInfo = await bibleInfoResponse.json();
+      
+      if (!bibleInfo.data || !bibleInfo.data.filesets) {
+        console.error(`❌ No filesets found for ${version}`);
+        // Try fallback to KJV if this is not already KJV
+        if (version !== 'ENGKJV') {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter);
+        }
+        return null;
+      }
+      
+      // Find text filesets (prefer text_plain, fallback to text_format)
+      let textFileset = null;
+      for (const [source, filesets] of Object.entries(bibleInfo.data.filesets)) {
+        if (Array.isArray(filesets)) {
+          textFileset = filesets.find((fs: any) => 
+            fs.type === 'text_plain' || fs.type === 'text_format'
+          );
+          if (textFileset) break;
+        }
+      }
+      
+      if (!textFileset) {
+        console.error(`❌ No text fileset found for ${version}`);
+        // Try fallback to KJV if this is not already KJV
+        if (version !== 'ENGKJV') {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter);
+        }
+        return null;
+      }
+      
+      console.log(`🔍 Using text fileset: ${textFileset.id} (${textFileset.type})`);
+      
+      // Get chapter content using the correct fileset
+      const chapterUrl = `${BIBLE_BRAIN_DIRECT_URL}/${version}/filesets/${textFileset.id}/${bibleBrainBook}/${chapter}?key=${BIBLE_BRAIN_API_KEY}&v=4`;
+      console.log(`🔍 Fetching chapter: ${chapterUrl}`);
+      
+      const response = await fetch(chapterUrl);
+      
+      if (!response.ok) {
+        console.error(`❌ Chapter API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`❌ Error response: ${errorText}`);
+        
+        // Try fallback to KJV if this is not already KJV
+        if (version !== 'ENGKJV') {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter);
+        }
+        return null;
+      }
+      
+      const data = await response.json();
+      console.log(`🔍 Chapter response:`, data);
+      
+      if (!data.data || !Array.isArray(data.data)) {
+        console.error(`❌ Invalid chapter response format`);
+        // Try fallback to KJV if this is not already KJV
+        if (version !== 'ENGKJV') {
+          console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+          return await this.getChapter('ENGKJV', book, chapter);
+        }
+        return null;
+      }
+      
+      // Transform verses to match our interface
+      const verses: BibleVerse[] = data.data.map((verse: any, index: number) => ({
+        book: book,
+        chapter: chapter,
+        verse: String(verse.verse_start || verse.verse_sequence || index + 1),
+        text: verse.verse_text || '',
+        reference: `${book} ${chapter}:${verse.verse_start || verse.verse_sequence || index + 1}`,
+        version: version
+      }));
+      
+      const chapterData: BibleChapter = {
+        book: book,
+        chapter: chapter,
+        verses: verses,
+        text: verses.map(v => v.text).join(' '),
+        reference: `${book} ${chapter}`,
+        version: version
+      };
+      
+      console.log(`✅ Enhanced Bible Brain: Successfully loaded ${verses.length} verses`);
+      return chapterData;
+    } catch (error) {
+      console.error('❌ Enhanced Bible Brain chapter error:', error);
+      // Try fallback to KJV if this is not already KJV
+      if (version !== 'ENGKJV') {
+        console.log(`🔄 Attempting fallback to ENGKJV for ${book} chapter ${chapter}`);
+        return await this.getChapter('ENGKJV', book, chapter);
+      }
+      return null;
+    }
   }
 };
