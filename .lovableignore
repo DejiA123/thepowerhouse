@@ -1,0 +1,56 @@
+# Lovable ignore file - excludes files from deployment
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+test-*.js
+test-*.html
+*-test.html
+*-demo.html
+
+# SQL files
+*.sql
+
+# Shell scripts
+*.sh
+*.ps1
+
+# Documentation
+*.md
+!README.md
+
+# Deployment scripts
+deploy-*.sh
+deploy-*.ps1
+
+# Debug files
+debug-*.js
+
+# Archive files
+*.zip
+
+# Supabase functions (deployed separately)
+supabase/functions/
+
+# Local config
+.env.local
+.env.development
+
+# Editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build artifacts
+dist/
+build/
+.cache/

@@ -1,0 +1,36 @@
+# Ignore local audio assets to keep repo/deploy small
+public/audio-bible/
+
+# Optional: large local archives
+KJV_NT_Audio_TB.zip
+KJV_OT_Audio_TB.zip
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.local
+.env.*.local

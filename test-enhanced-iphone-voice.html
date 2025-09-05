@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced iPhone Voice Quality Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-green-50 min-h-screen p-6">
+    <div class="container mx-auto max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🎤 Enhanced iPhone Voice Quality</h1>
+            <p class="text-gray-600">High-quality voices with natural punctuation pauses</p>
+            <div class="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full mt-4">
+                <span class="text-2xl">📱</span>
+                <span class="font-semibold">Optimized for iPhone Bible Reading</span>
+            </div>
+        </div>
+
+        <!-- Device Detection -->
+        <div id="deviceInfo" class="bg-white rounded-lg shadow p-4 mb-6"></div>
+
+        <!-- Voice Quality Features -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Enhanced Features -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                <h2 class="text-xl font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                    ✨ Enhanced Features
+                </h2>
+                <ul class="space-y-2 text-blue-700">
+                    <li class="flex items-start gap-2">
+                        <span class="text-blue-500">🎯</span>
+                        <span><strong>Premium Voice Selection:</strong> Daniel (Enhanced), Alex (Enhanced), Samantha (Enhanced)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-blue-500">🗣️</span>
+                        <span><strong>Natural Punctuation:</strong> Pauses for periods, commas, questions without speaking marks</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-blue-500">📈</span>
+                        <span><strong>Quality Scoring:</strong> Automatic selection of highest quality voice available</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-blue-500">⚡</span>
+                        <span><strong>Optimized Settings:</strong> Perfect pitch (1.6) and rate (0.5) for iPhone</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Voice Priorities -->
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                <h2 class="text-xl font-semibold text-green-800 mb-4 flex items-center gap-2">
+                    🏆 Voice Priority Order
+                </h2>
+                <ol class="space-y-2 text-green-700">
+                    <li class="flex items-center gap-2">
+                        <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">1</span>
+                        <span><strong>Daniel (Enhanced)</strong> - British, Premium</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">2</span>
+                        <span><strong>Alex (Enhanced)</strong> - US, Premium</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">3</span>
+                        <span><strong>Samantha (Enhanced)</strong> - US Female, Premium</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="bg-gray-400 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">4</span>
+                        <span>Daniel, Alex, Samantha (Standard)</span>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Test Samples -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">🧪 Test Sample Texts</h2>
+            
+            <div class="space-y-6">
+                <!-- Sample 1: Bible Verse with Punctuation -->
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <h3 class="font-semibold text-gray-800 mb-2">📖 Bible Verse (John 3:16)</h3>
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200 mb-3">
+                        <p id="sample1" class="text-gray-700 italic">
+                            "For God so loved the world, that he gave his only begotten Son, 
+                            that whosoever believeth in him should not perish, but have everlasting life."
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="testVoice('sample1', false)" 
+                                class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            Standard Speech
+                        </button>
+                        <button onclick="testVoice('sample1', true)" 
+                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Enhanced + Punctuation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sample 2: Complex Punctuation -->
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <h3 class="font-semibold text-gray-800 mb-2">📝 Complex Punctuation Test</h3>
+                    <div class="bg-purple-50 p-3 rounded border border-purple-200 mb-3">
+                        <p id="sample2" class="text-gray-700 italic">
+                            Jesus said, "I am the way, the truth, and the life: no man cometh unto the Father, but by me." 
+                            How wonderful! What grace; what love—eternal and unchanging.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="testVoice('sample2', false)" 
+                                class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            Standard Speech
+                        </button>
+                        <button onclick="testVoice('sample2', true)" 
+                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Enhanced + Punctuation
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sample 3: Questions and Exclamations -->
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <h3 class="font-semibold text-gray-800 mb-2">❓ Questions & Exclamations</h3>
+                    <div class="bg-orange-50 p-3 rounded border border-orange-200 mb-3">
+                        <p id="sample3" class="text-gray-700 italic">
+                            Who shall separate us from the love of Christ? Shall tribulation, or distress, 
+                            or persecution, or famine? Nay, in all these things we are more than conquerors!
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="testVoice('sample3', false)" 
+                                class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            Standard Speech
+                        </button>
+                        <button onclick="testVoice('sample3', true)" 
+                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Enhanced + Punctuation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voice Information -->
+        <div id="voiceInfo" class="bg-white rounded-lg shadow p-6 mb-8"></div>
+
+        <!-- Controls -->
+        <div class="bg-gray-50 rounded-lg p-6 border">
+            <h3 class="font-semibold text-gray-800 mb-4">🎛️ Voice Controls</h3>
+            <div class="flex gap-4">
+                <button onclick="stopSpeech()" 
+                        class="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600">
+                    ⏹️ Stop
+                </button>
+                <button onclick="pauseSpeech()" 
+                        class="bg-yellow-500 text-white px-6 py-2 rounded hover:bg-yellow-600">
+                    ⏸️ Pause
+                </button>
+                <button onclick="resumeSpeech()" 
+                        class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                    ▶️ Resume
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced iPhone Voice Service (Simplified for demo)
+        class EnhancedIPhoneVoiceDemo {
+            constructor() {
+                this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                this.currentUtterance = null;
+                this.enhancedVoices = [];
+                this.loadVoices();
+            }
+
+            loadVoices() {
+                const loadVoicesFunc = () => {
+                    this.enhancedVoices = speechSynthesis.getVoices();
+                    this.displayVoiceInfo();
+                };
+
+                if (speechSynthesis.getVoices().length > 0) {
+                    loadVoicesFunc();
+                } else {
+                    speechSynthesis.addEventListener('voiceschanged', loadVoicesFunc, { once: true });
+                }
+            }
+
+            getBestQualityVoice() {
+                const voices = this.enhancedVoices.filter(v => v.lang.startsWith('en-'));
+                
+                const highQualityVoicePriority = [
+                    'Daniel (Enhanced)', 'Alex (Enhanced)', 'Samantha (Enhanced)',
+                    'Karen (Enhanced)', 'Serena (Enhanced)',
+                    'Daniel (Premium)', 'Alex (Premium)', 'Samantha (Premium)',
+                    'Daniel', 'Alex', 'Samantha', 'Karen', 'Serena',
+                    'Aaron', 'Fred', 'Thomas'
+                ];
+
+                for (const voiceName of highQualityVoicePriority) {
+                    const voice = voices.find(v => 
+                        v.name === voiceName || 
+                        v.name.includes(voiceName) ||
+                        v.name.toLowerCase().includes(voiceName.toLowerCase())
+                    );
+                    
+                    if (voice) {
+                        console.log(`🎤 Selected voice: ${voice.name}`);
+                        return voice;
+                    }
+                }
+
+                return voices[0] || null;
+            }
+
+            processTextForNaturalSpeech(text) {
+                if (!text) return text;
+
+                let processedText = text
+                    .replace(/\./g, ' ... ')
+                    .replace(/,/g, ' .. ')
+                    .replace(/;/g, ' ... ')
+                    .replace(/:/g, ' .. ')
+                    .replace(/\?/g, ' .... ')
+                    .replace(/!/g, ' ... ')
+                    .replace(/--/g, ' ... ')
+                    .replace(/—/g, ' ... ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                return processedText;
+            }
+
+            speak(text, useEnhancedProcessing = false) {
+                this.stop();
+
+                const processedText = useEnhancedProcessing 
+                    ? this.processTextForNaturalSpeech(text)
+                    : text;
+
+                const utterance = new SpeechSynthesisUtterance(processedText);
+                
+                if (useEnhancedProcessing) {
+                    const bestVoice = this.getBestQualityVoice();
+                    if (bestVoice) {
+                        utterance.voice = bestVoice;
+                    }
+                }
+
+                utterance.pitch = 1.6;
+                utterance.rate = 0.5;
+                utterance.volume = 1.0;
+                utterance.lang = 'en-US';
+
+                utterance.onstart = () => console.log('🎤 Speech started');
+                utterance.onend = () => {
+                    console.log('🎤 Speech ended');
+                    this.currentUtterance = null;
+                };
+                utterance.onerror = (e) => console.error('🎤 Speech error:', e);
+
+                this.currentUtterance = utterance;
+                speechSynthesis.speak(utterance);
+            }
+
+            stop() {
+                if (this.currentUtterance) {
+                    speechSynthesis.cancel();
+                    this.currentUtterance = null;
+                }
+            }
+
+            pause() {
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.pause();
+                }
+            }
+
+            resume() {
+                if (speechSynthesis.paused) {
+                    speechSynthesis.resume();
+                }
+            }
+
+            displayVoiceInfo() {
+                const voices = this.enhancedVoices.filter(v => v.lang.startsWith('en-'));
+                const bestVoice = this.getBestQualityVoice();
+                
+                const voiceInfo = document.getElementById('voiceInfo');
+                voiceInfo.innerHTML = `
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">🎤 Available Voices</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="font-semibold text-green-800 mb-2">Selected Best Quality Voice:</h3>
+                            <div class="bg-green-50 p-3 rounded border border-green-200">
+                                <div class="font-semibold text-green-800">${bestVoice ? bestVoice.name : 'None'}</div>
+                                <div class="text-sm text-green-600">${bestVoice ? bestVoice.lang : ''}</div>
+                                <div class="text-xs text-green-500">${bestVoice ? (bestVoice.localService ? 'Local' : 'Remote') : ''}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-2">All Available Voices:</h3>
+                            <div class="max-h-32 overflow-y-auto space-y-1">
+                                ${voices.map(voice => `
+                                    <div class="text-sm p-2 ${voice === bestVoice ? 'bg-green-100 border border-green-300' : 'bg-gray-100'} rounded">
+                                        <div class="font-medium">${voice.name}</div>
+                                        <div class="text-xs text-gray-600">${voice.lang} • ${voice.localService ? 'Local' : 'Remote'}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize
+        const enhancedVoice = new EnhancedIPhoneVoiceDemo();
+
+        // Display device info
+        function displayDeviceInfo() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const deviceInfo = document.getElementById('deviceInfo');
+            deviceInfo.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">${isIOS ? '📱' : '🖥️'}</span>
+                        <span class="font-semibold">${isIOS ? 'iPhone/iPad Detected' : 'Desktop/Android Device'}</span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Enhanced voice features: ${isIOS ? '✅ Available' : '⚠️ Limited'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Test voice function
+        function testVoice(elementId, useEnhanced) {
+            const text = document.getElementById(elementId).textContent;
+            enhancedVoice.speak(text, useEnhanced);
+        }
+
+        // Control functions
+        function stopSpeech() {
+            enhancedVoice.stop();
+        }
+
+        function pauseSpeech() {
+            enhancedVoice.pause();
+        }
+
+        function resumeSpeech() {
+            enhancedVoice.resume();
+        }
+
+        // Initialize on load
+        displayDeviceInfo();
+    </script>
+</body>
+</html>

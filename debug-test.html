@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test - YouTube Videos & Audio Bible</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; color: #d32f2f; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .audio-controls { display: flex; gap: 10px; margin: 10px 0; }
+        .status { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Test - YouTube Videos & Audio Bible</h1>
+    
+    <!-- YouTube API Test Section -->
+    <div class="section">
+        <h2>📺 YouTube API Test</h2>
+        <p>Test the Supabase YouTube API function to see if fallback videos are working.</p>
+        
+        <div>
+            <label>Supabase URL:</label><br>
+            <input type="text" id="supabaseUrl" placeholder="https://your-project.supabase.co" style="width: 100%; margin: 5px 0;">
+        </div>
+        <div>
+            <label>Supabase Anon Key:</label><br>
+            <input type="text" id="supabaseKey" placeholder="your-anon-key" style="width: 100%; margin: 5px 0;">
+        </div>
+        
+        <button onclick="testYouTubeAPI()">Test YouTube API</button>
+        <button onclick="clearYouTubeResults()">Clear Results</button>
+        
+        <div id="youtubeResults"></div>
+    </div>
+
+    <!-- Audio Bible Test Section -->
+    <div class="section">
+        <h2>🎵 Audio Bible Background Test</h2>
+        <p>Test if the audio Bible can play in the background and continue when screen is locked.</p>
+        
+        <div class="audio-controls">
+            <button onclick="testAudioBible()">Test Audio Bible</button>
+            <button onclick="pauseAudio()">Pause</button>
+            <button onclick="resumeAudio()">Resume</button>
+            <button onclick="stopAudio()">Stop</button>
+        </div>
+        
+        <div id="audioResults"></div>
+        <div id="audioStatus" class="status"></div>
+    </div>
+
+    <!-- Browser Support Test -->
+    <div class="section">
+        <h2>🌐 Browser Support Test</h2>
+        <button onclick="testBrowserSupport()">Test Browser Support</button>
+        <div id="browserResults"></div>
+    </div>
+
+    <script>
+        let currentUtterance = null;
+        let audioContext = null;
+
+        // YouTube API Test
+        async function testYouTubeAPI() {
+            const resultsDiv = document.getElementById('youtubeResults');
+            const supabaseUrl = document.getElementById('supabaseUrl').value;
+            const supabaseKey = document.getElementById('supabaseKey').value;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                resultsDiv.innerHTML = '<div class="result error">Please enter Supabase URL and Anon Key</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="result">Testing YouTube API function...</div>';
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/functions/v1/fetch-youtube-videos`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ timestamp: Date.now() })
+                });
+                
+                const data = await response.json();
+                
+                console.log('YouTube API Response:', data);
+                
+                let resultHTML = `
+                    <div class="result success">
+                        <h3>✅ API Response Received</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Videos Count:</strong> ${data.videos ? data.videos.length : 'No videos'}</p>
+                        <p><strong>Error:</strong> ${data.error || 'None'}</p>
+                        <p><strong>Is Fallback:</strong> ${data.isFallback || 'No'}</p>
+                        <p><strong>Cache Status:</strong> ${response.headers.get('X-Cache') || 'Unknown'}</p>
+                    </div>
+                `;
+                
+                if (data.videos && data.videos.length > 0) {
+                    resultHTML += '<div class="result"><h4>Videos Found:</h4><ul>';
+                    data.videos.forEach(video => {
+                        resultHTML += `
+                            <li>
+                                <strong>ID:</strong> ${video.id}<br>
+                                <strong>Title:</strong> ${video.title}<br>
+                                <strong>Channel:</strong> ${video.channelTitle || 'Unknown'}
+                            </li>
+                        `;
+                    });
+                    resultHTML += '</ul></div>';
+                } else {
+                    resultHTML += '<div class="result warning">No videos found in response</div>';
+                }
+                
+                resultsDiv.innerHTML = resultHTML;
+                
+            } catch (error) {
+                console.error('Error testing YouTube API:', error);
+                resultsDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error Testing API</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function clearYouTubeResults() {
+            document.getElementById('youtubeResults').innerHTML = '';
+        }
+
+        // Audio Bible Test
+        async function testAudioBible() {
+            const resultsDiv = document.getElementById('audioResults');
+            const statusDiv = document.getElementById('audioStatus');
+            
+            resultsDiv.innerHTML = '<div class="result">Testing Audio Bible background functionality...</div>';
+            
+            try {
+                // Initialize audio context
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                
+                // Set up media session
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: 'Test Audio Bible',
+                        artist: 'The Power House International',
+                        album: 'Audio Bible Test'
+                    });
+                    
+                    navigator.mediaSession.setActionHandler('play', resumeAudio);
+                    navigator.mediaSession.setActionHandler('pause', pauseAudio);
+                    navigator.mediaSession.setActionHandler('stop', stopAudio);
+                }
+                
+                // Test text
+                const testText = "This is a test of the audio Bible background functionality. The audio should continue playing even when the screen is locked or the app is in the background.";
+                
+                if ('speechSynthesis' in window) {
+                    // Cancel any existing speech
+                    window.speechSynthesis.cancel();
+                    
+                    const utterance = new SpeechSynthesisUtterance(testText);
+                    utterance.rate = 0.75;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    utterance.lang = 'en-US';
+                    
+                    currentUtterance = utterance;
+                    
+                    utterance.onstart = () => {
+                        statusDiv.innerHTML = '🎵 Audio playing...';
+                        navigator.mediaSession.playbackState = 'playing';
+                        resultsDiv.innerHTML = '<div class="result success">✅ Audio started successfully</div>';
+                    };
+                    
+                    utterance.onend = () => {
+                        statusDiv.innerHTML = '⏹️ Audio stopped';
+                        navigator.mediaSession.playbackState = 'none';
+                        currentUtterance = null;
+                    };
+                    
+                    utterance.onerror = (event) => {
+                        statusDiv.innerHTML = '❌ Audio error';
+                        resultsDiv.innerHTML = `<div class="result error">❌ Audio error: ${event.error}</div>`;
+                        currentUtterance = null;
+                    };
+                    
+                    window.speechSynthesis.speak(utterance);
+                    
+                } else {
+                    resultsDiv.innerHTML = '<div class="result error">❌ Speech synthesis not supported</div>';
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function pauseAudio() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.pause();
+                document.getElementById('audioStatus').innerHTML = '⏸️ Audio paused';
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'paused';
+                }
+            }
+        }
+
+        function resumeAudio() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.resume();
+                document.getElementById('audioStatus').innerHTML = '🎵 Audio playing...';
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                }
+            }
+        }
+
+        function stopAudio() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                document.getElementById('audioStatus').innerHTML = '⏹️ Audio stopped';
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'none';
+                }
+                currentUtterance = null;
+            }
+        }
+
+        // Browser Support Test
+        function testBrowserSupport() {
+            const resultsDiv = document.getElementById('browserResults');
+            
+            let results = '<div class="result"><h4>Browser Support Check:</h4><ul>';
+            
+            // Check Speech Synthesis
+            if ('speechSynthesis' in window) {
+                results += '<li>✅ Speech Synthesis API: Supported</li>';
+            } else {
+                results += '<li>❌ Speech Synthesis API: Not Supported</li>';
+            }
+            
+            // Check Media Session
+            if ('mediaSession' in navigator) {
+                results += '<li>✅ Media Session API: Supported</li>';
+            } else {
+                results += '<li>❌ Media Session API: Not Supported</li>';
+            }
+            
+            // Check Audio Context
+            if (window.AudioContext || window.webkitAudioContext) {
+                results += '<li>✅ Web Audio API: Supported</li>';
+            } else {
+                results += '<li>❌ Web Audio API: Not Supported</li>';
+            }
+            
+            // Check iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            results += `<li>📱 iOS Device: ${isIOS ? 'Yes' : 'No'}</li>`;
+            
+            // Check voices
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                const danielVoice = voices.find(v => v.name.includes('Daniel'));
+                results += `<li>🎤 Daniel Voice: ${danielVoice ? 'Available' : 'Not Available'}</li>`;
+                results += `<li>🎤 Total Voices: ${voices.length}</li>`;
+            }
+            
+            results += '</ul></div>';
+            
+            resultsDiv.innerHTML = results;
+        }
+
+        // Auto-load browser support on page load
+        window.addEventListener('load', () => {
+            setTimeout(testBrowserSupport, 1000);
+        });
+    </script>
+</body>
+</html> 

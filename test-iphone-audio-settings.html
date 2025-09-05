@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone Bible Audio Test - Pitch 1.6, Rate 0.5</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .control-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .value-display {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .test-text {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007AFF;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 iPhone Bible Audio Test</h1>
+    <p>Testing pitch and rate controls for Bible audio playback</p>
+    
+    <div class="test-section">
+        <h2>🎯 Target Settings</h2>
+        <p><strong>Pitch:</strong> <span class="value-display">1.6</span> (Higher pitch)</p>
+        <p><strong>Rate:</strong> <span class="value-display">0.5</span> (Much slower speed)</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🎛️ Audio Controls</h2>
+        
+        <div class="control-group">
+            <label for="pitch">Pitch: <span class="value-display" id="pitchValue">1.6</span></label>
+            <input type="range" id="pitch" min="0.5" max="2.0" step="0.01" value="1.6">
+            <div>Lower (0.5) ← → Higher (2.0)</div>
+        </div>
+
+        <div class="control-group">
+            <label for="rate">Rate: <span class="value-display" id="rateValue">0.5</span></label>
+            <input type="range" id="rate" min="0.25" max="2.0" step="0.01" value="0.5">
+            <div>Slower (0.25) ← → Faster (2.0)</div>
+        </div>
+
+        <div class="control-group">
+            <button id="testAudio">🎵 Test Audio with Current Settings</button>
+            <button id="testDefault">🎯 Test with Target Settings (1.6, 0.5)</button>
+            <button id="stopAudio">⏹️ Stop Audio</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📖 Test Text</h2>
+        <div class="test-text">
+            "In the beginning God created the heaven and the earth. And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters."
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Status & Logs</h2>
+        <div id="status"></div>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        // Initialize variables
+        let currentPitch = 1.6;
+        let currentRate = 0.5;
+        let isPlaying = false;
+        let currentUtterance = null;
+
+        // DOM elements
+        const pitchSlider = document.getElementById('pitch');
+        const rateSlider = document.getElementById('rate');
+        const pitchValue = document.getElementById('pitchValue');
+        const rateValue = document.getElementById('rateValue');
+        const testAudioBtn = document.getElementById('testAudio');
+        const testDefaultBtn = document.getElementById('testDefault');
+        const stopAudioBtn = document.getElementById('stopAudio');
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        // Update display values
+        function updateDisplay() {
+            pitchValue.textContent = currentPitch.toFixed(2);
+            rateValue.textContent = currentRate.toFixed(2);
+        }
+
+        // Log function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `status ${type}`;
+            logEntry.innerHTML = `<strong>${timestamp}:</strong> ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        // Update status
+        function updateStatus(message, type = 'info') {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Check iPhone detection
+        function checkIPhone() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            log(`Device detection: ${isIOS ? 'iPhone/iPad detected' : 'Not iPhone/iPad'}`, 'info');
+            return isIOS;
+        }
+
+        // Check speech synthesis support
+        function checkSpeechSynthesis() {
+            if ('speechSynthesis' in window) {
+                log('✅ Speech synthesis is supported', 'success');
+                return true;
+            } else {
+                log('❌ Speech synthesis is NOT supported', 'error');
+                return false;
+            }
+        }
+
+        // Initialize speech synthesis for iOS
+        function initSpeechSynthesis() {
+            if (checkIPhone()) {
+                log('📱 Initializing speech synthesis for iOS...', 'info');
+                
+                // Try to load voices immediately
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    log(`✅ iOS: ${voices.length} voices loaded immediately`, 'success');
+                } else {
+                    log('⚠️ iOS: No voices loaded immediately, waiting for onvoiceschanged...', 'info');
+                }
+
+                // Set up voices changed handler
+                window.speechSynthesis.onvoiceschanged = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    log(`✅ iOS: onvoiceschanged fired, ${voices.length} voices available`, 'success');
+                };
+            }
+        }
+
+        // Test audio with current settings
+        function testAudio() {
+            if (!checkSpeechSynthesis()) return;
+
+            const testText = "Testing audio with pitch " + currentPitch.toFixed(2) + " and rate " + currentRate.toFixed(2) + ". This is a test of the Bible audio system.";
+            
+            log(`🎵 Testing audio: Pitch=${currentPitch.toFixed(2)}, Rate=${currentRate.toFixed(2)}`, 'info');
+            
+            // Stop any existing audio
+            if (currentUtterance) {
+                window.speechSynthesis.cancel();
+            }
+
+            // Create new utterance
+            currentUtterance = new SpeechSynthesisUtterance(testText);
+            currentUtterance.pitch = currentPitch;
+            currentUtterance.rate = currentRate;
+            currentUtterance.volume = 1.0;
+            currentUtterance.lang = 'en-US';
+
+            // Log utterance properties
+            log(`📊 Utterance created:`, 'info');
+            log(`   Pitch: ${currentUtterance.pitch}`, 'info');
+            log(`   Rate: ${currentUtterance.rate}`, 'info');
+            log(`   Volume: ${currentUtterance.volume}`, 'info');
+            log(`   Language: ${currentUtterance.lang}`, 'info');
+
+            // Set up event handlers
+            currentUtterance.onstart = () => {
+                isPlaying = true;
+                updateStatus(`🎵 Playing audio with Pitch: ${currentPitch.toFixed(2)}, Rate: ${currentRate.toFixed(2)}`, 'success');
+                log('✅ Audio started playing', 'success');
+                updateButtons();
+            };
+
+            currentUtterance.onend = () => {
+                isPlaying = false;
+                updateStatus('✅ Audio playback completed', 'info');
+                log('✅ Audio playback completed', 'success');
+                updateButtons();
+            };
+
+            currentUtterance.onerror = (event) => {
+                isPlaying = false;
+                updateStatus(`❌ Audio error: ${event.error}`, 'error');
+                log(`❌ Audio error: ${event.error}`, 'error');
+                updateButtons();
+            };
+
+            // Start playback
+            try {
+                window.speechSynthesis.speak(currentUtterance);
+                log('🚀 Speech synthesis started', 'info');
+            } catch (error) {
+                log(`❌ Error starting speech synthesis: ${error.message}`, 'error');
+            }
+        }
+
+        // Test with target settings
+        function testTargetSettings() {
+            currentPitch = 1.6;
+            currentRate = 0.5;
+            pitchSlider.value = currentPitch;
+            rateSlider.value = currentRate;
+            updateDisplay();
+            testAudio();
+        }
+
+        // Stop audio
+        function stopAudio() {
+            if (currentUtterance) {
+                window.speechSynthesis.cancel();
+                currentUtterance = null;
+                isPlaying = false;
+                updateStatus('⏹️ Audio stopped', 'info');
+                log('⏹️ Audio stopped by user', 'info');
+                updateButtons();
+            }
+        }
+
+        // Update button states
+        function updateButtons() {
+            testAudioBtn.disabled = isPlaying;
+            testDefaultBtn.disabled = isPlaying;
+            stopAudioBtn.disabled = !isPlaying;
+        }
+
+        // Event listeners
+        pitchSlider.addEventListener('input', (e) => {
+            currentPitch = parseFloat(e.target.value);
+            updateDisplay();
+        });
+
+        rateSlider.addEventListener('input', (e) => {
+            currentRate = parseFloat(e.target.value);
+            updateDisplay();
+        });
+
+        testAudioBtn.addEventListener('click', testAudio);
+        testDefaultBtn.addEventListener('click', testTargetSettings);
+        stopAudioBtn.addEventListener('click', stopAudio);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Test page loaded', 'info');
+            checkIPhone();
+            initSpeechSynthesis();
+            updateDisplay();
+            updateButtons();
+            updateStatus('Ready to test audio settings', 'info');
+        });
+    </script>
+</body>
+</html>

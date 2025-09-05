@@ -1,0 +1,91 @@
+{
+  "name": "PowerHouse Connect",
+  "short_name": "PowerHouse",
+  "description": "The PowerHouse International Church App - Connect, Grow, Serve",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["lifestyle", "education", "religion"],
+  "theme_colors": [
+    {
+      "media": "(prefers-color-scheme: light)",
+      "color": "#ffffff"
+    },
+    {
+      "media": "(prefers-color-scheme: dark)",
+      "color": "#0a0a0a"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/bible-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bible-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/bible-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/bible-icon.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bible",
+      "short_name": "Bible",
+      "description": "Open Bible reader",
+      "url": "/bible",
+      "icons": [
+        {
+          "src": "/bible-icon.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Prayer Wall",
+      "short_name": "Prayer",
+      "description": "View prayer requests",
+      "url": "/prayer-wall",
+      "icons": [
+        {
+          "src": "/bible-icon.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+powerhouse",
+      "url": "/%s"
+    }
+  ]
+}

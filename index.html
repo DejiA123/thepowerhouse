@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PowerHouse Connect</title>
+    <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
+    <meta name="author" content="PowerHouse International" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Preload hero/card images to avoid Safari background-image blanks -->
+    <!-- Removed eager preloads to avoid console warnings and wasted bandwidth -->
+    
+    <!-- PWA Meta Tags -->
+    <!-- Match Safari status bar to app background to avoid blue bar -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- Force a solid iOS status bar to avoid content showing through -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Powerhouse Connect">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-orientations" content="portrait">
+    
+    <!-- Runtime app config for platforms without env vars (e.g., Lovable free tier) -->
+    <script>
+      window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
+      // Set your Supabase public storage base URL for audio MP3s here
+      // Example: https://<project-ref>.supabase.co/storage/v1/object/public/audio-bible
+      window.__APP_CONFIG__.audioCdnBase = "https://swjzhzmhqyvwfwevijja.storage.supabase.co/storage/v1/object/public/audio-bible";
+      window.__APP_CONFIG__.mp3Only = true;
+    </script>
+    
+    <!-- Audio Session Meta Tags for Background Audio (deduplicated) -->
+    <!-- iOS/Android capability already declared above; keeping status bar translucent for iOS PWA -->
+
+    <meta property="og:title" content="PowerHouse Connect" />
+    <meta property="og:description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/bible-icon.svg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@powerhouse_intl" />
+    <meta name="twitter:image" content="/bible-icon.svg" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/bible-icon.svg" />
+    <link rel="apple-touch-icon" href="/bible-icon.svg" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <style>
+      /* Prevent blue rubber-band background bleed behind the notch/status area on iOS Safari */
+      html, body {
+        background-color: #ffffff;
+        transition: background-color 0.3s ease;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        html, body {
+          background-color: #0a0a0a;
+        }
+      }
+      
+      /* Force dark theme when dark class is applied */
+      html.dark, html.dark body {
+        background-color: #0a0a0a !important;
+      }
+      
+      /* Force light theme when light class is applied */
+      html.light, html.light body {
+        background-color: #ffffff !important;
+      }
+      
+      /* Ensure body spans full viewport height so status bar overlays same color */
+      html, body { 
+        height: 100%; 
+        margin: 0;
+        padding: 0;
+      }
+      
+      #root { 
+        min-height: 100%; 
+        background-color: inherit; 
+      }
+      
+      /* Status bar background styling */
+      .status-bar-bg {
+        background-color: #ffffff;
+        transition: background-color 0.3s ease;
+      }
+      
+      html.dark .status-bar-bg {
+        background-color: #0a0a0a !important;
+      }
+      
+      html.light .status-bar-bg {
+        background-color: #ffffff !important;
+      }
+    </style>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration (skip in development) -->
+    <script>
+      if ('serviceWorker' in navigator && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('🎵 Service Worker registered:', registration);
+            })
+            .catch((error) => {
+              console.log('❌ Service Worker registration failed:', error);
+            });
+        });
+      } else {
+        console.log('🔧 Development mode: Skipping service worker registration');
+      }
+    </script>
+  </body>
+</html>

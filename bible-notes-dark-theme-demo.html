@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Notes Dark Theme Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+    <style>
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div class="container mx-auto p-6 max-w-7xl">
+        <!-- Theme Toggle -->
+        <div class="fixed top-4 right-4 z-50">
+            <button onclick="toggleDarkMode()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors duration-200">
+                🌓 Toggle Theme
+            </button>
+        </div>
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+                <button class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100">
+                    ← Back to Bible
+                </button>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Bible Notes</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Capture insights and reflections</p>
+                </div>
+            </div>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                + New Note
+            </button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">12</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Total Notes</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">3</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Favorites</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">5</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Pinned</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">2</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Private</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Filters</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <!-- Search -->
+                        <div class="relative">
+                            <div class="absolute left-3 top-3 h-4 w-4 text-gray-400 dark:text-gray-500">🔍</div>
+                            <input type="text" 
+                                   placeholder="Search notes..." 
+                                   class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+
+                        <!-- Category Filter -->
+                        <div>
+                            <label class="text-sm font-medium mb-2 block text-gray-900 dark:text-gray-100">Category</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                                <option>All Categories</option>
+                                <option>💡 Insight</option>
+                                <option>❓ Question</option>
+                                <option>🙏 Prayer</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort Options -->
+                        <div>
+                            <label class="text-sm font-medium mb-2 block text-gray-900 dark:text-gray-100">Sort By</label>
+                            <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                                <option>Date</option>
+                                <option>Book</option>
+                                <option>Title</option>
+                            </select>
+                            <button class="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                ↓ Descending
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Grid -->
+            <div class="lg:col-span-3">
+                <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
+                    <!-- Sample Note Card -->
+                    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-4 h-4 text-blue-500">📌</div>
+                                        <div class="w-4 h-4 text-yellow-500">⭐</div>
+                                    </div>
+                                    <h3 class="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">
+                                        Faith and Trust
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4">
+                            <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
+                                This passage speaks to me about the importance of trusting in God's plan even when we cannot see the full picture. Sometimes we need to step out in faith, knowing that God will guide our steps.
+                            </p>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                    💡 Insight
+                                </span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t dark:border-gray-600">
+                                <span>Nov 15, 2024</span>
+                                <div class="flex items-center gap-2">
+                                    <button class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">✏️</button>
+                                    <button class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">👁️</button>
+                                    <button class="p-1 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 rounded">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Another Sample Note Card -->
+                    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-4 h-4 text-gray-500">🔒</div>
+                                    </div>
+                                    <h3 class="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">
+                                        Prayer Request
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4">
+                            <p class="text-sm text-gray-700 dark:text-gray-300 mb-4 line-clamp-3">
+                                Lord, help me to remember that You are always with me, especially during difficult times. Grant me the wisdom to make good decisions and the strength to persevere.
+                            </p>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                    🙏 Prayer
+                                </span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t dark:border-gray-600">
+                                <span>Nov 14, 2024</span>
+                                <div class="flex items-center gap-2">
+                                    <button class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">✏️</button>
+                                    <button class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">👁️</button>
+                                    <button class="p-1 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 rounded">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sample Dialog Demo -->
+        <div class="mt-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Create New Note Dialog Preview</h2>
+            
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium mb-2 block text-gray-900 dark:text-gray-100">Title (optional)</label>
+                        <input type="text" 
+                               placeholder="Note title" 
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium mb-2 block text-gray-900 dark:text-gray-100">Category</label>
+                        <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500">
+                            <option>💡 Insight</option>
+                            <option>❓ Question</option>
+                            <option>🙏 Prayer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium mb-2 block text-gray-900 dark:text-gray-100">Note Content *</label>
+                    <textarea placeholder="Write your note here..." 
+                              rows="6" 
+                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                </div>
+
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="rounded">
+                        <span class="text-sm text-gray-900 dark:text-gray-100">Mark as Favorite</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="rounded">
+                        <span class="text-sm text-gray-900 dark:text-gray-100">Pin Note</span>
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" class="rounded">
+                        <span class="text-sm text-gray-900 dark:text-gray-100">Private Note</span>
+                    </label>
+                </div>
+
+                <div class="flex gap-2 justify-end pt-4 border-t dark:border-gray-600">
+                    <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100">
+                        Cancel
+                    </button>
+                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                        Save Note
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature List -->
+        <div class="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+            <h3 class="text-lg font-semibold mb-4 text-blue-900 dark:text-blue-100">✅ Dark Theme Fixes Applied</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800 dark:text-blue-200">
+                <div>
+                    <h4 class="font-medium mb-2">Background Colors:</h4>
+                    <ul class="space-y-1 pl-4">
+                        <li>• Main container: dark:bg-gray-900</li>
+                        <li>• Cards: dark:bg-gray-800</li>
+                        <li>• Dialogs: dark:bg-gray-800</li>
+                        <li>• Input fields: dark:bg-gray-700</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Text Colors:</h4>
+                    <ul class="space-y-1 pl-4">
+                        <li>• Headings: dark:text-gray-100</li>
+                        <li>• Body text: dark:text-gray-300</li>
+                        <li>• Secondary text: dark:text-gray-400</li>
+                        <li>• Placeholders: dark:placeholder:text-gray-400</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Border Colors:</h4>
+                    <ul class="space-y-1 pl-4">
+                        <li>• Card borders: dark:border-gray-700</li>
+                        <li>• Input borders: dark:border-gray-600</li>
+                        <li>• Separator borders: dark:border-gray-600</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Interactive Elements:</h4>
+                    <ul class="space-y-1 pl-4">
+                        <li>• Button hovers: dark:hover:bg-gray-700</li>
+                        <li>• Delete hovers: dark:hover:bg-red-900</li>
+                        <li>• Icon colors adapted</li>
+                        <li>• Badge colors: dark:bg-gray-700</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        }
+
+        // Initialize dark mode from localStorage
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toast Swipe Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            z-index: 1000;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            /* Prevent scroll interference */
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+
+        
+        .toast-content {
+            margin-left: 20px;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .toast-description {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .close-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-6">Toast Swipe Test</h1>
+        <p class="mb-4">Test the toast notification swipe functionality:</p>
+        <ul class="list-disc list-inside mb-6 space-y-2">
+            <li><strong>Right swipe</strong> → Dismiss toast</li>
+            <li><strong>Left swipe</strong> → Dismiss toast</li>
+            <li><strong>Upward swipe</strong> → Dismiss toast</li>
+            <li><strong>Click X button</strong> → Dismiss toast</li>
+        </ul>
+        
+        <button id="showToast" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Show Toast Notification
+        </button>
+        
+        <div class="mt-8 p-4 bg-yellow-100 border border-yellow-300 rounded">
+            <h3 class="font-semibold text-yellow-800">Instructions:</h3>
+            <p class="text-yellow-700 text-sm mt-2">
+                On mobile devices, try swiping the toast notification in different directions:
+                <br>• Swipe right (→) to dismiss
+                <br>• Swipe left (←) to dismiss  
+                <br>• Swipe up (↑) to dismiss
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let toastElement = null;
+        let swipeState = {
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+            isDragging: false
+        };
+
+        function showToast() {
+            if (toastElement) {
+                toastElement.remove();
+            }
+
+            toastElement = document.createElement('div');
+            toastElement.className = 'toast';
+            toastElement.innerHTML = `
+                <button class="close-button" onclick="dismissToast()">×</button>
+                <div class="toast-content">
+                    <div class="toast-title">Test Notification</div>
+                    <div class="toast-description">Try swiping in different directions to dismiss this toast!</div>
+                </div>
+            `;
+
+            // Add touch event listeners
+            toastElement.addEventListener('touchstart', handleTouchStart);
+            toastElement.addEventListener('touchmove', handleTouchMove);
+            toastElement.addEventListener('touchend', handleTouchEnd);
+            toastElement.addEventListener('touchcancel', handleTouchEnd);
+
+            document.body.appendChild(toastElement);
+        }
+
+        function handleTouchStart(e) {
+            const touch = e.touches[0];
+            
+            // Prevent any default touch behavior that might interfere with swiping
+            e.preventDefault();
+            e.stopPropagation();
+            
+            swipeState = {
+                startX: touch.clientX,
+                startY: touch.clientY,
+                currentX: touch.clientX,
+                currentY: touch.clientY,
+                isDragging: true
+            };
+        }
+
+        function handleTouchMove(e) {
+            if (!swipeState.isDragging) return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - swipeState.startX;
+            const deltaY = touch.clientY - swipeState.startY;
+            
+            // Always prevent default scrolling when swiping on toast to avoid conflicts
+            e.preventDefault();
+            e.stopPropagation();
+            
+            swipeState.currentX = touch.clientX;
+            swipeState.currentY = touch.clientY;
+            
+            // Apply visual feedback
+            const maxTransform = 100;
+            const transformX = Math.max(-maxTransform, Math.min(maxTransform, deltaX));
+            const transformY = Math.max(-maxTransform, Math.min(maxTransform, deltaY));
+            
+            toastElement.style.transform = `translate(${transformX}px, ${transformY}px)`;
+            toastElement.style.transition = 'none';
+        }
+
+        function handleTouchEnd() {
+            if (!swipeState.isDragging) return;
+            
+            const deltaX = swipeState.currentX - swipeState.startX;
+            const deltaY = swipeState.currentY - swipeState.startY;
+            
+            // Dismiss if swiped right (>70px), left (<-70px), or up (<-50px)
+            const shouldDismiss = deltaX > 70 || deltaX < -70 || deltaY < -50;
+            
+            if (shouldDismiss) {
+                dismissToast();
+            } else {
+                // Reset position if not dismissed
+                toastElement.style.transform = 'translate(0, 0)';
+                toastElement.style.transition = 'transform 0.2s ease-out';
+            }
+            
+            // Reset swipe state
+            swipeState = {
+                startX: 0,
+                startY: 0,
+                currentX: 0,
+                currentY: 0,
+                isDragging: false
+            };
+        }
+
+        function dismissToast() {
+            if (toastElement) {
+                toastElement.style.transform = 'translate(0, 0)';
+                toastElement.style.transition = 'transform 0.3s ease-out';
+                
+                // Animate out based on swipe direction
+                if (swipeState.isDragging) {
+                    const deltaX = swipeState.currentX - swipeState.startX;
+                    const deltaY = swipeState.currentY - swipeState.startY;
+                    
+                    if (deltaX > 70) {
+                        // Swiped right
+                        toastElement.style.transform = 'translateX(100%)';
+                    } else if (deltaX < -70) {
+                        // Swiped left
+                        toastElement.style.transform = 'translateX(-100%)';
+                    } else if (deltaY < -50) {
+                        // Swiped up
+                        toastElement.style.transform = 'translateY(-100%)';
+                    }
+                }
+                
+                setTimeout(() => {
+                    toastElement.remove();
+                    toastElement = null;
+                }, 300);
+            }
+        }
+
+        document.getElementById('showToast').addEventListener('click', showToast);
+    </script>
+</body>
+</html>

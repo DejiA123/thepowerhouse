@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Departments & Ministry Teams - Dark Theme Fix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 font-sans">
+    <div class="flex justify-center items-center min-h-screen p-4">
+        <div class="flex space-x-8">
+            <!-- BEFORE: Light Theme with Poor Dark Theme -->
+            <div class="max-w-lg">
+                <div class="bg-gray-200 dark:bg-gray-700 p-3 text-center mb-4 rounded-t-lg">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">❌ BEFORE (Poor Visibility)</h3>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-lg">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                            </svg>
+                            <span class="text-lg font-semibold text-gray-900 dark:text-gray-100">Departments & Ministry Teams</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- BEFORE: Original styling (poor dark theme) -->
+                        <div class="grid w-full grid-cols-4 bg-blue-50 rounded-lg p-1">
+                            <button class="px-3 py-2 text-sm rounded-md bg-blue-600 text-white">
+                                Department
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md">
+                                Meetings
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md">
+                                Files
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md">
+                                Rotas
+                            </button>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                            <p class="text-red-800 dark:text-red-200 text-sm">
+                                <strong>⚠️ Issue:</strong> In dark theme, the inactive tab text becomes very light colored on the light blue background, making it nearly invisible and hard to read.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AFTER: Light Theme with Good Dark Theme -->
+            <div class="max-w-lg">
+                <div class="bg-green-200 dark:bg-green-700 p-3 text-center mb-4 rounded-t-lg">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-200">✅ AFTER (Perfect Visibility)</h3>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-lg">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                            </svg>
+                            <span class="text-lg font-semibold text-gray-900 dark:text-gray-100">Departments & Ministry Teams</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- AFTER: Fixed styling (excellent dark theme) -->
+                        <div class="grid w-full grid-cols-4 bg-blue-50 dark:bg-gray-800 rounded-lg p-1">
+                            <button class="px-3 py-2 text-sm rounded-md bg-blue-600 text-white">
+                                Department
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Meetings
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Files
+                            </button>
+                            <button class="px-3 py-2 text-sm rounded-md text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                Rotas
+                            </button>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                            <p class="text-green-800 dark:text-green-200 text-sm">
+                                <strong>✅ Fixed!</strong> Now all tab headings are clearly visible in both light and dark themes with proper contrast and readability.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto mt-8 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">🛠️ Dark Theme Visibility Fix</h2>
+            <button 
+                onclick="toggleTheme()" 
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+            >
+                Toggle Dark/Light Theme
+            </button>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-3">🔧 Changes Made:</h3>
+                <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <li class="flex items-start space-x-2">
+                        <span class="text-green-500">✓</span>
+                        <span><strong>TabsList background:</strong> Added <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">dark:bg-gray-800</code></span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-green-500">✓</span>
+                        <span><strong>TabsTrigger text:</strong> Added <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">text-gray-900 dark:text-gray-100</code></span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-green-500">✓</span>
+                        <span><strong>Maintained active state:</strong> Active tabs still show blue background with white text</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                        <span class="text-green-500">✓</span>
+                        <span><strong>Perfect contrast:</strong> Dark text on light background (light theme) and light text on dark background (dark theme)</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-3">🎨 Styling Details:</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <strong class="text-gray-900 dark:text-gray-100">Light Theme:</strong>
+                        <ul class="mt-1 text-gray-700 dark:text-gray-300">
+                            <li>• Background: Light blue (bg-blue-50)</li>
+                            <li>• Text: Dark gray (text-gray-900)</li>
+                            <li>• Active: Blue background + white text</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <strong class="text-gray-900 dark:text-gray-100">Dark Theme:</strong>
+                        <ul class="mt-1 text-gray-700 dark:text-gray-300">
+                            <li>• Background: Dark gray (dark:bg-gray-800)</li>
+                            <li>• Text: Light gray (dark:text-gray-100)</li>
+                            <li>• Active: Blue background + white text</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p class="text-blue-800 dark:text-blue-200 text-sm">
+                <strong>🎯 Result:</strong> The "Department", "Meetings", "Files", and "Rotas" headings are now perfectly visible and readable in both light and dark themes, providing excellent user experience and accessibility.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+        
+        // Allow keyboard shortcut (D key) to toggle theme
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'd' || e.key === 'D') {
+                toggleTheme();
+            }
+        });
+        
+        // Set initial theme based on system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</body>
+</html>

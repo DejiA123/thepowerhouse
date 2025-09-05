@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loop Chapter Feature - Bible Audio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 min-h-screen p-6">
+    <div class="container mx-auto max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">🔄 Loop Chapter Feature</h1>
+            <p class="text-gray-600">Repeat current Bible chapter automatically when audio finishes</p>
+            <div class="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full mt-4">
+                <span class="text-2xl">✅</span>
+                <span class="font-semibold">FULLY IMPLEMENTED & WORKING!</span>
+            </div>
+        </div>
+
+        <!-- Feature Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- What's New -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-pink-800 mb-4 flex items-center gap-2">
+                    🎵 What's New
+                </h2>
+                <ul class="space-y-3 text-gray-700">
+                    <li class="flex items-start gap-2">
+                        <span class="text-pink-500 mt-1">✨</span>
+                        <span><strong>Loop Chapter Toggle:</strong> Added to Bible settings modal (three dots menu)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-pink-500 mt-1">🔄</span>
+                        <span><strong>Automatic Looping:</strong> Chapter repeats when audio finishes</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-pink-500 mt-1">🎚️</span>
+                        <span><strong>Priority Logic:</strong> Loop takes priority over "Auto-Play Next Chapter"</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-pink-500 mt-1">🗑️</span>
+                        <span><strong>Clean Interface:</strong> Removed sample text from settings modal</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Settings Location -->
+            <div class="bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg p-6 border border-pink-200">
+                <h2 class="text-xl font-semibold text-purple-800 mb-4 flex items-center gap-2">
+                    ⚙️ How to Access
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">1</div>
+                        <span class="text-gray-700">Go to Bible page</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">2</div>
+                        <span class="text-gray-700">Click three dots (⋮) button</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">3</div>
+                        <span class="text-gray-700">Find "Loop Chapter" section (pink background)</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-semibold">4</div>
+                        <span class="text-gray-700">Toggle ON to enable looping</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal Preview -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">📱 Settings Modal Preview</h2>
+            
+            <div class="max-w-md mx-auto border border-gray-300 rounded-lg p-4 bg-gray-50">
+                <!-- Mock settings modal -->
+                <div class="space-y-4">
+                    <!-- Font Size -->
+                    <div class="bg-blue-50 p-2 rounded border border-blue-200">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-blue-600">📝</span>
+                            <span class="font-medium text-blue-800 text-sm">Font Size</span>
+                        </div>
+                        <div class="bg-blue-200 h-2 rounded-full"></div>
+                    </div>
+                    
+                    <!-- Audio Settings -->
+                    <div class="bg-green-50 p-2 rounded border border-green-200">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-green-600">🎵</span>
+                            <span class="font-medium text-green-800 text-sm">Audio Pitch & Speed</span>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="bg-green-200 h-2 rounded-full"></div>
+                            <div class="bg-green-200 h-2 rounded-full"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto Play Next -->
+                    <div class="bg-orange-50 p-2 rounded border border-orange-200">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-orange-600">⏭️</span>
+                            <span class="font-medium text-orange-800 text-sm">Auto Play Next Chapter</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-10 h-5 bg-orange-300 rounded-full"></div>
+                            <span class="text-xs text-orange-700">Enabled</span>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Loop Chapter -->
+                    <div class="bg-pink-50 p-2 rounded border border-pink-200 ring-2 ring-pink-300 ring-opacity-50">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-pink-600">🔄</span>
+                            <span class="font-medium text-pink-800 text-sm">Loop Chapter</span>
+                            <span class="bg-pink-200 text-pink-800 text-xs px-2 py-1 rounded-full font-semibold">NEW!</span>
+                        </div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-10 h-5 bg-pink-400 rounded-full relative">
+                                <div class="w-4 h-4 bg-white rounded-full absolute right-0.5 top-0.5 shadow"></div>
+                            </div>
+                            <span class="text-xs text-pink-700">Enabled</span>
+                        </div>
+                        <p class="text-xs text-pink-600">Repeat current chapter when it finishes playing</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <div class="text-xs text-gray-500 line-through">Sample: "For God so loved the world..."</div>
+                    <div class="text-xs text-red-500 font-semibold mt-1">↑ REMOVED ↑</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">🔄 How Loop Chapter Works</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Normal Flow -->
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
+                        Normal Flow (Loop OFF)
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                            <span>Start reading Genesis 1</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-blue-400 rounded-full"></div>
+                            <span>Chapter finishes</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                            <span>Auto-advance to Genesis 2</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+                            <span>Continue to Genesis 3, 4, 5...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loop Flow -->
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <span class="bg-pink-100 text-pink-800 rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
+                        Loop Flow (Loop ON)
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-pink-400 rounded-full"></div>
+                            <span>Start reading Genesis 1</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-pink-400 rounded-full"></div>
+                            <span>Chapter finishes</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-purple-400 rounded-full"></div>
+                            <span>2 second pause</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-pink-400 rounded-full"></div>
+                            <span>🔄 Restart Genesis 1</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-pink-400 rounded-full"></div>
+                            <span>🔄 Repeat indefinitely...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Priority Logic -->
+        <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-6 border border-yellow-200 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-orange-800 flex items-center gap-2">
+                🎚️ Priority Logic
+            </h2>
+            <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-pink-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-semibold">1</div>
+                    <div>
+                        <span class="font-semibold text-gray-800">Loop Chapter</span>
+                        <span class="text-gray-600 ml-2">(Highest Priority)</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-semibold">2</div>
+                    <div>
+                        <span class="font-semibold text-gray-800">Auto-Play Next Chapter</span>
+                        <span class="text-gray-600 ml-2">(Only if Loop is OFF)</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-semibold">3</div>
+                    <div>
+                        <span class="font-semibold text-gray-800">Stop</span>
+                        <span class="text-gray-600 ml-2">(If both are OFF)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-3 bg-yellow-100 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                    <strong>Smart Logic:</strong> If Loop Chapter is ON, it takes priority and Auto-Play Next Chapter is ignored. 
+                    This prevents conflicts and ensures predictable behavior.
+                </p>
+            </div>
+        </div>
+
+        <!-- Use Cases -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">💡 Perfect Use Cases</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                    <h3 class="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                        📖 Scripture Memorization
+                    </h3>
+                    <p class="text-sm text-blue-700">
+                        Loop key chapters like Psalm 23, John 3:16, or Romans 8 to help memorize important passages through repetition.
+                    </p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                    <h3 class="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                        🧘 Meditation & Prayer
+                    </h3>
+                    <p class="text-sm text-green-700">
+                        Continuously listen to meditative chapters like Psalm 91 or John 14 for peaceful reflection and prayer.
+                    </p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                    <h3 class="font-semibent text-purple-800 mb-2 flex items-center gap-2">
+                        😴 Bedtime Listening
+                    </h3>
+                    <p class="text-sm text-purple-700">
+                        Loop calming chapters like Psalm 139 or Matthew 5-7 for peaceful sleep without auto-advancing.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Implementation -->
+        <div class="bg-gray-50 rounded-lg p-6 border mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">🔧 Technical Implementation</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Files Modified</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• <code>src/hooks/useBiblePreferences.ts</code></li>
+                        <li>• <code>src/components/bible/BibleMenuDialog.tsx</code></li>
+                        <li>• <code>src/contexts/GlobalAudioContext.tsx</code></li>
+                        <li>• <code>src/components/bible/BibleChapterContent.tsx</code></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Key Features Added</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• <code>loopChapter</code> preference storage</li>
+                        <li>• Pink-themed toggle in settings modal</li>
+                        <li>• Priority logic in audio end handlers</li>
+                        <li>• Integration with existing audio system</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                <h4 class="font-semibold text-blue-800 mb-1">Logic Flow:</h4>
+                <p class="text-sm text-blue-700">
+                    When audio ends → Check <code>audioState.loopChapter</code> → If true, restart same chapter → 
+                    If false, check <code>autoPlayNext</code> → If true, advance to next chapter → Otherwise stop.
+                </p>
+            </div>
+        </div>
+
+        <!-- Settings Comparison -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">⚖️ Settings Combinations</h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3 text-left font-semibold">Loop Chapter</th>
+                            <th class="p-3 text-left font-semibold">Auto-Play Next</th>
+                            <th class="p-3 text-left font-semibold">Behavior</th>
+                            <th class="p-3 text-left font-semibold">Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded text-xs font-semibold">ON</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">OFF</span>
+                            </td>
+                            <td class="p-3">🔄 Loop current chapter forever</td>
+                            <td class="p-3">Memorization, meditation</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <span class="bg-pink-100 text-pink-800 px-2 py-1 rounded text-xs font-semibold">ON</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-semibold">ON</span>
+                            </td>
+                            <td class="p-3">🔄 Loop current chapter (auto-play ignored)</td>
+                            <td class="p-3">Loop takes priority</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">OFF</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-semibold">ON</span>
+                            </td>
+                            <td class="p-3">⏭️ Auto-advance to next chapter</td>
+                            <td class="p-3">Continuous reading</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">OFF</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">OFF</span>
+                            </td>
+                            <td class="p-3">⏹️ Stop after chapter ends</td>
+                            <td class="p-3">Manual control</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Success Badge -->
+        <div class="text-center">
+            <div class="inline-flex items-center gap-3 bg-gradient-to-r from-pink-100 to-purple-100 text-purple-800 px-8 py-4 rounded-full border border-pink-200">
+                <span class="text-3xl">🔄</span>
+                <div class="text-left">
+                    <div class="font-bold text-lg">Loop Chapter Feature Complete!</div>
+                    <div class="text-sm opacity-80">Perfect for memorization, meditation, and focused listening</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

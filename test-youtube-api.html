@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; color: #d32f2f; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>YouTube API Function Test</h1>
+    <p>This page tests the Supabase YouTube API function to see what response we get.</p>
+    
+    <button onclick="testYouTubeAPI()">Test YouTube API Function</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testYouTubeAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result">Testing YouTube API function...</div>';
+            
+            try {
+                // Replace with your actual Supabase URL and anon key
+                const supabaseUrl = 'YOUR_SUPABASE_URL'; // Replace this
+                const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY'; // Replace this
+                
+                const response = await fetch(`${supabaseUrl}/functions/v1/fetch-youtube-videos`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseAnonKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                console.log('YouTube API Response:', data);
+                
+                let resultHTML = `
+                    <div class="result success">
+                        <h3>✅ API Response Received</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Videos Count:</strong> ${data.videos ? data.videos.length : 'No videos'}</p>
+                        <p><strong>Error:</strong> ${data.error || 'None'}</p>
+                        <p><strong>Is Fallback:</strong> ${data.isFallback || 'No'}</p>
+                        <p><strong>Cache Status:</strong> ${response.headers.get('X-Cache') || 'Unknown'}</p>
+                    </div>
+                `;
+                
+                if (data.videos && data.videos.length > 0) {
+                    resultHTML += '<div class="result"><h4>Videos Found:</h4><ul>';
+                    data.videos.forEach(video => {
+                        resultHTML += `
+                            <li>
+                                <strong>ID:</strong> ${video.id}<br>
+                                <strong>Title:</strong> ${video.title}<br>
+                                <strong>Channel:</strong> ${video.channelTitle || 'Unknown'}
+                            </li>
+                        `;
+                    });
+                    resultHTML += '</ul></div>';
+                }
+                
+                resultsDiv.innerHTML = resultHTML;
+                
+            } catch (error) {
+                console.error('Error testing YouTube API:', error);
+                resultsDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error Testing API</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Please check your Supabase URL and anon key.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html> 

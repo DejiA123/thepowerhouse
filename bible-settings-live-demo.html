@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Settings Live Update Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen p-6">
+    <div class="container mx-auto max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Bible Settings Live Update Demo</h1>
+            <p class="text-gray-600">Test how Bible page settings work in real-time</p>
+        </div>
+
+        <!-- Demo Controls -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Settings Panel -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    ⚙️ Reading Options
+                </h2>
+
+                <!-- Font Size -->
+                <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-blue-600">📝</span>
+                        <span class="font-medium text-blue-800 text-sm">Font Size</span>
+                    </div>
+                    <input type="range" 
+                           id="fontSize" 
+                           min="12" 
+                           max="24" 
+                           value="16" 
+                           step="1"
+                           class="w-full mb-2"
+                           oninput="updateFontSize(this.value)">
+                    <div class="flex justify-between text-xs text-blue-600">
+                        <span>12px</span>
+                        <span id="fontSizeValue" class="font-medium">16px</span>
+                        <span>24px</span>
+                    </div>
+                </div>
+
+                <!-- Audio Pitch -->
+                <div class="mb-6 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-purple-600">🎵</span>
+                        <span class="font-medium text-purple-800 text-sm">Audio Pitch</span>
+                    </div>
+                    <input type="range" 
+                           id="audioPitch" 
+                           min="0.3" 
+                           max="2" 
+                           value="1.6" 
+                           step="0.1"
+                           class="w-full mb-2"
+                           oninput="updatePitch(this.value)">
+                    <div class="flex justify-between text-xs text-purple-600">
+                        <span>Lower</span>
+                        <span id="pitchValue" class="font-medium">1.60</span>
+                        <span>Higher</span>
+                    </div>
+                </div>
+
+                <!-- Audio Speed -->
+                <div class="mb-6 bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-green-600">⚡</span>
+                        <span class="font-medium text-green-800 text-sm">Audio Speed</span>
+                    </div>
+                    <input type="range" 
+                           id="audioSpeed" 
+                           min="0.3" 
+                           max="2" 
+                           value="0.5" 
+                           step="0.05"
+                           class="w-full mb-2"
+                           oninput="updateSpeed(this.value)">
+                    <div class="flex justify-between text-xs text-green-600">
+                        <span>Slower</span>
+                        <span id="speedValue" class="font-medium">0.50x</span>
+                        <span>Faster</span>
+                    </div>
+                </div>
+
+                <!-- Auto Play Next -->
+                <div class="mb-6 bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-orange-600">▶️</span>
+                        <span class="font-medium text-orange-800 text-sm">Auto-Play Next Chapter</span>
+                    </div>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" 
+                               id="autoPlayNext" 
+                               checked 
+                               onchange="updateAutoPlay(this.checked)"
+                               class="rounded">
+                        <span id="autoPlayLabel" class="text-sm text-orange-700">Enabled</span>
+                    </label>
+                    <p class="text-xs text-orange-600 mt-1">
+                        Auto-continue to next chapter when finished
+                    </p>
+                </div>
+
+                <!-- Test Audio Button -->
+                <div class="text-center">
+                    <button onclick="testAudio()" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                        🎵 Test Audio Settings
+                    </button>
+                    <button onclick="stopAudio()" 
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg ml-2 transition-colors">
+                        ⏹️ Stop
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bible Text Preview -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">📖 Bible Text Preview</h2>
+                
+                <div class="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                    <h3 class="font-bold mb-2 text-gray-800">Genesis 1:1-5</h3>
+                    
+                    <div id="bibleText" style="font-size: 16px; line-height: 1.6;" class="space-y-2">
+                        <p class="text-gray-700">
+                            <sup class="text-sm font-medium text-gray-500 mr-2">1</sup>
+                            In the beginning God created the heaven and the earth.
+                        </p>
+                        <p class="text-gray-700">
+                            <sup class="text-sm font-medium text-gray-500 mr-2">2</sup>
+                            And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.
+                        </p>
+                        <p class="text-gray-700">
+                            <sup class="text-sm font-medium text-gray-500 mr-2">3</sup>
+                            And God said, <span style="color: #dc2626;">Let there be light:</span> and there was light.
+                        </p>
+                        <p class="text-gray-700">
+                            <sup class="text-sm font-medium text-gray-500 mr-2">4</sup>
+                            And God saw the light, that it was good: and God divided the light from the darkness.
+                        </p>
+                        <p class="text-gray-700">
+                            <sup class="text-sm font-medium text-gray-500 mr-2">5</sup>
+                            And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Audio Status -->
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <span class="text-blue-600">🎧</span>
+                        <span class="font-medium text-blue-800 text-sm">Audio Status:</span>
+                        <span id="audioStatus" class="text-blue-700">Ready</span>
+                    </div>
+                    <div class="text-xs text-blue-600 mt-1" id="audioInfo">
+                        Click "Test Audio Settings" to hear how the current settings sound
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features List -->
+        <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">✨ Live Features Implemented</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">📝 Font Size</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• ✅ Updates Bible text immediately</li>
+                        <li>• ✅ Smooth transition with CSS</li>
+                        <li>• ✅ Preserves layout and readability</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">🎵 Audio Pitch</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• ✅ Test audio preview on change</li>
+                        <li>• ✅ Restarts current audio with new pitch</li>
+                        <li>• ✅ iPhone-optimized range (0.3-1.8)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">⚡ Audio Speed</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• ✅ Test audio preview on change</li>
+                        <li>• ✅ Restarts current audio with new speed</li>
+                        <li>• ✅ iPhone-optimized range (0.3-1.5)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">▶️ Auto-Play Next</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>• ✅ Updates preference immediately</li>
+                        <li>• ✅ Affects chapter auto-advancement</li>
+                        <li>• ✅ Saved to localStorage</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUtterance = null;
+        let currentSettings = {
+            fontSize: 16,
+            pitch: 1.6,
+            rate: 0.5,
+            autoPlayNext: true
+        };
+
+        // Font Size Update
+        function updateFontSize(value) {
+            currentSettings.fontSize = parseInt(value);
+            document.getElementById('fontSizeValue').textContent = value + 'px';
+            document.getElementById('bibleText').style.fontSize = value + 'px';
+            console.log('Font size updated to:', value + 'px');
+        }
+
+        // Audio Pitch Update
+        function updatePitch(value) {
+            currentSettings.pitch = parseFloat(value);
+            document.getElementById('pitchValue').textContent = parseFloat(value).toFixed(2);
+            
+            // Test the new pitch immediately
+            if (currentUtterance && speechSynthesis.speaking) {
+                // Stop current audio and restart with new settings
+                speechSynthesis.cancel();
+                setTimeout(() => testAudioWithCurrentSettings(), 100);
+            }
+            
+            console.log('Pitch updated to:', value);
+        }
+
+        // Audio Speed Update
+        function updateSpeed(value) {
+            currentSettings.rate = parseFloat(value);
+            document.getElementById('speedValue').textContent = parseFloat(value).toFixed(2) + 'x';
+            
+            // Test the new rate immediately
+            if (currentUtterance && speechSynthesis.speaking) {
+                // Stop current audio and restart with new settings
+                speechSynthesis.cancel();
+                setTimeout(() => testAudioWithCurrentSettings(), 100);
+            }
+            
+            console.log('Speed updated to:', value);
+        }
+
+        // Auto Play Next Update
+        function updateAutoPlay(checked) {
+            currentSettings.autoPlayNext = checked;
+            document.getElementById('autoPlayLabel').textContent = checked ? 'Enabled' : 'Disabled';
+            console.log('Auto-play next updated to:', checked);
+        }
+
+        // Test Audio with Current Settings
+        function testAudioWithCurrentSettings() {
+            const sampleText = "Testing audio with current settings. Genesis chapter 1, verse 1. In the beginning God created the heaven and the earth.";
+            
+            document.getElementById('audioStatus').textContent = 'Playing...';
+            document.getElementById('audioInfo').textContent = `Pitch: ${currentSettings.pitch}, Speed: ${currentSettings.rate}x`;
+            
+            currentUtterance = new SpeechSynthesisUtterance(sampleText);
+            currentUtterance.pitch = currentSettings.pitch;
+            currentUtterance.rate = currentSettings.rate;
+            currentUtterance.volume = 1.0;
+            currentUtterance.lang = 'en-US';
+            
+            currentUtterance.onstart = () => {
+                console.log('Audio started with settings:', currentSettings);
+            };
+            
+            currentUtterance.onend = () => {
+                document.getElementById('audioStatus').textContent = 'Finished';
+                currentUtterance = null;
+                
+                if (currentSettings.autoPlayNext) {
+                    setTimeout(() => {
+                        document.getElementById('audioInfo').textContent = 'Auto-play next chapter would start here...';
+                    }, 1000);
+                }
+            };
+            
+            currentUtterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                document.getElementById('audioStatus').textContent = 'Error';
+                currentUtterance = null;
+            };
+            
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // Test Audio Button
+        function testAudio() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                setTimeout(() => testAudioWithCurrentSettings(), 100);
+            } else {
+                testAudioWithCurrentSettings();
+            }
+        }
+
+        // Stop Audio
+        function stopAudio() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                document.getElementById('audioStatus').textContent = 'Stopped';
+                document.getElementById('audioInfo').textContent = 'Audio playback stopped';
+                currentUtterance = null;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Bible Settings Live Demo initialized');
+            console.log('Initial settings:', currentSettings);
+        });
+    </script>
+</body>
+</html>
