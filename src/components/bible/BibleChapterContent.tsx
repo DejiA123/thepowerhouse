@@ -8,13 +8,13 @@ import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
 import { useToast } from "@/hooks/use-toast";
-import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 // Import BibleNotesDialog for notes functionality
 import { BibleNotesDialog } from "./BibleNotesDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
+import { supabaseAudioService } from "@/services/supabaseAudioService";
 
 
 interface BibleChapterContentProps {
@@ -78,18 +78,25 @@ export const BibleChapterContent = ({
 
   // Force re-render when font size or menu settings change
   useEffect(() => {
-    console.log('Font size changed to:', effectiveFontSize, 'menuSettingsVersion:', menuSettingsVersion);
-  }, [effectiveFontSize, menuSettingsVersion]);
+    console.log('🔍 BibleChapterContent: Font size changed to:', effectiveFontSize, 'menuSettingsVersion:', menuSettingsVersion);
+    console.log('🔍 BibleChapterContent: preferences.fontSize:', preferences?.fontSize, 'prop fontSize:', fontSize);
+    console.log('🔍 BibleChapterContent: selectedBook:', selectedBook, 'selectedChapter:', selectedChapter);
+  }, [effectiveFontSize, menuSettingsVersion, selectedBook, selectedChapter]);
   
   // Create a key that changes when any setting changes to force re-render
   const settingsKey = `fontSize-${effectiveFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}`;
   
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [showHighlightDialog, setShowHighlightDialog] = useState(false);
   const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  
+  // MP3 Audio state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -98,14 +105,6 @@ export const BibleChapterContent = ({
   // Highlights state
   const [highlights, setHighlights] = useState<any[]>([]);
 
-  // Move useGlobalAudio hook here to be available for useEffect hooks below
-  const { 
-    playBibleChapter, 
-    pause: globalPause,
-    resume: globalResume,
-    stop: globalStop,
-    audioState: globalAudioState,
-  } = useGlobalAudio();
 
   // Fetch highlights for current chapter
   useEffect(() => {
@@ -114,16 +113,14 @@ export const BibleChapterContent = ({
     }
   }, [user, selectedBook, selectedChapter]);
 
-  // Auto-play effect: Start audio when shouldAutoPlay becomes true and chapter content is loaded
+  // Auto-play effect: Reset shouldAutoPlay flag when triggered
   useEffect(() => {
-    if (shouldAutoPlay && chapterContent && !loading && !audioLoading) {
-      console.log('🎵 BibleChapterContent: shouldAutoPlay triggered, starting audio automatically');
+    if (shouldAutoPlay && chapterContent && !loading) {
+      console.log('🎵 BibleChapterContent: shouldAutoPlay triggered, but TTS is disabled - only MP3 audio available');
       // Reset shouldAutoPlay flag by calling the callback
       onAutoPlayTriggered?.();
-      // Start audio playback
-      handleAudioPlay();
     }
-  }, [shouldAutoPlay, chapterContent, loading, audioLoading]);
+  }, [shouldAutoPlay, chapterContent, loading]);
 
   const fetchHighlights = async () => {
     try {
@@ -150,43 +147,100 @@ export const BibleChapterContent = ({
   const normalizedSelectedBook = normalizeBookApiName(selectedBook);
   const book = allBooks.find(b => b.apiName === normalizedSelectedBook);
 
-  // Derive active state directly from global audio to avoid desync
-  const isCurrentChapter = globalAudioState.currentBook === normalizedSelectedBook && 
-                           globalAudioState.currentChapter === selectedChapter;
-  const isLoadingActive = isCurrentChapter && globalAudioState.isLoading;
-  const showPauseButton = isCurrentChapter && (globalAudioState.isPlaying || globalAudioState.isLoading);
-
-  // Sync local audio state with global audio state - this ensures button shows correct state
+  // Load MP3 audio when book, chapter, or version changes
   useEffect(() => {
-    console.log('🔄 BibleChapterContent: AUDIO STATE SYNC', {
-      globalBook: globalAudioState.currentBook,
-      localBook: normalizedSelectedBook,
-      globalChapter: globalAudioState.currentChapter,
-      localChapter: selectedChapter,
-      globalPlaying: globalAudioState.isPlaying,
-      globalLoading: globalAudioState.isLoading,
-      localPlaying: isPlaying,
-      localLoading: audioLoading
-    });
-    
-    // Check if this chapter is the currently active audio chapter
-    const isCurrentChapter = globalAudioState.currentBook === normalizedSelectedBook && 
-                             globalAudioState.currentChapter === selectedChapter;
-    
-    console.log('🔄 BibleChapterContent: Is current chapter?', isCurrentChapter);
-    
-    if (isCurrentChapter) {
-      // This is the active chapter - sync with global state
-      console.log('🔄 BibleChapterContent: SYNCING - Setting local isPlaying to', globalAudioState.isPlaying);
-      setIsPlaying(globalAudioState.isPlaying);
-      setAudioLoading(globalAudioState.isLoading);
-    } else {
-      // This is not the active chapter - reset local state
-      console.log('🔄 BibleChapterContent: RESETTING - Not current chapter, setting local states to false');
-      setIsPlaying(false); 
-      setAudioLoading(false);
+    const loadAudio = async () => {
+      if (!selectedVersion) {
+        console.log('🔍 No selectedVersion available');
+        return;
+      }
+      
+      console.log('🔍 Loading MP3 audio with params:', {
+        selectedBook,
+        selectedChapter,
+        selectedVersion
+      });
+      
+      setIsLoading(true);
+      setAudioError(null);
+      
+      try {
+        // First, let's check what filename would be generated
+        const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
+        console.log('🔍 Generated filename:', fileName);
+        
+        // Let's also check what files are actually in the bucket
+        try {
+          const { data: files, error: listError } = await supabase.storage
+            .from('audio-bible')
+            .list('', { limit: 10 });
+          
+          if (listError) {
+            console.error('❌ Error listing bucket files:', listError);
+          } else {
+            console.log('🔍 Files in audio-bible bucket:', files?.map(f => f.name) || []);
+          }
+        } catch (listErr) {
+          console.error('❌ Error accessing bucket:', listErr);
+        }
+        
+        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
+        console.log('🔍 Generated URL:', url);
+        
+        if (url) {
+          setAudioUrl(url);
+          console.log(`🎵 MP3 audio loaded: ${url}`);
+        } else {
+          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
+          console.log('❌', errorMsg);
+          setAudioError(errorMsg);
+        }
+      } catch (error) {
+        console.error('❌ Error loading MP3 audio:', error);
+        setAudioError('Failed to load MP3 audio');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAudio();
+  }, [selectedBook, selectedChapter, selectedVersion]);
+
+  // Handle MP3 audio playback
+  const handlePlayPause = async () => {
+    if (!audioUrl) {
+      toast({
+        title: "Audio Not Available",
+        description: audioError || "No MP3 audio file found for this chapter",
+        variant: "destructive"
+      });
+      return;
     }
-  }, [globalAudioState.isPlaying, globalAudioState.isLoading, globalAudioState.currentBook, globalAudioState.currentChapter, normalizedSelectedBook, selectedChapter]);
+
+    if (isPlaying) {
+      // Pause audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+    } else {
+      // Play audio
+      if (audioRef.current) {
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (error) {
+          console.error('Error playing audio:', error);
+          toast({
+            title: "Audio Error",
+            description: "Failed to play audio",
+            variant: "destructive"
+          });
+        }
+      }
+    }
+  };
+
 
   // Get the book display name (e.g., "Luke" instead of "Luke")
   const getBookDisplayName = () => {
@@ -266,133 +320,7 @@ export const BibleChapterContent = ({
   };
 
 
-  const handleAudioPlay = async () => {
-    if (!chapterContent?.verses) return;
-    if (audioLoading) return;
-    
-    try {
-      setAudioLoading(true);
-      // Ensure any previous TTS session is fully stopped before starting a new one (prevents iOS spinner loop)
-      try { globalStop(); } catch {}
-      await new Promise(res => setTimeout(res, 80));
-      
-      // Get the full text from unique verses to avoid duplicates
-      const uniqueForAudio = (chapterContent.verses || []).filter((v, i, arr) => {
-        const vn = Number(v.verse) || i + 1;
-        return arr.findIndex(u => (Number(u.verse) || 0) === vn && (u.text || '').trim() === (v.text || '').trim()) === i;
-      });
-      // Deduplicate verses and normalize whitespace to reduce repetition
-      const fullText = uniqueForAudio
-        .map(v => cleanVerseArtifacts((v.text || '').replace(/\s+/g, ' ').trim()))
-        .join(' ') || '';
-      
-      // Ensure the text starts with a clean chapter announcement
-      // The global audio context will handle adding the intro, so we don't need to prepend it here
-      const completeText = fullText;
-      
-      // Inline iOS unlock in the same user gesture to ensure first tap starts
-      try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        if (isIOS) {
-          try { (window as any).speechSynthesis?.resume?.(); } catch {}
-          try {
-            const u = new SpeechSynthesisUtterance(' ');
-            u.volume = 0.0;
-            u.rate = 1.0;
-            u.pitch = 1.0;
-            speechSynthesis.speak(u);
-            setTimeout(() => { try { speechSynthesis.cancel(); } catch {} }, 0);
-          } catch {}
-          try {
-            const a = new Audio();
-            try { (a as any).playsInline = true; } catch {}
-            a.muted = true;
-            a.src = 'data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA';
-            a.play().then(() => a.pause()).catch(() => {});
-          } catch {}
-        }
-      } catch {}
 
-      // Use the global audio context with browser TTS for iPhone compatibility
-      console.log('🎵 BibleChapterContent: Playing audio with settings:', { pitch, rate, textLength: completeText.length });
-      console.log('🎵 BibleChapterContent: Book and chapter details:', {
-        selectedBook,
-        normalizedSelectedBook,
-        selectedChapter,
-        bookName: book?.name,
-        bookApiName: book?.apiName
-      });
-      console.log('🎵 BibleChapterContent: Pitch value being passed:', pitch, 'Type:', typeof pitch);
-      console.log('🎵 BibleChapterContent: Rate value being passed:', rate, 'Type:', typeof rate);
-      console.log('🎵 BibleChapterContent: User agent:', navigator.userAgent);
-      console.log('🎵 BibleChapterContent: Is iPhone:', /iPad|iPhone|iPod/.test(navigator.userAgent));
-      
-      // Create voice settings object with explicit values
-      const voiceSettings = {
-        pitch: Number(pitch),
-        rate: Number(rate),
-        voice: null
-      };
-      
-      console.log('🎵 BibleChapterContent: Voice settings object created:', voiceSettings);
-      console.log('🎵 BibleChapterContent: Voice settings validation:', {
-        pitchIsNumber: typeof voiceSettings.pitch === 'number',
-        rateIsNumber: typeof voiceSettings.rate === 'number',
-        pitchValue: voiceSettings.pitch,
-        rateValue: voiceSettings.rate,
-        pitchIsValid: !isNaN(voiceSettings.pitch) && voiceSettings.pitch > 0,
-        rateIsValid: !isNaN(voiceSettings.rate) && voiceSettings.rate > 0
-      });
-      
-      // Kick off playback; do not block UI on long network/iOS unlock
-      // Let the global audio context manage the playing state via sync effect
-      // Force auto-play of the next chapter while on the Bible page
-      playBibleChapter(normalizedSelectedBook, selectedChapter, completeText, true, preferences.loopChapter, voiceSettings)
-        .then(() => {
-          // No need to manually set isPlaying - global state sync will handle it
-          console.log('🎵 BibleChapterContent: Audio play started successfully');
-          // Keep loading state true until global state syncs to playing
-          // This ensures the button shows the loading spinner until audio actually starts
-        })
-        .catch((err) => {
-          console.error('Audio play failed:', err);
-          toast({ title: 'Audio Error', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
-          // Reset loading state on error
-          setAudioLoading(false);
-        });
-      
-    } catch (error) {
-      console.error('Audio playback error:', error);
-      toast({ title: 'Audio Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
-      setAudioLoading(false);
-    }
-    // Note: Don't set audioLoading to false here - let the global state sync handle it
-    // This ensures the button shows loading until audio actually starts playing
-  };
-
-  const handlePlayPause = () => {
-    console.log('🎵 BibleChapterContent: handlePlayPause called - Current isPlaying:', isPlaying);
-    console.log('🎵 BibleChapterContent: Global audio state:', {
-      globalPlaying: globalAudioState.isPlaying,
-      globalLoading: globalAudioState.isLoading,
-      globalBook: globalAudioState.currentBook,
-      globalChapter: globalAudioState.currentChapter,
-      localBook: selectedBook,
-      normalizedLocalBook: normalizedSelectedBook
-    });
-    
-    if (isPlaying) {
-      console.log('🎵 BibleChapterContent: Pausing audio via global context');
-      globalPause();
-      // Don't manually set isPlaying - let the global state sync handle it
-    } else {
-      console.log('🎵 BibleChapterContent: Starting audio playback');  
-      // Always restart from beginning; stop then play in the same gesture
-      try { globalStop(); } catch {}
-      handleAudioPlay();
-      // Don't manually set isPlaying - let the global state sync handle it
-    }
-  };
 
   const handlePreviousChapter = () => {
     const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
@@ -428,6 +356,19 @@ export const BibleChapterContent = ({
 
   return (
     <div className="bible-page-full">
+      {/* Hidden audio element for MP3 playback */}
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        onEnded={() => setIsPlaying(false)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onError={() => {
+          setIsPlaying(false);
+          setAudioError('Failed to play audio file');
+        }}
+        preload="metadata"
+      />
       {/* Header Bar */}
       <div className="bible-header-full">
         <div className="bible-header-buttons-full">
@@ -450,21 +391,16 @@ export const BibleChapterContent = ({
         <div className="bible-header-icons-full">
           <button 
             className="bible-header-icon-full"
-            onClick={() => {
-              if (showPauseButton && !isLoadingActive) {
-                globalPause();
-              } else {
-                try { globalStop(); } catch {}
-                handleAudioPlay();
-              }
-            }}
-            disabled={loading}
-            title={showPauseButton ? 'Pause' : 'Play'}
+            onClick={handlePlayPause}
+            disabled={isLoading}
+            title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
           >
-            {(isLoadingActive || showPauseButton) ? (
+            {isLoading ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : isPlaying ? (
               <Pause className="w-4 h-4" />
             ) : (
-              <Play className="w-4 h-4" />
+              <Volume2 className="w-4 h-4" />
             )}
           </button>
           <button 
@@ -656,7 +592,7 @@ export const BibleChapterContent = ({
                        });
                      }
                    }
-                    
+                   
                     return (
                     <p 
                       key={`${settingsKey}-${index}`} 
@@ -666,9 +602,9 @@ export const BibleChapterContent = ({
                     >
                         {/* Always show verse numbers beside each verse */}
                         {shouldShowUIVerseNumber && (
-                          <sup className="text-sm font-medium text-muted-foreground mr-2">
-                            {verseNumber}
-                          </sup>
+                      <sup className="text-sm font-medium text-muted-foreground mr-2">
+                        {verseNumber}
+                      </sup>
                         )}
                       <span dangerouslySetInnerHTML={formatText(verse.text)} />
                       </p>
@@ -695,43 +631,18 @@ export const BibleChapterContent = ({
             </button>
             
             <button 
-              onClick={() => {
-                const isCurrentGlobalChapter = globalAudioState.currentBook === normalizedSelectedBook && globalAudioState.currentChapter === selectedChapter;
-                const shouldPause = isCurrentGlobalChapter && (globalAudioState.isPlaying || globalAudioState.isLoading || audioLoading);
-                if (shouldPause) {
-                  globalPause();
-                } else {
-                  try { globalStop(); } catch {}
-                  handleAudioPlay();
-                }
-              }}
-              disabled={loading}
+              onClick={handlePlayPause}
+              disabled={isLoading}
               className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
-              title={(() => {
-                // Check if this is the currently playing chapter in global context
-                const isCurrentGlobalChapter = globalAudioState.currentBook === normalizedSelectedBook && globalAudioState.currentChapter === selectedChapter;
-                
-                if (isCurrentGlobalChapter) {
-                  // Use global state for current chapter
-                  const globalStatus = globalAudioState.isLoading ? 'Loading' : globalAudioState.isPlaying ? 'Playing' : globalAudioState.isPaused ? 'Paused' : 'Stopped';
-                  return `Audio: ${globalStatus} | Global: ${globalStatus}`;
-                } else {
-                  // Use local state for other chapters
-                  const localStatus = audioLoading ? 'Loading' : isPlaying ? 'Playing' : 'Stopped';
-                  const globalStatus = globalAudioState.isPlaying ? 'Playing' : globalAudioState.isLoading ? 'Loading' : 'Stopped';
-                  return `Audio: ${localStatus} | Global: ${globalStatus}`;
-                }
-              })()}
+              title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
             >
-              {(() => {
-                const isCurrent = globalAudioState.currentBook === normalizedSelectedBook && globalAudioState.currentChapter === selectedChapter;
-                const showPause = (isCurrent && (globalAudioState.isLoading || globalAudioState.isPlaying)) || audioLoading;
-                return showPause ? (
-                  <Pause className="w-5 h-5" />
-                ) : (
-                  <Play className="w-5 h-5 ml-0.5" />
-                );
-              })()}
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5 ml-0.5" />
+              )}
             </button>
             
             <button 

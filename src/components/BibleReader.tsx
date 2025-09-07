@@ -14,7 +14,6 @@ import { EnhancedBibleVersionSelector } from "./bible/EnhancedBibleVersionSelect
 // BibleHighlights component removed - functionality moved to BibleChapterContent
 
 import BibleAudioPlayer from "./bible/BibleAudioPlayer";
-import { BibleBrainAudioPlayer } from "./bible/BibleBrainAudioPlayer";
 import { BiblePreferencesPanel } from "./bible/BiblePreferencesPanel";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -207,20 +206,11 @@ const BibleReader = () => {
 
         <TabsContent value="audio">
           <div className="space-y-4">
-            {/* Bible Brain Streaming Audio Player */}
-            <BibleBrainAudioPlayer
-              version={selectedVersion}
-              book={selectedBook}
-              chapter={selectedChapter}
-              onChapterChange={handleChapterChange}
-              autoPlay={shouldAutoPlay}
-            />
-            
-            {/* Fallback TTS Audio Player */}
+            {/* MP3 Audio Player */}
             <BibleAudioPlayer
               book={selectedBook}
               chapter={selectedChapter}
-              text={getChapterText()}
+              selectedVersion={selectedVersion}
             />
             
             <BibleChapterContent

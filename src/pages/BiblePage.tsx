@@ -15,7 +15,6 @@ import { BibleSearch } from "@/components/bible/BibleSearch";
 import { BibleHistory, addToBibleHistory } from "@/components/bible/BibleHistory";
 import { BibleMenuDialog } from "@/components/bible/BibleMenuDialog";
 import BibleNotes from "@/components/bible/BibleNotes";
-import BibleTTSTest from "@/components/bible/BibleTTSTest";
 
 
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,6 @@ const BiblePage = () => {
   const [loading, setLoading] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [showTTSTest, setShowTTSTest] = useState(false);
 
   const [showVersionSelector, setShowVersionSelector] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -137,6 +135,7 @@ const BiblePage = () => {
 
   const handleChapterChange = async (chapter: number, isAutoPlay = false) => {
     console.log(`🔄 BiblePage: handleChapterChange called with chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
+    console.log(`🔄 BiblePage: Current preferences.fontSize before change:`, preferences.fontSize);
     setSelectedChapter(chapter);
     setPreferredChapter(chapter);
     // Enable auto-play if this is an auto-play transition
@@ -323,7 +322,6 @@ const BiblePage = () => {
   const renderContent = () => {
     console.log('🔍 BiblePage: renderContent called with:', {
       loadError,
-      showTTSTest,
       showHighlights,
       showNotes,
       selectedChapter,
@@ -343,23 +341,6 @@ const BiblePage = () => {
       );
     }
 
-    if (showTTSTest) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Browser TTS Test</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowTTSTest(false)}
-            >
-              Back to Bible
-            </Button>
-          </div>
-          <BibleTTSTest />
-        </div>
-      );
-    }
 
     if (showHighlights) {
       return (
@@ -392,9 +373,10 @@ const BiblePage = () => {
     }
 
     if (selectedChapter) {
+      console.log(`🔍 BiblePage: Rendering BibleChapterContent with fontSize=${preferences.fontSize}, selectedBook=${selectedBook}, selectedChapter=${selectedChapter}`);
       return (
         <BibleChapterContent
-          key={`bible-chapter-${selectedBook}-${selectedChapter}-${preferences.fontSize}-${menuSettingsVersion}`}
+          key={`bible-chapter-${selectedBook}-${selectedChapter}-${menuSettingsVersion}`}
           selectedBook={selectedBook!}
           selectedChapter={selectedChapter}
           chapterContent={chapterContent}
@@ -459,7 +441,7 @@ const BiblePage = () => {
 
 
   // Render with proper layout based on content type
-  if (selectedChapter && !showHighlights && !showNotes && !showTTSTest) {
+  if (selectedChapter && !showHighlights && !showNotes) {
     // Full Bible reading layout
     return (
       <div className="min-h-screen bg-background">

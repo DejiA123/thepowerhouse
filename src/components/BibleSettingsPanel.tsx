@@ -62,7 +62,10 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
   };
 
   const handleFontSizeChange = (value: number[]) => {
+    console.log('BibleSettingsPanel: Font size changed to:', value[0]);
+    console.log('BibleSettingsPanel: Current preferences before change:', preferences);
     setFontSize(value[0]);
+    console.log('BibleSettingsPanel: setFontSize called with:', value[0]);
   };
 
   const handlePitchChange = (value: number[]) => {

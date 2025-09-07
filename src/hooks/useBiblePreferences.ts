@@ -84,19 +84,26 @@ const migrateTranslationPreference = (stored: BiblePreferences): BiblePreference
 export const useBiblePreferences = () => {
   const [preferences, setPreferences] = useState<BiblePreferences>(DEFAULT_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Generate a unique ID for this hook instance to track multiple instances
+  const hookId = Math.random().toString(36).substr(2, 9);
+  console.log(`🔍 useBiblePreferences: Hook instance ${hookId} created`);
 
   // Load preferences from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      console.log(`🔍 useBiblePreferences [${hookId}]: Loading from localStorage:`, stored);
       if (stored) {
         let parsed = JSON.parse(stored) as BiblePreferences;
+        console.log(`🔍 useBiblePreferences [${hookId}]: Parsed preferences:`, parsed);
         
         // Apply migration
         parsed = migrateTranslationPreference(parsed);
         
         // Merge with defaults to ensure all properties exist
         const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+        console.log(`🔍 useBiblePreferences [${hookId}]: Merged preferences:`, merged);
         
         setPreferences(merged);
         
@@ -109,9 +116,13 @@ export const useBiblePreferences = () => {
             console.warn('⚠️ Could not save migrated preferences:', error);
           }
         }
+      } else {
+        console.log('🔍 useBiblePreferences: No stored preferences, using defaults:', DEFAULT_PREFERENCES);
+        setPreferences(DEFAULT_PREFERENCES);
       }
     } catch (error) {
       console.warn('⚠️ Could not load Bible preferences from localStorage:', error);
+      setPreferences(DEFAULT_PREFERENCES);
     } finally {
       setIsLoaded(true);
     }
@@ -134,6 +145,11 @@ export const useBiblePreferences = () => {
     }
   }, [preferences, isLoaded]);
 
+  // Debug: Log when preferences state changes
+  useEffect(() => {
+    console.log(`🔍 useBiblePreferences [${hookId}]: Preferences state changed:`, preferences);
+  }, [preferences, hookId]);
+
   const setPreferredTranslation = (translation: string) => {
     setPreferences(prev => ({ ...prev, preferredTranslation: translation }));
   };
@@ -155,7 +171,13 @@ export const useBiblePreferences = () => {
   };
 
   const setFontSize = (fontSize: number) => {
-    setPreferences(prev => ({ ...prev, fontSize: fontSize }));
+    console.log(`useBiblePreferences [${hookId}]: setFontSize called with:`, fontSize);
+    console.log(`useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
+    setPreferences(prev => {
+      const newPrefs = { ...prev, fontSize: fontSize };
+      console.log(`useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
+      return newPrefs;
+    });
   };
 
   const setTtsVoice = (voice: string) => {
