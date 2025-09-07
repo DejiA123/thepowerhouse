@@ -242,6 +242,9 @@ export const enhancedApiBibleService = {
       verseText = verseText
         // Remove the brackets from verse numbers in the text - keep just the number
         .replace(/\[(\d+)\]/g, '$1')
+        // Remove paragraph marks (pilcrow) and other formatting characters
+        .replace(/¶/g, '') // Remove paragraph mark
+        .replace(/[\u00A0\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various Unicode spaces with regular space
         // Add consistent line breaks before verse numbers for better readability
         .replace(/\s*\n*\s*(\d+)(?=\s)/g, '\n\n$1')
         .replace(/\n{3,}/g, '\n\n')
@@ -300,6 +303,9 @@ export const enhancedApiBibleService = {
         .replace(/\s+\d+\s+(\[\d+\])/g, ' $1') // " 1 [1]" -> " [1]"
         .replace(/\s+\d+\s*(\[\d+\])/g, ' $1') // " 1[1]" -> " [1]" (no space)
         .replace(/(\s|^)\d+(\s*\[\d+\])/g, '$1$2') // Remove any standalone numbers before brackets
+        // Remove paragraph marks (pilcrow) and other formatting characters
+        .replace(/¶/g, '') // Remove paragraph mark
+        .replace(/[\u00A0\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various Unicode spaces with regular space
         // Add consistent line breaks before bracketed numbers for better readability
         // Use a more direct approach to ensure ALL bracketed numbers get the same spacing
         .replace(/\s*\n*\s*(\[\d+\])/g, '\n\n$1') // Replace any whitespace/line breaks before brackets with exactly two line breaks
@@ -315,6 +321,18 @@ export const enhancedApiBibleService = {
           cleanedText: verseText,
           hasQuestionMark: verseText.includes('?'),
           textLength: verseText.length
+        });
+      }
+
+      // Debug: Log raw content for John chapter 3, verse 16 to identify character before "For"
+      if (book.toLowerCase().includes('john') && chapter === 3 && verseNumber === 16) {
+        console.log(`🔍 API Service raw content for John 3:16:`, {
+          rawMatch: match[2],
+          trimmedText: verseText,
+          beforeFor: verseText.substring(0, verseText.indexOf('For')),
+          forPosition: verseText.indexOf('For'),
+          charBeforeFor: verseText.charAt(verseText.indexOf('For') - 1),
+          charCodeBeforeFor: verseText.charCodeAt(verseText.indexOf('For') - 1)
         });
       }
       
@@ -439,79 +457,79 @@ export const enhancedApiBibleService = {
 
   // Get display name for a version ID
   getVersionDisplayName(versionId: string): string {
-    // Comprehensive version ID to name mappings
+    // Comprehensive version ID to abbreviation mappings
     const versionMappings: Record<string, string> = {
       // API.Bible IDs
-      'de4e12af7f28f599-02': 'King James Version (KJV)',
-      '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'New International Version (NIV)',
-      '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'English Standard Version (ESV)',
-      '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'New Living Translation (NLT)',
-      '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'New American Standard Bible (NASB)',
-      '65eec8e0b60e656b-01': 'New International Version (NIV)',
-      'bba9f40183526463-01': 'Bible Translation', // New API.Bible ID
+      'de4e12af7f28f599-02': 'KJV',
+      '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'NIV',
+      '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ESV',
+      '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
+      '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
+      '65eec8e0b60e656b-01': 'NIV',
+      'bba9f40183526463-01': 'BIBLE', // New API.Bible ID
       
       // Bible Brain IDs (legacy)
-      'ENGKJV': 'King James Version (KJV)',
-      'ENGESV': 'English Standard Version (ESV)',
-      'ENGNIV': 'New International Version (NIV)',
-      'ENGNLT': 'New Living Translation (NLT)',
-      'ENGNKJ': 'New King James Version (NKJV)',
-      'ENGNAB': 'New American Standard Bible (NASB)',
-      'ENGAMP': 'Amplified Bible (AMP)',
-      'ENGGNT': 'Good News Translation (GNT)',
-      'ENGASV': 'American Standard Version (ASV)',
-      'ENGWEB': 'World English Bible (WEB)',
-      'ENGDAR': 'Darby Translation (DARBY)',
-      'ENGYLT': 'Young\'s Literal Translation (YLT)',
-      'ENGCEV': 'Contemporary English Version (CEV)',
-      'ENGNET': 'New English Translation (NET)',
-      'ENGRSV': 'Revised Standard Version (RSV)',
-      'ENGNRS': 'New Revised Standard Version (NRSV)',
-      'ENGMSG': 'The Message (MSG)',
+      'ENGKJV': 'KJV',
+      'ENGESV': 'ESV',
+      'ENGNIV': 'NIV',
+      'ENGNLT': 'NLT',
+      'ENGNKJ': 'NKJV',
+      'ENGNAB': 'NASB',
+      'ENGAMP': 'AMP',
+      'ENGGNT': 'GNT',
+      'ENGASV': 'ASV',
+      'ENGWEB': 'WEB',
+      'ENGDAR': 'DARBY',
+      'ENGYLT': 'YLT',
+      'ENGCEV': 'CEV',
+      'ENGNET': 'NET',
+      'ENGRSV': 'RSV',
+      'ENGNRS': 'NRSV',
+      'ENGMSG': 'MSG',
       
       // Legacy Bible Brain IDs
-      'EN1KJV': 'King James Version (KJV)',
-      'EN1ESV': 'English Standard Version (ESV)',
-      'EN1NIV': 'New International Version (NIV)',
-      'EN1NLT': 'New Living Translation (NLT)',
-      'EN1NASB': 'New American Standard Bible (NASB)',
-      'ENGKJV2014': 'King James Version (KJV)',
-      'ENGNKJP2014': 'New King James Version (NKJV)',
-      'ENGLSV2014': 'English Standard Version (ESV)',
-      'ENGNIV2011': 'New International Version (NIV)',
-      'ENGNLTP2014': 'New Living Translation (NLT)',
-      'ENGNAS': 'New American Standard Bible (NASB)',
-      'ENGREV': 'Revised Standard Version (RSV)',
-      'CGTCBT': 'Common English Bible (CEB)',
+      'EN1KJV': 'KJV',
+      'EN1ESV': 'ESV',
+      'EN1NIV': 'NIV',
+      'EN1NLT': 'NLT',
+      'EN1NASB': 'NASB',
+      'ENGKJV2014': 'KJV',
+      'ENGNKJP2014': 'NKJV',
+      'ENGLSV2014': 'ESV',
+      'ENGNIV2011': 'NIV',
+      'ENGNLTP2014': 'NLT',
+      'ENGNAS': 'NASB',
+      'ENGREV': 'RSV',
+      'CGTCBT': 'CEB',
       
       // Common abbreviations (fallback)
-      'KJV': 'King James Version (KJV)',
-      'NIV': 'New International Version (NIV)',
-      'ESV': 'English Standard Version (ESV)',
-      'NLT': 'New Living Translation (NLT)',
-      'NASB': 'New American Standard Bible (NASB)',
-      'NKJV': 'New King James Version (NKJV)',
-      'AMP': 'Amplified Bible (AMP)',
-      'GNT': 'Good News Translation (GNT)',
-      'ASV': 'American Standard Version (ASV)',
-      'WEB': 'World English Bible (WEB)',
-      'DARBY': 'Darby Translation (DARBY)',
-      'YLT': 'Young\'s Literal Translation (YLT)',
-      'CEV': 'Contemporary English Version (CEV)',
-      'NET': 'New English Translation (NET)',
-      'RSV': 'Revised Standard Version (RSV)',
-      'NRSV': 'New Revised Standard Version (NRSV)',
-      'MSG': 'The Message (MSG)',
-      'DRA': 'Douay-Rheims 1899 (DRA)',
-      'EMTV': 'English Majority Text Version (EMTV)',
-      'GNV': 'Geneva Bible 1599 (GNV)',
-      'LEB': 'Lexham English Bible (LEB)',
-      'TLV': 'Tree of Life Version (TLV)',
+      'KJV': 'KJV',
+      'NIV': 'NIV',
+      'ESV': 'ESV',
+      'NLT': 'NLT',
+      'NASB': 'NASB',
+      'NKJV': 'NKJV',
+      'AMP': 'AMP',
+      'GNT': 'GNT',
+      'ASV': 'ASV',
+      'WEB': 'WEB',
+      'DARBY': 'DARBY',
+      'YLT': 'YLT',
+      'CEV': 'CEV',
+      'NET': 'NET',
+      'RSV': 'RSV',
+      'NRSV': 'NRSV',
+      'MSG': 'MSG',
+      'DRA': 'DRA',
+      'EMTV': 'EMTV',
+      'GNV': 'GNV',
+      'LEB': 'LEB',
+      'TLV': 'TLV',
       
       // Special cases
-      'UNKNOWN': 'Unknown Translation',
-      'INVALID': 'Invalid Translation',
-      'KJVPCE': 'King James Version (KJV)'
+      'UNKNOWN': 'UNKNOWN',
+      'INVALID': 'INVALID',
+      'KJVPCE': 'KJV'
     };
     
     // First try exact match

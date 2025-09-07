@@ -201,8 +201,9 @@ export const BibleChapterContent = ({
     // Find the version object in the versions array (same approach as modals)
     const currentVersion = versions.find(v => (v.id || v.abbreviation) === selectedVersion);
     
-    if (currentVersion && currentVersion.name) {
-      return currentVersion.name;
+    // Always use abbreviation if available, otherwise fall back to custom mapping
+    if (currentVersion && currentVersion.abbreviation) {
+      return currentVersion.abbreviation.toUpperCase();
     }
     
     // Fallback to the enhanced API service if not found in versions array
@@ -251,6 +252,9 @@ export const BibleChapterContent = ({
       .replace(/\s*\[[a-zA-Z]\]\s*/g, ' ')
       // Remove parenthetical single-letter footnotes like (a) but keep real words like (Selah)
       .replace(/\s*\(\s*[a-zA-Z]\s*\)\s*/g, ' ')
+      // Remove paragraph marks (pilcrow) and other formatting characters
+      .replace(/¶/g, '') // Remove paragraph mark
+      .replace(/[\u00A0\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various Unicode spaces with regular space
       // EXTRA AGGRESSIVE: Remove any standalone numbers that appear before text (for bracketed verses)
       .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove numbers at start if brackets exist
       .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' ') // Remove standalone numbers if brackets exist
@@ -621,7 +625,7 @@ export const BibleChapterContent = ({
                     const shouldShowUIVerseNumber = true;
                     
                    // Debug: Log verse processing for problematic verses
-                   if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3) {
+                   if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3 || verseNumber === 16) {
                      const originalText = verse.text || '';
                      const cleanedText = cleanVerseArtifacts(originalText);
                      const formattedText = formatText(originalText);
@@ -635,6 +639,22 @@ export const BibleChapterContent = ({
                        cleanedHasQuestionMark: cleanedText.includes('?'),
                        formattedHasQuestionMark: formattedText.__html?.includes('?')
                      });
+
+                     // Special debug for John 3:16 to identify character before "For"
+                     if (verseNumber === 16 && originalText.includes('For')) {
+                       const forPosition = originalText.indexOf('For');
+                       const charBeforeFor = originalText.charAt(forPosition - 1);
+                       const charCodeBeforeFor = originalText.charCodeAt(forPosition - 1);
+                       
+                       console.log(`🔍 John 3:16 character analysis:`, {
+                         originalText: originalText,
+                         forPosition: forPosition,
+                         charBeforeFor: charBeforeFor,
+                         charCodeBeforeFor: charCodeBeforeFor,
+                         beforeFor: originalText.substring(0, forPosition),
+                         afterFor: originalText.substring(forPosition, forPosition + 20)
+                       });
+                     }
                    }
                     
                     return (
