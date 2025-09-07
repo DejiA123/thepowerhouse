@@ -249,9 +249,10 @@ const BiblePage = () => {
   const handleVersionChange = (version: string) => {
     console.log('BiblePage: Setting preferred translation to:', version);
     setPreferredTranslation(version);
+    const selectedVersion = versions.find(v => v.abbreviation === version);
     toast({
       title: "Translation Changed",
-      description: `Switched to ${version.toUpperCase()} translation`,
+      description: `Switched to ${selectedVersion?.name || version.toUpperCase()} translation`,
     });
     
     // If we're currently viewing a chapter, reload it with the new version

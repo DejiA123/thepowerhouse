@@ -54,9 +54,10 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
 
   const handleTranslationChange = (translation: string) => {
     setPreferredTranslation(translation);
+    const selectedVersion = versions.find(v => v.abbreviation === translation);
     toast({
       title: "Translation Updated",
-      description: `Changed to ${translation.toUpperCase()}`,
+      description: `Changed to ${selectedVersion?.name || translation.toUpperCase()}`,
     });
   };
 
@@ -262,7 +263,7 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
           
           <div className="space-y-2 p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">
-              <strong>Translation:</strong> {preferences.preferredTranslation.toUpperCase()}
+              <strong>Translation:</strong> {versions.find(v => v.abbreviation === preferences.preferredTranslation)?.name || preferences.preferredTranslation.toUpperCase()}
             </p>
             <p className="text-sm text-muted-foreground">
               <strong>Book:</strong> {preferences.preferredBook}

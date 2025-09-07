@@ -195,12 +195,7 @@ export const BiblePreferencesPanel = () => {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Translation:</span>
-              <p className="font-medium">{preferences.preferredTranslation.toUpperCase()}</p>
-              {!['kjv', 'web'].includes(preferences.preferredTranslation.toLowerCase()) && (
-                <p className="text-xs text-amber-600 mt-1">
-                  ⚠️ Will fall back to KJV (not supported by Bible.API)
-                </p>
-              )}
+              <p className="font-medium">{currentVersion?.name || preferences.preferredTranslation.toUpperCase()}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Current Book:</span>

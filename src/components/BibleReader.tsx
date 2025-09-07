@@ -110,9 +110,10 @@ const BibleReader = () => {
   const handleVersionChange = (version: string) => {
     console.log('BibleReader: Setting preferred translation to:', version);
     setPreferredTranslation(version);
+    const selectedVersion = versions.find(v => v.abbreviation === version);
     toast({
       title: "Translation Changed",
-      description: `Switched to ${version.toUpperCase()} translation`,
+      description: `Switched to ${selectedVersion?.name || version.toUpperCase()} translation`,
     });
   };
 
