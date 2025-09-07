@@ -246,13 +246,13 @@ const BiblePage = () => {
     setCurrentVerse(0);
   };
 
-  const handleVersionChange = (version: string) => {
-    console.log('BiblePage: Setting preferred translation to:', version);
-    setPreferredTranslation(version);
-    const selectedVersion = versions.find(v => v.abbreviation === version);
+  const handleVersionChange = (versionId: string) => {
+    console.log('BiblePage: Setting preferred translation to:', versionId);
+    setPreferredTranslation(versionId);
+    const selectedVersion = versions.find(v => (v.id || v.abbreviation) === versionId);
     toast({
       title: "Translation Changed",
-      description: `Switched to ${selectedVersion?.name || version.toUpperCase()} translation`,
+      description: `Switched to ${selectedVersion?.name || selectedVersion?.abbreviation?.toUpperCase() || versionId} translation`,
     });
     
     // If we're currently viewing a chapter, reload it with the new version
@@ -413,6 +413,7 @@ const BiblePage = () => {
           onSearchOpen={() => setShowSearch(true)}
           onMenuOpen={() => setShowMenu(true)}
           selectedVersion={selectedVersion}
+          versions={versions}
           fontSize={preferences.fontSize}
           pitch={preferences.pitch}
           rate={preferences.rate}

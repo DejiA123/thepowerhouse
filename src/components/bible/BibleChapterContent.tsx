@@ -36,6 +36,7 @@ interface BibleChapterContentProps {
   onSearchOpen?: () => void;
   onMenuOpen?: () => void;
   selectedVersion?: string;
+  versions?: any[];
   fontSize?: number;
   pitch?: number;
   rate?: number;
@@ -62,6 +63,7 @@ export const BibleChapterContent = ({
   onSearchOpen,
   onMenuOpen,
   selectedVersion,
+  versions = [],
   fontSize = 16,
   pitch = 1.44,
   rate = 0.75,
@@ -192,22 +194,71 @@ export const BibleChapterContent = ({
     return book.name;
   };
 
-  // Get the version display name from props
+  // Get the version display name from the versions array (same as modals)
   const getVersionDisplayName = (selectedVersion?: string) => {
-    return selectedVersion || "KJV";
+    if (!selectedVersion) return "KJV";
+    
+    // Find the version object in the versions array (same approach as modals)
+    const currentVersion = versions.find(v => (v.id || v.abbreviation) === selectedVersion);
+    
+    if (currentVersion && currentVersion.name) {
+      return currentVersion.name;
+    }
+    
+    // Fallback to the enhanced API service if not found in versions array
+    return enhancedApiBibleService.getVersionDisplayName(selectedVersion);
   };
   // Clean common artifacts like inline references (e.g., 6:1 or 6.1) and footnote letters (a)
   const cleanVerseArtifacts = (input: string): string => {
-    return input
+    let cleaned = input;
+    
+    // First, aggressively remove numbers before brackets
+    cleaned = cleaned
+      // Remove verse numbers that appear before bracketed numbers (multiple patterns)
+      .replace(/\b\d+\s+(\[\d+\])/g, '$1') // "1 [1]" -> "[1]"
+      .replace(/\b\d+\s*(\[\d+\])/g, '$1') // "1[1]" -> "[1]" (no space)
+      .replace(/\s+\d+\s+(\[\d+\])/g, ' $1') // " 1 [1]" -> " [1]"
+      .replace(/\s+\d+\s*(\[\d+\])/g, ' $1') // " 1[1]" -> " [1]" (no space)
+      // Remove any standalone numbers that appear before brackets
+      .replace(/(\s|^)\d+(\s*\[\d+\])/g, '$1$2')
+      // More aggressive: remove any number followed by brackets
+      .replace(/\d+\s*(\[\d+\])/g, '$1')
+      // Even more aggressive: remove any number that appears before text that contains brackets
+      .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove verse numbers at start if text contains brackets
+      .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' '); // Remove standalone numbers if text contains brackets
+    
+    // Add consistent line breaks before verse numbers for better readability
+    // Use a more direct approach to ensure ALL verse numbers get the same spacing
+    cleaned = cleaned
+      // Remove brackets from verse numbers if present
+      .replace(/\[(\d+)\]/g, '$1')
+      // First, normalize all existing line breaks and whitespace around verse numbers
+      .replace(/\s*\n*\s*(\d+)(?=\s)/g, '\n\n$1') // Replace any whitespace/line breaks before verse numbers with exactly two line breaks
+      // Clean up any triple or more line breaks
+      .replace(/\n{3,}/g, '\n\n')
+      // Ensure the first verse number doesn't have line breaks at the start
+      .replace(/^\n+(\d+)/g, '$1');
+    
+    // Then apply other cleaning rules
+    cleaned = cleaned
+      // Remove verse numbers at the beginning of text (e.g., "1 In the beginning...")
+      .replace(/^\s*\d+\s+/, '')
+      // Remove verse numbers anywhere in the text that might be standalone (e.g., "1" at start of line)
+      .replace(/\b\d+\s+(?=[A-Z])/g, '')
       // Remove tokens like 6:1 or 6.1 that sometimes appear in Psalms/OT feeds
       .replace(/\b\d+[:.]\d+\b/g, '')
-      // Remove single-letter footnote markers like [a]
+      // Remove single-letter footnote markers like [a] but keep numbered brackets like [1], [2], [3]
       .replace(/\s*\[[a-zA-Z]\]\s*/g, ' ')
       // Remove parenthetical single-letter footnotes like (a) but keep real words like (Selah)
       .replace(/\s*\(\s*[a-zA-Z]\s*\)\s*/g, ' ')
+      // EXTRA AGGRESSIVE: Remove any standalone numbers that appear before text (for bracketed verses)
+      .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove numbers at start if brackets exist
+      .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' ') // Remove standalone numbers if brackets exist
       // Normalize leftover spacing
       .replace(/\s{2,}/g, ' ')
       .trim();
+    
+    return cleaned;
   };
 
 
@@ -459,7 +510,35 @@ export const BibleChapterContent = ({
                   const vn = Number(v.verse) || i + 1;
                   return arr.findIndex(u => (Number(u.verse) || 0) === vn && (u.text || '').trim() === (v.text || '').trim()) === i;
                 }).map((verse, index) => {
-                   const verseNumber = Number(verse.verse || index + 1);
+                   // Ensure we get the correct verse number - prefer verse.verse if it's a valid number
+                   let verseNumber: number;
+                   if (verse.verse && !isNaN(Number(verse.verse))) {
+                     verseNumber = Number(verse.verse);
+                   } else {
+                     verseNumber = index + 1;
+                   }
+                   
+                   // Debug: Log verse data to help identify duplication issues
+                   if (index < 5) { // Log first 5 verses to see more examples
+                     const hasBracketedNumbers = /\[\d+\]/.test(verse.text || '');
+                     const cleanedText = cleanVerseArtifacts(verse.text || '');
+                     const bracketMatches = (verse.text || '').match(/\[\d+\]/g) || [];
+                     console.log(`🔍 Verse ${index + 1}:`, {
+                       verseProperty: verse.verse,
+                       calculatedNumber: verseNumber,
+                       originalText: verse.text,
+                       cleanedText: cleanedText,
+                       bracketMatches: bracketMatches,
+                       textPreview: verse.text?.substring(0, 150) + '...',
+                       textStartsWithNumber: /^\d+/.test(verse.text || ''),
+                       hasBracketedNumbers: hasBracketedNumbers,
+                       hasNumbersBeforeBrackets: /\d+\s*\[\d+\]/.test(verse.text || ''),
+                       willShowUIVerseNumber: !hasBracketedNumbers,
+                       hasLineBreaks: cleanedText.includes('\n'),
+                       lineBreakCount: (cleanedText.match(/\n/g) || []).length
+                     });
+                   }
+                   
                    const highlight = getHighlightForVerse(verseNumber);
                    
                    // Handle click: copy verse text to clipboard, then open highlight dialog
@@ -494,6 +573,9 @@ export const BibleChapterContent = ({
                      // The text is now clean from the wldeh/bible-api - no HTML cleaning needed
                      let cleanText = cleanVerseArtifacts(text);
                      
+                     // Convert line breaks to HTML breaks for proper rendering
+                     cleanText = cleanText.replace(/\n/g, '<br>');
+                     
                      // Only fix any remaining truncated "LORD" text if present
                      if (cleanText.includes('D ')) {
                        cleanText = cleanText
@@ -503,14 +585,25 @@ export const BibleChapterContent = ({
                          .replace(/\s+D\s+/g, ' LORD '); // Replace " D " with " LORD "
                      }
                      
+                     // DIRECT FIX: Ensure question marks are preserved
+                     // This is a safety net to ensure punctuation is not lost
+                     if (text.includes('?') && !cleanText.includes('?')) {
+                       console.warn(`⚠️ Question mark lost in processing for verse ${verseNumber}:`, {
+                         original: text,
+                         processed: cleanText
+                       });
+                       // Try to restore the question mark
+                       cleanText = cleanText.replace(/([^.!?])(\s*<br>\s*$)/, '$1?$2');
+                     }
+                     
                      const gospels = ['Matthew', 'Mark', 'Luke', 'John'];
                      const bookName = getBookDisplayName();
                      
                      if (redLetters && gospels.includes(bookName)) {
                        // Wrap quoted speech (Jesus' words) in red
-                       // Supports straight quotes "..." and curly quotes “ … ”
+                       // Supports straight quotes "..." and curly quotes " … "
                        const formattedText = cleanText
-                         .replace(/([“"])([^“”"]+)([”"])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
+                         .replace(/([""])([^"""]+)([""])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
                        return { __html: formattedText };
                      }
                      return { __html: cleanText };
@@ -524,6 +617,26 @@ export const BibleChapterContent = ({
                      ? `bg-${highlight.highlight_color}-200 rounded px-1 verse-highlight`
                      : '';
                    
+                    // Always show verse numbers beside each verse
+                    const shouldShowUIVerseNumber = true;
+                    
+                   // Debug: Log verse processing for problematic verses
+                   if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3) {
+                     const originalText = verse.text || '';
+                     const cleanedText = cleanVerseArtifacts(originalText);
+                     const formattedText = formatText(originalText);
+                     
+                     console.log(`🔍 Verse ${verseNumber} processing:`, {
+                       originalText: originalText,
+                       shouldShowUIVerseNumber: shouldShowUIVerseNumber,
+                       cleanedText: cleanedText,
+                       formattedText: formattedText,
+                       hasQuestionMark: originalText.includes('?'),
+                       cleanedHasQuestionMark: cleanedText.includes('?'),
+                       formattedHasQuestionMark: formattedText.__html?.includes('?')
+                     });
+                   }
+                    
                     return (
                     <p 
                       key={`${settingsKey}-${index}`} 
@@ -531,9 +644,12 @@ export const BibleChapterContent = ({
                       style={verseStyle}
                       onClick={handleVerseClick}
                     >
-                      <sup className="text-sm font-medium text-muted-foreground mr-2">
-                        {verseNumber}
-                      </sup>
+                        {/* Always show verse numbers beside each verse */}
+                        {shouldShowUIVerseNumber && (
+                          <sup className="text-sm font-medium text-muted-foreground mr-2">
+                            {verseNumber}
+                          </sup>
+                        )}
                       <span dangerouslySetInnerHTML={formatText(verse.text)} />
                       </p>
                     );

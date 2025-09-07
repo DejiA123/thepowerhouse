@@ -17,7 +17,7 @@ interface BibleVersionSelectorProps {
 }
 
 export const BibleVersionSelector = ({ versions, selectedVersion, onVersionChange }: BibleVersionSelectorProps) => {
-  const currentVersion = versions.find(v => v.abbreviation === selectedVersion);
+  const currentVersion = versions.find(v => (v.id || v.abbreviation) === selectedVersion);
 
   return (
     <Card className="flex-1">
@@ -40,7 +40,7 @@ export const BibleVersionSelector = ({ versions, selectedVersion, onVersionChang
           </SelectTrigger>
           <SelectContent className="max-h-60">
             {versions.map((version) => (
-              <SelectItem key={version.abbreviation} value={version.abbreviation}>
+              <SelectItem key={version.id || version.abbreviation} value={version.id || version.abbreviation}>
                 <div className="flex flex-col">
                   <span className="font-medium">{version.name}</span>
                   <span className="text-sm text-muted-foreground">{version.abbreviation.toUpperCase()}</span>
