@@ -1,4 +1,4 @@
-import { enhancedBibleBrainApi } from './enhancedBibleBrainApi';
+import { enhancedApiBibleService } from './enhancedApiBibleService';
 import { mapVersionToBibleBrain } from './bibleBrainVersions';
 
 export interface AudioBibleFile {
@@ -39,8 +39,8 @@ export class AudioBibleService {
         return cached.url;
       }
 
-      // Use enhanced Bible Brain API to get audio
-      const audioUrl = await enhancedBibleBrainApi.getAudio(biblebrainVersion, book, chapter);
+      // Use enhanced API.Bible service to get audio (will return null as API.Bible doesn't provide direct audio)
+      const audioUrl = await enhancedApiBibleService.getAudio(biblebrainVersion, book, chapter);
       
       if (audioUrl) {
         const audioFile: AudioBibleFile = {

@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
-import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
+import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
 import { useToast } from "@/hooks/use-toast";

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { enhancedBibleBrainApiNew } from "@/services/enhancedBibleBrainApiNew";
+import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import type { BibleChapter } from "@/types/bible";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
@@ -71,7 +71,7 @@ const BiblePage = () => {
 
   useEffect(() => {
     const loadVersions = async () => {
-      const bibleVersions = await enhancedBibleBrainApiNew.getVersions();
+      const bibleVersions = await enhancedApiBibleService.getVersions();
       const validVersions = bibleVersions.filter(version => 
         version && version.abbreviation && version.name
       );
@@ -88,7 +88,7 @@ const BiblePage = () => {
     
     try {
       const normalizedBook = normalizeBookApiName(bookApiName);
-      const chapter = await enhancedBibleBrainApiNew.getChapter(selectedVersion, normalizedBook, chapterNum);
+      const chapter = await enhancedApiBibleService.getChapter(selectedVersion, normalizedBook, chapterNum);
       console.log(`📖 BiblePage: Received chapter data:`, chapter);
       
       if (chapter && chapter.verses && chapter.verses.length > 0) {

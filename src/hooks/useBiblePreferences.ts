@@ -7,263 +7,207 @@ export interface BiblePreferences {
   autoPlayNext: boolean;
   loopChapter: boolean;
   fontSize: number;
-  pitch: number;
-  rate: number;
-  redLetters: boolean;
+  ttsVoice: string;
+  ttsRate: number;
+  ttsPitch: number;
+  // Legacy properties for backward compatibility
+  pitch?: number;
+  rate?: number;
+  redLetters?: boolean;
 }
 
 const DEFAULT_PREFERENCES: BiblePreferences = {
-  preferredTranslation: 'ENGKJV2014', // Use confirmed working Bible Brain version ID
+  preferredTranslation: 'de4e12af7f28f599-02', // KJV in API.Bible format
   preferredBook: 'Genesis',
   preferredChapter: 1,
   autoPlayNext: true,
   loopChapter: false,
   fontSize: 16,
-  pitch: 1.6, // Increased from 1.44 to 1.6 for higher pitch
-  rate: 0.6, // Slightly slower for more realistic speech (was 0.75)
+  ttsVoice: 'default',
+  ttsRate: 1.0,
+  ttsPitch: 1.0,
+  // Legacy properties
+  pitch: 1.0,
+  rate: 1.0,
   redLetters: false,
 };
 
-const STORAGE_KEY = 'bible_preferences';
+const STORAGE_KEY = 'bible-preferences';
+
+// Migration logic for updating old Bible Brain IDs to API.Bible format
+const migrateTranslationPreference = (stored: BiblePreferences): BiblePreferences => {
+  console.log('🔍 Migration check: Current translation =', stored.preferredTranslation);
+  
+  // Map old Bible Brain IDs to API.Bible IDs
+  const migrationMap: Record<string, string> = {
+    'EN1ESV': 'de4e12af7f28f599-02', // KJV fallback
+    'EN1KJV': 'de4e12af7f28f599-02', // KJV
+    'EN1NIV': '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85', // NIV
+    'EN1NLT': '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8', // NLT
+    'EN1NASB': '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29', // NASB
+    'KJVPCE': 'de4e12af7f28f599-02', // KJV
+    'ASV': 'de4e12af7f28f599-02', // KJV fallback
+    'YLT': 'de4e12af7f28f599-02', // KJV fallback
+    'WEB': 'de4e12af7f28f599-02', // KJV fallback
+    'ENGKJV2014': 'de4e12af7f28f599-02', // KJV
+    'ENGNKJP2014': 'de4e12af7f28f599-02', // KJV fallback
+    'ENGLSV2014': '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57', // ESV
+    'ENGNIV2011': '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85', // NIV
+    'ENGNLTP2014': '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8', // NLT
+    'ENGKJV': 'de4e12af7f28f599-02', // KJV
+    'ENGESV': '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57', // ESV
+    'ENGNIV': '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85', // NIV
+    'ENGNLT': '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8', // NLT
+    'ENGAMP': 'de4e12af7f28f599-02', // KJV fallback
+    'ENGNKJV': 'de4e12af7f28f599-02', // KJV
+    'ENGNAS': '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29', // NASB
+    'ENGASV': 'de4e12af7f28f599-02', // KJV fallback
+    'ENGREV': 'de4e12af7f28f599-02', // KJV fallback
+    'ENGWEB': 'de4e12af7f28f599-02', // KJV fallback
+    'CGTCBT': 'de4e12af7f28f599-02', // KJV fallback
+    'UNKNOWN': 'de4e12af7f28f599-02', // KJV fallback
+    'INVALID': 'de4e12af7f28f599-02', // KJV fallback
+  };
+  
+  const newTranslation = migrationMap[stored.preferredTranslation];
+  if (newTranslation) {
+    console.log(`🔄 Migrating translation '${stored.preferredTranslation}' to API.Bible format: '${newTranslation}'`);
+    return {
+      ...stored,
+      preferredTranslation: newTranslation
+    };
+  }
+  
+  return stored;
+};
 
 export const useBiblePreferences = () => {
   const [preferences, setPreferences] = useState<BiblePreferences>(DEFAULT_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load preferences from localStorage on mount
+  // Load preferences from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        let parsed = JSON.parse(stored) as BiblePreferences;
         
-        // Migration: Convert old translation IDs to Bible Brain version IDs
-        if (parsed.preferredTranslation) {
-          console.log(`🔍 Migration check: Current translation = '${parsed.preferredTranslation}'`);
-          const translationMap: { [key: string]: string } = {
-            // Migrate all to confirmed working Bible Brain IDs
-            'kjv': 'ENGKJV2014',
-            'niv': 'ENGNIV2011', 
-            'esv': 'ENGLSV2014',
-            'nlt': 'ENGNLTP2014',
-            'amp': 'ENGAMP2015',
-            'nkjv': 'ENGNKJP2014',
-            'asv': 'ENGKJV2014', // Fallback to KJV
-            'ylt': 'ENGKJV2014', // Fallback to KJV
-            'web': 'ENGKJV2014', // Fallback to KJV
-            // Uppercase versions
-            'KJV': 'ENGKJV2014',
-            'NIV': 'ENGNIV2011',
-            'ESV': 'ENGLSV2014',
-            'NLT': 'ENGNLTP2014',
-            'AMP': 'ENGAMP2015',
-            'NKJV': 'ENGNKJP2014',
-            'ASV': 'ENGKJV2014',
-            'YLT': 'ENGKJV2014',
-            'WEB': 'ENGKJV2014',
-            // Old Bible Brain versions that need migration
-            'KJVPCE': 'ENGKJV2014',
-            'ENGKJV': 'ENGKJV2014',
-            'ENGESV': 'ENGLSV2014',
-            'ENGNIV': 'ENGNIV2011',
-            'ENGNLT': 'ENGNLTP2014',
-            'ENGAMP': 'ENGAMP2015',
-            'ENGNKJV': 'ENGNKJP2014',
-            'ENGNAS': 'ENGKJV2014',
-            'ENGASV': 'ENGKJV2014',
-            'ENGREV': 'ENGKJV2014',
-            'ENGWEB': 'ENGKJV2014',
-            // Invalid/problematic versions
-            'EN1ESV': 'ENGKJV2014',
-            'CGTCBT': 'ENGKJV2014',
-            'UNKNOWN': 'ENGKJV2014',
-            'INVALID': 'ENGKJV2014',
-          };
-          
-          const oldTranslation = parsed.preferredTranslation;
-          if (translationMap[oldTranslation]) {
-            console.log(`🔄 Migrating translation '${parsed.preferredTranslation}' to '${translationMap[oldTranslation]}'`);
-            parsed.preferredTranslation = translationMap[oldTranslation];
-            
-            // Save the migrated preferences
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-              console.log('✅ Migrated preferences saved');
-            } catch (error) {
-              console.warn('⚠️ Could not save migrated preferences:', error);
-            }
-          }
-        }
+        // Apply migration
+        parsed = migrateTranslationPreference(parsed);
         
-        // Force migration for any problematic versions (aggressive migration)
-        const problematicVersions = ['ENGNIV', 'EN1ESV', 'ENGKJV', 'ENGESV', 'KJVPCE', 'ASV', 'YLT', 'WEB'];
-        if (problematicVersions.includes(parsed.preferredTranslation)) {
-          console.log(`🔄 FORCE MIGRATION: Converting ${parsed.preferredTranslation} to ENGKJV2014`);
-          parsed.preferredTranslation = 'ENGKJV2014';
+        // Merge with defaults to ensure all properties exist
+        const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+        
+        setPreferences(merged);
+        
+        // Save back if migration occurred
+        if (parsed.preferredTranslation !== JSON.parse(stored).preferredTranslation) {
           try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-            console.log('✅ Force migration completed');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            console.log('✅ Migrated preferences saved to localStorage');
           } catch (error) {
-            console.warn('⚠️ Could not save force migrated preferences:', error);
+            console.warn('⚠️ Could not save migrated preferences:', error);
           }
         }
-        
-        // iPhone rate handling - ensure reasonable limits but don't force defaults
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        if (isIOS && parsed.rate) {
-          console.log('📱 iPhone detected - checking audio rate limits');
-          console.log('📱 Original parsed rate:', parsed.rate);
-          
-          // Only adjust if rate is outside reasonable bounds
-          if (parsed.rate > 1.0) {
-            console.log('📱 Rate too high for iPhone, capping at 1.0');
-            parsed.rate = 1.0;
-          } else if (parsed.rate < 0.5) {
-            console.log('📱 Rate too low for iPhone, setting minimum to 0.5');
-            parsed.rate = 0.5;
-          }
-          
-          console.log('📱 Final parsed rate:', parsed.rate);
-        }
-        
-        console.log('🎵 useBiblePreferences: Loading preferences:', {
-          stored: parsed,
-          defaults: DEFAULT_PREFERENCES,
-          isIOS,
-          userAgent: navigator.userAgent
-        });
-        
-        setPreferences({ ...DEFAULT_PREFERENCES, ...parsed });
-      } else {
-        console.log('🎵 useBiblePreferences: No stored preferences, using defaults:', DEFAULT_PREFERENCES);
-        console.log('🎵 useBiblePreferences: Default pitch:', DEFAULT_PREFERENCES.pitch, 'Default rate:', DEFAULT_PREFERENCES.rate);
       }
     } catch (error) {
-      console.error('Error loading Bible preferences:', error);
+      console.warn('⚠️ Could not load Bible preferences from localStorage:', error);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
   // Save preferences to localStorage whenever they change
-  const updatePreferences = (newPreferences: Partial<BiblePreferences>) => {
-    const updated = { ...preferences, ...newPreferences };
-    console.log('useBiblePreferences: Updating preferences:', updated);
-    setPreferences(updated);
-    
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      console.log('Bible preferences saved to localStorage:', updated);
-    } catch (error) {
-      console.error('Error saving Bible preferences:', error);
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+        console.log('🎵 useBiblePreferences: Saving preferences:', {
+          stored: preferences,
+          defaults: DEFAULT_PREFERENCES,
+          isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+          userAgent: navigator.userAgent
+        });
+      } catch (error) {
+        console.warn('⚠️ Could not save Bible preferences to localStorage:', error);
+      }
     }
-  };
+  }, [preferences, isLoaded]);
 
-  // Individual preference setters
   const setPreferredTranslation = (translation: string) => {
-    console.log('useBiblePreferences: Setting preferred translation to:', translation);
-    updatePreferences({ preferredTranslation: translation });
+    setPreferences(prev => ({ ...prev, preferredTranslation: translation }));
   };
 
   const setPreferredBook = (book: string) => {
-    updatePreferences({ preferredBook: book });
+    setPreferences(prev => ({ ...prev, preferredBook: book }));
   };
 
   const setPreferredChapter = (chapter: number) => {
-    updatePreferences({ preferredChapter: chapter });
+    setPreferences(prev => ({ ...prev, preferredChapter: chapter }));
   };
 
   const setAutoPlayNext = (autoPlay: boolean) => {
-    updatePreferences({ autoPlayNext: autoPlay });
+    setPreferences(prev => ({ ...prev, autoPlayNext: autoPlay }));
   };
 
-  const setLoopChapter = (loopChapter: boolean) => {
-    console.log('useBiblePreferences: setLoopChapter called with:', loopChapter);
-    updatePreferences({ loopChapter });
+  const setLoopChapter = (loop: boolean) => {
+    setPreferences(prev => ({ ...prev, loopChapter: loop }));
   };
 
   const setFontSize = (fontSize: number) => {
-    console.log('useBiblePreferences: setFontSize called with:', fontSize);
-    updatePreferences({ fontSize });
+    setPreferences(prev => ({ ...prev, fontSize: fontSize }));
   };
 
+  const setTtsVoice = (voice: string) => {
+    setPreferences(prev => ({ ...prev, ttsVoice: voice }));
+  };
+
+  const setTtsRate = (rate: number) => {
+    setPreferences(prev => ({ ...prev, ttsRate: rate }));
+  };
+
+  const setTtsPitch = (pitch: number) => {
+    setPreferences(prev => ({ ...prev, ttsPitch: pitch, pitch })); // Set both for compatibility
+  };
+
+  // Legacy setters for backward compatibility
   const setPitch = (pitch: number) => {
-    console.log('🎵 useBiblePreferences: setPitch called with:', pitch);
-    console.log('🎵 useBiblePreferences: Pitch validation:', {
-      isNumber: typeof pitch === 'number',
-      value: pitch,
-      isValid: !isNaN(pitch) && pitch > 0,
-      originalValue: pitch
-    });
-    updatePreferences({ pitch });
+    setPreferences(prev => ({ ...prev, ttsPitch: pitch, pitch }));
   };
 
   const setRate = (rate: number) => {
-    // iPhone rate handling - allow user preferences but ensure reasonable limits
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    console.log('🎵 useBiblePreferences: setRate called with:', rate, 'isIOS:', isIOS);
-    
-    let finalRate = rate;
-    
-    if (isIOS) {
-      // Allow user's rate but cap at reasonable limit for iPhone
-      if (rate > 1.0) {
-        console.log('📱 iPhone detected - capping audio rate to 1.0 (requested: ' + rate + ')');
-        finalRate = 1.0;
-      } else if (rate < 0.5) {
-        console.log('📱 iPhone detected - setting minimum audio rate to 0.5 (requested: ' + rate + ')');
-        finalRate = 0.5;
-      }
-    }
-    
-    console.log('🎵 useBiblePreferences: Final rate being set:', finalRate);
-    console.log('🎵 useBiblePreferences: Rate validation:', {
-      isNumber: typeof finalRate === 'number',
-      value: finalRate,
-      isValid: !isNaN(finalRate) && finalRate > 0,
-      originalValue: rate,
-      adjusted: finalRate !== rate
-    });
-    updatePreferences({ rate: finalRate });
+    setPreferences(prev => ({ ...prev, ttsRate: rate, rate }));
   };
 
   const setRedLetters = (redLetters: boolean) => {
-    updatePreferences({ redLetters });
+    setPreferences(prev => ({ ...prev, redLetters }));
   };
 
-  // Reset to defaults
   const resetPreferences = () => {
     setPreferences(DEFAULT_PREFERENCES);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error resetting Bible preferences:', error);
-    }
   };
 
-  // Reset rate to reasonable iPhone defaults
-  const resetRateForIPhone = () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      console.log('📱 iPhone detected - resetting audio rate to 0.6 (iPhone-optimized default)');
-      updatePreferences({ rate: 0.6 });
-    }
+  const updatePreferences = (updates: Partial<BiblePreferences>) => {
+    setPreferences(prev => ({ ...prev, ...updates }));
   };
 
   return {
     preferences,
     isLoaded,
-    updatePreferences,
     setPreferredTranslation,
     setPreferredBook,
     setPreferredChapter,
     setAutoPlayNext,
     setLoopChapter,
     setFontSize,
+    setTtsVoice,
+    setTtsRate,
+    setTtsPitch,
+    // Legacy methods for backward compatibility
     setPitch,
     setRate,
     setRedLetters,
     resetPreferences,
-    resetRateForIPhone,
+    updatePreferences,
   };
-}; 
+};

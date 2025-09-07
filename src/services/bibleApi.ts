@@ -1,5 +1,5 @@
 // Import the enhanced Bible Brain API
-import { enhancedBibleBrainApi } from './enhancedBibleBrainApi';
+import { enhancedApiBibleService } from './enhancedApiBibleService';
 import type { BibleVersion, BibleVerse, BibleChapter } from '@/types/bible';
 
 // Re-export types for backward compatibility
@@ -8,27 +8,36 @@ export type { BibleVersion, BibleVerse, BibleChapter };
 export const bibleApi = {
   // Test API connectivity
   async testAPI(): Promise<boolean> {
-    return await enhancedBibleBrainApi.testAPI();
+    try {
+      const versions = await enhancedApiBibleService.getVersions();
+      return versions.length > 0;
+    } catch {
+      return false;
+    }
   },
 
   // Get Bible chapter
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
-    return await enhancedBibleBrainApi.getChapter(version, book, chapter);
+    return await enhancedApiBibleService.getChapter(version, book, chapter);
   },
 
-  // Get Bible verse
+  // Get Bible verse (placeholder implementation)
   async getVerse(version: string, book: string, chapter: number, verse: number): Promise<BibleVerse | null> {
-    return await enhancedBibleBrainApi.getVerse(version, book, chapter, verse);
+    const chapterData = await enhancedApiBibleService.getChapter(version, book, chapter);
+    if (chapterData?.verses) {
+      return chapterData.verses.find(v => parseInt(v.verse) === verse) || null;
+    }
+    return null;
   },
 
   // Get audio URL
   async getAudio(version: string, book: string, chapter: number): Promise<string | null> {
-    return await enhancedBibleBrainApi.getAudio(version, book, chapter);
+    return await enhancedApiBibleService.getAudio(version, book, chapter);
   },
 
   // Get available Bible versions
   async getVersions(): Promise<BibleVersion[]> {
-    return await enhancedBibleBrainApi.getVersions();
+    return await enhancedApiBibleService.getVersions();
   },
 
   // Search functionality (basic implementation)
