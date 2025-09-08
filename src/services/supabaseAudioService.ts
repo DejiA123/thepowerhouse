@@ -157,8 +157,13 @@ export const supabaseAudioService = {
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
     console.log(`✅ Chapter: ${chapter} → Padded: ${chapterStr}`);
     console.log(`✅ Version: ${version} → Code: ${versionCode}`);
+    console.log(`✅ BookName: "${bookName}", Length: ${bookName.length}, Padding: ${paddingNeeded}, Underscores: "${underscores}"`);
     
-    return fileName;
+    // Special debug for Acts
+    if (bookName.toLowerCase() === 'acts') {
+      console.log(`🔍 ACTS DEBUG: Expected filename for Acts ${chapter}: B05___${chapterStr}_Acts________ENGKJVN1DA.mp3`);
+      console.log(`🔍 ACTS DEBUG: Generated filename: ${fileName}`);
+    }
   },
 
   /**
