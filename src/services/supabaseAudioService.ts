@@ -75,8 +75,8 @@ const BOOK_MAPPINGS: Record<string, string> = {
 // Version mappings to match the MP3 file format (API.Bible version IDs)
 const VERSION_MAPPINGS: Record<string, string> = {
   // API.Bible KJV versions - updated to match your actual files
-  'de4e12af7f28f599-02': 'ENGKJVO1DA', // KJV (current) - matches your bucket files
-  '06125adad2d5898a-01': 'ENGKJVO1DA', // KJV alternate
+  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV (current) - back to ENGKJVN1DA for Matthew
+  '06125adad2d5898a-01': 'ENGKJVN1DA', // KJV alternate
   
   // API.Bible NIV versions  
   '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'ENGNIVN1DA', // NIV (2011)
@@ -95,8 +95,8 @@ const VERSION_MAPPINGS: Record<string, string> = {
   '4a3a6e2b5f8c2a5b-01': 'ENGNASN1DA', // NASB alternate
   
   // Legacy support for old version IDs
-  'ENGKJV': 'ENGKJVO1DA',
-  'KJV': 'ENGKJVO1DA',
+  'ENGKJV': 'ENGKJVN1DA',
+  'KJV': 'ENGKJVN1DA',
   'ENGNIV': 'ENGNIVN1DA',
   'NIV': 'ENGNIVN1DA',
   'ENGESV': 'ENGESVN1DA',
@@ -120,7 +120,16 @@ export const supabaseAudioService = {
    * Generate the expected MP3 filename based on book, chapter, and version
    */
   generateFileName(book: string, chapter: number, version: string): string {
-    // Normalize book name to match our mappings (case-insensitive)
+    // First try the user's expected format for Matthew
+    if (book.toLowerCase() === 'matthew') {
+      const versionCode = VERSION_MAPPINGS[version] || 'ENGKJVN1DA';
+      const chapterStr = chapter.toString().padStart(2, '0');
+      const fileName = `B01___${chapterStr}_Matthew_____${versionCode}.mp3`;
+      console.log(`✅ Generated Matthew filename: ${fileName}`);
+      return fileName;
+    }
+
+    // For other books, use the existing mapping
     const normalizedBook = this.normalizeBookName(book);
     const bookCode = BOOK_MAPPINGS[normalizedBook];
     const versionCode = VERSION_MAPPINGS[version];
@@ -128,13 +137,6 @@ export const supabaseAudioService = {
     if (!bookCode) {
       console.warn(`No book mapping found for: ${book} (normalized: ${normalizedBook})`);
       console.warn('Available books:', Object.keys(BOOK_MAPPINGS));
-      
-      // Show what the correct book code should be for popular books
-      if (normalizedBook.toLowerCase() === 'matthew') {
-        console.warn(`❌ For Matthew, the correct book code should be B40, not B01`);
-        console.warn(`❌ Your file should be named: B40___01_Matthew_____ENGKJVN1DA.mp3`);
-      }
-      
       return '';
     }
     
@@ -144,12 +146,12 @@ export const supabaseAudioService = {
       return '';
     }
     
-    // Format: B40___01_Matthew_____ENGKJVN1DA.mp3
+    // Format: A01___01_Genesis_____ENGKJVO1DA.mp3
     const chapterStr = chapter.toString().padStart(2, '0');
     const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     
     // Calculate padding needed to make book name + underscores = 12 characters total
-    const paddingNeeded = 12 - bookName.length;
+    const paddingNeeded = Math.max(0, 12 - bookName.length);
     const underscores = '_'.repeat(paddingNeeded);
     const fileName = `${bookCode}___${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
     
@@ -285,6 +287,13 @@ export const supabaseAudioService = {
       const exists = listData && listData.some(file => file.name === fileName);
       console.log(`🔍 Looking for exact match: "${fileName}"`);
       console.log(`🔍 File exists: ${exists}`);
+      
+      // If Matthew file doesn't exist, suggest what files are available
+      if (!exists && book.toLowerCase() === 'matthew') {
+        console.log(`❌ Matthew file not found. You need to upload: ${fileName}`);
+        console.log(`🔍 Available files in bucket:`);
+        listData?.forEach(file => console.log(`  - ${file.name}`));
+      }
       
       return exists;
     } catch (error) {
