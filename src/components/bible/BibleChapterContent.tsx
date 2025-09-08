@@ -205,6 +205,7 @@ export const BibleChapterContent = ({
           console.error('❌ Error accessing bucket:', listErr);
         }
         
+        console.log('🔍 About to call supabaseAudioService.getAudioUrl with:', { selectedBook, selectedChapter, selectedVersion });
         const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated URL:', url);
         
