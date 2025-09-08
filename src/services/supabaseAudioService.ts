@@ -164,6 +164,8 @@ export const supabaseAudioService = {
       console.log(`🔍 ACTS DEBUG: Expected filename for Acts ${chapter}: B05___${chapterStr}_Acts________ENGKJVN1DA.mp3`);
       console.log(`🔍 ACTS DEBUG: Generated filename: ${fileName}`);
     }
+    
+    return fileName;
   },
 
   /**
