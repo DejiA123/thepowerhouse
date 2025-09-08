@@ -5,73 +5,71 @@ const AUDIO_BUCKET = 'audio-bible';
 
 // Book name mappings to match the MP3 file format
 const BOOK_MAPPINGS: Record<string, string> = {
-  // Old Testament books (A01-A39 with ENGKJVO1DA version)
-  'Genesis': 'A01',
-  'Exodus': 'A02', 
-  'Leviticus': 'A03',
-  'Numbers': 'A04',
-  'Deuteronomy': 'A05',
-  'Joshua': 'A06',
-  'Judges': 'A07',
-  'Ruth': 'A08',
-  '1 Samuel': 'A09',
-  '2 Samuel': 'A10',
-  '1 Kings': 'A11',
-  '2 Kings': 'A12',
-  '1 Chronicles': 'A13',
-  '2 Chronicles': 'A14',
-  'Ezra': 'A15',
-  'Nehemiah': 'A16',
-  'Esther': 'A17',
-  'Job': 'A18',
-  'Psalms': 'A19',
-  'Proverbs': 'A20',
-  'Ecclesiastes': 'A21',
-  'Song of Solomon': 'A22',
-  'Isaiah': 'A23',
-  'Jeremiah': 'A24',
-  'Lamentations': 'A25',
-  'Ezekiel': 'A26',
-  'Daniel': 'A27',
-  'Hosea': 'A28',
-  'Joel': 'A29',
-  'Amos': 'A30',
-  'Obadiah': 'A31',
-  'Jonah': 'A32',
-  'Micah': 'A33',
-  'Nahum': 'A34',
-  'Habakkuk': 'A35',
-  'Zephaniah': 'A36',
-  'Zechariah': 'A37',
-  'Malachi': 'A38',
-  // New Testament books (B01-B27 with ENGKJVN1DA version)
-  'Matthew': 'B01',
-  'Mark': 'B02',
-  'Luke': 'B03',
-  'John': 'B04',
-  'Acts': 'B05',
-  'Romans': 'B06',
-  '1 Corinthians': 'B07',
-  '2 Corinthians': 'B08',
-  'Galatians': 'B09',
-  'Ephesians': 'B10',
-  'Philippians': 'B11',
-  'Colossians': 'B12',
-  '1 Thessalonians': 'B13',
-  '2 Thessalonians': 'B14',
-  '1 Timothy': 'B15',
-  '2 Timothy': 'B16',
-  'Titus': 'B17',
-  'Philemon': 'B18',
-  'Hebrews': 'B19',
-  'James': 'B20',
-  '1 Peter': 'B21',
-  '2 Peter': 'B22',
-  '1 John': 'B23',
-  '2 John': 'B24',
-  '3 John': 'B25',
-  'Jude': 'B26',
-  'Revelation': 'B27'
+  'Genesis': 'B02',
+  'Exodus': 'B03', 
+  'Leviticus': 'B04',
+  'Numbers': 'B05',
+  'Deuteronomy': 'B06',
+  'Joshua': 'B07',
+  'Judges': 'B08',
+  'Ruth': 'B09',
+  '1 Samuel': 'B10',
+  '2 Samuel': 'B11',
+  '1 Kings': 'B12',
+  '2 Kings': 'B13',
+  '1 Chronicles': 'B14',
+  '2 Chronicles': 'B15',
+  'Ezra': 'B16',
+  'Nehemiah': 'B17',
+  'Esther': 'B18',
+  'Job': 'B19',
+  'Psalms': 'B20',
+  'Proverbs': 'B21',
+  'Ecclesiastes': 'B22',
+  'Song of Solomon': 'B23',
+  'Isaiah': 'B24',
+  'Jeremiah': 'B25',
+  'Lamentations': 'B26',
+  'Ezekiel': 'B27',
+  'Daniel': 'B28',
+  'Hosea': 'B29',
+  'Joel': 'B30',
+  'Amos': 'B31',
+  'Obadiah': 'B32',
+  'Jonah': 'B33',
+  'Micah': 'B34',
+  'Nahum': 'B35',
+  'Habakkuk': 'B36',
+  'Zephaniah': 'B37',
+  'Zechariah': 'B38',
+  'Malachi': 'B39',
+  'Matthew': 'B40',
+  'Mark': 'B41',
+  'Luke': 'B42',
+  'John': 'B43',
+  'Acts': 'B44',
+  'Romans': 'B45',
+  '1 Corinthians': 'B46',
+  '2 Corinthians': 'B47',
+  'Galatians': 'B48',
+  'Ephesians': 'B49',
+  'Philippians': 'B50',
+  'Colossians': 'B51',
+  '1 Thessalonians': 'B52',
+  '2 Thessalonians': 'B53',
+  '1 Timothy': 'B54',
+  '2 Timothy': 'B55',
+  'Titus': 'B56',
+  'Philemon': 'B57',
+  'Hebrews': 'B58',
+  'James': 'B59',
+  '1 Peter': 'B60',
+  '2 Peter': 'B61',
+  '1 John': 'B62',
+  '2 John': 'B63',
+  '3 John': 'B64',
+  'Jude': 'B65',
+  'Revelation': 'B66'
 };
 
 // Version mappings to match the MP3 file format (API.Bible version IDs)
@@ -125,41 +123,40 @@ export const supabaseAudioService = {
     // Normalize book name to match our mappings (case-insensitive)
     const normalizedBook = this.normalizeBookName(book);
     const bookCode = BOOK_MAPPINGS[normalizedBook];
+    const versionCode = VERSION_MAPPINGS[version];
     
     if (!bookCode) {
       console.warn(`No book mapping found for: ${book} (normalized: ${normalizedBook})`);
       console.warn('Available books:', Object.keys(BOOK_MAPPINGS));
+      
+      // Show what the correct book code should be for popular books
+      if (normalizedBook.toLowerCase() === 'matthew') {
+        console.warn(`❌ For Matthew, the correct book code should be B40, not B01`);
+        console.warn(`❌ Your file should be named: B40___01_Matthew_____ENGKJVN1DA.mp3`);
+      }
+      
       return '';
     }
     
-    // Always use ENGKJVN1DA for New Testament books (B01-B27)
-    // Always use ENGKJVO1DA for Old Testament books (A01-A39)
-    let versionCode: string;
-    if (bookCode.startsWith('A')) {
-      // Old Testament uses ENGKJVO1DA
-      versionCode = 'ENGKJVO1DA';
-    } else if (bookCode.startsWith('B')) {
-      // New Testament uses ENGKJVN1DA
-      versionCode = 'ENGKJVN1DA';
-    } else {
-      console.warn(`Unknown book code format: ${bookCode} for book: ${normalizedBook}`);
+    if (!versionCode) {
+      console.warn(`No version mapping found for: ${version}`);
+      console.warn('Available versions:', Object.keys(VERSION_MAPPINGS));
       return '';
     }
     
-    // Format: B01___01_Matthew_____ENGKJVN1DA.mp3 or A01___01_Genesis_____ENGKJVO1DA.mp3
+    // Format: B40___01_Matthew_____ENGKJVN1DA.mp3
     const chapterStr = chapter.toString().padStart(2, '0');
     const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     
     // Calculate padding needed to make book name + underscores = 12 characters total
     const paddingNeeded = 12 - bookName.length;
-    const underscores = '_'.repeat(Math.max(0, paddingNeeded));
+    const underscores = '_'.repeat(paddingNeeded);
     const fileName = `${bookCode}___${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
     
     console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
     console.log(`✅ Chapter: ${chapter} → Padded: ${chapterStr}`);
-    console.log(`✅ Version: ${version} → Code: ${versionCode} (${bookCode.startsWith('A') ? 'Old Testament' : 'New Testament'})`);
-    console.log(`✅ BookName: "${bookName}", Length: ${bookName.length}, Padding: ${paddingNeeded}, Underscores: "${underscores}"`);
+    console.log(`✅ Version: ${version} → Code: ${versionCode}`);
     
     return fileName;
   },
@@ -168,20 +165,15 @@ export const supabaseAudioService = {
    * Normalize book name to match our mapping keys (proper case)
    */
   normalizeBookName(book: string): string {
-    console.log(`🔍 normalizeBookName called with: "${book}"`);
-    
     // Convert to lowercase for comparison
     const lowerBook = book.toLowerCase().trim();
-    console.log(`🔍 lowerBook: "${lowerBook}"`);
     
     // Find the correct case version from our mappings
     const correctCase = Object.keys(BOOK_MAPPINGS).find(
       key => key.toLowerCase() === lowerBook
     );
-    console.log(`🔍 correctCase found: "${correctCase}"`);
     
     if (correctCase) {
-      console.log(`🔍 Returning correctCase: "${correctCase}"`);
       return correctCase;
     }
     
@@ -208,16 +200,13 @@ export const supabaseAudioService = {
     };
     
     if (variations[lowerBook]) {
-      console.log(`🔍 Found variation: "${variations[lowerBook]}"`);
       return variations[lowerBook];
     }
     
     // Fallback: capitalize first letter of each word
-    const fallback = book.split(' ').map(word => 
+    return book.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
-    console.log(`🔍 Using fallback: "${fallback}"`);
-    return fallback;
   },
 
   /**
@@ -225,10 +214,10 @@ export const supabaseAudioService = {
    */
   async getAudioUrl(book: string, chapter: number, version: string): Promise<string | null> {
     try {
-      console.log(`🔍 supabaseAudioService.getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
+      console.log(`🔍 getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
       
       const fileName = this.generateFileName(book, chapter, version);
-      console.log(`🔍 supabaseAudioService: Generated fileName: "${fileName}"`);
+      console.log(`🔍 Generated fileName: "${fileName}"`);
       
       if (!fileName) {
         console.warn(`Could not generate filename for ${book} ${chapter} (${version})`);
@@ -236,17 +225,17 @@ export const supabaseAudioService = {
       }
 
       // Check if file exists first
-      console.log(`🔍 supabaseAudioService: Checking if file exists: ${fileName}`);
+      console.log(`🔍 Checking if file exists: ${fileName}`);
       const exists = await this.checkAudioExists(book, chapter, version);
-      console.log(`🔍 supabaseAudioService: File exists: ${exists}`);
+      console.log(`🔍 File exists: ${exists}`);
       
       if (!exists) {
-        console.warn(`🔍 supabaseAudioService: File does not exist in bucket: ${fileName}`);
+        console.warn(`🔍 File does not exist in bucket: ${fileName}`);
         return null;
       }
 
       // Get the public URL from Supabase storage
-      console.log(`🔍 supabaseAudioService: Getting public URL for: ${fileName}`);
+      console.log(`🔍 Getting public URL for: ${fileName}`);
       const { data } = await supabase.storage
         .from(AUDIO_BUCKET)
         .getPublicUrl(fileName);
@@ -256,7 +245,7 @@ export const supabaseAudioService = {
         return null;
       }
 
-      console.log(`🎵 supabaseAudioService: Audio URL for ${book} ${chapter}:`, data.publicUrl);
+      console.log(`🎵 Audio URL for ${book} ${chapter}:`, data.publicUrl);
       return data.publicUrl;
     } catch (error) {
       console.error(`❌ Error getting audio URL for ${book} ${chapter}:`, error);

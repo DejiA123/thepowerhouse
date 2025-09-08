@@ -14,7 +14,7 @@ import { BibleNotesDialog } from "./BibleNotesDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
-import { SupabaseAudioPlayer } from "./SupabaseAudioPlayer";
+import { supabaseAudioService } from "@/services/supabaseAudioService";
 
 
 interface BibleChapterContentProps {
@@ -91,8 +91,12 @@ export const BibleChapterContent = ({
   const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   
-  // Audio player state
-  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+  // MP3 Audio state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -143,17 +147,162 @@ export const BibleChapterContent = ({
   const normalizedSelectedBook = normalizeBookApiName(selectedBook);
   const book = allBooks.find(b => b.apiName === normalizedSelectedBook);
 
-  // Handle audio player toggle
-  const handleAudioToggle = () => {
-    setShowAudioPlayer(!showAudioPlayer);
-  };
+  // Load MP3 audio when book, chapter, or version changes
+  useEffect(() => {
+    const loadAudio = async () => {
+      if (!selectedVersion) {
+        console.log('🔍 No selectedVersion available');
+        return;
+      }
+      
+      console.log('🔍 Loading MP3 audio with params:', {
+        selectedBook,
+        selectedChapter,
+        selectedVersion
+      });
+      
+      console.log(`🔍 MARK DEBUG: Loading audio for book "${selectedBook}" chapter ${selectedChapter}`);
+      if (selectedBook.toLowerCase() === 'mark') {
+        console.log('🔍 MARK AUDIO: This is Mark! Should work now...');
+      }
+      
+      setIsLoading(true);
+      setAudioError(null);
+      
+      try {
+        // First, let's check what filename would be generated
+        const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
+        console.log('🔍 Generated filename:', fileName);
+        
+        // Let's check what files are actually in the bucket with more detail
+        try {
+          console.log('🔍 Checking bucket contents...');
+          const { data: files, error: listError } = await supabase.storage
+            .from('audio-bible')
+            .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+          
+          if (listError) {
+            console.error('❌ Error listing bucket files:', listError);
+          } else {
+            console.log('🔍 Total files in audio-bible bucket:', files?.length || 0);
+            console.log('🔍 Files in audio-bible bucket:', files?.map(f => f.name) || []);
+            
+            // Check if there are any files that match our pattern
+            const matchingFiles = files?.filter(f => 
+              f.name.includes('Matthew') || 
+              f.name.includes('MAT') || 
+              f.name.includes('B40') ||
+              f.name.includes('B01') // In case user's example was correct
+            ) || [];
+            console.log('🔍 Matching files for Matthew:', matchingFiles.map(f => f.name));
+            
+            // Let's also check what the exact filename we're looking for
+            console.log('🔍 Looking for exact filename:', fileName);
+            const exactMatch = files?.find(f => f.name === fileName);
+            console.log('🔍 Exact match found:', !!exactMatch);
+          }
+        } catch (listErr) {
+          console.error('❌ Error accessing bucket:', listErr);
+        }
+        
+        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
+        console.log('🔍 Generated URL:', url);
+        
+        if (url) {
+          setAudioUrl(url);
+          console.log(`🎵 MP3 audio loaded: ${url}`);
+          
+          // Test if the URL actually works
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            console.log('🔍 URL test response status:', response.status);
+            if (!response.ok) {
+              console.error('❌ URL is not accessible:', response.status, response.statusText);
+              setAudioError(`Audio file not accessible (${response.status})`);
+              setAudioUrl(null);
+            }
+          } catch (fetchError) {
+            console.error('❌ Error testing URL:', fetchError);
+            setAudioError('Audio file URL test failed');
+            setAudioUrl(null);
+          }
+        } else {
+          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
+          console.log('❌', errorMsg);
+          setAudioError(errorMsg);
+        }
+      } catch (error) {
+        console.error('❌ Error loading MP3 audio:', error);
+        setAudioError('Failed to load MP3 audio');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleAudioError = (error: string) => {
-    toast({
-      title: "Audio Error",
-      description: error,
-      variant: "destructive"
-    });
+    loadAudio();
+  }, [selectedBook, selectedChapter, selectedVersion]);
+
+  // Handle MP3 audio playback
+  const handlePlayPause = async () => {
+    // First, let's check if the bucket has ANY files at all
+    try {
+      const { data: allFiles, error: listError } = await supabase.storage
+        .from('audio-bible')
+        .list('', { limit: 100 });
+      
+      console.log('🔍 BUCKET CHECK - Error:', listError);
+      console.log('🔍 BUCKET CHECK - Total files:', allFiles?.length || 0);
+      console.log('🔍 BUCKET CHECK - Files:', allFiles?.map(f => f.name) || []);
+      
+      if (!allFiles || allFiles.length === 0) {
+        toast({
+          title: "No Audio Files Found",
+          description: "The audio-bible bucket is empty. Please upload MP3 files to Supabase Storage.",
+          variant: "destructive"
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('🔍 BUCKET CHECK - Error accessing bucket:', error);
+      toast({
+        title: "Bucket Access Error", 
+        description: "Cannot access the audio-bible bucket. Check permissions.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!audioUrl) {
+      toast({
+        title: "Audio Not Available",
+        description: audioError || "No MP3 audio file found for this chapter",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isPlaying) {
+      // Pause audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+    } else {
+      // Play audio
+      if (audioRef.current) {
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (error) {
+          console.error('Error playing audio:', error);
+          toast({
+            title: "Audio Error",
+            description: "Failed to play audio",
+            variant: "destructive"
+          });
+        }
+      }
+    }
   };
 
 
@@ -271,6 +420,19 @@ export const BibleChapterContent = ({
 
   return (
     <div className="bible-page-full">
+      {/* Hidden audio element for MP3 playback */}
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        onEnded={() => setIsPlaying(false)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onError={() => {
+          setIsPlaying(false);
+          setAudioError('Failed to play audio file');
+        }}
+        preload="metadata"
+      />
       {/* Header Bar */}
       <div className="bible-header-full">
         <div className="bible-header-buttons-full">
@@ -293,10 +455,17 @@ export const BibleChapterContent = ({
         <div className="bible-header-icons-full">
           <button 
             className="bible-header-icon-full"
-            onClick={handleAudioToggle}
-            title="Toggle audio player"
+            onClick={handlePlayPause}
+            disabled={isLoading}
+            title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
           >
-            <Volume2 className="w-4 h-4" />
+            {isLoading ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : isPlaying ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
           </button>
           <button 
             className="bible-header-icon-full"
@@ -526,11 +695,18 @@ export const BibleChapterContent = ({
             </button>
             
             <button 
-              onClick={handleAudioToggle}
-              className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90"
-              title="Toggle audio player"
+              onClick={handlePlayPause}
+              disabled={isLoading}
+              className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
+              title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
             >
-              <Volume2 className="w-5 h-5" />
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="w-5 h-5" />
+              ) : (
+                <Play className="w-5 h-5 ml-0.5" />
+              )}
             </button>
             
             <button 
