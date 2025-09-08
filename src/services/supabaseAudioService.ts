@@ -227,6 +227,13 @@ export const supabaseAudioService = {
       const fileName = this.generateFileName(book, chapter, version);
       console.log(`🔍 Generated fileName: "${fileName}"`);
       
+      // Special check for Acts
+      if (book.toLowerCase() === 'acts' && chapter === 12) {
+        console.log(`🔍 ACTS 12 SPECIAL: Expected "B05___12_Acts________ENGKJVN1DA.mp3"`);
+        console.log(`🔍 ACTS 12 SPECIAL: Generated "${fileName}"`);
+        console.log(`🔍 ACTS 12 SPECIAL: Match? ${fileName === 'B05___12_Acts________ENGKJVN1DA.mp3'}`);
+      }
+      
       if (!fileName) {
         console.warn(`Could not generate filename for ${book} ${chapter} (${version})`);
         return null;
