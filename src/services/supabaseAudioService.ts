@@ -163,6 +163,7 @@ export const supabaseAudioService = {
     if (bookName.toLowerCase() === 'acts') {
       console.log(`🔍 ACTS DEBUG: Expected filename for Acts ${chapter}: B05___${chapterStr}_Acts________ENGKJVN1DA.mp3`);
       console.log(`🔍 ACTS DEBUG: Generated filename: ${fileName}`);
+      console.log(`🔍 ACTS DEBUG: BookName length: ${bookName.length}, Padding needed: ${paddingNeeded}`);
     }
     
     return fileName;
