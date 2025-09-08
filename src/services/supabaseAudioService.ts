@@ -129,6 +129,13 @@ export const supabaseAudioService = {
     if (!bookCode) {
       console.warn(`No book mapping found for: ${book} (normalized: ${normalizedBook})`);
       console.warn('Available books:', Object.keys(BOOK_MAPPINGS));
+      
+      // Show what the correct book code should be for popular books
+      if (normalizedBook.toLowerCase() === 'matthew') {
+        console.warn(`❌ For Matthew, the correct book code should be B40, not B01`);
+        console.warn(`❌ Your file should be named: B40___01_Matthew_____ENGKJVN1DA.mp3`);
+      }
+      
       return '';
     }
     
@@ -143,7 +150,11 @@ export const supabaseAudioService = {
     const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     const fileName = `${bookCode}___${chapterStr}_${bookName}_____${versionCode}.mp3`;
     
-    console.log(`Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
+    console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
+    console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
+    console.log(`✅ Chapter: ${chapter} → Padded: ${chapterStr}`);
+    console.log(`✅ Version: ${version} → Code: ${versionCode}`);
+    
     return fileName;
   },
 
