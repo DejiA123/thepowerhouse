@@ -132,7 +132,8 @@ export const supabaseAudioService = {
       return '';
     }
     
-    // Determine the correct version code based on whether it's Old or New Testament
+    // Always use ENGKJVN1DA for New Testament books (B01-B27)
+    // Always use ENGKJVO1DA for Old Testament books (A01-A39)
     let versionCode: string;
     if (bookCode.startsWith('A')) {
       // Old Testament uses ENGKJVO1DA
@@ -151,7 +152,7 @@ export const supabaseAudioService = {
     
     // Calculate padding needed to make book name + underscores = 12 characters total
     const paddingNeeded = 12 - bookName.length;
-    const underscores = '_'.repeat(paddingNeeded);
+    const underscores = '_'.repeat(Math.max(0, paddingNeeded));
     const fileName = `${bookCode}___${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
     
     console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);

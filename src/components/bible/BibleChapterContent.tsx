@@ -196,42 +196,40 @@ export const BibleChapterContent = ({
             ) || [];
             console.log('🔍 Matching files for Matthew:', matchingFiles.map(f => f.name));
             
-            // Let's also check what the exact filename we're looking for
-            console.log('🔍 Looking for exact filename:', fileName);
-            const exactMatch = files?.find(f => f.name === fileName);
-            console.log('🔍 Exact match found:', !!exactMatch);
-          }
-        } catch (listErr) {
-          console.error('❌ Error accessing bucket:', listErr);
-        }
+        // Let's also check what the exact filename we're looking for
+        console.log('🔍 Looking for exact filename:', fileName);
+        const exactMatch = files?.find(f => f.name === fileName);
+        console.log('🔍 Exact match found:', !!exactMatch);
         
-        console.log('🔍 About to call supabaseAudioService.getAudioUrl with:', { selectedBook, selectedChapter, selectedVersion });
-        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
-        console.log('🔍 Generated URL:', url);
-        
-        if (url) {
-          setAudioUrl(url);
-          console.log(`🎵 MP3 audio loaded: ${url}`);
-          
-          // Test if the URL actually works
-          try {
-            const response = await fetch(url, { method: 'HEAD' });
-            console.log('🔍 URL test response status:', response.status);
-            if (!response.ok) {
-              console.error('❌ URL is not accessible:', response.status, response.statusText);
-              setAudioError(`Audio file not accessible (${response.status})`);
-              setAudioUrl(null);
-            }
-          } catch (fetchError) {
-            console.error('❌ Error testing URL:', fetchError);
-            setAudioError('Audio file URL test failed');
-            setAudioUrl(null);
-          }
+        if (exactMatch) {
+          console.log('✅ Found exact match! File exists in bucket');
         } else {
-          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
-          console.log('❌', errorMsg);
-          setAudioError(errorMsg);
+          console.log('❌ No exact match found');
+          // Look for similar files
+          const similarFiles = files?.filter(f => 
+            f.name.includes(selectedBook) || 
+            f.name.toLowerCase().includes(selectedBook.toLowerCase())
+          ) || [];
+          console.log('🔍 Similar files found:', similarFiles.map(f => f.name));
         }
+      }
+    } catch (listErr) {
+      console.error('❌ Error accessing bucket:', listErr);
+    }
+    
+    console.log('🔍 About to call supabaseAudioService.getAudioUrl with:', { selectedBook, selectedChapter, selectedVersion });
+    const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
+    console.log('🔍 Generated URL:', url);
+    
+    if (url) {
+      setAudioUrl(url);
+      console.log(`🎵 MP3 audio loaded: ${url}`);
+      setAudioError(null); // Clear any previous errors
+    } else {
+      const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
+      console.log('❌', errorMsg);
+      setAudioError(errorMsg);
+    }
       } catch (error) {
         console.error('❌ Error loading MP3 audio:', error);
         setAudioError('Failed to load MP3 audio');
@@ -243,42 +241,57 @@ export const BibleChapterContent = ({
     loadAudio();
   }, [selectedBook, selectedChapter, selectedVersion]);
 
+  // Update audio element when audioUrl changes
+  useEffect(() => {
+    if (audioRef.current && audioUrl) {
+      console.log('🎵 Setting audio src to:', audioUrl);
+      audioRef.current.src = audioUrl;
+    }
+  }, [audioUrl]);
+
   // Handle MP3 audio playback
   const handlePlayPause = async () => {
-    // First, let's check if the bucket has ANY files at all
-    try {
-      const { data: allFiles, error: listError } = await supabase.storage
-        .from('audio-bible')
-        .list('', { limit: 100 });
-      
-      console.log('🔍 BUCKET CHECK - Error:', listError);
-      console.log('🔍 BUCKET CHECK - Total files:', allFiles?.length || 0);
-      console.log('🔍 BUCKET CHECK - Files:', allFiles?.map(f => f.name) || []);
-      
-      if (!allFiles || allFiles.length === 0) {
-        toast({
-          title: "No Audio Files Found",
-          description: "The audio-bible bucket is empty. Please upload MP3 files to Supabase Storage.",
-          variant: "destructive"
-        });
-        return;
-      }
-    } catch (error) {
-      console.error('🔍 BUCKET CHECK - Error accessing bucket:', error);
-      toast({
-        title: "Bucket Access Error", 
-        description: "Cannot access the audio-bible bucket. Check permissions.",
-        variant: "destructive"
-      });
-      return;
-    }
+    console.log('🎵 handlePlayPause called - checking conditions...');
+    console.log('🎵 audioUrl:', audioUrl);
+    console.log('🎵 audioError:', audioError);
+    console.log('🎵 isLoading:', isLoading);
+    console.log('🎵 isPlaying:', isPlaying);
 
     if (!audioUrl) {
-      toast({
-        title: "Audio Not Available",
-        description: audioError || "No MP3 audio file found for this chapter",
-        variant: "destructive"
-      });
+      // Try to reload the audio first
+      console.log('🎵 No audioUrl - attempting to reload audio...');
+      setIsLoading(true);
+      setAudioError(null);
+      
+      try {
+        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
+        console.log('🎵 Reloaded URL:', url);
+        
+        if (url) {
+          setAudioUrl(url);
+          // Try to play immediately after setting URL
+          if (audioRef.current) {
+            audioRef.current.src = url;
+            await audioRef.current.play();
+            setIsPlaying(true);
+          }
+        } else {
+          toast({
+            title: "Audio Not Available",
+            description: `No MP3 audio available for ${selectedBook} chapter ${selectedChapter}`,
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('🎵 Error reloading audio:', error);
+        toast({
+          title: "Audio Error",
+          description: "Failed to load audio file",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -292,10 +305,12 @@ export const BibleChapterContent = ({
       // Play audio
       if (audioRef.current) {
         try {
+          console.log('🎵 Attempting to play audio:', audioUrl);
           await audioRef.current.play();
           setIsPlaying(true);
+          console.log('🎵 Audio playing successfully');
         } catch (error) {
-          console.error('Error playing audio:', error);
+          console.error('🎵 Error playing audio:', error);
           toast({
             title: "Audio Error",
             description: "Failed to play audio",
