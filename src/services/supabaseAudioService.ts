@@ -168,15 +168,20 @@ export const supabaseAudioService = {
    * Normalize book name to match our mapping keys (proper case)
    */
   normalizeBookName(book: string): string {
+    console.log(`🔍 normalizeBookName called with: "${book}"`);
+    
     // Convert to lowercase for comparison
     const lowerBook = book.toLowerCase().trim();
+    console.log(`🔍 lowerBook: "${lowerBook}"`);
     
     // Find the correct case version from our mappings
     const correctCase = Object.keys(BOOK_MAPPINGS).find(
       key => key.toLowerCase() === lowerBook
     );
+    console.log(`🔍 correctCase found: "${correctCase}"`);
     
     if (correctCase) {
+      console.log(`🔍 Returning correctCase: "${correctCase}"`);
       return correctCase;
     }
     
@@ -203,13 +208,16 @@ export const supabaseAudioService = {
     };
     
     if (variations[lowerBook]) {
+      console.log(`🔍 Found variation: "${variations[lowerBook]}"`);
       return variations[lowerBook];
     }
     
     // Fallback: capitalize first letter of each word
-    return book.split(' ').map(word => 
+    const fallback = book.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
+    console.log(`🔍 Using fallback: "${fallback}"`);
+    return fallback;
   },
 
   /**
@@ -217,10 +225,10 @@ export const supabaseAudioService = {
    */
   async getAudioUrl(book: string, chapter: number, version: string): Promise<string | null> {
     try {
-      console.log(`🔍 getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
+      console.log(`🔍 supabaseAudioService.getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
       
       const fileName = this.generateFileName(book, chapter, version);
-      console.log(`🔍 Generated fileName: "${fileName}"`);
+      console.log(`🔍 supabaseAudioService: Generated fileName: "${fileName}"`);
       
       if (!fileName) {
         console.warn(`Could not generate filename for ${book} ${chapter} (${version})`);
@@ -228,17 +236,17 @@ export const supabaseAudioService = {
       }
 
       // Check if file exists first
-      console.log(`🔍 Checking if file exists: ${fileName}`);
+      console.log(`🔍 supabaseAudioService: Checking if file exists: ${fileName}`);
       const exists = await this.checkAudioExists(book, chapter, version);
-      console.log(`🔍 File exists: ${exists}`);
+      console.log(`🔍 supabaseAudioService: File exists: ${exists}`);
       
       if (!exists) {
-        console.warn(`🔍 File does not exist in bucket: ${fileName}`);
+        console.warn(`🔍 supabaseAudioService: File does not exist in bucket: ${fileName}`);
         return null;
       }
 
       // Get the public URL from Supabase storage
-      console.log(`🔍 Getting public URL for: ${fileName}`);
+      console.log(`🔍 supabaseAudioService: Getting public URL for: ${fileName}`);
       const { data } = await supabase.storage
         .from(AUDIO_BUCKET)
         .getPublicUrl(fileName);
@@ -248,7 +256,7 @@ export const supabaseAudioService = {
         return null;
       }
 
-      console.log(`🎵 Audio URL for ${book} ${chapter}:`, data.publicUrl);
+      console.log(`🎵 supabaseAudioService: Audio URL for ${book} ${chapter}:`, data.publicUrl);
       return data.publicUrl;
     } catch (error) {
       console.error(`❌ Error getting audio URL for ${book} ${chapter}:`, error);

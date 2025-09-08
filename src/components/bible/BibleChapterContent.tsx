@@ -155,16 +155,19 @@ export const BibleChapterContent = ({
         return;
       }
       
+      console.log('🔍 === AUDIO LOADING DEBUG START ===');
       console.log('🔍 Loading MP3 audio with params:', {
         selectedBook,
         selectedChapter,
         selectedVersion
       });
       
-      console.log(`🔍 MARK DEBUG: Loading audio for book "${selectedBook}" chapter ${selectedChapter}`);
-      if (selectedBook.toLowerCase() === 'mark') {
-        console.log('🔍 MARK AUDIO: This is Mark! Should work now...');
-      }
+      // Test the exact filename generation
+      console.log('🔍 Testing filename generation...');
+      const testFileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
+      console.log('🔍 Generated test filename:', testFileName);
+      console.log('🔍 Expected filename from user:', 'B01___01_Matthew_____ENGKJVN1DA.mp3');
+      console.log('🔍 Do they match?', testFileName === 'B01___01_Matthew_____ENGKJVN1DA.mp3');
       
       setIsLoading(true);
       setAudioError(null);
@@ -185,51 +188,62 @@ export const BibleChapterContent = ({
             console.error('❌ Error listing bucket files:', listError);
           } else {
             console.log('🔍 Total files in audio-bible bucket:', files?.length || 0);
-            console.log('🔍 Files in audio-bible bucket:', files?.map(f => f.name) || []);
+            console.log('🔍 All files in bucket:', files?.map(f => f.name) || []);
             
-            // Check if there are any files that match our pattern
-            const matchingFiles = files?.filter(f => 
-              f.name.includes('Matthew') || 
-              f.name.includes('MAT') || 
-              f.name.includes('B40') ||
-              f.name.includes('B01') // In case user's example was correct
-            ) || [];
-            console.log('🔍 Matching files for Matthew:', matchingFiles.map(f => f.name));
+            // Check for exact match
+            const exactMatch = files?.find(f => f.name === fileName);
+            console.log('🔍 Looking for exact filename:', fileName);
+            console.log('🔍 Exact match found:', !!exactMatch);
             
-        // Let's also check what the exact filename we're looking for
-        console.log('🔍 Looking for exact filename:', fileName);
-        const exactMatch = files?.find(f => f.name === fileName);
-        console.log('🔍 Exact match found:', !!exactMatch);
-        
-        if (exactMatch) {
-          console.log('✅ Found exact match! File exists in bucket');
-        } else {
-          console.log('❌ No exact match found');
-          // Look for similar files
-          const similarFiles = files?.filter(f => 
-            f.name.includes(selectedBook) || 
-            f.name.toLowerCase().includes(selectedBook.toLowerCase())
-          ) || [];
-          console.log('🔍 Similar files found:', similarFiles.map(f => f.name));
+            if (!exactMatch) {
+              console.log('❌ No exact match found');
+              // Look for files that contain Matthew or B01
+              const matthewFiles = files?.filter(f => 
+                f.name.toLowerCase().includes('matthew') || 
+                f.name.includes('B01')
+              ) || [];
+              console.log('🔍 Matthew/B01 files found:', matthewFiles.map(f => f.name));
+            }
+          }
+        } catch (listErr) {
+          console.error('❌ Error accessing bucket:', listErr);
         }
-      }
-    } catch (listErr) {
-      console.error('❌ Error accessing bucket:', listErr);
-    }
-    
-    console.log('🔍 About to call supabaseAudioService.getAudioUrl with:', { selectedBook, selectedChapter, selectedVersion });
-    const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
-    console.log('🔍 Generated URL:', url);
-    
-    if (url) {
-      setAudioUrl(url);
-      console.log(`🎵 MP3 audio loaded: ${url}`);
-      setAudioError(null); // Clear any previous errors
-    } else {
-      const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
-      console.log('❌', errorMsg);
-      setAudioError(errorMsg);
-    }
+        
+        console.log('🔍 About to call supabaseAudioService.getAudioUrl...');
+        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
+        console.log('🔍 Generated URL result:', url);
+        
+        if (url) {
+          console.log('✅ URL generated successfully:', url);
+          setAudioUrl(url);
+          setAudioError(null);
+          
+          // Test if URL is accessible
+          try {
+            console.log('🔍 Testing URL accessibility...');
+            const response = await fetch(url, { method: 'HEAD' });
+            console.log('🔍 URL test response status:', response.status);
+            console.log('🔍 URL test response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (!response.ok) {
+              console.error('❌ URL is not accessible:', response.status, response.statusText);
+              setAudioError(`Audio file not accessible (${response.status})`);
+              setAudioUrl(null);
+            } else {
+              console.log('✅ URL is accessible!');
+            }
+          } catch (fetchError) {
+            console.error('❌ Error testing URL:', fetchError);
+            setAudioError('Audio file URL test failed');
+            setAudioUrl(null);
+          }
+        } else {
+          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter}`;
+          console.error('❌', errorMsg);
+          setAudioError(errorMsg);
+        }
+        
+        console.log('🔍 === AUDIO LOADING DEBUG END ===');
       } catch (error) {
         console.error('❌ Error loading MP3 audio:', error);
         setAudioError('Failed to load MP3 audio');
