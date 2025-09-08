@@ -235,7 +235,6 @@ const BiblePage = () => {
     setChapterContent(null);
     setShowHighlights(false);
     setShowNotes(false);
-    setShowTTSTest(false);
     setCurrentVerse(0);
   };
 

@@ -73,23 +73,39 @@ const BOOK_MAPPINGS: Record<string, string> = {
   'Revelation': 'B66'
 };
 
-// Version mappings to match the MP3 file format
+// Version mappings to match the MP3 file format (API.Bible version IDs)
 const VERSION_MAPPINGS: Record<string, string> = {
-  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV
-  'ENGKJV': 'ENGKJVN1DA', // KJV legacy
-  'KJV': 'ENGKJVN1DA', // KJV abbreviation
-  '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'ENGNIVN1DA', // NIV
-  'ENGNIV': 'ENGNIVN1DA', // NIV legacy
-  'NIV': 'ENGNIVN1DA', // NIV abbreviation
-  '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ENGESVN1DA', // ESV
-  'ENGESV': 'ENGESVN1DA', // ESV legacy
-  'ESV': 'ENGESVN1DA', // ESV abbreviation
+  // API.Bible KJV versions
+  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV (current)
+  '06125adad2d5898a-01': 'ENGKJVN1DA', // KJV alternate
+  
+  // API.Bible NIV versions  
+  '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'ENGNIVN1DA', // NIV (2011)
+  'f72b840c855f362c-04': 'ENGNIVN1DA', // NIV alternate
+  
+  // API.Bible ESV versions
+  '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ENGESVN1DA', // ESV 
+  'f421fe250b890304-02': 'ENGESVN1DA', // ESV alternate
+  
+  // API.Bible NLT versions
   '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'ENGNLTN1DA', // NLT
-  'ENGNLT': 'ENGNLTN1DA', // NLT legacy
-  'NLT': 'ENGNLTN1DA', // NLT abbreviation
+  '1b2d0b9a65f8c2a5-01': 'ENGNLTN1DA', // NLT alternate
+  
+  // API.Bible NASB versions
   '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'ENGNASN1DA', // NASB
-  'ENGNAS': 'ENGNASN1DA', // NASB legacy
-  'NASB': 'ENGNASN1DA', // NASB abbreviation
+  '4a3a6e2b5f8c2a5b-01': 'ENGNASN1DA', // NASB alternate
+  
+  // Legacy support for old version IDs
+  'ENGKJV': 'ENGKJVN1DA',
+  'KJV': 'ENGKJVN1DA',
+  'ENGNIV': 'ENGNIVN1DA',
+  'NIV': 'ENGNIVN1DA',
+  'ENGESV': 'ENGESVN1DA',
+  'ESV': 'ENGESVN1DA',
+  'ENGNLT': 'ENGNLTN1DA',
+  'NLT': 'ENGNLTN1DA',
+  'ENGNAS': 'ENGNASN1DA',
+  'NASB': 'ENGNASN1DA'
 };
 
 export interface AudioFileInfo {
@@ -140,12 +156,12 @@ export const supabaseAudioService = {
       }
 
       // Get the public URL from Supabase storage
-      const { data, error } = await supabase.storage
+      const { data } = await supabase.storage
         .from(AUDIO_BUCKET)
         .getPublicUrl(fileName);
 
-      if (error) {
-        console.error(`Error getting public URL for ${fileName}:`, error);
+      if (!data?.publicUrl) {
+        console.error(`Error getting public URL for ${fileName}: No URL returned`);
         return null;
       }
 
