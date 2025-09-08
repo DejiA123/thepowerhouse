@@ -161,6 +161,11 @@ export const BibleChapterContent = ({
         selectedVersion
       });
       
+      console.log(`🔍 MARK DEBUG: Loading audio for book "${selectedBook}" chapter ${selectedChapter}`);
+      if (selectedBook.toLowerCase() === 'mark') {
+        console.log('🔍 MARK AUDIO: This is Mark! Should work now...');
+      }
+      
       setIsLoading(true);
       setAudioError(null);
       
