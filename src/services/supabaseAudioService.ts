@@ -200,14 +200,28 @@ export const supabaseAudioService = {
    */
   async getAudioUrl(book: string, chapter: number, version: string): Promise<string | null> {
     try {
+      console.log(`🔍 getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
+      
       const fileName = this.generateFileName(book, chapter, version);
+      console.log(`🔍 Generated fileName: "${fileName}"`);
       
       if (!fileName) {
         console.warn(`Could not generate filename for ${book} ${chapter} (${version})`);
         return null;
       }
 
+      // Check if file exists first
+      console.log(`🔍 Checking if file exists: ${fileName}`);
+      const exists = await this.checkAudioExists(book, chapter, version);
+      console.log(`🔍 File exists: ${exists}`);
+      
+      if (!exists) {
+        console.warn(`🔍 File does not exist in bucket: ${fileName}`);
+        return null;
+      }
+
       // Get the public URL from Supabase storage
+      console.log(`🔍 Getting public URL for: ${fileName}`);
       const { data } = await supabase.storage
         .from(AUDIO_BUCKET)
         .getPublicUrl(fileName);
@@ -217,10 +231,10 @@ export const supabaseAudioService = {
         return null;
       }
 
-      console.log(`Audio URL for ${book} ${chapter}:`, data.publicUrl);
+      console.log(`🎵 Audio URL for ${book} ${chapter}:`, data.publicUrl);
       return data.publicUrl;
     } catch (error) {
-      console.error(`Error getting audio URL for ${book} ${chapter}:`, error);
+      console.error(`❌ Error getting audio URL for ${book} ${chapter}:`, error);
       return null;
     }
   },
@@ -231,11 +245,14 @@ export const supabaseAudioService = {
   async checkAudioExists(book: string, chapter: number, version: string): Promise<boolean> {
     try {
       const fileName = this.generateFileName(book, chapter, version);
+      console.log(`🔍 checkAudioExists for fileName: "${fileName}"`);
       
       if (!fileName) {
+        console.log(`🔍 No fileName generated, returning false`);
         return false;
       }
 
+      console.log(`🔍 Searching bucket for: "${fileName}"`);
       const { data, error } = await supabase.storage
         .from(AUDIO_BUCKET)
         .list('', {
@@ -243,15 +260,31 @@ export const supabaseAudioService = {
         });
 
       if (error) {
-        console.error(`Error checking if audio exists for ${fileName}:`, error);
+        console.error(`❌ Error checking if audio exists for ${fileName}:`, error);
         return false;
       }
 
+      console.log(`🔍 Search results:`, data);
       const exists = data && data.length > 0;
-      console.log(`Audio file ${fileName} exists:`, exists);
+      console.log(`🔍 Audio file ${fileName} exists:`, exists);
+      
+      if (!exists) {
+        // Let's also try a broader search to see what files are actually there
+        console.log(`🔍 File not found, doing broader search...`);
+        const { data: allFiles, error: listError } = await supabase.storage
+          .from(AUDIO_BUCKET)
+          .list('', { limit: 50 });
+        
+        if (listError) {
+          console.error(`❌ Error listing all files:`, listError);
+        } else {
+          console.log(`🔍 All files in bucket (first 50):`, allFiles?.map(f => f.name) || []);
+        }
+      }
+      
       return exists;
     } catch (error) {
-      console.error(`Error checking audio existence for ${book} ${chapter}:`, error);
+      console.error(`❌ Error checking audio existence for ${book} ${chapter}:`, error);
       return false;
     }
   },

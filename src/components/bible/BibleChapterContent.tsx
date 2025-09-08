@@ -169,16 +169,32 @@ export const BibleChapterContent = ({
         const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated filename:', fileName);
         
-        // Let's also check what files are actually in the bucket
+        // Let's check what files are actually in the bucket with more detail
         try {
+          console.log('🔍 Checking bucket contents...');
           const { data: files, error: listError } = await supabase.storage
             .from('audio-bible')
-            .list('', { limit: 10 });
+            .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
           
           if (listError) {
             console.error('❌ Error listing bucket files:', listError);
           } else {
+            console.log('🔍 Total files in audio-bible bucket:', files?.length || 0);
             console.log('🔍 Files in audio-bible bucket:', files?.map(f => f.name) || []);
+            
+            // Check if there are any files that match our pattern
+            const matchingFiles = files?.filter(f => 
+              f.name.includes('Matthew') || 
+              f.name.includes('MAT') || 
+              f.name.includes('B40') ||
+              f.name.includes('B01') // In case user's example was correct
+            ) || [];
+            console.log('🔍 Matching files for Matthew:', matchingFiles.map(f => f.name));
+            
+            // Let's also check what the exact filename we're looking for
+            console.log('🔍 Looking for exact filename:', fileName);
+            const exactMatch = files?.find(f => f.name === fileName);
+            console.log('🔍 Exact match found:', !!exactMatch);
           }
         } catch (listErr) {
           console.error('❌ Error accessing bucket:', listErr);
@@ -190,6 +206,21 @@ export const BibleChapterContent = ({
         if (url) {
           setAudioUrl(url);
           console.log(`🎵 MP3 audio loaded: ${url}`);
+          
+          // Test if the URL actually works
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            console.log('🔍 URL test response status:', response.status);
+            if (!response.ok) {
+              console.error('❌ URL is not accessible:', response.status, response.statusText);
+              setAudioError(`Audio file not accessible (${response.status})`);
+              setAudioUrl(null);
+            }
+          } catch (fetchError) {
+            console.error('❌ Error testing URL:', fetchError);
+            setAudioError('Audio file URL test failed');
+            setAudioUrl(null);
+          }
         } else {
           const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
           console.log('❌', errorMsg);
