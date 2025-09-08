@@ -5,6 +5,7 @@ const AUDIO_BUCKET = 'audio-bible';
 
 // Book name mappings to match the MP3 file format
 const BOOK_MAPPINGS: Record<string, string> = {
+  'Matthew': 'B01',
   'Genesis': 'B02',
   'Exodus': 'B03', 
   'Leviticus': 'B04',
@@ -43,7 +44,6 @@ const BOOK_MAPPINGS: Record<string, string> = {
   'Zephaniah': 'B37',
   'Zechariah': 'B38',
   'Malachi': 'B39',
-  'Matthew': 'B40',
   'Mark': 'B41',
   'Luke': 'B42',
   'John': 'B43',
