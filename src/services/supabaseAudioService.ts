@@ -148,9 +148,10 @@ export const supabaseAudioService = {
     const chapterStr = chapter.toString().padStart(2, '0');
     const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     
-    // Pad book name with underscores to make total length 12 characters
-    const paddedBookName = bookName.padEnd(12, '_');
-    const fileName = `${bookCode}___${chapterStr}_${paddedBookName}${versionCode}.mp3`;
+    // Calculate padding needed to make book name + underscores = 12 characters total
+    const paddingNeeded = 12 - bookName.length;
+    const underscores = '_'.repeat(paddingNeeded);
+    const fileName = `${bookCode}___${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
     
     console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
