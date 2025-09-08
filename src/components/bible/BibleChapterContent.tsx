@@ -239,6 +239,34 @@ export const BibleChapterContent = ({
 
   // Handle MP3 audio playback
   const handlePlayPause = async () => {
+    // First, let's check if the bucket has ANY files at all
+    try {
+      const { data: allFiles, error: listError } = await supabase.storage
+        .from('audio-bible')
+        .list('', { limit: 100 });
+      
+      console.log('🔍 BUCKET CHECK - Error:', listError);
+      console.log('🔍 BUCKET CHECK - Total files:', allFiles?.length || 0);
+      console.log('🔍 BUCKET CHECK - Files:', allFiles?.map(f => f.name) || []);
+      
+      if (!allFiles || allFiles.length === 0) {
+        toast({
+          title: "No Audio Files Found",
+          description: "The audio-bible bucket is empty. Please upload MP3 files to Supabase Storage.",
+          variant: "destructive"
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('🔍 BUCKET CHECK - Error accessing bucket:', error);
+      toast({
+        title: "Bucket Access Error", 
+        description: "Cannot access the audio-bible bucket. Check permissions.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!audioUrl) {
       toast({
         title: "Audio Not Available",
