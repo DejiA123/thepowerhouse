@@ -161,48 +161,51 @@ export const BibleChapterContent = ({
         selectedVersion
       });
       
-      console.log(`🔍 MARK DEBUG: Loading audio for book "${selectedBook}" chapter ${selectedChapter}`);
-      if (selectedBook.toLowerCase() === 'mark') {
-        console.log('🔍 MARK AUDIO: This is Mark! Should work now...');
-      }
-      
       setIsLoading(true);
       setAudioError(null);
       
       try {
-        // First, let's check what filename would be generated
+        // Generate the expected filename
         const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated filename:', fileName);
         
-        // Let's check what files are actually in the bucket with more detail
-        try {
-          console.log('🔍 Checking bucket contents...');
-          const { data: files, error: listError } = await supabase.storage
-            .from('audio-bible')
-            .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+        // Force a fresh bucket listing (no cache)
+        console.log('🔍 Checking bucket contents with fresh request...');
+        const { data: files, error: listError } = await supabase.storage
+          .from('audio-bible')
+          .list('', { 
+            limit: 1000, 
+            sortBy: { column: 'name', order: 'asc' },
+            search: selectedBook.toLowerCase() === 'matthew' ? 'B01' : undefined
+          });
+        
+        if (listError) {
+          console.error('❌ Error listing bucket files:', listError);
+        } else {
+          console.log('🔍 Fresh bucket listing - Total files:', files?.length || 0);
           
-          if (listError) {
-            console.error('❌ Error listing bucket files:', listError);
+          // Show all files that contain Matthew or B01
+          const matthewFiles = files?.filter(f => 
+            f.name.includes('Matthew') || 
+            f.name.includes('B01') ||
+            f.name.toLowerCase().includes('matthew')
+          ) || [];
+          console.log('🔍 Matthew-related files found:', matthewFiles.map(f => f.name));
+          
+          // Check for exact match
+          const exactMatch = files?.find(f => f.name === fileName);
+          console.log('🔍 Exact filename match found:', !!exactMatch, fileName);
+          
+          if (exactMatch) {
+            console.log('✅ Found exact file match! Proceeding with audio load...');
           } else {
-            console.log('🔍 Total files in audio-bible bucket:', files?.length || 0);
-            console.log('🔍 Files in audio-bible bucket:', files?.map(f => f.name) || []);
-            
-            // Check if there are any files that match our pattern
-            const matchingFiles = files?.filter(f => 
-              f.name.includes('Matthew') || 
-              f.name.includes('MAT') || 
-              f.name.includes('B40') ||
-              f.name.includes('B01') // In case user's example was correct
-            ) || [];
-            console.log('🔍 Matching files for Matthew:', matchingFiles.map(f => f.name));
-            
-            // Let's also check what the exact filename we're looking for
-            console.log('🔍 Looking for exact filename:', fileName);
-            const exactMatch = files?.find(f => f.name === fileName);
-            console.log('🔍 Exact match found:', !!exactMatch);
+            console.log('❌ No exact match found. Similar files:');
+            files?.forEach(f => {
+              if (f.name.includes('01') || f.name.toLowerCase().includes('matthew')) {
+                console.log(`  📁 ${f.name}`);
+              }
+            });
           }
-        } catch (listErr) {
-          console.error('❌ Error accessing bucket:', listErr);
         }
         
         const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
@@ -220,6 +223,8 @@ export const BibleChapterContent = ({
               console.error('❌ URL is not accessible:', response.status, response.statusText);
               setAudioError(`Audio file not accessible (${response.status})`);
               setAudioUrl(null);
+            } else {
+              console.log('✅ URL is accessible! Audio should work.');
             }
           } catch (fetchError) {
             console.error('❌ Error testing URL:', fetchError);
