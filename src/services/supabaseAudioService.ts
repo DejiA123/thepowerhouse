@@ -5,40 +5,40 @@ const AUDIO_BUCKET = 'audio-bible';
 
 // Book name mappings to match the MP3 file format
 const BOOK_MAPPINGS: Record<string, string> = {
-  'Matthew': 'B01',
-  'Genesis': 'B02',
-  'Exodus': 'B03', 
-  'Leviticus': 'B04',
-  'Numbers': 'B05',
-  'Deuteronomy': 'B06',
-  'Joshua': 'B07',
-  'Judges': 'B08',
-  'Ruth': 'B09',
-  '1 Samuel': 'B10',
-  '2 Samuel': 'B11',
-  '1 Kings': 'B12',
-  '2 Kings': 'B13',
-  '1 Chronicles': 'B14',
-  '2 Chronicles': 'B15',
-  'Ezra': 'B16',
-  'Nehemiah': 'B17',
-  'Esther': 'B18',
-  'Job': 'B19',
-  'Psalms': 'B20',
-  'Proverbs': 'B21',
-  'Ecclesiastes': 'B22',
-  'Song of Solomon': 'B23',
-  'Isaiah': 'B24',
-  'Jeremiah': 'B25',
-  'Lamentations': 'B26',
-  'Ezekiel': 'B27',
-  'Daniel': 'B28',
-  'Hosea': 'B29',
-  'Joel': 'B30',
-  'Amos': 'B31',
-  'Obadiah': 'B32',
-  'Jonah': 'B33',
-  'Micah': 'B34',
+  'Genesis': 'A01',
+  'Matthew': 'A01', // Based on your bucket files
+  'Exodus': 'A02', 
+  'Leviticus': 'A03',
+  'Numbers': 'A04',
+  'Deuteronomy': 'A05',
+  'Joshua': 'A06',
+  'Judges': 'A07',
+  'Ruth': 'A08',
+  '1 Samuel': 'A09',
+  '2 Samuel': 'A10',
+  '1 Kings': 'A11',
+  '2 Kings': 'A12',
+  '1 Chronicles': 'A13',
+  '2 Chronicles': 'A14',
+  'Ezra': 'A15',
+  'Nehemiah': 'A16',
+  'Esther': 'A17',
+  'Job': 'A18',
+  'Psalms': 'A19',
+  'Proverbs': 'A20',
+  'Ecclesiastes': 'A21',
+  'Song of Solomon': 'A22',
+  'Isaiah': 'A23',
+  'Jeremiah': 'A24',
+  'Lamentations': 'A25',
+  'Ezekiel': 'A26',
+  'Daniel': 'A27',
+  'Hosea': 'A28',
+  'Joel': 'A29',
+  'Amos': 'A30',
+  'Obadiah': 'A31',
+  'Jonah': 'A32',
+  'Micah': 'A33',
   'Nahum': 'B35',
   'Habakkuk': 'B36',
   'Zephaniah': 'B37',
@@ -74,9 +74,9 @@ const BOOK_MAPPINGS: Record<string, string> = {
 
 // Version mappings to match the MP3 file format (API.Bible version IDs)
 const VERSION_MAPPINGS: Record<string, string> = {
-  // API.Bible KJV versions
-  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV (current)
-  '06125adad2d5898a-01': 'ENGKJVN1DA', // KJV alternate
+  // API.Bible KJV versions - updated to match your actual files
+  'de4e12af7f28f599-02': 'ENGKJVO1DA', // KJV (current) - matches your bucket files
+  '06125adad2d5898a-01': 'ENGKJVO1DA', // KJV alternate
   
   // API.Bible NIV versions  
   '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'ENGNIVN1DA', // NIV (2011)
@@ -95,8 +95,8 @@ const VERSION_MAPPINGS: Record<string, string> = {
   '4a3a6e2b5f8c2a5b-01': 'ENGNASN1DA', // NASB alternate
   
   // Legacy support for old version IDs
-  'ENGKJV': 'ENGKJVN1DA',
-  'KJV': 'ENGKJVN1DA',
+  'ENGKJV': 'ENGKJVO1DA',
+  'KJV': 'ENGKJVO1DA',
   'ENGNIV': 'ENGNIVN1DA',
   'NIV': 'ENGNIVN1DA',
   'ENGESV': 'ENGESVN1DA',
