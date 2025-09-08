@@ -121,26 +121,78 @@ export const supabaseAudioService = {
    * Generate the expected MP3 filename based on book, chapter, and version
    */
   generateFileName(book: string, chapter: number, version: string): string {
-    const bookCode = BOOK_MAPPINGS[book];
+    // Normalize book name to match our mappings (case-insensitive)
+    const normalizedBook = this.normalizeBookName(book);
+    const bookCode = BOOK_MAPPINGS[normalizedBook];
     const versionCode = VERSION_MAPPINGS[version];
     
     if (!bookCode) {
-      console.warn(`No book mapping found for: ${book}`);
+      console.warn(`No book mapping found for: ${book} (normalized: ${normalizedBook})`);
+      console.warn('Available books:', Object.keys(BOOK_MAPPINGS));
       return '';
     }
     
     if (!versionCode) {
       console.warn(`No version mapping found for: ${version}`);
+      console.warn('Available versions:', Object.keys(VERSION_MAPPINGS));
       return '';
     }
     
-    // Format: B01___01_Matthew_____ENGKJVN1DA
+    // Format: B40___01_Matthew_____ENGKJVN1DA.mp3
     const chapterStr = chapter.toString().padStart(2, '0');
-    const bookName = book.replace(/\s+/g, ''); // Remove spaces
+    const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     const fileName = `${bookCode}___${chapterStr}_${bookName}_____${versionCode}.mp3`;
     
     console.log(`Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
     return fileName;
+  },
+
+  /**
+   * Normalize book name to match our mapping keys (proper case)
+   */
+  normalizeBookName(book: string): string {
+    // Convert to lowercase for comparison
+    const lowerBook = book.toLowerCase().trim();
+    
+    // Find the correct case version from our mappings
+    const correctCase = Object.keys(BOOK_MAPPINGS).find(
+      key => key.toLowerCase() === lowerBook
+    );
+    
+    if (correctCase) {
+      return correctCase;
+    }
+    
+    // If not found, try to handle common variations
+    const variations: Record<string, string> = {
+      '1samuel': '1 Samuel',
+      '2samuel': '2 Samuel', 
+      '1kings': '1 Kings',
+      '2kings': '2 Kings',
+      '1chronicles': '1 Chronicles',
+      '2chronicles': '2 Chronicles',
+      '1corinthians': '1 Corinthians',
+      '2corinthians': '2 Corinthians',
+      '1thessalonians': '1 Thessalonians',
+      '2thessalonians': '2 Thessalonians',
+      '1timothy': '1 Timothy',
+      '2timothy': '2 Timothy',
+      '1peter': '1 Peter',
+      '2peter': '2 Peter',
+      '1john': '1 John',
+      '2john': '2 John',
+      '3john': '3 John',
+      'songofsolomon': 'Song of Solomon'
+    };
+    
+    if (variations[lowerBook]) {
+      return variations[lowerBook];
+    }
+    
+    // Fallback: capitalize first letter of each word
+    return book.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
   },
 
   /**
