@@ -262,27 +262,25 @@ export const supabaseAudioService = {
         return false;
       }
 
-      console.log(`🔍 Searching bucket for: "${fileName}"`);
-      const { data, error } = await supabase.storage
+      console.log(`🔍 Attempting to list files from bucket: ${AUDIO_BUCKET}`);
+      
+      // First try to list all files to see if we can access the bucket at all
+      const { data: listData, error: listError } = await supabase.storage
         .from(AUDIO_BUCKET)
-        .list('', {
-          limit: 100
-        });
+        .list('');
 
-      if (error) {
-        console.error(`❌ Error checking if audio exists for ${fileName}:`, error);
+      if (listError) {
+        console.error(`❌ Error listing bucket ${AUDIO_BUCKET}:`, listError);
         return false;
       }
 
-      console.log(`🔍 Search results:`, data);
+      console.log(`✅ Successfully listed bucket. Found ${listData?.length || 0} files`);
+      console.log(`🔍 Available files:`, listData?.map(f => f.name) || []);
       
-      // Look for exact filename match
-      const exists = data && data.some(file => file.name === fileName);
-      console.log(`🔍 Audio file ${fileName} exists:`, exists);
-      
-      if (!exists) {
-        console.log(`🔍 Available files:`, data?.map(f => f.name) || []);
-      }
+      // Check if our specific file exists
+      const exists = listData && listData.some(file => file.name === fileName);
+      console.log(`🔍 Looking for exact match: "${fileName}"`);
+      console.log(`🔍 File exists: ${exists}`);
       
       return exists;
     } catch (error) {
