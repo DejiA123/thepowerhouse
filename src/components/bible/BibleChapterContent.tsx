@@ -14,7 +14,7 @@ import { BibleNotesDialog } from "./BibleNotesDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
-import { supabaseAudioService } from "@/services/supabaseAudioService";
+import { SupabaseAudioPlayer } from "./SupabaseAudioPlayer";
 
 
 interface BibleChapterContentProps {
@@ -91,12 +91,8 @@ export const BibleChapterContent = ({
   const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   
-  // MP3 Audio state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioError, setAudioError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Audio player state
+  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -147,192 +143,17 @@ export const BibleChapterContent = ({
   const normalizedSelectedBook = normalizeBookApiName(selectedBook);
   const book = allBooks.find(b => b.apiName === normalizedSelectedBook);
 
-  // Load MP3 audio when book, chapter, or version changes
-  useEffect(() => {
-    const loadAudio = async () => {
-      if (!selectedVersion) {
-        console.log('🔍 No selectedVersion available');
-        return;
-      }
-      
-      console.log('🔍 === AUDIO LOADING DEBUG START ===');
-      console.log('🔍 Loading MP3 audio with params:', {
-        selectedBook,
-        selectedChapter,
-        selectedVersion
-      });
-      
-      // Test the exact filename generation
-      console.log('🔍 Testing filename generation...');
-      const testFileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
-      console.log('🔍 Generated test filename:', testFileName);
-      console.log('🔍 Expected filename from user:', 'B01___01_Matthew_____ENGKJVN1DA.mp3');
-      console.log('🔍 Do they match?', testFileName === 'B01___01_Matthew_____ENGKJVN1DA.mp3');
-      
-      setIsLoading(true);
-      setAudioError(null);
-      
-      try {
-        // First, let's check what filename would be generated
-        const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
-        console.log('🔍 Generated filename:', fileName);
-        
-        // Let's check what files are actually in the bucket with more detail
-        try {
-          console.log('🔍 Checking bucket contents...');
-          const { data: files, error: listError } = await supabase.storage
-            .from('audio-bible')
-            .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
-          
-          if (listError) {
-            console.error('❌ Error listing bucket files:', listError);
-          } else {
-            console.log('🔍 Total files in audio-bible bucket:', files?.length || 0);
-            console.log('🔍 All files in bucket:', files?.map(f => f.name) || []);
-            
-            // Check for exact match
-            const exactMatch = files?.find(f => f.name === fileName);
-            console.log('🔍 Looking for exact filename:', fileName);
-            console.log('🔍 Exact match found:', !!exactMatch);
-            
-            if (!exactMatch) {
-              console.log('❌ No exact match found');
-              // Look for files that contain Matthew or B01
-              const matthewFiles = files?.filter(f => 
-                f.name.toLowerCase().includes('matthew') || 
-                f.name.includes('B01')
-              ) || [];
-              console.log('🔍 Matthew/B01 files found:', matthewFiles.map(f => f.name));
-            }
-          }
-        } catch (listErr) {
-          console.error('❌ Error accessing bucket:', listErr);
-        }
-        
-        console.log('🔍 About to call supabaseAudioService.getAudioUrl...');
-        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
-        console.log('🔍 Generated URL result:', url);
-        
-        if (url) {
-          console.log('✅ URL generated successfully:', url);
-          setAudioUrl(url);
-          setAudioError(null);
-          
-          // Test if URL is accessible
-          try {
-            console.log('🔍 Testing URL accessibility...');
-            const response = await fetch(url, { method: 'HEAD' });
-            console.log('🔍 URL test response status:', response.status);
-            console.log('🔍 URL test response headers:', Object.fromEntries(response.headers.entries()));
-            
-            if (!response.ok) {
-              console.error('❌ URL is not accessible:', response.status, response.statusText);
-              setAudioError(`Audio file not accessible (${response.status})`);
-              setAudioUrl(null);
-            } else {
-              console.log('✅ URL is accessible!');
-            }
-          } catch (fetchError) {
-            console.error('❌ Error testing URL:', fetchError);
-            setAudioError('Audio file URL test failed');
-            setAudioUrl(null);
-          }
-        } else {
-          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter}`;
-          console.error('❌', errorMsg);
-          setAudioError(errorMsg);
-        }
-        
-        console.log('🔍 === AUDIO LOADING DEBUG END ===');
-      } catch (error) {
-        console.error('❌ Error loading MP3 audio:', error);
-        setAudioError('Failed to load MP3 audio');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Handle audio player toggle
+  const handleAudioToggle = () => {
+    setShowAudioPlayer(!showAudioPlayer);
+  };
 
-    loadAudio();
-  }, [selectedBook, selectedChapter, selectedVersion]);
-
-  // Update audio element when audioUrl changes
-  useEffect(() => {
-    if (audioRef.current && audioUrl) {
-      console.log('🎵 Setting audio src to:', audioUrl);
-      audioRef.current.src = audioUrl;
-    }
-  }, [audioUrl]);
-
-  // Handle MP3 audio playback
-  const handlePlayPause = async () => {
-    console.log('🎵 handlePlayPause called - checking conditions...');
-    console.log('🎵 audioUrl:', audioUrl);
-    console.log('🎵 audioError:', audioError);
-    console.log('🎵 isLoading:', isLoading);
-    console.log('🎵 isPlaying:', isPlaying);
-
-    if (!audioUrl) {
-      // Try to reload the audio first
-      console.log('🎵 No audioUrl - attempting to reload audio...');
-      setIsLoading(true);
-      setAudioError(null);
-      
-      try {
-        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
-        console.log('🎵 Reloaded URL:', url);
-        
-        if (url) {
-          setAudioUrl(url);
-          // Try to play immediately after setting URL
-          if (audioRef.current) {
-            audioRef.current.src = url;
-            await audioRef.current.play();
-            setIsPlaying(true);
-          }
-        } else {
-          toast({
-            title: "Audio Not Available",
-            description: `No MP3 audio available for ${selectedBook} chapter ${selectedChapter}`,
-            variant: "destructive"
-          });
-        }
-      } catch (error) {
-        console.error('🎵 Error reloading audio:', error);
-        toast({
-          title: "Audio Error",
-          description: "Failed to load audio file",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    if (isPlaying) {
-      // Pause audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    } else {
-      // Play audio
-      if (audioRef.current) {
-        try {
-          console.log('🎵 Attempting to play audio:', audioUrl);
-          await audioRef.current.play();
-          setIsPlaying(true);
-          console.log('🎵 Audio playing successfully');
-        } catch (error) {
-          console.error('🎵 Error playing audio:', error);
-          toast({
-            title: "Audio Error",
-            description: "Failed to play audio",
-            variant: "destructive"
-          });
-        }
-      }
-    }
+  const handleAudioError = (error: string) => {
+    toast({
+      title: "Audio Error",
+      description: error,
+      variant: "destructive"
+    });
   };
 
 
@@ -450,19 +271,6 @@ export const BibleChapterContent = ({
 
   return (
     <div className="bible-page-full">
-      {/* Hidden audio element for MP3 playback */}
-      <audio
-        ref={audioRef}
-        src={audioUrl || undefined}
-        onEnded={() => setIsPlaying(false)}
-        onPause={() => setIsPlaying(false)}
-        onPlay={() => setIsPlaying(true)}
-        onError={() => {
-          setIsPlaying(false);
-          setAudioError('Failed to play audio file');
-        }}
-        preload="metadata"
-      />
       {/* Header Bar */}
       <div className="bible-header-full">
         <div className="bible-header-buttons-full">
@@ -485,17 +293,10 @@ export const BibleChapterContent = ({
         <div className="bible-header-icons-full">
           <button 
             className="bible-header-icon-full"
-            onClick={handlePlayPause}
-            disabled={isLoading}
-            title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
+            onClick={handleAudioToggle}
+            title="Toggle audio player"
           >
-            {isLoading ? (
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="w-4 h-4" />
-            ) : (
-              <Volume2 className="w-4 h-4" />
-            )}
+            <Volume2 className="w-4 h-4" />
           </button>
           <button 
             className="bible-header-icon-full"
@@ -725,18 +526,11 @@ export const BibleChapterContent = ({
             </button>
             
             <button 
-              onClick={handlePlayPause}
-              disabled={isLoading}
-              className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
-              title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
+              onClick={handleAudioToggle}
+              className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90"
+              title="Toggle audio player"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : isPlaying ? (
-                <Pause className="w-5 h-5" />
-              ) : (
-                <Play className="w-5 h-5 ml-0.5" />
-              )}
+              <Volume2 className="w-5 h-5" />
             </button>
             
             <button 
