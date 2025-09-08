@@ -147,7 +147,10 @@ export const supabaseAudioService = {
     // Format: B40___01_Matthew_____ENGKJVN1DA.mp3
     const chapterStr = chapter.toString().padStart(2, '0');
     const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
-    const fileName = `${bookCode}___${chapterStr}_${bookName}_____${versionCode}.mp3`;
+    
+    // Pad book name with underscores to make total length 12 characters
+    const paddedBookName = bookName.padEnd(12, '_');
+    const fileName = `${bookCode}___${chapterStr}_${paddedBookName}${versionCode}.mp3`;
     
     console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
