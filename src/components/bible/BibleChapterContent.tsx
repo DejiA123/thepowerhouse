@@ -42,6 +42,7 @@ interface BibleChapterContentProps {
   rate?: number;
   redLetters?: boolean;
   menuSettingsVersion?: number;
+  onFontSizeChange?: (fontSize: number) => void;
 }
 
 export const BibleChapterContent = ({
@@ -68,13 +69,15 @@ export const BibleChapterContent = ({
   pitch = 1.44,
   rate = 0.75,
   redLetters = true,
-  menuSettingsVersion = 0
+  menuSettingsVersion = 0,
+  onFontSizeChange
 }: BibleChapterContentProps) => {
   console.log(`🔍 BibleChapterContent: Rendering with ${selectedBook} chapter ${selectedChapter}, verses: ${chapterContent?.verses?.length || 0}`);
 
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences } = useBiblePreferences();
-  const effectiveFontSize = preferences?.fontSize ?? fontSize;
+  const [currentFontSize, setCurrentFontSize] = useState(preferences?.fontSize ?? fontSize);
+  const effectiveFontSize = currentFontSize;
 
   // State variables
   const [showNotesDialog, setShowNotesDialog] = useState(false);
@@ -93,13 +96,34 @@ export const BibleChapterContent = ({
     setForceUpdate(prev => prev + 1);
   }, [effectiveFontSize, menuSettingsVersion, selectedBook, selectedChapter]);
 
-  // Additional effect to ensure font size changes are applied immediately
+  // Update CSS custom property for immediate font size changes
   useEffect(() => {
-    if (preferences?.fontSize) {
-      console.log('🔍 BibleChapterContent: Font size preference changed, forcing re-render');
-      setForceUpdate(prev => prev + 1);
-    }
-  }, [preferences?.fontSize]);
+    document.documentElement.style.setProperty('--bible-font-size', `${effectiveFontSize}px`);
+    console.log('🔍 BibleChapterContent: Set CSS custom property --bible-font-size to:', `${effectiveFontSize}px`);
+  }, [effectiveFontSize]);
+
+  // Force re-render when preferences change
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: Preferences changed, forcing re-render');
+    setForceUpdate(prev => prev + 1);
+  }, [preferences]);
+
+  // Listen for custom font size change events from the modal
+  useEffect(() => {
+    const handleFontSizeChange = (event: CustomEvent) => {
+      const newFontSize = event.detail.fontSize;
+      console.log('🔍 BibleChapterContent: Received font size change event:', newFontSize);
+      setCurrentFontSize(newFontSize);
+    };
+
+    // Listen for custom events
+    window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+
+    return () => {
+      window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+    };
+  }, []);
+
   
   // Create a key that changes when any setting changes to force re-render
   const settingsKey = `fontSize-${effectiveFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
@@ -484,6 +508,9 @@ export const BibleChapterContent = ({
           >
             {getVersionDisplayName(selectedVersion)}
           </button>
+          <div className="text-xs text-gray-500">
+            Font: {effectiveFontSize}px
+          </div>
         </div>
             
         <div className="bible-header-icons-full">
@@ -650,7 +677,8 @@ export const BibleChapterContent = ({
                    const verseStyle = { 
                      fontSize: `${effectiveFontSize}px`, 
                      lineHeight: '1.6',
-                     '--font-size': `${effectiveFontSize}px`
+                     '--font-size': `${effectiveFontSize}px`,
+                     '--bible-font-size': `${effectiveFontSize}px`
                    } as React.CSSProperties;
                    console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${effectiveFontSize}px, style:`, verseStyle);
                    

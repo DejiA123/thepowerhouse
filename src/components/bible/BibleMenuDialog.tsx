@@ -15,6 +15,7 @@ interface BibleMenuDialogProps {
 
 export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGenesis }: BibleMenuDialogProps) => {
   const { preferences, setFontSize, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
+  const [localFontSize, setLocalFontSize] = useState(preferences.fontSize);
   
   // Debug: Log preferences
   console.log('BibleMenuDialog: preferences =', preferences);
@@ -47,14 +48,27 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               <span className="font-medium text-blue-800 text-sm">Font Size</span>
             </div>
             <Slider
-              value={[preferences.fontSize]}
+              value={[localFontSize]}
               onValueChange={(value) => {
                 console.log('Font size slider changed to:', value[0]);
                 console.log('Current preferences before change:', preferences);
+                setLocalFontSize(value[0]);
                 setFontSize(value[0]);
                 console.log('setFontSize called with:', value[0]);
+                
+                // Dispatch custom event to notify other components
+                const event = new CustomEvent('fontSizeChanged', {
+                  detail: { fontSize: value[0] }
+                });
+                window.dispatchEvent(event);
+                console.log('🔍 BibleMenuDialog: Dispatched fontSizeChanged event with:', value[0]);
+                
                 // Call onSettingsChange immediately to trigger re-render
                 onSettingsChange?.();
+                // Force a small delay to ensure the change is processed
+                setTimeout(() => {
+                  console.log('Font size change processed, preferences should be updated');
+                }, 50);
               }}
               onValueCommit={(value) => {
                 console.log('Font size slider committed to:', value[0]);
@@ -68,7 +82,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
             />
             <div className="flex justify-between text-xs text-blue-600">
               <span>12px</span>
-              <span className="font-medium">{preferences.fontSize}px</span>
+              <span className="font-medium">{localFontSize}px</span>
               <span>24px</span>
             </div>
           </div>

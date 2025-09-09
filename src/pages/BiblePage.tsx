@@ -375,7 +375,7 @@ const BiblePage = () => {
       console.log(`🔍 BiblePage: Rendering BibleChapterContent with fontSize=${preferences.fontSize}, selectedBook=${selectedBook}, selectedChapter=${selectedChapter}`);
       return (
         <BibleChapterContent
-          key={`bible-chapter-${selectedBook}-${selectedChapter}-${menuSettingsVersion}`}
+          key={`bible-chapter-${selectedBook}`}
           selectedBook={selectedBook!}
           selectedChapter={selectedChapter}
           chapterContent={chapterContent}
@@ -490,6 +490,10 @@ const BiblePage = () => {
           onSettingsChange={() => {
             console.log('Settings changed - forcing re-render');
             setMenuSettingsVersion(prev => prev + 1);
+            // Force a small delay to ensure preferences are updated
+            setTimeout(() => {
+              console.log('Settings change timeout - preferences should be updated now');
+            }, 100);
           }}
           onResetToGenesis={() => {
             resetToReasonableDefaults();
