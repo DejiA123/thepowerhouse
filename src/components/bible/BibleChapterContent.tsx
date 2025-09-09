@@ -113,14 +113,18 @@ export const BibleChapterContent = ({
     }
   }, [user, selectedBook, selectedChapter]);
 
-  // Auto-play effect: Reset shouldAutoPlay flag when triggered
+  // Auto-play MP3 audio when audio URL is loaded and shouldAutoPlay is true
   useEffect(() => {
-    if (shouldAutoPlay && chapterContent && !loading) {
-      console.log('🎵 BibleChapterContent: shouldAutoPlay triggered, but TTS is disabled - only MP3 audio available');
-      // Reset shouldAutoPlay flag by calling the callback
+    console.log('🔍 Audio auto-play effect triggered:', { shouldAutoPlay, hasAudioUrl: !!audioUrl, hasAudioRef: !!audioRef.current, isLoading });
+    if (shouldAutoPlay && audioUrl && audioRef.current && !isLoading) {
+      console.log('🎵 BibleChapterContent: Audio URL loaded, auto-playing MP3 audio');
+      audioRef.current.play().catch(error => {
+        console.error('Error auto-playing audio:', error);
+      });
+      // Reset shouldAutoPlay flag after successfully starting playback
       onAutoPlayTriggered?.();
     }
-  }, [shouldAutoPlay, chapterContent, loading]);
+  }, [shouldAutoPlay, audioUrl, isLoading, onAutoPlayTriggered]);
 
   const fetchHighlights = async () => {
     try {
@@ -250,6 +254,7 @@ export const BibleChapterContent = ({
         if (url) {
           setAudioUrl(url);
           console.log(`🎵 MP3 audio loaded: ${url}`);
+          console.log(`🔍 Audio URL set, shouldAutoPlay: ${shouldAutoPlay}, isLoading: ${isLoading}`);
           
           // Test if the URL actually works
           try {
@@ -502,7 +507,15 @@ export const BibleChapterContent = ({
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          // Auto-play next chapter if enabled
+          if (autoPlayNext && onChapterChange) {
+            console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}, auto-playing next chapter`);
+            const nextChapter = selectedChapter + 1;
+            onChapterChange(nextChapter, true); // true indicates this is auto-play
+          }
+        }}
         onPause={() => setIsPlaying(false)}
         onPlay={() => setIsPlaying(true)}
         onError={() => {

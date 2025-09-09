@@ -154,7 +154,14 @@ export const supabaseAudioService = {
     
     // Format: A01___01_Genesis_____ENGKJVO1DA.mp3
     const chapterStr = chapter.toString().padStart(2, '0');
-    const bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
+    let bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
+    
+    // Special handling for abbreviated book names in the bucket
+    if (bookName === '1Thessalonians') {
+      bookName = '1Thess';
+    } else if (bookName === '2Thessalonians') {
+      bookName = '2Thess';
+    }
     
     // Calculate padding needed to make book name + underscores = 12 characters total
     const paddingNeeded = Math.max(0, 12 - bookName.length);
@@ -165,6 +172,8 @@ export const supabaseAudioService = {
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
     console.log(`✅ Chapter: ${chapter} → Padded: ${chapterStr}`);
     console.log(`✅ Version: ${version} → Code: ${versionCode}`);
+    console.log(`✅ BookName: "${bookName}" (length: ${bookName.length})`);
+    console.log(`✅ Padding needed: ${paddingNeeded}, Underscores: "${underscores}"`);
     
     return fileName;
   },
