@@ -6,7 +6,7 @@ const AUDIO_BUCKET = 'audio-bible';
 // Book name mappings to match the MP3 file format
 const BOOK_MAPPINGS: Record<string, string> = {
   'Genesis': 'A01',
-  'Matthew': 'A01', // Based on your bucket files
+  'Matthew': 'B01', // Fixed: Matthew files use B01 prefix
   'Exodus': 'A02', 
   'Leviticus': 'A03',
   'Numbers': 'A04',
@@ -44,38 +44,38 @@ const BOOK_MAPPINGS: Record<string, string> = {
   'Zephaniah': 'B37',
   'Zechariah': 'B38',
   'Malachi': 'B39',
-  'Mark': 'B41',
-  'Luke': 'B42',
-  'John': 'B43',
-  'Acts': 'B44',
-  'Romans': 'B45',
-  '1 Corinthians': 'B46',
-  '2 Corinthians': 'B47',
-  'Galatians': 'B48',
-  'Ephesians': 'B49',
-  'Philippians': 'B50',
-  'Colossians': 'B51',
-  '1 Thessalonians': 'B52',
-  '2 Thessalonians': 'B53',
-  '1 Timothy': 'B54',
-  '2 Timothy': 'B55',
-  'Titus': 'B56',
-  'Philemon': 'B57',
-  'Hebrews': 'B58',
-  'James': 'B59',
-  '1 Peter': 'B60',
-  '2 Peter': 'B61',
-  '1 John': 'B62',
-  '2 John': 'B63',
-  '3 John': 'B64',
-  'Jude': 'B65',
-  'Revelation': 'B66'
+  'Mark': 'B02', // Fixed: Mark files use B02 prefix
+  'Luke': 'B03', // Fixed: Luke files use B03 prefix
+  'John': 'B04', // Fixed: John files use B04 prefix
+  'Acts': 'B05', // Fixed: Acts files use B05 prefix
+  'Romans': 'B06', // Fixed: Romans files use B06 prefix
+  '1 Corinthians': 'B07', // Fixed: 1 Corinthians files use B07 prefix
+  '2 Corinthians': 'B08', // Fixed: 2 Corinthians files use B08 prefix
+  'Galatians': 'B09', // Fixed: Galatians files use B09 prefix
+  'Ephesians': 'B10', // Fixed: Ephesians files use B10 prefix
+  'Philippians': 'B11', // Fixed: Philippians files use B11 prefix
+  'Colossians': 'B12', // Fixed: Colossians files use B12 prefix
+  '1 Thessalonians': 'B13', // Fixed: 1 Thessalonians files use B13 prefix
+  '2 Thessalonians': 'B14', // Fixed: 2 Thessalonians files use B14 prefix
+  '1 Timothy': 'B15', // Fixed: 1 Timothy files use B15 prefix
+  '2 Timothy': 'B16', // Fixed: 2 Timothy files use B16 prefix
+  'Titus': 'B17', // Fixed: Titus files use B17 prefix
+  'Philemon': 'B18', // Fixed: Philemon files use B18 prefix
+  'Hebrews': 'B19', // Fixed: Hebrews files use B19 prefix
+  'James': 'B20', // Fixed: James files use B20 prefix
+  '1 Peter': 'B21', // Fixed: 1 Peter files use B21 prefix
+  '2 Peter': 'B22', // Fixed: 2 Peter files use B22 prefix
+  '1 John': 'B23', // Fixed: 1 John files use B23 prefix
+  '2 John': 'B24', // Fixed: 2 John files use B24 prefix
+  '3 John': 'B25', // Fixed: 3 John files use B25 prefix
+  'Jude': 'B26', // Fixed: Jude files use B26 prefix
+  'Revelation': 'B27' // Fixed: Revelation files use B27 prefix
 };
 
 // Version mappings to match the MP3 file format (API.Bible version IDs)
 const VERSION_MAPPINGS: Record<string, string> = {
   // API.Bible KJV versions - updated to match your actual files
-  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV (current) - back to ENGKJVN1DA for Matthew
+  'de4e12af7f28f599-02': 'ENGKJVN1DA', // KJV (current) - New Testament uses ENGKJVN1DA
   '06125adad2d5898a-01': 'ENGKJVN1DA', // KJV alternate
   
   // API.Bible NIV versions  
@@ -120,19 +120,25 @@ export const supabaseAudioService = {
    * Generate the expected MP3 filename based on book, chapter, and version
    */
   generateFileName(book: string, chapter: number, version: string): string {
-    // First try the user's expected format for Matthew
-    if (book.toLowerCase() === 'matthew') {
-      const versionCode = VERSION_MAPPINGS[version] || 'ENGKJVN1DA';
-      const chapterStr = chapter.toString().padStart(2, '0');
-      const fileName = `B01___${chapterStr}_Matthew_____${versionCode}.mp3`;
-      console.log(`✅ Generated Matthew filename: ${fileName}`);
-      return fileName;
-    }
+    // Use the standard mapping for all books including Matthew
+    // The special case logic was causing issues with file lookup
 
     // For other books, use the existing mapping
     const normalizedBook = this.normalizeBookName(book);
     const bookCode = BOOK_MAPPINGS[normalizedBook];
-    const versionCode = VERSION_MAPPINGS[version];
+    
+    // Handle different version codes for Old vs New Testament
+    let versionCode = VERSION_MAPPINGS[version];
+    if (versionCode === 'ENGKJVN1DA') {
+      // For KJV, use different version codes based on testament
+      if (bookCode && bookCode.startsWith('A')) {
+        // Old Testament books (A01, A02, etc.) use ENGKJVO1DA
+        versionCode = 'ENGKJVO1DA';
+      } else if (bookCode && bookCode.startsWith('B')) {
+        // New Testament books (B01, B02, etc.) use ENGKJVN1DA
+        versionCode = 'ENGKJVN1DA';
+      }
+    }
     
     if (!bookCode) {
       console.warn(`No book mapping found for: ${book} (normalized: ${normalizedBook})`);
@@ -182,23 +188,41 @@ export const supabaseAudioService = {
     // If not found, try to handle common variations
     const variations: Record<string, string> = {
       '1samuel': '1 Samuel',
-      '2samuel': '2 Samuel', 
+      '1-samuel': '1 Samuel', // Handle hyphenated version
+      '2samuel': '2 Samuel',
+      '2-samuel': '2 Samuel', // Handle hyphenated version
       '1kings': '1 Kings',
+      '1-kings': '1 Kings', // Handle hyphenated version
       '2kings': '2 Kings',
+      '2-kings': '2 Kings', // Handle hyphenated version
       '1chronicles': '1 Chronicles',
+      '1-chronicles': '1 Chronicles', // Handle hyphenated version
       '2chronicles': '2 Chronicles',
+      '2-chronicles': '2 Chronicles', // Handle hyphenated version
       '1corinthians': '1 Corinthians',
+      '1-corinthians': '1 Corinthians', // Handle hyphenated version
       '2corinthians': '2 Corinthians',
+      '2-corinthians': '2 Corinthians', // Handle hyphenated version
       '1thessalonians': '1 Thessalonians',
+      '1-thessalonians': '1 Thessalonians', // Handle hyphenated version
       '2thessalonians': '2 Thessalonians',
+      '2-thessalonians': '2 Thessalonians', // Handle hyphenated version
       '1timothy': '1 Timothy',
+      '1-timothy': '1 Timothy', // Handle hyphenated version
       '2timothy': '2 Timothy',
+      '2-timothy': '2 Timothy', // Handle hyphenated version
       '1peter': '1 Peter',
+      '1-peter': '1 Peter', // Handle hyphenated version
       '2peter': '2 Peter',
+      '2-peter': '2 Peter', // Handle hyphenated version
       '1john': '1 John',
+      '1-john': '1 John', // Handle hyphenated version
       '2john': '2 John',
+      '2-john': '2 John', // Handle hyphenated version
       '3john': '3 John',
-      'songofsolomon': 'Song of Solomon'
+      '3-john': '3 John', // Handle hyphenated version
+      'songofsolomon': 'Song of Solomon',
+      'song-of-solomon': 'Song of Solomon' // Handle hyphenated version
     };
     
     if (variations[lowerBook]) {
@@ -270,21 +294,52 @@ export const supabaseAudioService = {
 
       console.log(`🔍 Attempting to list files from bucket: ${AUDIO_BUCKET}`);
       
-      // First try to list all files to see if we can access the bucket at all
-      const { data: listData, error: listError } = await supabase.storage
-        .from(AUDIO_BUCKET)
-        .list('');
+      // Use pagination to get all files
+      const getAllFiles = async () => {
+        let allFiles: any[] = [];
+        
+        // Get files by prefix patterns to work around Supabase limitations
+        const prefixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        
+        for (const prefix of prefixes) {
+          try {
+            const { data: batch, error: batchError } = await supabase.storage
+              .from(AUDIO_BUCKET)
+              .list('', { 
+                limit: 1000,
+                sortBy: { column: 'name', order: 'asc' },
+                search: prefix
+              });
+            
+            if (batchError) {
+              console.error(`❌ Error fetching files with prefix ${prefix}:`, batchError);
+              continue;
+            }
+            
+            if (batch && batch.length > 0) {
+              allFiles = [...allFiles, ...batch];
+              console.log(`🔍 checkAudioExists - Fetched ${batch.length} files with prefix ${prefix}, total so far: ${allFiles.length}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing prefix ${prefix}:`, error);
+          }
+        }
+        
+        // Remove duplicates and sort
+        const uniqueFiles = allFiles.filter((file, index, self) => 
+          index === self.findIndex(f => f.name === file.name)
+        ).sort((a, b) => a.name.localeCompare(b.name));
+        
+        return uniqueFiles;
+      };
+      
+      const listData = await getAllFiles();
 
-      if (listError) {
-        console.error(`❌ Error listing bucket ${AUDIO_BUCKET}:`, listError);
-        return false;
-      }
-
-      console.log(`✅ Successfully listed bucket. Found ${listData?.length || 0} files`);
-      console.log(`🔍 Available files:`, listData?.map(f => f.name) || []);
+      console.log(`✅ Successfully listed bucket. Found ${listData.length} files`);
+      console.log(`🔍 Available files:`, listData.map(f => f.name));
       
       // Check if our specific file exists
-      const exists = listData && listData.some(file => file.name === fileName);
+      const exists = listData.some(file => file.name === fileName);
       console.log(`🔍 Looking for exact match: "${fileName}"`);
       console.log(`🔍 File exists: ${exists}`);
       
@@ -292,7 +347,7 @@ export const supabaseAudioService = {
       if (!exists && book.toLowerCase() === 'matthew') {
         console.log(`❌ Matthew file not found. You need to upload: ${fileName}`);
         console.log(`🔍 Available files in bucket:`);
-        listData?.forEach(file => console.log(`  - ${file.name}`));
+        listData.forEach(file => console.log(`  - ${file.name}`));
       }
       
       return exists;

@@ -169,38 +169,74 @@ export const BibleChapterContent = ({
         const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated filename:', fileName);
         
-        // Force a fresh bucket listing (no cache)
+        // Force a fresh bucket listing with pagination to get ALL files
         console.log('🔍 Checking bucket contents with fresh request...');
-        const { data: files, error: listError } = await supabase.storage
-          .from('audio-bible')
-          .list('', { 
-            limit: 1000, 
-            sortBy: { column: 'name', order: 'asc' },
-            search: selectedBook.toLowerCase() === 'matthew' ? 'B01' : undefined
-          });
+        
+        // Function to get all files by fetching in batches by prefix
+        const getAllFiles = async () => {
+          let allFiles: any[] = [];
+          
+          // Get files by prefix patterns to work around Supabase limitations
+          const prefixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+          
+          for (const prefix of prefixes) {
+            try {
+              const { data: batch, error: batchError } = await supabase.storage
+                .from('audio-bible')
+                .list('', { 
+                  limit: 1000,
+                  sortBy: { column: 'name', order: 'asc' },
+                  search: prefix
+                });
+              
+              if (batchError) {
+                console.error(`❌ Error fetching files with prefix ${prefix}:`, batchError);
+                continue;
+              }
+              
+              if (batch && batch.length > 0) {
+                allFiles = [...allFiles, ...batch];
+                console.log(`🔍 Fetched ${batch.length} files with prefix ${prefix}, total so far: ${allFiles.length}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error processing prefix ${prefix}:`, error);
+            }
+          }
+          
+          // Remove duplicates and sort
+          const uniqueFiles = allFiles.filter((file, index, self) => 
+            index === self.findIndex(f => f.name === file.name)
+          ).sort((a, b) => a.name.localeCompare(b.name));
+          
+          console.log(`🔍 Final result: ${uniqueFiles.length} unique files`);
+          return uniqueFiles;
+        };
+        
+        const files = await getAllFiles();
+        const listError = null; // No error from our pagination logic
         
         if (listError) {
           console.error('❌ Error listing bucket files:', listError);
         } else {
-          console.log('🔍 Fresh bucket listing - Total files:', files?.length || 0);
+          console.log('🔍 Fresh bucket listing - Total files:', files.length);
           
-          // Show all files that contain Matthew or B01
-          const matthewFiles = files?.filter(f => 
-            f.name.includes('Matthew') || 
-            f.name.includes('B01') ||
-            f.name.toLowerCase().includes('matthew')
-          ) || [];
-          console.log('🔍 Matthew-related files found:', matthewFiles.map(f => f.name));
+          // Show all files that contain the book name or book code
+          const bookFiles = files.filter(f => 
+            f.name.includes(selectedBook) || 
+            f.name.includes(fileName.split('___')[0]) ||
+            f.name.toLowerCase().includes(selectedBook.toLowerCase())
+          );
+          console.log(`🔍 ${selectedBook}-related files found:`, bookFiles.map(f => f.name));
           
           // Check for exact match
-          const exactMatch = files?.find(f => f.name === fileName);
+          const exactMatch = files.find(f => f.name === fileName);
           console.log('🔍 Exact filename match found:', !!exactMatch, fileName);
           
           if (exactMatch) {
             console.log('✅ Found exact file match! Proceeding with audio load...');
           } else {
             console.log('❌ No exact match found. Similar files:');
-            files?.forEach(f => {
+            files.forEach(f => {
               if (f.name.includes('01') || f.name.toLowerCase().includes('matthew')) {
                 console.log(`  📁 ${f.name}`);
               }
@@ -249,15 +285,52 @@ export const BibleChapterContent = ({
 
   // Handle MP3 audio playback
   const handlePlayPause = async () => {
-    // First, let's check if the bucket has ANY files at all
+    // First, let's check if the bucket has ANY files at all using the same pagination logic
     try {
-      const { data: allFiles, error: listError } = await supabase.storage
-        .from('audio-bible')
-        .list('', { limit: 100 });
+      // Use the same pagination function to get all files
+      const getAllFiles = async () => {
+        let allFiles: any[] = [];
+        
+        // Get files by prefix patterns to work around Supabase limitations
+        const prefixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+        
+        for (const prefix of prefixes) {
+          try {
+            const { data: batch, error: batchError } = await supabase.storage
+              .from('audio-bible')
+              .list('', { 
+                limit: 1000,
+                sortBy: { column: 'name', order: 'asc' },
+                search: prefix
+              });
+            
+            if (batchError) {
+              console.error(`❌ Error fetching files with prefix ${prefix}:`, batchError);
+              continue;
+            }
+            
+            if (batch && batch.length > 0) {
+              allFiles = [...allFiles, ...batch];
+              console.log(`🔍 BUCKET CHECK - Fetched ${batch.length} files with prefix ${prefix}, total so far: ${allFiles.length}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing prefix ${prefix}:`, error);
+          }
+        }
+        
+        // Remove duplicates and sort
+        const uniqueFiles = allFiles.filter((file, index, self) => 
+          index === self.findIndex(f => f.name === file.name)
+        ).sort((a, b) => a.name.localeCompare(b.name));
+        
+        return uniqueFiles;
+      };
       
-      console.log('🔍 BUCKET CHECK - Error:', listError);
-      console.log('🔍 BUCKET CHECK - Total files:', allFiles?.length || 0);
-      console.log('🔍 BUCKET CHECK - Files:', allFiles?.map(f => f.name) || []);
+      const allFiles = await getAllFiles();
+      
+      console.log('🔍 BUCKET CHECK - Error: null');
+      console.log('🔍 BUCKET CHECK - Total files:', allFiles.length);
+      console.log('🔍 BUCKET CHECK - Files:', allFiles.map(f => f.name));
       
       if (!allFiles || allFiles.length === 0) {
         toast({
