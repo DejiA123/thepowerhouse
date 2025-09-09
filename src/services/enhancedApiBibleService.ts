@@ -97,8 +97,12 @@ export const enhancedApiBibleService = {
           // Generate a proper abbreviation from the name if none exists
           let abbr = bible.abbreviation || bible.nameLocal;
           
+          // Special handling for KJV versions - always use "KJV" instead of "ENGKJV"
+          if (abbr === 'ENGKJV' || (bible.name && bible.name.toLowerCase().includes('king james version'))) {
+            abbr = 'KJV';
+          }
           // If no abbreviation, create one from the name
-          if (!abbr && bible.name) {
+          else if (!abbr && bible.name) {
             // Extract common abbreviations from the name
             const name = bible.name.toLowerCase();
             if (name.includes('new international version')) abbr = 'NIV';

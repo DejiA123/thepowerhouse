@@ -404,7 +404,9 @@ export const BibleChapterContent = ({
     
     // Always use abbreviation if available, otherwise fall back to custom mapping
     if (currentVersion && currentVersion.abbreviation) {
-      return currentVersion.abbreviation.toUpperCase();
+      // Special handling: convert "ENGKJV" to "KJV" for display
+      const displayName = currentVersion.abbreviation.toUpperCase();
+      return displayName === 'ENGKJV' ? 'KJV' : displayName;
     }
     
     // Fallback to the enhanced API service if not found in versions array
