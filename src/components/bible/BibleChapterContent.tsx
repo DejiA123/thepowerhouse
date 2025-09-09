@@ -508,9 +508,6 @@ export const BibleChapterContent = ({
           >
             {getVersionDisplayName(selectedVersion)}
           </button>
-          <div className="text-xs text-gray-500">
-            Font: {effectiveFontSize}px
-          </div>
         </div>
             
         <div className="bible-header-icons-full">
