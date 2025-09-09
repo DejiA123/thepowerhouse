@@ -53,6 +53,12 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                 console.log('Current preferences before change:', preferences);
                 setFontSize(value[0]);
                 console.log('setFontSize called with:', value[0]);
+                // Call onSettingsChange immediately to trigger re-render
+                onSettingsChange?.();
+              }}
+              onValueCommit={(value) => {
+                console.log('Font size slider committed to:', value[0]);
+                // Also call onSettingsChange when user finishes dragging
                 onSettingsChange?.();
               }}
               max={24}

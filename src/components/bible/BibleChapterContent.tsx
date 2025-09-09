@@ -76,20 +76,33 @@ export const BibleChapterContent = ({
   const { preferences } = useBiblePreferences();
   const effectiveFontSize = preferences?.fontSize ?? fontSize;
 
+  // State variables
+  const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [showHighlightDialog, setShowHighlightDialog] = useState(false);
+  const [showHighlightsList, setShowHighlightsList] = useState(false);
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
+
   // Force re-render when font size or menu settings change
   useEffect(() => {
     console.log('🔍 BibleChapterContent: Font size changed to:', effectiveFontSize, 'menuSettingsVersion:', menuSettingsVersion);
     console.log('🔍 BibleChapterContent: preferences.fontSize:', preferences?.fontSize, 'prop fontSize:', fontSize);
     console.log('🔍 BibleChapterContent: selectedBook:', selectedBook, 'selectedChapter:', selectedChapter);
+    
+    // Force a re-render by updating a state variable
+    setForceUpdate(prev => prev + 1);
   }, [effectiveFontSize, menuSettingsVersion, selectedBook, selectedChapter]);
+
+  // Additional effect to ensure font size changes are applied immediately
+  useEffect(() => {
+    if (preferences?.fontSize) {
+      console.log('🔍 BibleChapterContent: Font size preference changed, forcing re-render');
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [preferences?.fontSize]);
   
   // Create a key that changes when any setting changes to force re-render
-  const settingsKey = `fontSize-${effectiveFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}`;
-  
-  const [showNotesDialog, setShowNotesDialog] = useState(false);
-  const [showHighlightDialog, setShowHighlightDialog] = useState(false);
-  const [showHighlightsList, setShowHighlightsList] = useState(false);
-  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  const settingsKey = `fontSize-${effectiveFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
   
   // MP3 Audio state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -173,80 +186,8 @@ export const BibleChapterContent = ({
         const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated filename:', fileName);
         
-        // Force a fresh bucket listing with pagination to get ALL files
-        console.log('🔍 Checking bucket contents with fresh request...');
-        
-        // Function to get all files by fetching in batches by prefix
-        const getAllFiles = async () => {
-          let allFiles: any[] = [];
-          
-          // Get files by prefix patterns to work around Supabase limitations
-          const prefixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-          
-          for (const prefix of prefixes) {
-            try {
-              const { data: batch, error: batchError } = await supabase.storage
-                .from('audio-bible')
-                .list('', { 
-                  limit: 1000,
-                  sortBy: { column: 'name', order: 'asc' },
-                  search: prefix
-                });
-              
-              if (batchError) {
-                console.error(`❌ Error fetching files with prefix ${prefix}:`, batchError);
-                continue;
-              }
-              
-              if (batch && batch.length > 0) {
-                allFiles = [...allFiles, ...batch];
-                console.log(`🔍 Fetched ${batch.length} files with prefix ${prefix}, total so far: ${allFiles.length}`);
-              }
-            } catch (error) {
-              console.error(`❌ Error processing prefix ${prefix}:`, error);
-            }
-          }
-          
-          // Remove duplicates and sort
-          const uniqueFiles = allFiles.filter((file, index, self) => 
-            index === self.findIndex(f => f.name === file.name)
-          ).sort((a, b) => a.name.localeCompare(b.name));
-          
-          console.log(`🔍 Final result: ${uniqueFiles.length} unique files`);
-          return uniqueFiles;
-        };
-        
-        const files = await getAllFiles();
-        const listError = null; // No error from our pagination logic
-        
-        if (listError) {
-          console.error('❌ Error listing bucket files:', listError);
-        } else {
-          console.log('🔍 Fresh bucket listing - Total files:', files.length);
-          
-          // Show all files that contain the book name or book code
-          const bookFiles = files.filter(f => 
-            f.name.includes(selectedBook) || 
-            f.name.includes(fileName.split('___')[0]) ||
-            f.name.toLowerCase().includes(selectedBook.toLowerCase())
-          );
-          console.log(`🔍 ${selectedBook}-related files found:`, bookFiles.map(f => f.name));
-          
-          // Check for exact match
-          const exactMatch = files.find(f => f.name === fileName);
-          console.log('🔍 Exact filename match found:', !!exactMatch, fileName);
-          
-          if (exactMatch) {
-            console.log('✅ Found exact file match! Proceeding with audio load...');
-          } else {
-            console.log('❌ No exact match found. Similar files:');
-            files.forEach(f => {
-              if (f.name.includes('01') || f.name.toLowerCase().includes('matthew')) {
-                console.log(`  📁 ${f.name}`);
-              }
-            });
-          }
-        }
+        // Directly get the audio URL - much faster than full bucket listing
+        console.log('🔍 Getting audio URL directly...');
         
         const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated URL:', url);
@@ -553,7 +494,7 @@ export const BibleChapterContent = ({
             title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
           >
             {isLoading ? (
-              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <Volume2 className="w-4 h-4 opacity-50" />
             ) : isPlaying ? (
               <Pause className="w-4 h-4" />
             ) : (
@@ -706,7 +647,12 @@ export const BibleChapterContent = ({
                      return { __html: cleanText };
                    };
                    
-                   const verseStyle = { fontSize: `${effectiveFontSize}px`, lineHeight: '1.6' };
+                   const verseStyle = { 
+                     fontSize: `${effectiveFontSize}px`, 
+                     lineHeight: '1.6',
+                     '--font-size': `${effectiveFontSize}px`
+                   } as React.CSSProperties;
+                   console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${effectiveFontSize}px, style:`, verseStyle);
                    
                    // Apply highlight background if verse is highlighted
                    // Force readable text color in dark mode when highlighted
@@ -753,7 +699,7 @@ export const BibleChapterContent = ({
                     return (
                     <p 
                       key={`${settingsKey}-${index}`} 
-                      className={`leading-relaxed text-foreground mb-4 ${highlightClass} cursor-pointer select-none`}
+                      className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none`}
                       style={verseStyle}
                       onClick={handleVerseClick}
                     >
@@ -794,7 +740,7 @@ export const BibleChapterContent = ({
               title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
             >
               {isLoading ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <Volume2 className="w-5 h-5 opacity-50" />
               ) : isPlaying ? (
                 <Pause className="w-5 h-5" />
               ) : (

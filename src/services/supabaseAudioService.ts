@@ -259,17 +259,7 @@ export const supabaseAudioService = {
         return null;
       }
 
-      // Check if file exists first
-      console.log(`🔍 Checking if file exists: ${fileName}`);
-      const exists = await this.checkAudioExists(book, chapter, version);
-      console.log(`🔍 File exists: ${exists}`);
-      
-      if (!exists) {
-        console.warn(`🔍 File does not exist in bucket: ${fileName}`);
-        return null;
-      }
-
-      // Get the public URL from Supabase storage
+      // Get the public URL from Supabase storage directly - much faster
       console.log(`🔍 Getting public URL for: ${fileName}`);
       const { data } = await supabase.storage
         .from(AUDIO_BUCKET)
