@@ -32,11 +32,11 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
     console.log('BibleMenuDialog: Syncing localFontSize with preferences:', {
       preferencesFontSize: preferences.fontSize,
       localFontSize: localFontSize,
+      isOpen: isOpen,
       willUpdate: preferences.fontSize !== localFontSize
     });
-    if (preferences.fontSize !== localFontSize) {
-      setLocalFontSize(preferences.fontSize);
-    }
+    // Always sync when dialog opens or when preferences change
+    setLocalFontSize(preferences.fontSize);
   }, [preferences.fontSize, isOpen]);
 
   // Check if device is mobile
