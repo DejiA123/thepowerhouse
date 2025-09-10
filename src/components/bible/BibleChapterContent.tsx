@@ -75,9 +75,43 @@ export const BibleChapterContent = ({
   console.log(`🔍 BibleChapterContent: Rendering with ${selectedBook} chapter ${selectedChapter}, verses: ${chapterContent?.verses?.length || 0}`);
 
   // Use live preferences so font-size updates apply immediately without navigating
-  const { preferences } = useBiblePreferences();
-  const [currentFontSize, setCurrentFontSize] = useState(preferences?.fontSize ?? fontSize);
+  const { preferences, isLoaded } = useBiblePreferences();
+  // Initialize with preferences.fontSize if available, otherwise use prop fontSize
+  // Use a function to ensure we get the most up-to-date value
+  const [currentFontSize, setCurrentFontSize] = useState(() => {
+    // Direct localStorage check to see what's actually stored
+    const storedPrefs = localStorage.getItem('bible-preferences');
+    const parsedStoredPrefs = storedPrefs ? JSON.parse(storedPrefs) : null;
+    
+    const initialFontSize = (isLoaded && preferences?.fontSize !== undefined) ? preferences.fontSize : fontSize;
+    console.log('🔍 BibleChapterContent: Direct localStorage check:', {
+      storedPrefs: storedPrefs,
+      parsedStoredPrefs: parsedStoredPrefs,
+      storedFontSize: parsedStoredPrefs?.fontSize,
+      isLoaded: isLoaded,
+      preferencesFontSize: preferences?.fontSize,
+      propFontSize: fontSize,
+      initialFontSize: initialFontSize,
+    });
+    return initialFontSize;
+  });
   const effectiveFontSize = currentFontSize;
+
+  // Debug: Log font size initialization and changes
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
+  console.log('🔍 BibleChapterContent: Font size state:', {
+    preferencesFontSize: preferences?.fontSize,
+    propFontSize: fontSize,
+    currentFontSize: currentFontSize,
+    effectiveFontSize: effectiveFontSize,
+    selectedBook: selectedBook,
+    selectedChapter: selectedChapter,
+    isMobile: isMobile,
+    isIOS: isIOS,
+    userAgent: navigator.userAgent
+  });
 
   // State variables
   const [showNotesDialog, setShowNotesDialog] = useState(false);
@@ -108,21 +142,111 @@ export const BibleChapterContent = ({
     setForceUpdate(prev => prev + 1);
   }, [preferences]);
 
+  // Sync currentFontSize with preferences when preferences are loaded or change
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: Syncing font size with preferences:', {
+      isLoaded: isLoaded,
+      preferencesFontSize: preferences?.fontSize,
+      currentFontSize: currentFontSize,
+      willUpdate: isLoaded && preferences?.fontSize !== undefined && preferences.fontSize !== currentFontSize
+    });
+    if (isLoaded && preferences?.fontSize !== undefined && preferences.fontSize !== currentFontSize) {
+      console.log('🔍 BibleChapterContent: Updating currentFontSize from', currentFontSize, 'to', preferences.fontSize);
+      setCurrentFontSize(preferences.fontSize);
+    }
+  }, [isLoaded, preferences?.fontSize]); // Removed currentFontSize from dependencies to prevent infinite loop
+
+  // Additional sync on component mount to handle case where preferences are already loaded
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: Component mount sync - checking if preferences are already loaded');
+    console.log('🔍 BibleChapterContent: Mount context:', {
+      selectedBook: selectedBook,
+      selectedChapter: selectedChapter,
+      isLoaded: isLoaded,
+      preferencesFontSize: preferences?.fontSize,
+      currentFontSize: currentFontSize,
+      propFontSize: fontSize
+    });
+    if (isLoaded && preferences?.fontSize !== undefined) {
+      console.log('🔍 BibleChapterContent: Mount sync - preferences already loaded, syncing font size:', {
+        preferencesFontSize: preferences.fontSize,
+        currentFontSize: currentFontSize,
+        propFontSize: fontSize
+      });
+      if (preferences.fontSize !== currentFontSize) {
+        console.log('🔍 BibleChapterContent: Mount sync - updating currentFontSize from', currentFontSize, 'to', preferences.fontSize);
+        setCurrentFontSize(preferences.fontSize);
+      }
+    }
+  }, []); // Run only on mount
+
+  // Force sync on component mount to ensure we have the latest saved font size
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: Component mounted, checking for font size sync');
+    console.log('🔍 BibleChapterContent: Mount sync - isLoaded:', isLoaded);
+    console.log('🔍 BibleChapterContent: Mount sync - preferences:', preferences);
+    console.log('🔍 BibleChapterContent: Mount sync - prop fontSize:', fontSize);
+    if (isLoaded && preferences?.fontSize !== undefined) {
+      console.log('🔍 BibleChapterContent: Mount sync - setting font size to', preferences.fontSize);
+      setCurrentFontSize(preferences.fontSize);
+    } else {
+      console.log('🔍 BibleChapterContent: Mount sync - preferences not loaded or undefined, using prop fontSize:', fontSize);
+      setCurrentFontSize(fontSize);
+    }
+  }, [isLoaded]); // Run when preferences are loaded
+
+  // Also sync when the fontSize prop changes (from parent component)
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: fontSize prop changed to:', fontSize);
+    if (fontSize !== currentFontSize) {
+      console.log('🔍 BibleChapterContent: Prop sync - updating currentFontSize from', currentFontSize, 'to', fontSize);
+      setCurrentFontSize(fontSize);
+    }
+  }, [fontSize]);
+
+  // Special effect to handle when preferences are first loaded
+  useEffect(() => {
+    if (isLoaded && preferences?.fontSize !== undefined) {
+      console.log('🔍 BibleChapterContent: Preferences just loaded, syncing font size:', {
+        preferencesFontSize: preferences.fontSize,
+        currentFontSize: currentFontSize,
+        propFontSize: fontSize
+      });
+      // Use preferences.fontSize as the source of truth when preferences are loaded
+      if (preferences.fontSize !== currentFontSize) {
+        console.log('🔍 BibleChapterContent: Syncing to loaded preferences font size:', preferences.fontSize);
+        setCurrentFontSize(preferences.fontSize);
+      }
+    }
+  }, [isLoaded]); // Only run when isLoaded changes from false to true
+
   // Listen for custom font size change events from the modal
   useEffect(() => {
     const handleFontSizeChange = (event: CustomEvent) => {
       const newFontSize = event.detail.fontSize;
-      console.log('🔍 BibleChapterContent: Received font size change event:', newFontSize);
-      setCurrentFontSize(newFontSize);
+      console.log('🔍 BibleChapterContent: Received font size change event:', {
+        newFontSize: newFontSize,
+        currentFontSize: currentFontSize,
+        willUpdate: newFontSize !== currentFontSize,
+        selectedBook: selectedBook,
+        selectedChapter: selectedChapter
+      });
+      if (newFontSize !== currentFontSize) {
+        console.log('🔍 BibleChapterContent: Updating currentFontSize from', currentFontSize, 'to', newFontSize);
+        setCurrentFontSize(newFontSize);
+      }
     };
 
     // Listen for custom events
     window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+    console.log('🔍 BibleChapterContent: Added fontSizeChanged event listener');
 
     return () => {
       window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+      console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
     };
-  }, []);
+  }, [currentFontSize, selectedBook, selectedChapter]); // Add selectedBook and selectedChapter to track context
+
 
   
   // Create a key that changes when any setting changes to force re-render
@@ -134,6 +258,138 @@ export const BibleChapterContent = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Media Session API for background audio playback
+  const updateMediaSession = () => {
+    if ('mediaSession' in navigator && audioRef.current) {
+      const bookName = getBookDisplayName();
+      const versionName = getVersionDisplayName(selectedVersion);
+      
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `${bookName} ${selectedChapter}`,
+        artist: `Bible Audio - ${versionName}`,
+        album: 'PowerHouse Connect',
+        artwork: [
+          { src: '/bible-icon.svg', sizes: '96x96', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '128x128', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '256x256', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '384x384', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+        ]
+      });
+
+      // Set up media session action handlers
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('🎵 Media Session: Play action triggered');
+        if (audioRef.current && audioRef.current.paused) {
+          audioRef.current.play();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('🎵 Media Session: Pause action triggered');
+        if (audioRef.current && !audioRef.current.paused) {
+          audioRef.current.pause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        console.log('🎵 Media Session: Previous track action triggered');
+        handlePreviousChapter();
+      });
+
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        console.log('🎵 Media Session: Next track action triggered');
+        handleNextChapter();
+      });
+
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        console.log('🎵 Media Session: Seek backward action triggered', details);
+        if (audioRef.current) {
+          const skipTime = details.seekOffset || 10;
+          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skipTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        console.log('🎵 Media Session: Seek forward action triggered', details);
+        if (audioRef.current) {
+          const skipTime = details.seekOffset || 10;
+          audioRef.current.currentTime = Math.min(
+            audioRef.current.duration, 
+            audioRef.current.currentTime + skipTime
+          );
+        }
+      });
+
+      // Update playback state
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+      
+      console.log('🎵 Media Session updated:', {
+        title: `${bookName} ${selectedChapter}`,
+        artist: `Bible Audio - ${versionName}`,
+        isPlaying: isPlaying
+      });
+    }
+  };
+
+  // Update media session when audio state changes
+  useEffect(() => {
+    updateMediaSession();
+  }, [isPlaying, selectedBook, selectedChapter, selectedVersion]);
+
+  // Service Worker communication for background audio
+  useEffect(() => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      // Send audio state to service worker
+      navigator.serviceWorker.controller.postMessage({
+        type: 'AUDIO_STATE_UPDATE',
+        autoPlayNext: autoPlayNext,
+        loopChapter: false, // We don't have loop chapter in this component
+        book: selectedBook,
+        chapter: selectedChapter,
+        isPlaying: isPlaying,
+        timestamp: Date.now()
+      });
+    }
+  }, [isPlaying, selectedBook, selectedChapter, autoPlayNext]);
+
+  // Listen for service worker messages
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'AUDIO_CONTROL') {
+          console.log('🎵 Received audio control from service worker:', event.data.action);
+          
+          switch (event.data.action) {
+            case 'play':
+              if (audioRef.current && audioRef.current.paused) {
+                audioRef.current.play();
+              }
+              break;
+            case 'pause':
+              if (audioRef.current && !audioRef.current.paused) {
+                audioRef.current.pause();
+              }
+              break;
+            case 'next':
+              handleNextChapter();
+              break;
+            case 'previous':
+              handlePreviousChapter();
+              break;
+          }
+        }
+      };
+
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+      
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      };
+    }
+  }, []);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -470,26 +726,40 @@ export const BibleChapterContent = ({
 
   return (
     <div className="bible-page-full">
-      {/* Hidden audio element for MP3 playback */}
+      {/* Hidden audio element for MP3 playback with background support */}
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
         onEnded={() => {
+          console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}`);
           setIsPlaying(false);
+          
           // Auto-play next chapter if enabled
           if (autoPlayNext && onChapterChange) {
-            console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}, auto-playing next chapter`);
-            const nextChapter = selectedChapter + 1;
-            onChapterChange(nextChapter, true); // true indicates this is auto-play
+            console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
+            
+            // Use setTimeout to ensure the state update happens even in background
+            setTimeout(() => {
+              const nextChapter = selectedChapter + 1;
+              console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
+              onChapterChange(nextChapter, true); // true indicates this is auto-play
+            }, 100);
           }
         }}
         onPause={() => setIsPlaying(false)}
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => {
+          setIsPlaying(true);
+          // Update media session when playing
+          updateMediaSession();
+        }}
         onError={() => {
           setIsPlaying(false);
           setAudioError('Failed to play audio file');
         }}
         preload="metadata"
+        // Background audio attributes
+        crossOrigin="anonymous"
+        playsInline={true}
       />
       {/* Header Bar */}
       <div className="bible-header-full">
@@ -511,6 +781,10 @@ export const BibleChapterContent = ({
         </div>
             
         <div className="bible-header-icons-full">
+          {/* Debug font size display - mobile optimized */}
+          <div className="text-xs text-muted-foreground px-2 select-none touch-manipulation">
+            Font: {effectiveFontSize}px
+          </div>
           <button 
             className="bible-header-icon-full"
             onClick={handlePlayPause}

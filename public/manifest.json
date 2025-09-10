@@ -87,5 +87,13 @@
       "protocol": "web+powerhouse",
       "url": "/%s"
     }
+  ],
+  "background_audio": {
+    "enabled": true,
+    "auto_play": true,
+    "persistent": true
+  },
+  "permissions": [
+    "background-audio"
   ]
 }

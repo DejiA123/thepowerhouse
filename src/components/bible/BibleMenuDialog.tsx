@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -17,11 +17,34 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
   const { preferences, setFontSize, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
   const [localFontSize, setLocalFontSize] = useState(preferences.fontSize);
   
+  console.log('🔍 BibleMenuDialog: Component initialized with:', {
+    preferencesFontSize: preferences.fontSize,
+    localFontSize: localFontSize,
+    isOpen: isOpen
+  });
+  
   // Debug: Log preferences
   console.log('BibleMenuDialog: preferences =', preferences);
+  console.log('BibleMenuDialog: localStorage check =', localStorage.getItem('bible-preferences'));
+
+  // Sync localFontSize with preferences when dialog opens or preferences change
+  useEffect(() => {
+    console.log('BibleMenuDialog: Syncing localFontSize with preferences:', {
+      preferencesFontSize: preferences.fontSize,
+      localFontSize: localFontSize,
+      willUpdate: preferences.fontSize !== localFontSize
+    });
+    if (preferences.fontSize !== localFontSize) {
+      setLocalFontSize(preferences.fontSize);
+    }
+  }, [preferences.fontSize, isOpen]);
 
   // Check if device is mobile
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
+  // Debug: Log mobile detection
+  console.log('BibleMenuDialog: Mobile detection:', { isMobile, isIOS, userAgent: navigator.userAgent });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -50,11 +73,13 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
             <Slider
               value={[localFontSize]}
               onValueChange={(value) => {
-                console.log('Font size slider changed to:', value[0]);
-                console.log('Current preferences before change:', preferences);
+                console.log('🔍 BibleMenuDialog: Font size slider changed to:', value[0]);
+                console.log('🔍 BibleMenuDialog: Current preferences before change:', preferences);
+                console.log('🔍 BibleMenuDialog: Current localFontSize before change:', localFontSize);
                 setLocalFontSize(value[0]);
+                console.log('🔍 BibleMenuDialog: About to call setFontSize with:', value[0]);
                 setFontSize(value[0]);
-                console.log('setFontSize called with:', value[0]);
+                console.log('🔍 BibleMenuDialog: setFontSize called with:', value[0]);
                 
                 // Dispatch custom event to notify other components
                 const event = new CustomEvent('fontSizeChanged', {
@@ -78,7 +103,12 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               max={24}
               min={12}
               step={1}
-              className="w-full mb-1"
+              className={`w-full mb-1 ${isMobile ? 'touch-manipulation' : ''}`}
+              style={isMobile ? { 
+                touchAction: 'pan-x',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none'
+              } : {}}
             />
             <div className="flex justify-between text-xs text-blue-600">
               <span>12px</span>

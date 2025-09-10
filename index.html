@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- PWA Optimized Viewport for Keyboard Support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
     <title>PowerHouse Connect</title>
     <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
     <meta name="author" content="PowerHouse International" />
@@ -26,6 +27,17 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="apple-touch-fullscreen" content="yes">
     <meta name="apple-mobile-web-app-orientations" content="portrait">
+    
+    <!-- Background Audio Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PowerHouse Connect">
+    
+    <!-- Audio Session Configuration -->
+    <meta name="apple-mobile-web-app-audio-session" content="playback">
+    <meta name="apple-mobile-web-app-audio-category" content="playback">
+    <meta name="apple-mobile-web-app-audio-mode" content="default">
     
     <!-- Runtime app config for platforms without env vars (e.g., Lovable free tier) -->
     <script>
@@ -102,6 +114,49 @@
       
       html.light .status-bar-bg {
         background-color: #ffffff !important;
+      }
+      
+      /* PWA Mobile Keyboard Optimizations */
+      input, textarea, select {
+        -webkit-appearance: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: text;
+        touch-action: manipulation;
+      }
+      
+      /* Ensure inputs are properly sized for mobile keyboards */
+      @media screen and (max-width: 768px) {
+        input, textarea {
+          font-size: 16px !important; /* Prevents zoom on iOS */
+          transform: translateZ(0); /* Force hardware acceleration */
+        }
+      }
+      
+      /* Prevent zoom on input focus for iOS */
+      @supports (-webkit-touch-callout: none) {
+        input, textarea, select {
+          font-size: 16px !important;
+        }
+      }
+      
+      /* Background Audio Optimizations */
+      audio {
+        -webkit-media-controls: none;
+        -webkit-media-controls-panel: none;
+        -webkit-media-controls-play-button: none;
+        -webkit-media-controls-timeline: none;
+        -webkit-media-controls-current-time-display: none;
+        -webkit-media-controls-time-remaining-display: none;
+        -webkit-media-controls-mute-button: none;
+        -webkit-media-controls-volume-slider: none;
+        -webkit-media-controls-fullscreen-button: none;
+        -webkit-media-controls-overlay-play-button: none;
+        -webkit-media-controls-overlay-enclosure: none;
+      }
+      
+      /* Ensure audio element is hidden but functional */
+      audio[hidden] {
+        display: none !important;
       }
     </style>
     <script type="module" src="/src/main.tsx"></script>

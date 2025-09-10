@@ -92,36 +92,49 @@ export const useBiblePreferences = () => {
   // Load preferences from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      console.log(`🔍 useBiblePreferences [${hookId}]: Loading from localStorage:`, stored);
-      if (stored) {
-        let parsed = JSON.parse(stored) as BiblePreferences;
-        console.log(`🔍 useBiblePreferences [${hookId}]: Parsed preferences:`, parsed);
-        
-        // Apply migration
-        parsed = migrateTranslationPreference(parsed);
-        
-        // Merge with defaults to ensure all properties exist
-        const merged = { ...DEFAULT_PREFERENCES, ...parsed };
-        console.log(`🔍 useBiblePreferences [${hookId}]: Merged preferences:`, merged);
-        
-        setPreferences(merged);
-        
-        // Save back if migration occurred
-        if (parsed.preferredTranslation !== JSON.parse(stored).preferredTranslation) {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-            console.log('✅ Migrated preferences saved to localStorage');
-          } catch (error) {
-            console.warn('⚠️ Could not save migrated preferences:', error);
+      // Check if localStorage is available (important for iOS Safari private mode)
+      if (typeof Storage !== 'undefined' && localStorage) {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        console.log(`🔍 useBiblePreferences [${hookId}]: Loading from localStorage:`, stored);
+        if (stored) {
+          let parsed = JSON.parse(stored) as BiblePreferences;
+          console.log(`🔍 useBiblePreferences [${hookId}]: Parsed preferences:`, parsed);
+          
+          // Apply migration
+          parsed = migrateTranslationPreference(parsed);
+          
+          // Merge with defaults to ensure all properties exist
+          const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+          console.log(`🔍 useBiblePreferences [${hookId}]: Merged preferences:`, merged);
+          console.log(`🔍 useBiblePreferences [${hookId}]: Font size in loaded preferences:`, merged.fontSize);
+          console.log(`🔍 useBiblePreferences [${hookId}]: Raw stored data:`, stored);
+          console.log(`🔍 useBiblePreferences [${hookId}]: About to set preferences with fontSize:`, merged.fontSize);
+          
+          setPreferences(merged);
+          
+          // Save back if migration occurred
+          if (parsed.preferredTranslation !== JSON.parse(stored).preferredTranslation) {
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              console.log('✅ Migrated preferences saved to localStorage');
+            } catch (error) {
+              console.warn('⚠️ Could not save migrated preferences:', error);
+            }
           }
+        } else {
+          console.log('🔍 useBiblePreferences: No stored preferences, using defaults:', DEFAULT_PREFERENCES);
+          setPreferences(DEFAULT_PREFERENCES);
         }
       } else {
-        console.log('🔍 useBiblePreferences: No stored preferences, using defaults:', DEFAULT_PREFERENCES);
+        console.log('🔍 useBiblePreferences: localStorage not available, using defaults:', DEFAULT_PREFERENCES);
         setPreferences(DEFAULT_PREFERENCES);
       }
     } catch (error) {
       console.warn('⚠️ Could not load Bible preferences from localStorage:', error);
+      // On iOS Safari private mode, localStorage might throw an error
+      if (error instanceof DOMException && error.code === 22) {
+        console.warn('⚠️ localStorage quota exceeded or private mode detected');
+      }
       setPreferences(DEFAULT_PREFERENCES);
     } finally {
       setIsLoaded(true);
@@ -132,18 +145,32 @@ export const useBiblePreferences = () => {
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
-        console.log('🎵 useBiblePreferences: Saving preferences:', {
-          stored: preferences,
-          defaults: DEFAULT_PREFERENCES,
-          isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-          userAgent: navigator.userAgent
-        });
+        // Check if localStorage is available (important for iOS Safari private mode)
+        if (typeof Storage !== 'undefined' && localStorage) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+          console.log('🎵 useBiblePreferences: Saving preferences:', {
+            stored: preferences,
+            defaults: DEFAULT_PREFERENCES,
+            isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+            userAgent: navigator.userAgent,
+            localStorageAvailable: true,
+            hookId: hookId,
+            fontSize: preferences.fontSize
+          });
+          console.log('🎵 useBiblePreferences: Font size being saved:', preferences.fontSize);
+          console.log('🎵 useBiblePreferences: localStorage.setItem called with fontSize:', preferences.fontSize);
+        } else {
+          console.warn('⚠️ localStorage not available on this device');
+        }
       } catch (error) {
         console.warn('⚠️ Could not save Bible preferences to localStorage:', error);
+        // On iOS Safari private mode, localStorage might throw an error
+        if (error instanceof DOMException && error.code === 22) {
+          console.warn('⚠️ localStorage quota exceeded or private mode detected');
+        }
       }
     }
-  }, [preferences, isLoaded]);
+  }, [preferences, isLoaded, hookId]);
 
   // Debug: Log when preferences state changes
   useEffect(() => {
@@ -171,11 +198,14 @@ export const useBiblePreferences = () => {
   };
 
   const setFontSize = (fontSize: number) => {
-    console.log(`useBiblePreferences [${hookId}]: setFontSize called with:`, fontSize);
-    console.log(`useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
+    console.log(`🎯 useBiblePreferences [${hookId}]: setFontSize called with:`, fontSize);
+    console.log(`🎯 useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
+    console.log(`🎯 useBiblePreferences [${hookId}]: About to update preferences with fontSize:`, fontSize);
     setPreferences(prev => {
       const newPrefs = { ...prev, fontSize: fontSize };
-      console.log(`useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
+      console.log(`🎯 useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
+      console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${prev.fontSize} to ${fontSize}`);
+      console.log(`🎯 useBiblePreferences [${hookId}]: Preferences update completed`);
       return newPrefs;
     });
   };
