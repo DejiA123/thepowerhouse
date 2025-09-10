@@ -408,16 +408,39 @@ export const BibleChapterContent = ({
 
   // Auto-play MP3 audio when audio URL is loaded and shouldAutoPlay is true
   useEffect(() => {
-    console.log('🔍 Audio auto-play effect triggered:', { shouldAutoPlay, hasAudioUrl: !!audioUrl, hasAudioRef: !!audioRef.current, isLoading });
-    if (shouldAutoPlay && audioUrl && audioRef.current && !isLoading) {
-      console.log('🎵 BibleChapterContent: Audio URL loaded, auto-playing MP3 audio');
-      audioRef.current.play().catch(error => {
-        console.error('Error auto-playing audio:', error);
-      });
-      // Reset shouldAutoPlay flag after successfully starting playback
-      onAutoPlayTriggered?.();
+    console.log('🔍 Audio auto-play effect triggered:', { 
+      shouldAutoPlay, 
+      hasAudioUrl: !!audioUrl, 
+      hasAudioRef: !!audioRef.current, 
+      isLoading,
+      isPlaying,
+      audioError: !!audioError 
+    });
+    
+    if (shouldAutoPlay && audioUrl && audioRef.current && !isLoading && !audioError && !isPlaying) {
+      console.log('🎵 BibleChapterContent: Auto-playing MP3 audio for next chapter');
+      
+      // Wait a small amount to ensure audio element is ready
+      const playTimeout = setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play()
+            .then(() => {
+              console.log('✅ Auto-play successful');
+              setIsPlaying(true);
+              // Reset shouldAutoPlay flag after successfully starting playback
+              onAutoPlayTriggered?.();
+            })
+            .catch(error => {
+              console.error('❌ Error auto-playing audio:', error);
+              // Still reset the flag even if auto-play fails
+              onAutoPlayTriggered?.();
+            });
+        }
+      }, 100);
+      
+      return () => clearTimeout(playTimeout);
     }
-  }, [shouldAutoPlay, audioUrl, isLoading, onAutoPlayTriggered]);
+  }, [shouldAutoPlay, audioUrl, isLoading, audioError, isPlaying, onAutoPlayTriggered]);
 
   const fetchHighlights = async () => {
     try {
