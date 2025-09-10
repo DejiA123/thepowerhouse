@@ -35,18 +35,21 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
     
     setFontSize(localFontSize);
     
-    // Dispatch custom event to notify other components
-    const event = new CustomEvent('fontSizeChanged', {
-      detail: { fontSize: localFontSize }
-    });
-    window.dispatchEvent(event);
-    
-    // Call onSettingsChange to trigger re-render
-    onSettingsChange?.();
-    
-    toast.success(`Font size saved: ${localFontSize}px`);
-    
-    console.log('🔍 BibleMenuDialog: Font size save completed');
+    // Add a small delay to ensure the save completes before dispatching events
+    setTimeout(() => {
+      // Dispatch custom event to notify other components
+      const event = new CustomEvent('fontSizeChanged', {
+        detail: { fontSize: localFontSize }
+      });
+      window.dispatchEvent(event);
+      
+      // Call onSettingsChange to trigger re-render
+      onSettingsChange?.();
+      
+      toast.success(`Font size saved: ${localFontSize}px`);
+      
+      console.log('🔍 BibleMenuDialog: Font size save completed and events dispatched');
+    }, 100);
   };
   
   console.log('🔍 BibleMenuDialog: Component initialized with:', {

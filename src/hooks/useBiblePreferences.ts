@@ -204,13 +204,20 @@ export const useBiblePreferences = () => {
     console.log(`🎯 useBiblePreferences [${hookId}]: About to update preferences with fontSize:`, fontSize);
     
     const oldFontSize = preferences.fontSize;
-    setPreferences(prev => {
-      const newPrefs = { ...prev, fontSize: fontSize };
-      console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${oldFontSize} to ${fontSize}`);
-      console.log(`🎯 useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
-      console.log(`🎯 useBiblePreferences [${hookId}]: Preferences update completed`);
-      return newPrefs;
-    });
+    const newPrefs = { ...preferences, fontSize: fontSize };
+    
+    // Immediately update localStorage to prevent race conditions
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newPrefs));
+      console.log(`🎯 useBiblePreferences [${hookId}]: Font size immediately saved to localStorage:`, fontSize);
+    } catch (error) {
+      console.warn('⚠️ Failed to immediately save font size to localStorage:', error);
+    }
+    
+    setPreferences(newPrefs);
+    console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${oldFontSize} to ${fontSize}`);
+    console.log(`🎯 useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
+    console.log(`🎯 useBiblePreferences [${hookId}]: Preferences update completed`);
   };
 
   const setTtsVoice = (voice: string) => {
