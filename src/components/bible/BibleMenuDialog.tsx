@@ -60,6 +60,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               onValueChange={(value) => {
                 console.log('🔍 BibleMenuDialog: Font size slider changed to:', value[0]);
                 console.log('🔍 BibleMenuDialog: Current preferences before change:', preferences);
+                console.log('🔍 BibleMenuDialog: About to call setFontSize with:', value[0]);
                 setFontSize(value[0]);
                 console.log('🔍 BibleMenuDialog: setFontSize called with:', value[0]);
                 

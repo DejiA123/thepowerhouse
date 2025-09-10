@@ -131,6 +131,31 @@ export const BibleChapterContent = ({
     setForceUpdate(prev => prev + 1);
   }, [preferences]);
 
+  // Listen for custom font size change events from the modal
+  useEffect(() => {
+    const handleFontSizeChange = (event: CustomEvent) => {
+      const newFontSize = event.detail.fontSize;
+      console.log('🔍 BibleChapterContent: Received font size change event:', {
+        newFontSize: newFontSize,
+        currentPreferencesFontSize: preferences.fontSize,
+        effectiveFontSize: effectiveFontSize,
+        selectedBook: selectedBook,
+        selectedChapter: selectedChapter
+      });
+      // Force a re-render to apply the new font size immediately
+      setForceUpdate(prev => prev + 1);
+    };
+
+    // Listen for custom events
+    window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+    console.log('🔍 BibleChapterContent: Added fontSizeChanged event listener');
+
+    return () => {
+      window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
+      console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
+    };
+  }, [preferences.fontSize, effectiveFontSize, selectedBook, selectedChapter]);
+
 
   
   // Create a key that changes when any setting changes to force re-render
