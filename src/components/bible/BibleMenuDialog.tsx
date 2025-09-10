@@ -15,29 +15,14 @@ interface BibleMenuDialogProps {
 
 export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGenesis }: BibleMenuDialogProps) => {
   const { preferences, setFontSize, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
-  const [localFontSize, setLocalFontSize] = useState(preferences.fontSize);
   
   console.log('🔍 BibleMenuDialog: Component initialized with:', {
     preferencesFontSize: preferences.fontSize,
-    localFontSize: localFontSize,
     isOpen: isOpen
   });
-  
   // Debug: Log preferences
   console.log('BibleMenuDialog: preferences =', preferences);
   console.log('BibleMenuDialog: localStorage check =', localStorage.getItem('bible-preferences'));
-
-  // Sync localFontSize with preferences when dialog opens or preferences change
-  useEffect(() => {
-    console.log('BibleMenuDialog: Syncing localFontSize with preferences:', {
-      preferencesFontSize: preferences.fontSize,
-      localFontSize: localFontSize,
-      isOpen: isOpen,
-      willUpdate: preferences.fontSize !== localFontSize
-    });
-    // Always sync when dialog opens or when preferences change
-    setLocalFontSize(preferences.fontSize);
-  }, [preferences.fontSize, isOpen]);
 
   // Check if device is mobile
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -71,13 +56,10 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               <span className="font-medium text-blue-800 text-sm">Font Size</span>
             </div>
             <Slider
-              value={[localFontSize]}
+              value={[preferences.fontSize]}
               onValueChange={(value) => {
                 console.log('🔍 BibleMenuDialog: Font size slider changed to:', value[0]);
                 console.log('🔍 BibleMenuDialog: Current preferences before change:', preferences);
-                console.log('🔍 BibleMenuDialog: Current localFontSize before change:', localFontSize);
-                setLocalFontSize(value[0]);
-                console.log('🔍 BibleMenuDialog: About to call setFontSize with:', value[0]);
                 setFontSize(value[0]);
                 console.log('🔍 BibleMenuDialog: setFontSize called with:', value[0]);
                 
@@ -90,10 +72,6 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                 
                 // Call onSettingsChange immediately to trigger re-render
                 onSettingsChange?.();
-                // Force a small delay to ensure the change is processed
-                setTimeout(() => {
-                  console.log('Font size change processed, preferences should be updated');
-                }, 50);
               }}
               onValueCommit={(value) => {
                 console.log('Font size slider committed to:', value[0]);
@@ -112,7 +90,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
             />
             <div className="flex justify-between text-xs text-blue-600">
               <span>12px</span>
-              <span className="font-medium">{localFontSize}px</span>
+              <span className="font-medium">{preferences.fontSize}px</span>
               <span>24px</span>
             </div>
           </div>
