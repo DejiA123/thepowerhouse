@@ -7,12 +7,14 @@ import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Download, Loader2
 import { useToast } from "@/hooks/use-toast";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
+import { bibleBooks } from "./BibleBookList";
 
 interface BibleBrainAudioPlayerProps {
   version: string;
   book: string;
   chapter: number;
   onChapterChange?: (chapter: number) => void;
+  onBookChange?: (book: string, chapter: number) => void;
   autoPlay?: boolean;
 }
 
@@ -21,6 +23,7 @@ export const BibleBrainAudioPlayer = ({
   book,
   chapter,
   onChapterChange,
+  onBookChange,
   autoPlay = false
 }: BibleBrainAudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,8 +70,24 @@ export const BibleBrainAudioPlayer = ({
       setCurrentTime(0);
       
       // Auto play next chapter if enabled
-      if (preferences.autoPlayNext && onChapterChange) {
-        onChapterChange(chapter + 1);
+      if (preferences.autoPlayNext) {
+        const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
+        const currentBookInfo = allBooks.find(b => b.apiName === book);
+        const nextChapter = chapter + 1;
+        
+        // Check if we need to move to the next book
+        if (currentBookInfo && nextChapter > currentBookInfo.chapters) {
+          const currentBookIndex = allBooks.findIndex(b => b.apiName === book);
+          if (currentBookIndex < allBooks.length - 1 && onBookChange) {
+            const nextBook = allBooks[currentBookIndex + 1];
+            console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+            onBookChange(nextBook.apiName, 1);
+          } else {
+            console.log(`🎵 Reached end of Bible - no more books to auto-play`);
+          }
+        } else if (onChapterChange) {
+          onChapterChange(nextChapter);
+        }
       }
     };
 

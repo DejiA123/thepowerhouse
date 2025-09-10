@@ -4,9 +4,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Type, Settings, Play, Save } from "lucide-react";
+import { Type, Settings, Play } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
-import { toast } from "sonner";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -16,41 +15,33 @@ interface BibleMenuDialogProps {
 }
 
 export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGenesis }: BibleMenuDialogProps) => {
-  const { preferences, setFontSize, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
+  const { preferences, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
   
   // Local state for font size slider to allow changes before saving
-  const [localFontSize, setLocalFontSize] = useState(preferences.fontSize);
+  const [localFontSize, setLocalFontSize] = useState(() => {
+    // Initialize with saved font size from separate localStorage key
+    try {
+      const savedFontSize = localStorage.getItem('bible-font-size');
+      return savedFontSize ? parseInt(savedFontSize) : 15;
+    } catch {
+      return 15;
+    }
+  });
   
-  // Update local font size when modal opens or preferences change
+  // Update local font size when modal opens (but not when preferences change to avoid resetting slider)
   useEffect(() => {
-    setLocalFontSize(preferences.fontSize);
-  }, [isOpen, preferences.fontSize]);
-  
-  const handleSaveFontSize = () => {
-    console.log('🔍 BibleMenuDialog: Saving font size:', {
-      localFontSize: localFontSize,
-      currentPreferences: preferences.fontSize,
-      willSave: localFontSize
-    });
-    
-    setFontSize(localFontSize);
-    
-    // Add a small delay to ensure the save completes before dispatching events
-    setTimeout(() => {
-      // Dispatch custom event to notify other components
-      const event = new CustomEvent('fontSizeChanged', {
-        detail: { fontSize: localFontSize }
-      });
-      window.dispatchEvent(event);
-      
-      // Call onSettingsChange to trigger re-render
-      onSettingsChange?.();
-      
-      toast.success(`Font size saved: ${localFontSize}px`);
-      
-      console.log('🔍 BibleMenuDialog: Font size save completed and events dispatched');
-    }, 100);
-  };
+    if (isOpen) {
+      try {
+        const savedFontSize = localStorage.getItem('bible-font-size');
+        const fontSize = savedFontSize ? parseInt(savedFontSize) : 15;
+        console.log('🔍 BibleMenuDialog: Modal opened, setting localFontSize to:', fontSize);
+        setLocalFontSize(fontSize);
+      } catch {
+        setLocalFontSize(15);
+      }
+    }
+  }, [isOpen]); // Only when modal opens, not when preferences change
+
   
   console.log('🔍 BibleMenuDialog: Component initialized with:', {
     preferencesFontSize: preferences.fontSize,
@@ -93,7 +84,46 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               value={[localFontSize]}
               onValueChange={(value) => {
                 console.log('🔍 BibleMenuDialog: Slider changed to:', value[0], 'previous localFontSize:', localFontSize);
+                console.log('🔍 BibleMenuDialog: About to save font size:', value[0]);
                 setLocalFontSize(value[0]);
+                
+                // Save font size to separate localStorage key (don't use setFontSize from hook)
+                console.log('🔍 BibleMenuDialog: Saving font size to separate localStorage key:', value[0]);
+                
+                try {
+                  localStorage.setItem('bible-font-size', value[0].toString());
+                  console.log('🔍 BibleMenuDialog: Saved to separate localStorage key:', value[0]);
+                  
+                  // Dispatch a custom event to notify all components about the font size change
+                  const fontSizeChangeEvent = new CustomEvent('fontSizeChanged', {
+                    detail: { fontSize: value[0] }
+                  });
+                  window.dispatchEvent(fontSizeChangeEvent);
+                  console.log('🔍 BibleMenuDialog: Dispatched fontSizeChanged event');
+                } catch (error) {
+                  console.warn('🔍 BibleMenuDialog: Failed to save to localStorage:', error);
+                }
+                
+                // No need to override hook changes since we're using separate localStorage key
+                
+                // Apply font size immediately for preview
+                document.documentElement.style.setProperty('--bible-font-size', `${value[0]}px`);
+                console.log('🔍 BibleMenuDialog: CSS custom property set to:', `${value[0]}px`);
+                
+                // Dispatch event for immediate preview
+                const event = new CustomEvent('fontSizeChanged', {
+                  detail: { fontSize: value[0] }
+                });
+                window.dispatchEvent(event);
+                console.log('🔍 BibleMenuDialog: fontSizeChanged event dispatched with:', value[0]);
+                
+                // Test if event is being dispatched correctly
+                console.log('🔍 BibleMenuDialog: Event object:', event);
+                console.log('🔍 BibleMenuDialog: Event detail:', event.detail);
+                
+                // Call onSettingsChange to trigger re-render
+                onSettingsChange?.();
+                console.log('🔍 BibleMenuDialog: onSettingsChange called');
               }}
               max={24}
               min={12}
@@ -110,15 +140,6 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               <span className="font-medium">{localFontSize}px</span>
               <span>24px</span>
             </div>
-            <Button 
-              onClick={handleSaveFontSize}
-              size="sm"
-              className="w-full"
-              disabled={localFontSize === preferences.fontSize}
-            >
-              <Save className="w-3 h-3 mr-1" />
-              {localFontSize === preferences.fontSize ? 'Saved' : 'Save Font Size'}
-            </Button>
           </div>
 
           {/* Auto-Play Next Chapter */}

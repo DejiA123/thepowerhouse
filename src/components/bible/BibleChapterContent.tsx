@@ -77,14 +77,13 @@ export const BibleChapterContent = ({
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences, isLoaded } = useBiblePreferences();
   
-  // Use preferences.fontSize as the single source of truth, fallback to prop if not loaded
-  const effectiveFontSize = isLoaded ? preferences.fontSize : fontSize;
+  // Don't use preferences.fontSize for font size management - it's handled independently
+  // const effectiveFontSize = isLoaded ? preferences.fontSize : fontSize;
   
   console.log('🔍 BibleChapterContent: Font size source of truth:', {
-    preferencesFontSize: preferences?.fontSize,
-    propFontSize: fontSize,
-    effectiveFontSize: effectiveFontSize,
-    isLoaded: isLoaded
+      preferencesFontSize: preferences?.fontSize,
+      propFontSize: fontSize,
+      isLoaded: isLoaded
   });
 
   // Debug: Log font size initialization and changes
@@ -94,7 +93,6 @@ export const BibleChapterContent = ({
   console.log('🔍 BibleChapterContent: Font size state:', {
     preferencesFontSize: preferences?.fontSize,
     propFontSize: fontSize,
-    effectiveFontSize: effectiveFontSize,
     selectedBook: selectedBook,
     selectedChapter: selectedChapter,
     isMobile: isMobile,
@@ -108,26 +106,54 @@ export const BibleChapterContent = ({
   const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+  // Use currentFontSize as the single source of truth for font size
+  const [currentFontSize, setCurrentFontSize] = useState(() => {
+    // Initialize with saved font size from separate localStorage key
+    try {
+      const savedFontSize = localStorage.getItem('bible-font-size');
+      return savedFontSize ? parseInt(savedFontSize) : 15;
+    } catch {
+      return 15;
+    }
+  });
 
-  // Force re-render when font size or menu settings change
+  // Initialize currentFontSize when component first loads with saved preferences
   useEffect(() => {
-    console.log('🔍 BibleChapterContent: Font size changed to:', effectiveFontSize, 'menuSettingsVersion:', menuSettingsVersion);
-    console.log('🔍 BibleChapterContent: preferences.fontSize:', preferences?.fontSize, 'prop fontSize:', fontSize);
-    console.log('🔍 BibleChapterContent: selectedBook:', selectedBook, 'selectedChapter:', selectedChapter);
-    
-    // Force a re-render by updating a state variable
+    if (isLoaded) {
+      console.log('🔍 BibleChapterContent: Preferences loaded, but not using preferences.fontSize for font size management');
+      // Don't sync with preferences.fontSize - we manage font size independently
+    }
+  }, [isLoaded]); // Only when preferences are first loaded
+
+  // Use currentFontSize as the primary source of truth
+  const displayFontSize = currentFontSize;
+
+  // Force re-render when menu settings change (but don't override currentFontSize)
+  useEffect(() => {
+    console.log('🔍 BibleChapterContent: Menu settings changed, forcing re-render');
     setForceUpdate(prev => prev + 1);
-  }, [effectiveFontSize, menuSettingsVersion, selectedBook, selectedChapter]);
+  }, [menuSettingsVersion, selectedBook, selectedChapter]);
 
   // Update CSS custom property for immediate font size changes
   useEffect(() => {
-    document.documentElement.style.setProperty('--bible-font-size', `${effectiveFontSize}px`);
-    console.log('🔍 BibleChapterContent: Set CSS custom property --bible-font-size to:', `${effectiveFontSize}px`);
-  }, [effectiveFontSize]);
+    document.documentElement.style.setProperty('--bible-font-size', `${displayFontSize}px`);
+    console.log('🔍 BibleChapterContent: Set CSS custom property --bible-font-size to:', `${displayFontSize}px`);
+  }, [displayFontSize]);
 
-  // Force re-render when preferences change
+  // Save font size to separate localStorage key whenever currentFontSize changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('bible-font-size', currentFontSize.toString());
+      console.log('🔍 BibleChapterContent: Saved currentFontSize to separate localStorage key:', currentFontSize);
+    } catch (error) {
+      console.warn('🔍 BibleChapterContent: Failed to save currentFontSize to localStorage:', error);
+    }
+  }, [currentFontSize]);
+
+  // Force re-render when preferences change (but not for font size)
   useEffect(() => {
     console.log('🔍 BibleChapterContent: Preferences changed, forcing re-render');
+    console.log('🔍 BibleChapterContent: New preferences.fontSize:', preferences.fontSize, '(not using for font size management)');
     setForceUpdate(prev => prev + 1);
   }, [preferences]);
 
@@ -138,32 +164,74 @@ export const BibleChapterContent = ({
       console.log('🔍 BibleChapterContent: Received font size change event:', {
         newFontSize: newFontSize,
         currentPreferencesFontSize: preferences.fontSize,
-        currentEffectiveFontSize: effectiveFontSize,
+        currentFontSize: currentFontSize,
         selectedBook: selectedBook,
         selectedChapter: selectedChapter
       });
       
+      // Update current font size immediately
+      console.log('🔍 BibleChapterContent: Setting currentFontSize to:', newFontSize);
+      setCurrentFontSize(newFontSize);
+      
       // Force a re-render to apply the new font size immediately
       setForceUpdate(prev => prev + 1);
       
+      // Also try to reload preferences from localStorage to ensure they're up to date
+      try {
+        const savedPrefs = JSON.parse(localStorage.getItem('bible-preferences') || '{}');
+        console.log('🔍 BibleChapterContent: Reloaded preferences from localStorage:', savedPrefs);
+        if (savedPrefs.fontSize && savedPrefs.fontSize !== preferences.fontSize) {
+          console.log('🔍 BibleChapterContent: Found updated fontSize in localStorage:', savedPrefs.fontSize);
+        }
+      } catch (error) {
+        console.warn('🔍 BibleChapterContent: Failed to reload preferences from localStorage:', error);
+      }
+      
       // Also update CSS property immediately
       document.documentElement.style.setProperty('--bible-font-size', `${newFontSize}px`);
+      console.log('🔍 BibleChapterContent: Set CSS custom property to:', `${newFontSize}px`);
+      
+      // Force multiple re-renders to ensure the change is applied
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 10);
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 50);
+      setTimeout(() => {
+        setForceUpdate(prev => prev + 1);
+      }, 100);
     };
 
     // Listen for custom events
     window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
     console.log('🔍 BibleChapterContent: Added fontSizeChanged event listener');
+    
+    // Listen for preference changes from other components
+    const handlePreferenceChange = (event: CustomEvent) => {
+      const newPreferences = event.detail.preferences;
+      console.log('🔍 BibleChapterContent: Received biblePreferencesChanged event:', newPreferences);
+      if (newPreferences.fontSize && newPreferences.fontSize !== preferences.fontSize) {
+        console.log('🔍 BibleChapterContent: Font size changed in preferences:', newPreferences.fontSize);
+        // Force a re-render to pick up the new preferences
+        setForceUpdate(prev => prev + 1);
+      }
+    };
+    
+    window.addEventListener('biblePreferencesChanged', handlePreferenceChange as EventListener);
+    console.log('🔍 BibleChapterContent: Added biblePreferencesChanged event listener');
 
     return () => {
       window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
-      console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
+      window.removeEventListener('biblePreferencesChanged', handlePreferenceChange as EventListener);
+      console.log('🔍 BibleChapterContent: Removed event listeners');
     };
-  }, [preferences.fontSize, effectiveFontSize, selectedBook, selectedChapter]);
+  }, [selectedBook, selectedChapter]);
 
 
   
   // Create a key that changes when any setting changes to force re-render
-  const settingsKey = `fontSize-${effectiveFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
+  const settingsKey = `fontSize-${currentFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
   
   // MP3 Audio state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -340,8 +408,8 @@ export const BibleChapterContent = ({
             .then(() => {
               console.log('✅ Auto-play successful');
               setIsPlaying(true);
-              // Reset shouldAutoPlay flag after successfully starting playback
-              onAutoPlayTriggered?.();
+      // Reset shouldAutoPlay flag after successfully starting playback
+      onAutoPlayTriggered?.();
             })
             .catch(error => {
               console.error('❌ Error auto-playing audio:', error);
@@ -671,14 +739,27 @@ export const BibleChapterContent = ({
           setIsPlaying(false);
           
           // Auto-play next chapter if enabled
-          if (autoPlayNext && onChapterChange) {
+          if (autoPlayNext) {
             console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
             
             // Use setTimeout to ensure the state update happens even in background
             setTimeout(() => {
+              const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
               const nextChapter = selectedChapter + 1;
+              
+              // Check if we need to move to the next book
+              if (nextChapter > (book?.chapters || 0)) {
+                if (currentBookIndex < allBooks.length - 1 && onBookChange) {
+                  const nextBook = allBooks[currentBookIndex + 1];
+                  console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+                  onBookChange(nextBook.apiName, 1, true); // true indicates this is auto-play
+                } else {
+                  console.log(`🎵 Reached end of Bible - no more books to auto-play`);
+                }
+              } else if (onChapterChange) {
               console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
               onChapterChange(nextChapter, true); // true indicates this is auto-play
+              }
             }, 100);
           }
         }}
@@ -717,10 +798,6 @@ export const BibleChapterContent = ({
         </div>
             
         <div className="bible-header-icons-full">
-          {/* Debug font size display - mobile optimized */}
-          <div className="text-xs text-muted-foreground px-2 select-none touch-manipulation">
-            Font: {effectiveFontSize}px
-          </div>
           <button 
             className="bible-header-icon-full"
             onClick={handlePlayPause}
@@ -881,13 +958,14 @@ export const BibleChapterContent = ({
                      return { __html: cleanText };
                    };
                    
-                   const verseStyle = { 
-                     fontSize: `${effectiveFontSize}px`, 
+                   const verseStyle = {
+                     fontSize: `${displayFontSize}px`, 
                      lineHeight: '1.6',
-                     '--font-size': `${effectiveFontSize}px`,
-                     '--bible-font-size': `${effectiveFontSize}px`
+                     '--font-size': `${displayFontSize}px`,
+                     '--bible-font-size': `${displayFontSize}px`
                    } as React.CSSProperties;
-                   console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${effectiveFontSize}px, style:`, verseStyle);
+                   console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${displayFontSize}px, style:`, verseStyle);
+                   console.log(`🔍 Current font size state: currentFontSize=${currentFontSize}, displayFontSize=${displayFontSize}, preferences.fontSize=${preferences.fontSize}`);
                    
                    // Apply highlight background if verse is highlighted
                    // Force readable text color in dark mode when highlighted

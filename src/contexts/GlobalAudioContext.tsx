@@ -348,7 +348,21 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           chapterChangeCallbackRef.current(nextChapter, true);
         }
       } else {
-        console.log('🎵 Reached end of book');
+        // Move to next book
+        const currentBookIndex = allBooks.findIndex(book => 
+          book.name.toLowerCase() === currentBook.toLowerCase() || 
+          book.apiName.toLowerCase() === currentBook.toLowerCase()
+        );
+        
+        if (currentBookIndex < allBooks.length - 1) {
+          const nextBook = allBooks[currentBookIndex + 1];
+          console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+          if (bookChangeCallbackRef.current) {
+            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+          }
+        } else {
+          console.log('🎵 Reached end of Bible - no more books');
+        }
       }
     }
     
