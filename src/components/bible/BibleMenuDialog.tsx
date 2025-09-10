@@ -27,6 +27,12 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
   }, [isOpen, preferences.fontSize]);
   
   const handleSaveFontSize = () => {
+    console.log('🔍 BibleMenuDialog: Saving font size:', {
+      localFontSize: localFontSize,
+      currentPreferences: preferences.fontSize,
+      willSave: localFontSize
+    });
+    
     setFontSize(localFontSize);
     
     // Dispatch custom event to notify other components
@@ -39,6 +45,8 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
     onSettingsChange?.();
     
     toast.success(`Font size saved: ${localFontSize}px`);
+    
+    console.log('🔍 BibleMenuDialog: Font size save completed');
   };
   
   console.log('🔍 BibleMenuDialog: Component initialized with:', {
@@ -81,6 +89,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
             <Slider
               value={[localFontSize]}
               onValueChange={(value) => {
+                console.log('🔍 BibleMenuDialog: Slider changed to:', value[0], 'previous localFontSize:', localFontSize);
                 setLocalFontSize(value[0]);
               }}
               max={24}

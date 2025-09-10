@@ -138,12 +138,16 @@ export const BibleChapterContent = ({
       console.log('🔍 BibleChapterContent: Received font size change event:', {
         newFontSize: newFontSize,
         currentPreferencesFontSize: preferences.fontSize,
+        currentEffectiveFontSize: effectiveFontSize,
         selectedBook: selectedBook,
         selectedChapter: selectedChapter
       });
       
       // Force a re-render to apply the new font size immediately
       setForceUpdate(prev => prev + 1);
+      
+      // Also update CSS property immediately
+      document.documentElement.style.setProperty('--bible-font-size', `${newFontSize}px`);
     };
 
     // Listen for custom events
@@ -154,7 +158,7 @@ export const BibleChapterContent = ({
       window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
       console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
     };
-  }, [preferences.fontSize, selectedBook, selectedChapter]);
+  }, [preferences.fontSize, effectiveFontSize, selectedBook, selectedChapter]);
 
 
   
