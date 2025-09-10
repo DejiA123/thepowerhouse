@@ -76,26 +76,16 @@ export const BibleChapterContent = ({
 
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences, isLoaded } = useBiblePreferences();
-  // Initialize with preferences.fontSize if available, otherwise use prop fontSize
-  // Use a function to ensure we get the most up-to-date value
-  const [currentFontSize, setCurrentFontSize] = useState(() => {
-    // Direct localStorage check to see what's actually stored
-    const storedPrefs = localStorage.getItem('bible-preferences');
-    const parsedStoredPrefs = storedPrefs ? JSON.parse(storedPrefs) : null;
-    
-    const initialFontSize = (isLoaded && preferences?.fontSize !== undefined) ? preferences.fontSize : fontSize;
-    console.log('🔍 BibleChapterContent: Direct localStorage check:', {
-      storedPrefs: storedPrefs,
-      parsedStoredPrefs: parsedStoredPrefs,
-      storedFontSize: parsedStoredPrefs?.fontSize,
-      isLoaded: isLoaded,
-      preferencesFontSize: preferences?.fontSize,
-      propFontSize: fontSize,
-      initialFontSize: initialFontSize,
-    });
-    return initialFontSize;
+  
+  // Use preferences.fontSize as the single source of truth for font size
+  const effectiveFontSize = preferences.fontSize || fontSize;
+  
+  console.log('🔍 BibleChapterContent: Font size source of truth:', {
+    preferencesFontSize: preferences?.fontSize,
+    propFontSize: fontSize,
+    effectiveFontSize: effectiveFontSize,
+    isLoaded: isLoaded
   });
-  const effectiveFontSize = currentFontSize;
 
   // Debug: Log font size initialization and changes
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -104,7 +94,6 @@ export const BibleChapterContent = ({
   console.log('🔍 BibleChapterContent: Font size state:', {
     preferencesFontSize: preferences?.fontSize,
     propFontSize: fontSize,
-    currentFontSize: currentFontSize,
     effectiveFontSize: effectiveFontSize,
     selectedBook: selectedBook,
     selectedChapter: selectedChapter,
@@ -141,111 +130,6 @@ export const BibleChapterContent = ({
     console.log('🔍 BibleChapterContent: Preferences changed, forcing re-render');
     setForceUpdate(prev => prev + 1);
   }, [preferences]);
-
-  // Sync currentFontSize with preferences when preferences are loaded or change
-  useEffect(() => {
-    console.log('🔍 BibleChapterContent: Syncing font size with preferences:', {
-      isLoaded: isLoaded,
-      preferencesFontSize: preferences?.fontSize,
-      currentFontSize: currentFontSize,
-      willUpdate: isLoaded && preferences?.fontSize !== undefined && preferences.fontSize !== currentFontSize
-    });
-    if (isLoaded && preferences?.fontSize !== undefined && preferences.fontSize !== currentFontSize) {
-      console.log('🔍 BibleChapterContent: Updating currentFontSize from', currentFontSize, 'to', preferences.fontSize);
-      setCurrentFontSize(preferences.fontSize);
-    }
-  }, [isLoaded, preferences?.fontSize]); // Removed currentFontSize from dependencies to prevent infinite loop
-
-  // Additional sync on component mount to handle case where preferences are already loaded
-  useEffect(() => {
-    console.log('🔍 BibleChapterContent: Component mount sync - checking if preferences are already loaded');
-    console.log('🔍 BibleChapterContent: Mount context:', {
-      selectedBook: selectedBook,
-      selectedChapter: selectedChapter,
-      isLoaded: isLoaded,
-      preferencesFontSize: preferences?.fontSize,
-      currentFontSize: currentFontSize,
-      propFontSize: fontSize
-    });
-    if (isLoaded && preferences?.fontSize !== undefined) {
-      console.log('🔍 BibleChapterContent: Mount sync - preferences already loaded, syncing font size:', {
-        preferencesFontSize: preferences.fontSize,
-        currentFontSize: currentFontSize,
-        propFontSize: fontSize
-      });
-      if (preferences.fontSize !== currentFontSize) {
-        console.log('🔍 BibleChapterContent: Mount sync - updating currentFontSize from', currentFontSize, 'to', preferences.fontSize);
-        setCurrentFontSize(preferences.fontSize);
-      }
-    }
-  }, []); // Run only on mount
-
-  // Force sync on component mount to ensure we have the latest saved font size
-  useEffect(() => {
-    console.log('🔍 BibleChapterContent: Component mounted, checking for font size sync');
-    console.log('🔍 BibleChapterContent: Mount sync - isLoaded:', isLoaded);
-    console.log('🔍 BibleChapterContent: Mount sync - preferences:', preferences);
-    console.log('🔍 BibleChapterContent: Mount sync - prop fontSize:', fontSize);
-    if (isLoaded && preferences?.fontSize !== undefined) {
-      console.log('🔍 BibleChapterContent: Mount sync - setting font size to', preferences.fontSize);
-      setCurrentFontSize(preferences.fontSize);
-    } else {
-      console.log('🔍 BibleChapterContent: Mount sync - preferences not loaded or undefined, using prop fontSize:', fontSize);
-      setCurrentFontSize(fontSize);
-    }
-  }, [isLoaded]); // Run when preferences are loaded
-
-  // Also sync when the fontSize prop changes (from parent component)
-  useEffect(() => {
-    console.log('🔍 BibleChapterContent: fontSize prop changed to:', fontSize);
-    if (fontSize !== currentFontSize) {
-      console.log('🔍 BibleChapterContent: Prop sync - updating currentFontSize from', currentFontSize, 'to', fontSize);
-      setCurrentFontSize(fontSize);
-    }
-  }, [fontSize]);
-
-  // Special effect to handle when preferences are first loaded
-  useEffect(() => {
-    if (isLoaded && preferences?.fontSize !== undefined) {
-      console.log('🔍 BibleChapterContent: Preferences just loaded, syncing font size:', {
-        preferencesFontSize: preferences.fontSize,
-        currentFontSize: currentFontSize,
-        propFontSize: fontSize
-      });
-      // Use preferences.fontSize as the source of truth when preferences are loaded
-      if (preferences.fontSize !== currentFontSize) {
-        console.log('🔍 BibleChapterContent: Syncing to loaded preferences font size:', preferences.fontSize);
-        setCurrentFontSize(preferences.fontSize);
-      }
-    }
-  }, [isLoaded]); // Only run when isLoaded changes from false to true
-
-  // Listen for custom font size change events from the modal
-  useEffect(() => {
-    const handleFontSizeChange = (event: CustomEvent) => {
-      const newFontSize = event.detail.fontSize;
-      console.log('🔍 BibleChapterContent: Received font size change event:', {
-        newFontSize: newFontSize,
-        currentFontSize: currentFontSize,
-        willUpdate: newFontSize !== currentFontSize,
-        selectedBook: selectedBook,
-        selectedChapter: selectedChapter
-      });
-      if (newFontSize !== currentFontSize) {
-        console.log('🔍 BibleChapterContent: Updating currentFontSize from', currentFontSize, 'to', newFontSize);
-        setCurrentFontSize(newFontSize);
-      }
-    };
-
-    // Listen for custom events
-    window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
-    console.log('🔍 BibleChapterContent: Added fontSizeChanged event listener');
-
-    return () => {
-      window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
-      console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
-    };
-  }, [currentFontSize, selectedBook, selectedChapter]); // Add selectedBook and selectedChapter to track context
 
 
   
