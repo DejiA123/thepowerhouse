@@ -77,44 +77,12 @@ export const BibleChapterContent = ({
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences, isLoaded } = useBiblePreferences();
   
-  // Initialize with saved preferences fontSize if available, otherwise use prop
-  const [localFontSize, setLocalFontSize] = useState(() => {
-    // Try to get the saved fontSize from localStorage directly during initialization
-    try {
-      const stored = localStorage.getItem('bible-preferences');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const savedFontSize = parsed.fontSize;
-        console.log('🔍 BibleChapterContent: Initializing with saved fontSize:', savedFontSize);
-        return savedFontSize || fontSize;
-      }
-    } catch (error) {
-      console.log('🔍 BibleChapterContent: Could not load saved fontSize, using prop:', fontSize);
-    }
-    return fontSize;
-  });
-  
-  // Sync local font size with preferences when they load or change
-  useEffect(() => {
-    if (isLoaded && preferences.fontSize !== undefined) {
-      console.log('🔍 BibleChapterContent: Syncing local font size with preferences:', {
-        currentLocalFontSize: localFontSize,
-        preferencesFontSize: preferences.fontSize,
-        willUpdate: preferences.fontSize !== localFontSize
-      });
-      if (preferences.fontSize !== localFontSize) {
-        setLocalFontSize(preferences.fontSize);
-      }
-    }
-  }, [isLoaded, preferences.fontSize]);
-  
-  // Use local font size as the effective font size
-  const effectiveFontSize = localFontSize;
+  // Use preferences.fontSize as the single source of truth, fallback to prop if not loaded
+  const effectiveFontSize = isLoaded ? preferences.fontSize : fontSize;
   
   console.log('🔍 BibleChapterContent: Font size source of truth:', {
     preferencesFontSize: preferences?.fontSize,
     propFontSize: fontSize,
-    localFontSize: localFontSize,
     effectiveFontSize: effectiveFontSize,
     isLoaded: isLoaded
   });
@@ -169,20 +137,13 @@ export const BibleChapterContent = ({
       const newFontSize = event.detail.fontSize;
       console.log('🔍 BibleChapterContent: Received font size change event:', {
         newFontSize: newFontSize,
-        currentLocalFontSize: localFontSize,
         currentPreferencesFontSize: preferences.fontSize,
-        willUpdate: newFontSize !== localFontSize,
         selectedBook: selectedBook,
         selectedChapter: selectedChapter
       });
       
-      // Update local font size immediately for instant visual feedback
-      if (newFontSize !== localFontSize) {
-        console.log('🔍 BibleChapterContent: Updating local font size from', localFontSize, 'to', newFontSize);
-        setLocalFontSize(newFontSize);
-        // Force a re-render to apply the new font size immediately
-        setForceUpdate(prev => prev + 1);
-      }
+      // Force a re-render to apply the new font size immediately
+      setForceUpdate(prev => prev + 1);
     };
 
     // Listen for custom events
@@ -193,7 +154,7 @@ export const BibleChapterContent = ({
       window.removeEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
       console.log('🔍 BibleChapterContent: Removed fontSizeChanged event listener');
     };
-  }, [localFontSize, preferences.fontSize, selectedBook, selectedChapter]);
+  }, [preferences.fontSize, selectedBook, selectedChapter]);
 
 
   
