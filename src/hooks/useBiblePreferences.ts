@@ -200,11 +200,14 @@ export const useBiblePreferences = () => {
   const setFontSize = (fontSize: number) => {
     console.log(`🎯 useBiblePreferences [${hookId}]: setFontSize called with:`, fontSize);
     console.log(`🎯 useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
+    console.log(`🎯 useBiblePreferences [${hookId}]: Current fontSize in preferences:`, preferences.fontSize);
     console.log(`🎯 useBiblePreferences [${hookId}]: About to update preferences with fontSize:`, fontSize);
+    
+    const oldFontSize = preferences.fontSize;
     setPreferences(prev => {
       const newPrefs = { ...prev, fontSize: fontSize };
+      console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${oldFontSize} to ${fontSize}`);
       console.log(`🎯 useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
-      console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${prev.fontSize} to ${fontSize}`);
       console.log(`🎯 useBiblePreferences [${hookId}]: Preferences update completed`);
       return newPrefs;
     });
