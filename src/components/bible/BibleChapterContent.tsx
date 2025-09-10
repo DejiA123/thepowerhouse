@@ -77,8 +77,22 @@ export const BibleChapterContent = ({
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences, isLoaded } = useBiblePreferences();
   
-  // Use a local state that syncs with preferences to ensure immediate updates
-  const [localFontSize, setLocalFontSize] = useState(fontSize);
+  // Initialize with saved preferences fontSize if available, otherwise use prop
+  const [localFontSize, setLocalFontSize] = useState(() => {
+    // Try to get the saved fontSize from localStorage directly during initialization
+    try {
+      const stored = localStorage.getItem('bible-preferences');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const savedFontSize = parsed.fontSize;
+        console.log('🔍 BibleChapterContent: Initializing with saved fontSize:', savedFontSize);
+        return savedFontSize || fontSize;
+      }
+    } catch (error) {
+      console.log('🔍 BibleChapterContent: Could not load saved fontSize, using prop:', fontSize);
+    }
+    return fontSize;
+  });
   
   // Sync local font size with preferences when they load or change
   useEffect(() => {
@@ -88,7 +102,9 @@ export const BibleChapterContent = ({
         preferencesFontSize: preferences.fontSize,
         willUpdate: preferences.fontSize !== localFontSize
       });
-      setLocalFontSize(preferences.fontSize);
+      if (preferences.fontSize !== localFontSize) {
+        setLocalFontSize(preferences.fontSize);
+      }
     }
   }, [isLoaded, preferences.fontSize]);
   

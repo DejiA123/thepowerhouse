@@ -20,9 +20,19 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
     preferencesFontSize: preferences.fontSize,
     isOpen: isOpen
   });
-  // Debug: Log preferences
+  // Debug: Log preferences and localStorage directly
   console.log('BibleMenuDialog: preferences =', preferences);
-  console.log('BibleMenuDialog: localStorage check =', localStorage.getItem('bible-preferences'));
+  const storedPrefs = localStorage.getItem('bible-preferences');
+  console.log('BibleMenuDialog: localStorage raw =', storedPrefs);
+  if (storedPrefs) {
+    try {
+      const parsed = JSON.parse(storedPrefs);
+      console.log('BibleMenuDialog: localStorage parsed =', parsed);
+      console.log('BibleMenuDialog: localStorage fontSize =', parsed.fontSize);
+    } catch (e) {
+      console.log('BibleMenuDialog: Error parsing localStorage:', e);
+    }
+  }
 
   // Check if device is mobile
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
