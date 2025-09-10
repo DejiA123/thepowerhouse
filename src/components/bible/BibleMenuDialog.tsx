@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Type, Settings, Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Type, Settings, Play, Save } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
+import { toast } from "sonner";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -16,8 +18,32 @@ interface BibleMenuDialogProps {
 export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGenesis }: BibleMenuDialogProps) => {
   const { preferences, setFontSize, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
   
+  // Local state for font size slider to allow changes before saving
+  const [localFontSize, setLocalFontSize] = useState(preferences.fontSize);
+  
+  // Update local font size when modal opens or preferences change
+  useEffect(() => {
+    setLocalFontSize(preferences.fontSize);
+  }, [isOpen, preferences.fontSize]);
+  
+  const handleSaveFontSize = () => {
+    setFontSize(localFontSize);
+    
+    // Dispatch custom event to notify other components
+    const event = new CustomEvent('fontSizeChanged', {
+      detail: { fontSize: localFontSize }
+    });
+    window.dispatchEvent(event);
+    
+    // Call onSettingsChange to trigger re-render
+    onSettingsChange?.();
+    
+    toast.success(`Font size saved: ${localFontSize}px`);
+  };
+  
   console.log('🔍 BibleMenuDialog: Component initialized with:', {
     preferencesFontSize: preferences.fontSize,
+    localFontSize: localFontSize,
     isOpen: isOpen
   });
 
@@ -53,44 +79,34 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               <span className="font-medium text-blue-800 text-sm">Font Size</span>
             </div>
             <Slider
-              value={[preferences.fontSize]}
+              value={[localFontSize]}
               onValueChange={(value) => {
-                console.log('🔍 BibleMenuDialog: Font size slider changed to:', value[0]);
-                console.log('🔍 BibleMenuDialog: Current preferences before change:', preferences);
-                console.log('🔍 BibleMenuDialog: About to call setFontSize with:', value[0]);
-                setFontSize(value[0]);
-                console.log('🔍 BibleMenuDialog: setFontSize called with:', value[0]);
-                
-                // Dispatch custom event to notify other components
-                const event = new CustomEvent('fontSizeChanged', {
-                  detail: { fontSize: value[0] }
-                });
-                window.dispatchEvent(event);
-                console.log('🔍 BibleMenuDialog: Dispatched fontSizeChanged event with:', value[0]);
-                
-                // Call onSettingsChange immediately to trigger re-render
-                onSettingsChange?.();
-              }}
-              onValueCommit={(value) => {
-                console.log('Font size slider committed to:', value[0]);
-                // Also call onSettingsChange when user finishes dragging
-                onSettingsChange?.();
+                setLocalFontSize(value[0]);
               }}
               max={24}
               min={12}
               step={1}
-              className={`w-full mb-1 ${isMobile ? 'touch-manipulation' : ''}`}
+              className={`w-full mb-2 ${isMobile ? 'touch-manipulation' : ''}`}
               style={isMobile ? { 
                 touchAction: 'pan-x',
                 WebkitTouchCallout: 'none',
                 WebkitUserSelect: 'none'
               } : {}}
             />
-            <div className="flex justify-between text-xs text-blue-600">
+            <div className="flex justify-between items-center text-xs text-blue-600 mb-2">
               <span>12px</span>
-              <span className="font-medium">{preferences.fontSize}px</span>
+              <span className="font-medium">{localFontSize}px</span>
               <span>24px</span>
             </div>
+            <Button 
+              onClick={handleSaveFontSize}
+              size="sm"
+              className="w-full"
+              disabled={localFontSize === preferences.fontSize}
+            >
+              <Save className="w-3 h-3 mr-1" />
+              {localFontSize === preferences.fontSize ? 'Saved' : 'Save Font Size'}
+            </Button>
           </div>
 
           {/* Auto-Play Next Chapter */}
