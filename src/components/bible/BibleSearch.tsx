@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, BookOpen, Settings2 } from "lucide-react";
+import { Search, BookOpen, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
   const [matchType, setMatchType] = useState<MatchType>('contains');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [sortCanonically, setSortCanonically] = useState(true);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const { toast } = useToast();
   const runIdRef = useRef(0);
 
@@ -297,11 +298,11 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] mt-4 sm:mt-8 md:mt-12 lg:mt-16">
-        <DialogHeader className="pb-2">
+      <DialogContent className="max-w-2xl max-h-[85vh] mt-32 sm:mt-36 md:mt-40 lg:mt-44">
+        <DialogHeader className="pb-4 pt-2">
           <DialogTitle className="flex items-center space-x-2 text-lg">
             <Search className="w-5 h-5" />
-            <span>Advanced Bible Search</span>
+            <span>Bible Search</span>
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={(e) => handleSearch(e)} className="space-y-4">
@@ -322,60 +323,80 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
             </Button>
           </div>
 
-          {/* Advanced options */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border rounded-lg">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Settings2 className="w-3 h-3" /> Scope
+          {/* Advanced options toggle */}
+          <div className="border rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+              className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filters</span>
               </div>
-              <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Whole Bible</SelectItem>
-                  <SelectItem value="ot">Old Testament</SelectItem>
-                  <SelectItem value="nt">New Testament</SelectItem>
-                  <SelectItem value="book">Specific Book</SelectItem>
-                </SelectContent>
-              </Select>
-              {scope === 'book' && (
-                <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
-                  <SelectTrigger className="w-full mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allBooks.map(b => (
-                      <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {showAdvancedOptions ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
               )}
-            </div>
+            </button>
+            
+            {showAdvancedOptions && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Settings2 className="w-3 h-3" /> Scope
+                  </div>
+                  <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Whole Bible</SelectItem>
+                      <SelectItem value="ot">Old Testament</SelectItem>
+                      <SelectItem value="nt">New Testament</SelectItem>
+                      <SelectItem value="book">Specific Book</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {scope === 'book' && (
+                    <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
+                      <SelectTrigger className="w-full mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allBooks.map(b => (
+                          <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Match Type</div>
-              <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="contains">Contains</SelectItem>
-                  <SelectItem value="phrase">Exact Phrase</SelectItem>
-                  <SelectItem value="all">All Words</SelectItem>
-                  <SelectItem value="any">Any Word</SelectItem>
-                  <SelectItem value="whole">Whole Word</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 mt-2">
-                <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
-                <label htmlFor="cs" className="text-xs text-muted-foreground">Case sensitive</label>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Match Type</div>
+                  <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contains">Contains</SelectItem>
+                      <SelectItem value="phrase">Exact Phrase</SelectItem>
+                      <SelectItem value="all">All Words</SelectItem>
+                      <SelectItem value="any">Any Word</SelectItem>
+                      <SelectItem value="whole">Whole Word</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
+                    <label htmlFor="cs" className="text-xs text-muted-foreground">Case sensitive</label>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
+                    <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
-                <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
-              </div>
-            </div>
+            )}
           </div>
         </form>
 
