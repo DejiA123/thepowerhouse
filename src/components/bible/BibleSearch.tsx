@@ -48,6 +48,50 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
   const ntBooks = bibleBooks["New Testament"];
   const otBooks = bibleBooks["Old Testament"];
 
+  // API.Bible book ID to our apiName mapping
+  const apiBibleToApiName: Record<string, string> = {
+    'GEN': 'genesis', 'EXO': 'exodus', 'LEV': 'leviticus', 'NUM': 'numbers',
+    'DEU': 'deuteronomy', 'JOS': 'joshua', 'JDG': 'judges', 'RUT': 'ruth',
+    '1SA': '1-samuel', '2SA': '2-samuel', '1KI': '1-kings', '2KI': '2-kings',
+    '1CH': '1-chronicles', '2CH': '2-chronicles', 'EZR': 'ezra', 'NEH': 'nehemiah',
+    'EST': 'esther', 'JOB': 'job', 'PSA': 'psalms', 'PRO': 'proverbs',
+    'ECC': 'ecclesiastes', 'SNG': 'song-of-solomon', 'ISA': 'isaiah',
+    'JER': 'jeremiah', 'LAM': 'lamentations', 'EZK': 'ezekiel', 'DAN': 'daniel',
+    'HOS': 'hosea', 'JOL': 'joel', 'AMO': 'amos', 'OBA': 'obadiah',
+    'JON': 'jonah', 'MIC': 'micah', 'NAM': 'nahum', 'HAB': 'habakkuk',
+    'ZEP': 'zephaniah', 'HAG': 'haggai', 'ZEC': 'zechariah', 'MAL': 'malachi',
+    'MAT': 'matthew', 'MRK': 'mark', 'LUK': 'luke', 'JHN': 'john',
+    'ACT': 'acts', 'ROM': 'romans', '1CO': '1-corinthians', '2CO': '2-corinthians',
+    'GAL': 'galatians', 'EPH': 'ephesians', 'PHP': 'philippians', 'COL': 'colossians',
+    '1TH': '1-thessalonians', '2TH': '2-thessalonians', '1TI': '1-timothy', '2TI': '2-timothy',
+    'TIT': 'titus', 'PHM': 'philemon', 'HEB': 'hebrews', 'JAS': 'james',
+    '1PE': '1-peter', '2PE': '2-peter', '1JN': '1-john', '2JN': '2-john',
+    '3JN': '3-john', 'JUD': 'jude', 'REV': 'revelation'
+  };
+
+  // Function to normalize book ID from API to our format
+  const normalizeBookId = (bookId: string): string => {
+    // First try direct mapping
+    if (apiBibleToApiName[bookId]) {
+      return apiBibleToApiName[bookId];
+    }
+    
+    // Try case-insensitive mapping
+    const upperBookId = bookId.toUpperCase();
+    if (apiBibleToApiName[upperBookId]) {
+      return apiBibleToApiName[upperBookId];
+    }
+    
+    // Try to find by partial match in our book list
+    const normalizedId = bookId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const found = allBooks.find(book => {
+      const normalizedApiName = book.apiName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return normalizedApiName === normalizedId;
+    });
+    
+    return found ? found.apiName : bookId.toLowerCase();
+  };
+
   // Book name mapping for display
   const getBookDisplayName = (apiName: string): string => {
     // First try to find by apiName
@@ -149,13 +193,17 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       );
 
       console.log('🔍 BibleSearch: Raw API results:', results.length);
+      console.log('🔍 BibleSearch: Sample API result:', results[0]);
+      console.log('🔍 BibleSearch: OT Set:', Array.from(otSet));
+      console.log('🔍 BibleSearch: Sample normalized book IDs:', results.slice(0, 5).map(r => ({ original: r.book, normalized: normalizeBookId(r.book) })));
 
       // Convert API results to our format and apply scope filtering
       let filteredResults: SearchResult[] = results.map(result => {
-        // Find the book name from the API result
-        const bookName = getBookDisplayName(result.book);
+        // Normalize the book ID from API format to our format
+        const normalizedBookId = normalizeBookId(result.book);
+        const bookName = getBookDisplayName(normalizedBookId);
         return {
-          book: result.book,
+          book: normalizedBookId, // Use normalized book ID for filtering
           chapter: result.chapter,
           verse: typeof result.verse === 'string' ? parseInt(result.verse) || 1 : result.verse,
           text: result.text,
@@ -164,17 +212,39 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       });
 
       // Apply scope filtering
+      console.log('🔍 BibleSearch: Applying scope filter:', scope);
       if (scope === 'ot') {
-        filteredResults = filteredResults.filter(result => otSet.has(result.book));
+        const beforeCount = filteredResults.length;
+        filteredResults = filteredResults.filter(result => {
+          const isOT = otSet.has(result.book);
+          console.log(`🔍 BibleSearch: Book ${result.book} is OT: ${isOT}`);
+          return isOT;
+        });
+        console.log(`🔍 BibleSearch: OT filtering: ${beforeCount} -> ${filteredResults.length}`);
       } else if (scope === 'nt') {
-        filteredResults = filteredResults.filter(result => !otSet.has(result.book));
+        const beforeCount = filteredResults.length;
+        filteredResults = filteredResults.filter(result => {
+          const isNT = !otSet.has(result.book);
+          console.log(`🔍 BibleSearch: Book ${result.book} is NT: ${isNT}`);
+          return isNT;
+        });
+        console.log(`🔍 BibleSearch: NT filtering: ${beforeCount} -> ${filteredResults.length}`);
       } else if (scope === 'book') {
-        filteredResults = filteredResults.filter(result => result.book === scopeBook);
+        const beforeCount = filteredResults.length;
+        filteredResults = filteredResults.filter(result => {
+          const matches = result.book === scopeBook;
+          console.log(`🔍 BibleSearch: Book ${result.book} matches ${scopeBook}: ${matches}`);
+          return matches;
+        });
+        console.log(`🔍 BibleSearch: Book filtering: ${beforeCount} -> ${filteredResults.length}`);
       }
 
       console.log('🔍 BibleSearch: Results after scope filtering:', filteredResults.length);
 
       // Apply match type filtering
+      console.log('🔍 BibleSearch: Applying match type filter:', matchType);
+      const beforeMatchCount = filteredResults.length;
+      
       if (matchType === 'phrase') {
         const exactQuery = caseSensitive ? query : query.toLowerCase();
         filteredResults = filteredResults.filter(result => {
@@ -205,6 +275,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       }
       // 'contains' is the default and doesn't need additional filtering
 
+      console.log(`🔍 BibleSearch: Match type filtering: ${beforeMatchCount} -> ${filteredResults.length}`);
       console.log('🔍 BibleSearch: Results after match type filtering:', filteredResults.length);
 
       // Sort results canonically if requested
@@ -259,7 +330,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogPortal>
         <DialogOverlay className="fixed inset-0 z-[100] bg-black/80" style={{ pointerEvents: 'none' }} />
-        <DialogContent className="w-full h-[calc(100vh-80px)] max-w-none max-h-none m-0 rounded-none flex flex-col z-[101] bg-background" style={{ zIndex: 101, pointerEvents: 'auto' }}>
+        <DialogContent className="w-full h-[calc(100vh-80px)] max-w-none max-h-none m-0 rounded-none flex flex-col z-[101] bg-background overflow-visible" style={{ zIndex: 101, pointerEvents: 'auto' }}>
           <DialogHeader className="pb-4 pt-2">
             <DialogTitle className="flex items-center space-x-2 text-lg">
             <Search className="w-5 h-5" />
@@ -304,16 +375,24 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
               </button>
               
               {showAdvancedOptions && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t overflow-visible">
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Settings2 className="w-3 h-3" /> Scope
               </div>
-              <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
+              <Select value={scope} onValueChange={(v: Scope) => {
+                console.log('Scope changed to:', v);
+                setScope(v);
+              }}>
+                <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
+                  <SelectValue placeholder="Select scope">
+                    {scope === 'all' && 'Whole Bible'}
+                    {scope === 'ot' && 'Old Testament'}
+                    {scope === 'nt' && 'New Testament'}
+                    {scope === 'book' && 'Specific Book'}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[102] max-h-[200px]">
                   <SelectItem value="all">Whole Bible</SelectItem>
                   <SelectItem value="ot">Old Testament</SelectItem>
                   <SelectItem value="nt">New Testament</SelectItem>
@@ -321,11 +400,16 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
                 </SelectContent>
               </Select>
               {scope === 'book' && (
-                <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
-                  <SelectTrigger className="w-full mt-2">
-                    <SelectValue />
+                <Select value={scopeBook} onValueChange={(v: string) => {
+                  console.log('Scope book changed to:', v);
+                  setScopeBook(v);
+                }}>
+                  <SelectTrigger className="w-full mt-2 hover:bg-muted/50 transition-colors cursor-pointer">
+                    <SelectValue placeholder="Select book">
+                      {allBooks.find(b => b.apiName === scopeBook)?.name || 'Select book'}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[102] max-h-[200px]">
                     {allBooks.map(b => (
                       <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
                     ))}
@@ -335,12 +419,23 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
             </div>
 
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Match Type</div>
-              <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                Match Type
+              </div>
+              <Select value={matchType} onValueChange={(v: MatchType) => {
+                console.log('Match type changed to:', v);
+                setMatchType(v);
+              }}>
+                <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
+                  <SelectValue placeholder="Select match type">
+                    {matchType === 'contains' && 'Contains'}
+                    {matchType === 'phrase' && 'Exact Phrase'}
+                    {matchType === 'all' && 'All Words'}
+                    {matchType === 'any' && 'Any Word'}
+                    {matchType === 'whole' && 'Whole Word'}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[102] max-h-[200px]">
                   <SelectItem value="contains">Contains</SelectItem>
                   <SelectItem value="phrase">Exact Phrase</SelectItem>
                   <SelectItem value="all">All Words</SelectItem>
@@ -355,6 +450,23 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
               <div className="flex items-center gap-2 mt-1">
                 <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
                 <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
+              </div>
+              <div className="mt-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setScope('all');
+                    setScopeBook('genesis');
+                    setMatchType('contains');
+                    setCaseSensitive(false);
+                    setSortCanonically(true);
+                  }}
+                  className="w-full"
+                >
+                  Reset Filters
+                </Button>
               </div>
             </div>
                 </div>
