@@ -242,6 +242,12 @@ export const BibleChapterContent = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   
+  // Scroll state for header positioning
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
+  const lastScrollY = useRef(0);
+  const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+  
   // Use GlobalAudioContext state for playing status
   const isPlaying = globalAudio?.audioState.isPlaying || false;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -389,13 +395,57 @@ export const BibleChapterContent = ({
         console.log('🎵 Global audio: Chapter change callback triggered', { chapter, isAutoPlay });
         onChapterChange?.(chapter, isAutoPlay);
       });
-      
+
       globalAudio.setBookChangeCallback((book: string, chapter: number, isAutoPlay: boolean) => {
         console.log('🎵 Global audio: Book change callback triggered', { book, chapter, isAutoPlay });
         onBookChange?.(book, chapter, isAutoPlay);
       });
     }
   }, [globalAudio, onChapterChange, onBookChange]);
+
+  // Scroll detection for header positioning
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollThreshold = 5; // Reduced threshold for more responsive detection
+      
+      // Clear existing timeout
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+      
+      // Set scrolling state
+      setIsScrolling(true);
+      
+      // Determine scroll direction
+      if (Math.abs(currentScrollY - lastScrollY.current) > scrollThreshold) {
+        if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+          // Only show scrolled header when scrolling down and past initial content
+          setScrollDirection('down');
+        } else {
+          setScrollDirection('up');
+        }
+        lastScrollY.current = currentScrollY;
+      }
+      
+      // Reset scrolling state after scroll stops
+      scrollTimeout.current = setTimeout(() => {
+        setIsScrolling(false);
+        setScrollDirection(null);
+      }, 100); // Reduced timeout for more responsive behavior
+    };
+
+    // Add scroll listener with passive: true for better performance
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+    };
+  }, []);
   
   // Highlights state
   const [highlights, setHighlights] = useState<any[]>([]);
@@ -433,12 +483,12 @@ export const BibleChapterContent = ({
             false // loopChapter
           );
           console.log('✅ Auto-play successful via GlobalAudioContext');
-          // Reset shouldAutoPlay flag after successfully starting playback
-          onAutoPlayTriggered?.();
+      // Reset shouldAutoPlay flag after successfully starting playback
+      onAutoPlayTriggered?.();
         } catch (error) {
           console.error('❌ Error auto-playing audio via GlobalAudioContext:', error);
-          // Still reset the flag even if auto-play fails
-          onAutoPlayTriggered?.();
+              // Still reset the flag even if auto-play fails
+              onAutoPlayTriggered?.();
         }
       };
       
@@ -771,7 +821,7 @@ export const BibleChapterContent = ({
         playsInline={true}
       />
       {/* Header Bar */}
-      <div className="bible-header-full">
+      <div className={`bible-header-full ${isScrolling && scrollDirection === 'down' ? 'bible-header-scrolled' : ''}`}>
         <div className="bible-header-buttons-full">
           <button 
             className="bible-book-button-full"
