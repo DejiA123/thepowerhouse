@@ -297,9 +297,9 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] mt-12 sm:mt-16 md:mt-20">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+      <DialogContent className="max-w-2xl max-h-[85vh] mt-4 sm:mt-8 md:mt-12 lg:mt-16">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="flex items-center space-x-2 text-lg">
             <Search className="w-5 h-5" />
             <span>Advanced Bible Search</span>
           </DialogTitle>
@@ -390,7 +390,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
           </div>
         )}
 
-        <ScrollArea className="max-h-96 mt-2">
+        <ScrollArea className="max-h-64 sm:max-h-80 md:max-h-96 mt-2">
           <div className="space-y-2">
             {searchResults.map((result, index) => (
               <div
