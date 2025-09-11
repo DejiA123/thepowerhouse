@@ -90,8 +90,6 @@ export const BibleChapterContent = ({
   // Debug: Log font size initialization and changes
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                (window.navigator as any).standalone === true;
   
   console.log('🔍 BibleChapterContent: Font size state:', {
     preferencesFontSize: preferences?.fontSize,
@@ -100,33 +98,8 @@ export const BibleChapterContent = ({
     selectedChapter: selectedChapter,
     isMobile: isMobile,
     isIOS: isIOS,
-    isPWA: isPWA,
     userAgent: navigator.userAgent
   });
-
-  // iOS PWA header fix: Ensure header stays visible
-  useEffect(() => {
-    if (isIOS && isPWA) {
-      console.log('🔧 iOS PWA detected - applying header positioning fix');
-      
-      // Force the header to stay fixed on iOS PWA
-      const headerElement = document.querySelector('.bible-header-full') as HTMLElement;
-      if (headerElement) {
-        headerElement.style.position = 'fixed';
-        headerElement.style.top = '0';
-        headerElement.style.left = '0';
-        headerElement.style.right = '0';
-        headerElement.style.width = '100%';
-        headerElement.style.zIndex = '70';
-        headerElement.style.transform = 'translateZ(0)';
-        headerElement.style.webkitTransform = 'translateZ(0)';
-        headerElement.style.backfaceVisibility = 'hidden';
-        headerElement.style.webkitBackfaceVisibility = 'hidden';
-        
-        console.log('✅ Applied iOS PWA header positioning fix');
-      }
-    }
-  }, [isIOS, isPWA, selectedBook, selectedChapter]);
 
   // State variables
   const [showNotesDialog, setShowNotesDialog] = useState(false);
