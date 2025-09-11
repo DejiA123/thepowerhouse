@@ -26,6 +26,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import SocialMediaPage from "@/pages/SocialMediaPage";
 import BibleNotesPage from "@/pages/BibleNotesPage";
 import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
+import { EmailConfirmationDebug } from "@/components/EmailConfirmationDebug";
 
 console.log('App.tsx: Component loading...');
 
@@ -185,6 +186,7 @@ const AppRoutes = () => {
               } 
             />
             <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+            <Route path="/debug-email" element={<EmailConfirmationDebug />} />
             <Route 
               path="/prayer" 
               element={
@@ -373,17 +375,17 @@ const App = () => {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <NotificationProvider>
-            <GlobalAudioProvider>
-              <Router>
-                <TooltipProvider>
+          <GlobalAudioProvider>
+            <Router>
+              <TooltipProvider>
+                <NotificationProvider>
                   <AppRoutes />
                   <Toaster />
                   <Sonner />
-                </TooltipProvider>
-              </Router>
-            </GlobalAudioProvider>
-          </NotificationProvider>
+                </NotificationProvider>
+              </TooltipProvider>
+            </Router>
+          </GlobalAudioProvider>
         </AuthProvider>
       </QueryClientProvider>
     );

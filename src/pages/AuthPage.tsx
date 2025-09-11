@@ -82,6 +82,11 @@ const AuthPage = () => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting signup with:', {
+        email: signupEmail,
+        redirectTo: `https://thepowerhouse.lovable.app/email-confirmation`
+      });
+
       const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
@@ -89,21 +94,30 @@ const AuthPage = () => {
           data: {
             full_name: signupFullName,
           },
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: `https://thepowerhouse.lovable.app/email-confirmation`
         }
       });
 
+      console.log('Signup response:', { data, error });
+
       if (error) {
+        console.error('Signup error:', error);
         toast({
           title: "Signup Failed",
           description: error.message,
           variant: "destructive",
         });
       } else if (data.user) {
+        console.log('Signup successful:', data.user);
         toast({
           title: "Account Created!",
-          description: "Please check your email to verify your account.",
+          description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
         });
+        
+        // Clear the form
+        setSignupEmail("");
+        setSignupPassword("");
+        setSignupFullName("");
       }
     } catch (error) {
       toast({

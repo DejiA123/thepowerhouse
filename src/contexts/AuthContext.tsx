@@ -97,25 +97,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      console.log('AuthProvider: Attempting sign up...');
-      const redirectUrl = `${window.location.origin}/`;
+      console.log('AuthProvider: Attempting sign up...', { email, fullName });
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/email-confirmation`,
+          emailRedirectTo: `https://thepowerhouse.lovable.app/email-confirmation`,
           data: {
             full_name: fullName,
           },
         },
       });
+      
       if (error) {
         console.error('Sign up error:', error);
+        return { error };
       } else {
-        console.log('Sign up successful');
+        console.log('Sign up successful:', data.user);
+        return { data, error: null };
       }
-      return { error };
     } catch (error) {
       console.error('Sign up exception:', error);
       return { error };
