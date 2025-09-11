@@ -538,7 +538,7 @@ const BibleNotesPage = () => {
           </div>
 
           {/* Note Content */}
-          <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 px-4 pt-12 pb-6">
+          <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 px-4 pt-4 pb-6">
             {selectedNote && (
               <div 
                 className="max-w-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-4 transition-colors duration-200"
@@ -550,7 +550,7 @@ const BibleNotesPage = () => {
               >
                 {/* Date with Close */}
                 <div className="relative mb-4">
-                  <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
                     {formatDateTime(selectedNote.created_at)}
                   </div>
                   <Button
@@ -559,7 +559,7 @@ const BibleNotesPage = () => {
                       e.stopPropagation();
                       setShowNoteDialog(false);
                     }}
-                    className="absolute right-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="absolute right-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 z-10"
                     aria-label="Close"
                   >
                     <X className="w-5 h-5 text-gray-500" />
@@ -659,9 +659,9 @@ const BibleNotesPage = () => {
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto">
             {/* Date and Title Section */}
-            <div className="bg-white dark:bg-gray-900 px-4 pt-10 pb-4">
+            <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-4">
               <div className="relative mb-4">
-                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
                   {new Date().toLocaleDateString('en-US', { 
                     day: 'numeric', 
                     month: 'long', 
@@ -673,7 +673,7 @@ const BibleNotesPage = () => {
                 <Button
                   variant="ghost"
                   onClick={() => setShowNewNoteDialog(false)}
-                  className="absolute right-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="absolute right-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 z-10"
                   aria-label="Close"
                 >
                   <X className="w-5 h-5 text-gray-500" />
