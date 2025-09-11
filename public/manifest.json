@@ -4,7 +4,6 @@
   "description": "The PowerHouse International Church App - Connect, Grow, Serve",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",

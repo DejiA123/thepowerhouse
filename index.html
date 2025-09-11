@@ -2,8 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- PWA Optimized Viewport - Disable zoom for native app feel -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+    <!-- PWA Optimized Viewport for Keyboard Support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
     <title>PowerHouse Connect</title>
     <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
     <meta name="author" content="PowerHouse International" />
@@ -136,40 +136,6 @@
       @supports (-webkit-touch-callout: none) {
         input, textarea, select {
           font-size: 16px !important;
-        }
-      }
-      
-      /* PWA-specific zoom prevention */
-      @media (display-mode: standalone) {
-        html, body {
-          touch-action: pan-x pan-y;
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          -khtml-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-        }
-        
-        /* Allow text selection in input fields */
-        input, textarea, [contenteditable] {
-          -webkit-user-select: text;
-          -khtml-user-select: text;
-          -moz-user-select: text;
-          -ms-user-select: text;
-          user-select: text;
-        }
-        
-        /* Prevent double-tap zoom */
-        * {
-          touch-action: manipulation;
-        }
-        
-        /* Ensure proper viewport handling */
-        html {
-          -webkit-text-size-adjust: 100%;
-          -ms-text-size-adjust: 100%;
-          text-size-adjust: 100%;
         }
       }
       
