@@ -143,9 +143,23 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
         apiResults = (verses || []).map(v => {
           // Map result.book (pretty name) to apiName
           const found = allBooks.find(b => b.name.toLowerCase() === (v.book || '').toLowerCase())
-            || allBooks.find(b => b.apiName.toLowerCase() === (v.book || '').toLowerCase());
+            || allBooks.find(b => b.apiName.toLowerCase() === (v.book || '').toLowerCase())
+            || allBooks.find(b => b.name.toLowerCase().includes((v.book || '').toLowerCase()))
+            || allBooks.find(b => (v.book || '').toLowerCase().includes(b.name.toLowerCase()));
+          
           const apiName = found ? found.apiName : normalizeBookApiName(v.book || '');
           const bookName = found ? found.name : (v.book || '');
+          
+          // Debug: Log the mapping to see what's happening
+          console.log('🔍 Book mapping:', {
+            originalBook: v.book,
+            foundBook: found?.name,
+            apiName: apiName,
+            bookName: bookName,
+            chapter: v.chapter,
+            verse: v.verse
+          });
+          
           return {
             book: apiName,
             chapter: v.chapter || 1,

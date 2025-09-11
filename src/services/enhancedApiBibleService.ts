@@ -389,14 +389,46 @@ export const enhancedApiBibleService = {
         return [];
       }
 
-      return data.data.verses.map((verse: any) => ({
-        book: verse.bookId || 'Unknown',
-        chapter: verse.chapterNumber || 1,
-        verse: verse.verse?.toString() || '1',
-        text: parseHtmlContent(verse.text || ''),
-        reference: verse.reference || '',
-        version: bibleId
-      }));
+      // Debug: Log the structure of the first verse to understand the API response
+      if (data.data.verses.length > 0) {
+        console.log('🔍 API.Bible search result structure:', {
+          firstVerse: data.data.verses[0],
+          totalVerses: data.data.verses.length
+        });
+      }
+
+      return data.data.verses.map((verse: any) => {
+        // Try to extract chapter and verse from reference if available
+        let chapter = verse.chapterNumber || verse.chapter || 1;
+        let verseNumber = verse.verse?.toString() || verse.verseNumber?.toString() || '1';
+        
+        // If reference is available, try to parse it for more accurate chapter/verse
+        if (verse.reference) {
+          const refMatch = verse.reference.match(/(\d+):(\d+)/);
+          if (refMatch) {
+            chapter = parseInt(refMatch[1]) || chapter;
+            verseNumber = refMatch[2] || verseNumber;
+          }
+        }
+        
+        // Additional fallback: try to extract from verse ID if available
+        if (verse.id && typeof verse.id === 'string') {
+          const idMatch = verse.id.match(/(\d+)\.(\d+)/);
+          if (idMatch) {
+            chapter = parseInt(idMatch[1]) || chapter;
+            verseNumber = idMatch[2] || verseNumber;
+          }
+        }
+        
+        return {
+          book: verse.bookId || verse.book || 'Unknown',
+          chapter: chapter,
+          verse: verseNumber,
+          text: parseHtmlContent(verse.text || ''),
+          reference: verse.reference || '',
+          version: bibleId
+        };
+      });
     } catch (error) {
       console.error('❌ Enhanced API.Bible Service search error:', error);
       return [];
