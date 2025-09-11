@@ -295,51 +295,6 @@
 .bible-header-full {
   @apply flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky top-0 z-[70] shadow-sm;
   /* Removed padding-top: env(safe-area-inset-top) - main layout already handles safe area */
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-}
-
-.bible-header-scrolled {
-  /* Bring header lower when scrolling down on iPhone PWA */
-  transform: translateY(env(safe-area-inset-top, 0px));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.95);
-}
-
-/* Dark mode support for scrolled header */
-.dark .bible-header-scrolled {
-  background-color: rgba(0, 0, 0, 0.95);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* iPhone PWA specific adjustments */
-@supports (padding: max(0px)) {
-  .bible-header-scrolled {
-    /* Use max() to ensure proper spacing on iPhone with notch */
-    transform: translateY(max(env(safe-area-inset-top, 0px), 20px));
-  }
-}
-
-/* iPhone specific PWA adjustments */
-@media screen and (max-width: 430px) {
-  .bible-header-scrolled {
-    /* More prominent positioning on smaller iPhone screens */
-    transform: translateY(max(env(safe-area-inset-top, 0px), 25px));
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-}
-
-/* Enhanced visual feedback for scrolled header */
-.bible-header-scrolled .bible-book-button-full,
-.bible-header-scrolled .bible-version-button-full {
-  transform: scale(1.02);
-  transition: transform 0.2s ease-in-out;
-}
-
-.bible-header-scrolled .bible-header-icon-full {
-  transform: scale(1.05);
-  transition: transform 0.2s ease-in-out;
 }
 
 .bible-header-buttons-full {
