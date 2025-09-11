@@ -133,6 +133,16 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     setIsSearching(true);
     setSearchResults([]);
 
+    // Debug: Log current search settings
+    console.log('🔍 Search settings:', {
+      query: raw,
+      version: version,
+      sortCanonically: sortCanonically,
+      scope: scope,
+      matchType: matchType,
+      caseSensitive: caseSensitive
+    });
+
     const matcher = buildMatcher(raw);
 
     try {
@@ -217,7 +227,37 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       if (sortCanonically) {
         const order: Record<string, number> = {};
         allBooks.forEach((b, i) => { order[b.apiName] = i; });
-        combined.sort((a, b) => (order[a.book] - order[b.book]) || (a.chapter - b.chapter) || (a.verse - b.verse));
+        
+        // Debug: Log the sorting process
+        console.log('🔍 Canonical sorting:', {
+          totalResults: combined.length,
+          firstFewResults: combined.slice(0, 3).map(r => ({
+            book: r.book,
+            bookName: r.bookName,
+            chapter: r.chapter,
+            verse: r.verse,
+            order: order[r.book]
+          }))
+        });
+        
+        combined.sort((a, b) => {
+          const bookOrder = (order[a.book] ?? 999) - (order[b.book] ?? 999);
+          if (bookOrder !== 0) return bookOrder;
+          
+          const chapterOrder = a.chapter - b.chapter;
+          if (chapterOrder !== 0) return chapterOrder;
+          
+          return a.verse - b.verse;
+        });
+        
+        console.log('🔍 After canonical sorting:', {
+          firstFewResults: combined.slice(0, 3).map(r => ({
+            book: r.book,
+            bookName: r.bookName,
+            chapter: r.chapter,
+            verse: r.verse
+          }))
+        });
       }
 
       if (runIdRef.current !== currentRun) return; // allow finally to clear for the latest
@@ -340,8 +380,13 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
         </form>
 
         {searchResults.length > 0 && (
-          <div className="text-sm text-muted-foreground mt-2">
-            Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+          <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
+            <span>Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+            {sortCanonically && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                Canonically sorted
+              </span>
+            )}
           </div>
         )}
 
