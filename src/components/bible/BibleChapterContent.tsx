@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
 import { supabaseAudioService } from "@/services/supabaseAudioService";
+import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
 
 interface BibleChapterContentProps {
@@ -376,6 +377,24 @@ export const BibleChapterContent = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Global audio context for persistent audio across pages
+  const globalAudio = useGlobalAudio();
+  
+  // Set up callbacks for global audio context
+  useEffect(() => {
+    if (globalAudio) {
+      globalAudio.setChapterChangeCallback((chapter: number, isAutoPlay: boolean) => {
+        console.log('🎵 Global audio: Chapter change callback triggered', { chapter, isAutoPlay });
+        onChapterChange?.(chapter, isAutoPlay);
+      });
+      
+      globalAudio.setBookChangeCallback((book: string, chapter: number, isAutoPlay: boolean) => {
+        console.log('🎵 Global audio: Book change callback triggered', { book, chapter, isAutoPlay });
+        onBookChange?.(book, chapter, isAutoPlay);
+      });
+    }
+  }, [globalAudio, onChapterChange, onBookChange]);
+  
   // Highlights state
   const [highlights, setHighlights] = useState<any[]>([]);
 
@@ -513,102 +532,52 @@ export const BibleChapterContent = ({
     loadAudio();
   }, [selectedBook, selectedChapter, selectedVersion]);
 
-  // Handle MP3 audio playback
+  // Handle MP3 audio playback using global audio context
   const handlePlayPause = async () => {
-    // First, let's check if the bucket has ANY files at all using the same pagination logic
-    try {
-      // Use the same pagination function to get all files
-      const getAllFiles = async () => {
-        let allFiles: any[] = [];
-        
-        // Get files by prefix patterns to work around Supabase limitations
-        const prefixes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-        
-        for (const prefix of prefixes) {
-          try {
-            const { data: batch, error: batchError } = await supabase.storage
-              .from('audio-bible')
-              .list('', { 
-                limit: 1000,
-                sortBy: { column: 'name', order: 'asc' },
-                search: prefix
-              });
-            
-            if (batchError) {
-              console.error(`❌ Error fetching files with prefix ${prefix}:`, batchError);
-              continue;
-            }
-            
-            if (batch && batch.length > 0) {
-              allFiles = [...allFiles, ...batch];
-              console.log(`🔍 BUCKET CHECK - Fetched ${batch.length} files with prefix ${prefix}, total so far: ${allFiles.length}`);
-            }
-          } catch (error) {
-            console.error(`❌ Error processing prefix ${prefix}:`, error);
-          }
-        }
-        
-        // Remove duplicates and sort
-        const uniqueFiles = allFiles.filter((file, index, self) => 
-          index === self.findIndex(f => f.name === file.name)
-        ).sort((a, b) => a.name.localeCompare(b.name));
-        
-        return uniqueFiles;
-      };
-      
-      const allFiles = await getAllFiles();
-      
-      console.log('🔍 BUCKET CHECK - Error: null');
-      console.log('🔍 BUCKET CHECK - Total files:', allFiles.length);
-      console.log('🔍 BUCKET CHECK - Files:', allFiles.map(f => f.name));
-      
-      if (!allFiles || allFiles.length === 0) {
+    if (!globalAudio) {
+      console.error('🎵 Global audio context not available');
+      return;
+    }
+
+    // Check if we're currently playing the same chapter in global context
+    const isCurrentChapterPlaying = globalAudio.audioState.isPlaying && 
+      globalAudio.audioState.currentBook === selectedBook && 
+      globalAudio.audioState.currentChapter === selectedChapter;
+
+    if (isCurrentChapterPlaying) {
+      // Pause the current audio
+      globalAudio.pause();
+    } else if (globalAudio.audioState.isPaused && 
+               globalAudio.audioState.currentBook === selectedBook && 
+               globalAudio.audioState.currentChapter === selectedChapter) {
+      // Resume the paused audio
+      globalAudio.resume();
+    } else {
+      // Start playing this chapter
+      if (!selectedVersion) {
         toast({
-          title: "No Audio Files Found",
-          description: "The audio-bible bucket is empty. Please upload MP3 files to Supabase Storage.",
+          title: "Version Required",
+          description: "Please select a Bible version to play audio",
           variant: "destructive"
         });
         return;
       }
-    } catch (error) {
-      console.error('🔍 BUCKET CHECK - Error accessing bucket:', error);
-      toast({
-        title: "Bucket Access Error", 
-        description: "Cannot access the audio-bible bucket. Check permissions.",
-        variant: "destructive"
-      });
-      return;
-    }
 
-    if (!audioUrl) {
-      toast({
-        title: "Audio Not Available",
-        description: audioError || "No MP3 audio file found for this chapter",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (isPlaying) {
-      // Pause audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    } else {
-      // Play audio
-      if (audioRef.current) {
-        try {
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch (error) {
-          console.error('Error playing audio:', error);
-          toast({
-            title: "Audio Error",
-            description: "Failed to play audio",
-            variant: "destructive"
-          });
-        }
+      try {
+        await globalAudio.playBibleChapterMP3(
+          selectedBook, 
+          selectedChapter, 
+          selectedVersion, 
+          autoPlayNext, 
+          false // loopChapter
+        );
+      } catch (error) {
+        console.error('🎵 Error playing audio via global context:', error);
+        toast({
+          title: "Audio Error",
+          description: "Failed to play audio. Please try again.",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -801,12 +770,22 @@ export const BibleChapterContent = ({
           <button 
             className="bible-header-icon-full"
             onClick={handlePlayPause}
-            disabled={isLoading}
-            title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
+            disabled={globalAudio?.audioState.isLoading || false}
+            title={
+              globalAudio?.audioState.isLoading 
+                ? "Loading audio..." 
+                : (globalAudio?.audioState.isPlaying && 
+                   globalAudio?.audioState.currentBook === selectedBook && 
+                   globalAudio?.audioState.currentChapter === selectedChapter)
+                  ? "Pause audio" 
+                  : "Play audio"
+            }
           >
-            {isLoading ? (
+            {globalAudio?.audioState.isLoading ? (
               <Volume2 className="w-4 h-4 opacity-50" />
-            ) : isPlaying ? (
+            ) : (globalAudio?.audioState.isPlaying && 
+                 globalAudio?.audioState.currentBook === selectedBook && 
+                 globalAudio?.audioState.currentChapter === selectedChapter) ? (
               <Pause className="w-4 h-4" />
             ) : (
               <Volume2 className="w-4 h-4" />
@@ -1048,13 +1027,23 @@ export const BibleChapterContent = ({
             
             <button 
               onClick={handlePlayPause}
-              disabled={isLoading}
+              disabled={globalAudio?.audioState.isLoading || false}
               className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
-              title={isLoading ? "Loading audio..." : (isPlaying ? "Pause audio" : "Play audio")}
+              title={
+                globalAudio?.audioState.isLoading 
+                  ? "Loading audio..." 
+                  : (globalAudio?.audioState.isPlaying && 
+                     globalAudio?.audioState.currentBook === selectedBook && 
+                     globalAudio?.audioState.currentChapter === selectedChapter)
+                    ? "Pause audio" 
+                    : "Play audio"
+              }
             >
-              {isLoading ? (
+              {globalAudio?.audioState.isLoading ? (
                 <Volume2 className="w-5 h-5 opacity-50" />
-              ) : isPlaying ? (
+              ) : (globalAudio?.audioState.isPlaying && 
+                   globalAudio?.audioState.currentBook === selectedBook && 
+                   globalAudio?.audioState.currentChapter === selectedChapter) ? (
                 <Pause className="w-5 h-5" />
               ) : (
                 <Play className="w-5 h-5 ml-0.5" />

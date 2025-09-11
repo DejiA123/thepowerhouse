@@ -7,6 +7,7 @@ import { iosAudioService, IOSAudioSettings } from '@/services/iosAudioService';
 import { enhancedIPhoneVoiceService, EnhancedIPhoneVoiceSettings } from '@/services/enhancedIPhoneVoiceService';
 import { realisticBibleSpeechService, RealisticSpeechSettings } from '@/services/realisticBibleSpeechService';
 import { audioBibleService } from '@/services/audioBibleService';
+import { supabaseAudioService } from '@/services/supabaseAudioService';
 
 interface GlobalAudioState {
   isPlaying: boolean;
@@ -18,6 +19,8 @@ interface GlobalAudioState {
   currentVersion: string;
   autoPlayNext: boolean;
   loopChapter: boolean;
+  audioUrl?: string;
+  hasAudio: boolean;
   voiceSettings?: {
     pitch?: number;
     rate?: number;
@@ -31,6 +34,7 @@ interface GlobalAudioContextType {
   
   // Actions
   playBibleChapter: (book: string, chapter: number, text: string, autoPlayNext?: boolean, loopChapter?: boolean, voiceSettings?: { pitch?: number; rate?: number; voice?: SpeechSynthesisVoice }, version?: string) => Promise<void>;
+  playBibleChapterMP3: (book: string, chapter: number, version: string, autoPlayNext?: boolean, loopChapter?: boolean) => Promise<void>;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -68,6 +72,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     currentVersion: 'kjv',
     autoPlayNext: false,
     loopChapter: false,
+    audioUrl: undefined,
+    hasAudio: false,
     voiceSettings: {
       pitch: 1.0,
       rate: 1.0,
@@ -247,6 +253,109 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [speakText]);
 
+  const playBibleChapterMP3 = useCallback(async (
+    book: string, 
+    chapter: number, 
+    version: string, 
+    autoPlayNext: boolean = false, 
+    loopChapter: boolean = false
+  ) => {
+    try {
+      console.log(`🎵 Playing Bible chapter MP3: ${book} ${chapter} (${version})`);
+      
+      setAudioState(prev => ({
+        ...prev,
+        isLoading: true,
+        currentBook: book,
+        currentChapter: chapter,
+        currentVersion: version,
+        autoPlayNext,
+        loopChapter,
+        audioUrl: undefined,
+        hasAudio: false
+      }));
+
+      // Load MP3 audio from Supabase
+      const audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
+      
+      if (!audioUrl) {
+        throw new Error(`No MP3 audio available for ${book} ${chapter} (${version})`);
+      }
+
+      // Create or update audio element
+      if (!currentAudioRef.current) {
+        currentAudioRef.current = new Audio();
+        currentAudioRef.current.preload = 'auto';
+        currentAudioRef.current.volume = 1.0;
+        
+        // Set up event listeners
+        currentAudioRef.current.addEventListener('ended', () => {
+          console.log(`🎵 MP3 audio ended for ${book} ${chapter}`);
+          setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
+          
+          // Handle auto-play next chapter if enabled
+          if (autoPlayNext && !isAutoAdvancingRef.current) {
+            console.log('🎵 Auto-playing next chapter after MP3 completion');
+            goToNextChapter();
+          }
+        });
+
+        currentAudioRef.current.addEventListener('pause', () => {
+          setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: true }));
+        });
+
+        currentAudioRef.current.addEventListener('play', () => {
+          setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
+        });
+
+        currentAudioRef.current.addEventListener('error', (error) => {
+          console.error('🎵 MP3 audio error:', error);
+          setAudioState(prev => ({ 
+            ...prev, 
+            isPlaying: false, 
+            isPaused: false, 
+            isLoading: false,
+            hasAudio: false
+          }));
+        });
+      }
+
+      // Set audio source and play
+      currentAudioRef.current.src = audioUrl;
+      currentAudioRef.current.load();
+      
+      await currentAudioRef.current.play();
+      
+      setAudioState(prev => ({
+        ...prev,
+        isLoading: false,
+        isPlaying: true,
+        isPaused: false,
+        audioUrl,
+        hasAudio: true
+      }));
+
+      // Update media session
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: `${book} ${chapter}`,
+          artist: 'Bible Audio',
+          album: version.toUpperCase()
+        });
+      }
+
+    } catch (error) {
+      console.error('🎵 Error playing Bible chapter MP3:', error);
+      setAudioState(prev => ({ 
+        ...prev, 
+        isPlaying: false, 
+        isPaused: false, 
+        isLoading: false,
+        hasAudio: false
+      }));
+    }
+  }, []);
+
   const pause = useCallback(() => {
     console.log('🎵 Pausing audio');
     
@@ -302,7 +411,9 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...prev,
       isPlaying: false,
       isPaused: false,
-      isLoading: false
+      isLoading: false,
+      hasAudio: false,
+      audioUrl: undefined
     }));
   }, []);
 
@@ -395,6 +506,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const contextValue: GlobalAudioContextType = {
     audioState,
     playBibleChapter,
+    playBibleChapterMP3,
     pause,
     resume,
     stop,
