@@ -291,13 +291,18 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // Set up event listeners
         currentAudioRef.current.addEventListener('ended', () => {
           console.log(`🎵 MP3 audio ended for ${book} ${chapter}`);
-          setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
-          
-          // Handle auto-play next chapter if enabled
-          if (autoPlayNext && !isAutoAdvancingRef.current) {
-            console.log('🎵 Auto-playing next chapter after MP3 completion');
-            goToNextChapter();
-          }
+          setAudioState(prev => {
+            // Handle auto-play next chapter if enabled (use current state)
+            if (prev.autoPlayNext && !isAutoAdvancingRef.current) {
+              console.log('🎵 Auto-playing next chapter after MP3 completion');
+              // Use setTimeout to avoid state update conflicts
+              setTimeout(() => {
+                goToNextChapter();
+              }, 100);
+            }
+            
+            return { ...prev, isPlaying: false, isPaused: false };
+          });
         });
 
         currentAudioRef.current.addEventListener('pause', () => {
@@ -438,62 +443,70 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const goToNextChapter = useCallback(() => {
     if (isAutoAdvancingRef.current) return;
     
-    const { currentBook, currentChapter } = audioState;
-    if (!currentBook) return;
-    
-    isAutoAdvancingRef.current = true;
-    
-    // Flatten bible books structure to find the book
-    const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
-    const bookInfo = allBooks.find(book => 
-      book.name.toLowerCase() === currentBook.toLowerCase() || 
-      book.apiName.toLowerCase() === currentBook.toLowerCase()
-    );
-    
-    if (bookInfo) {
-      const nextChapter = currentChapter + 1;
+    setAudioState(prev => {
+      const { currentBook, currentChapter } = prev;
+      if (!currentBook) return prev;
       
-      if (nextChapter <= bookInfo.chapters) {
-        console.log(`🎵 Going to next chapter: ${currentBook} ${nextChapter}`);
-        if (chapterChangeCallbackRef.current) {
-          chapterChangeCallbackRef.current(nextChapter, true);
-        }
-      } else {
-        // Move to next book
-        const currentBookIndex = allBooks.findIndex(book => 
-          book.name.toLowerCase() === currentBook.toLowerCase() || 
-          book.apiName.toLowerCase() === currentBook.toLowerCase()
-        );
+      isAutoAdvancingRef.current = true;
+      
+      // Flatten bible books structure to find the book
+      const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
+      const bookInfo = allBooks.find(book => 
+        book.name.toLowerCase() === currentBook.toLowerCase() || 
+        book.apiName.toLowerCase() === currentBook.toLowerCase()
+      );
+      
+      if (bookInfo) {
+        const nextChapter = currentChapter + 1;
         
-        if (currentBookIndex < allBooks.length - 1) {
-          const nextBook = allBooks[currentBookIndex + 1];
-          console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
-          if (bookChangeCallbackRef.current) {
-            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+        if (nextChapter <= bookInfo.chapters) {
+          console.log(`🎵 Going to next chapter: ${currentBook} ${nextChapter}`);
+          if (chapterChangeCallbackRef.current) {
+            chapterChangeCallbackRef.current(nextChapter, true);
           }
         } else {
-          console.log('🎵 Reached end of Bible - no more books');
+          // Move to next book
+          const currentBookIndex = allBooks.findIndex(book => 
+            book.name.toLowerCase() === currentBook.toLowerCase() || 
+            book.apiName.toLowerCase() === currentBook.toLowerCase()
+          );
+          
+          if (currentBookIndex < allBooks.length - 1) {
+            const nextBook = allBooks[currentBookIndex + 1];
+            console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+            if (bookChangeCallbackRef.current) {
+              bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+            }
+          } else {
+            console.log('🎵 Reached end of Bible - no more books');
+          }
         }
       }
-    }
-    
-    // Reset flag after a brief delay
-    setTimeout(() => {
-      isAutoAdvancingRef.current = false;
-    }, 1000);
-  }, [audioState]);
+      
+      // Reset flag after a brief delay
+      setTimeout(() => {
+        isAutoAdvancingRef.current = false;
+      }, 1000);
+      
+      return prev;
+    });
+  }, []);
 
   const goToPreviousChapter = useCallback(() => {
-    const { currentBook, currentChapter } = audioState;
-    if (!currentBook || currentChapter <= 1) return;
-    
-    const previousChapter = currentChapter - 1;
-    console.log(`🎵 Going to previous chapter: ${currentBook} ${previousChapter}`);
-    
-    if (chapterChangeCallbackRef.current) {
-      chapterChangeCallbackRef.current(previousChapter, false);
-    }
-  }, [audioState]);
+    setAudioState(prev => {
+      const { currentBook, currentChapter } = prev;
+      if (!currentBook || currentChapter <= 1) return prev;
+      
+      const previousChapter = currentChapter - 1;
+      console.log(`🎵 Going to previous chapter: ${currentBook} ${previousChapter}`);
+      
+      if (chapterChangeCallbackRef.current) {
+        chapterChangeCallbackRef.current(previousChapter, false);
+      }
+      
+      return prev;
+    });
+  }, []);
 
   const setChapterChangeCallback = useCallback((callback: (chapter: number, isAutoPlay: boolean) => void) => {
     chapterChangeCallbackRef.current = callback;

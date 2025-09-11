@@ -234,11 +234,16 @@ export const BibleChapterContent = ({
   // Create a key that changes when any setting changes to force re-render
   const settingsKey = `fontSize-${currentFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
   
+  // Global audio context for persistent audio across pages
+  const globalAudio = useGlobalAudio();
+  
   // MP3 Audio state
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  
+  // Use GlobalAudioContext state for playing status
+  const isPlaying = globalAudio?.audioState.isPlaying || false;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Media Session API for background audio playback
@@ -377,9 +382,6 @@ export const BibleChapterContent = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Global audio context for persistent audio across pages
-  const globalAudio = useGlobalAudio();
-  
   // Set up callbacks for global audio context
   useEffect(() => {
     if (globalAudio) {
@@ -411,36 +413,41 @@ export const BibleChapterContent = ({
     console.log('🔍 Audio auto-play effect triggered:', { 
       shouldAutoPlay, 
       hasAudioUrl: !!audioUrl, 
-      hasAudioRef: !!audioRef.current, 
+      hasGlobalAudio: !!globalAudio,
       isLoading,
       isPlaying,
       audioError: !!audioError 
     });
     
-    if (shouldAutoPlay && audioUrl && audioRef.current && !isLoading && !audioError && !isPlaying) {
-      console.log('🎵 BibleChapterContent: Auto-playing MP3 audio for next chapter');
+    if (shouldAutoPlay && audioUrl && globalAudio && !isLoading && !audioError && !isPlaying) {
+      console.log('🎵 BibleChapterContent: Auto-playing MP3 audio for next chapter via GlobalAudioContext');
       
-      // Wait a small amount to ensure audio element is ready
-      const playTimeout = setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.play()
-            .then(() => {
-              console.log('✅ Auto-play successful');
-              setIsPlaying(true);
-      // Reset shouldAutoPlay flag after successfully starting playback
-      onAutoPlayTriggered?.();
-            })
-            .catch(error => {
-              console.error('❌ Error auto-playing audio:', error);
-              // Still reset the flag even if auto-play fails
-              onAutoPlayTriggered?.();
-            });
+      // Use GlobalAudioContext to play the audio with auto-play next enabled
+      const playAudio = async () => {
+        try {
+          await globalAudio.playBibleChapterMP3(
+            selectedBook, 
+            selectedChapter, 
+            selectedVersion, 
+            autoPlayNext, // Enable auto-play next chapter
+            false // loopChapter
+          );
+          console.log('✅ Auto-play successful via GlobalAudioContext');
+          // Reset shouldAutoPlay flag after successfully starting playback
+          onAutoPlayTriggered?.();
+        } catch (error) {
+          console.error('❌ Error auto-playing audio via GlobalAudioContext:', error);
+          // Still reset the flag even if auto-play fails
+          onAutoPlayTriggered?.();
         }
-      }, 100);
+      };
+      
+      // Wait a small amount to ensure everything is ready
+      const playTimeout = setTimeout(playAudio, 100);
       
       return () => clearTimeout(playTimeout);
     }
-  }, [shouldAutoPlay, audioUrl, isLoading, audioError, isPlaying, onAutoPlayTriggered]);
+  }, [shouldAutoPlay, audioUrl, globalAudio, isLoading, audioError, isPlaying, onAutoPlayTriggered, selectedBook, selectedChapter, selectedVersion, autoPlayNext]);
 
   const fetchHighlights = async () => {
     try {
@@ -721,7 +728,6 @@ export const BibleChapterContent = ({
         src={audioUrl || undefined}
         onEnded={() => {
           console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}`);
-          setIsPlaying(false);
           
           // Auto-play next chapter if enabled
           if (autoPlayNext) {
@@ -748,14 +754,15 @@ export const BibleChapterContent = ({
             }, 100);
           }
         }}
-        onPause={() => setIsPlaying(false)}
+        onPause={() => {
+          // Update media session when paused
+          updateMediaSession();
+        }}
         onPlay={() => {
-          setIsPlaying(true);
           // Update media session when playing
           updateMediaSession();
         }}
         onError={() => {
-          setIsPlaying(false);
           setAudioError('Failed to play audio file');
         }}
         preload="metadata"
