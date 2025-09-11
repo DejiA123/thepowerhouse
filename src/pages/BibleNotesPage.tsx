@@ -528,9 +528,10 @@ const BibleNotesPage = () => {
                     editNote(selectedNote);
                   }
                 }}
+                title="Edit note"
               >
                 <div className="w-8 h-8 rounded-full border-2 border-orange-500 flex items-center justify-center">
-                  <span className="text-orange-500 text-lg">⋯</span>
+                  <Edit3 className="w-4 h-4 text-orange-500" />
                 </div>
               </Button>
             </div>
@@ -539,7 +540,14 @@ const BibleNotesPage = () => {
           {/* Note Content */}
           <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 px-4 pt-12 pb-6">
             {selectedNote && (
-              <div className="max-w-none">
+              <div 
+                className="max-w-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-4 transition-colors duration-200"
+                onClick={() => {
+                  setShowNoteDialog(false);
+                  editNote(selectedNote);
+                }}
+                title="Click anywhere to edit this note"
+              >
                 {/* Date with Close */}
                 <div className="relative mb-4">
                   <div className="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -547,7 +555,10 @@ const BibleNotesPage = () => {
                   </div>
                   <Button
                     variant="ghost"
-                    onClick={() => setShowNoteDialog(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowNoteDialog(false);
+                    }}
                     className="absolute right-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
                     aria-label="Close"
                   >
@@ -565,6 +576,14 @@ const BibleNotesPage = () => {
                   className="prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: selectedNote.note_text }}
                 />
+                
+                {/* Edit hint */}
+                <div className="mt-6 text-center">
+                  <div className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-full">
+                    <Edit3 className="w-4 h-4" />
+                    <span>Tap anywhere to edit</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -629,10 +648,10 @@ const BibleNotesPage = () => {
               <Button
                 onClick={editingNote ? updateNote : saveNote}
                 disabled={loading || !newNote.note_text.trim()}
-                className="text-orange-500 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium px-4 py-2"
-                variant="ghost"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-6 py-2 rounded-lg shadow-sm"
+                variant="default"
               >
-                Done
+                {editingNote ? 'Save' : 'Save'}
               </Button>
             </div>
           </div>
@@ -677,6 +696,18 @@ const BibleNotesPage = () => {
                 placeholder="Start writing..."
                 ref={richTextEditorRef}
               />
+              
+              {/* Save Button in Content Area */}
+              <div className="mt-6 pb-4">
+                <Button
+                  onClick={editingNote ? updateNote : saveNote}
+                  disabled={loading || !newNote.note_text.trim()}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-lg shadow-sm"
+                  size="lg"
+                >
+                  {loading ? 'Saving...' : (editingNote ? 'Save Changes' : 'Save Note')}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -734,9 +765,9 @@ const BibleNotesPage = () => {
             <Button
               onClick={editingNote ? updateNote : saveNote}
               disabled={loading || !newNote.note_text.trim()}
-              className="ml-2 bg-orange-500 text-white hover:bg-orange-600"
+              className="ml-2 bg-orange-500 text-white hover:bg-orange-600 px-6 py-2 rounded-lg shadow-sm font-medium"
             >
-              {editingNote ? 'Save Changes' : 'Save Note'}
+              {loading ? 'Saving...' : (editingNote ? 'Save Changes' : 'Save Note')}
             </Button>
             <Button variant="ghost" className="p-3">
               <div className="flex flex-col items-center">

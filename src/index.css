@@ -314,7 +314,7 @@
 }
 
 .bible-header-icon-full {
-  @apply p-2 hover:bg-gray-100 rounded;
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
 .bible-main-content-full {
@@ -351,7 +351,7 @@
 }
 
 .bible-nav-button-full {
-  @apply p-2 hover:bg-gray-100 rounded;
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
 .bible-navigation-controls {
@@ -724,7 +724,7 @@
 }
 
 .bible-header-icon {
-  @apply p-2 hover:bg-gray-100 rounded;
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
 .bible-main-content {
@@ -760,7 +760,7 @@
 }
 
 .bible-nav-button {
-  @apply p-2 hover:bg-gray-100 rounded;
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
 .bible-title {
