@@ -958,6 +958,41 @@ input, textarea, select {
   user-select: text;
 }
 
+/* PWA-specific layout fixes */
+@media (display-mode: standalone) {
+  /* Ensure PWA layout matches browser layout */
+  html, body {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
+    overflow-x: hidden;
+  }
+  
+  /* Prevent zoom gestures */
+  * {
+    touch-action: manipulation;
+  }
+  
+  /* Allow text selection in inputs */
+  input, textarea, [contenteditable] {
+    touch-action: auto;
+  }
+  
+  /* Ensure proper safe area handling */
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Fix toast positioning in PWA */
+  .fixed.top-4 {
+    top: calc(1rem + env(safe-area-inset-top));
+  }
+}
+
 /* Ensure inputs are properly focusable in PWA */
 input:focus, textarea:focus, select:focus {
   outline: none;
