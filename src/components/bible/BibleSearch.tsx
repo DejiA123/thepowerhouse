@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,233 +48,130 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
   const ntBooks = bibleBooks["New Testament"];
   const otBooks = bibleBooks["Old Testament"];
 
-  // Determine scanning order for fallback: NT first for Whole Bible to surface common terms quickly
-  const scanBooks = (() => {
-    switch (scope) {
-      case 'ot':
-        return otBooks;
-      case 'nt':
-        return ntBooks;
-      case 'book': {
-        const found = allBooks.find(b => b.apiName === scopeBook);
-        return found ? [found] : [];
-      }
-      case 'all':
-      default:
-        return [...ntBooks, ...otBooks];
-    }
-  })();
-
-  useEffect(() => {
-    // Clear results when modal closes
-    if (!isOpen) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setSearchQuery("");
-    }
-  }, [isOpen]);
-
-  const buildMatcher = (query: string) => {
-    const q = caseSensitive ? query : query.toLowerCase();
-    const tokens = q.split(/\s+/).filter(t => t.length > 0);
-    return (textIn: string) => {
-      const text = caseSensitive ? textIn : textIn.toLowerCase();
-      switch (matchType) {
-        case 'phrase':
-          return text.includes(q);
-        case 'all':
-          return tokens.every(t => text.includes(t));
-        case 'any':
-          return tokens.some(t => t.length > 2 && text.includes(t));
-        case 'whole': {
-          // whole word boundary search for the full query
-          const pattern = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\b`, caseSensitive ? 'g' : 'gi');
-          return pattern.test(textIn);
-        }
-        default:
-          return text.includes(q);
-      }
-    };
+  // Book name mapping for display
+  const getBookDisplayName = (apiName: string): string => {
+    const book = allBooks.find(b => b.apiName === apiName);
+    return book ? book.name : apiName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const highlight = (text: string, query: string) => {
+  // Highlight search terms in text
+  const highlight = (text: string, query: string): string => {
     if (!query.trim()) return text;
-    const esc = (s: string) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&');
-    let pattern: RegExp;
-    if (matchType === 'phrase' || matchType === 'contains') {
-      pattern = new RegExp(esc(query), caseSensitive ? 'g' : 'gi');
-    } else if (matchType === 'whole') {
-      pattern = new RegExp(`\\b${esc(query)}\\b`, caseSensitive ? 'g' : 'gi');
-    } else {
-      const parts = query.split(/\s+/).filter(Boolean).map(esc);
-      pattern = new RegExp(parts.join('|'), caseSensitive ? 'g' : 'gi');
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, caseSensitive ? 'g' : 'gi');
+    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>');
+  };
+
+  // Canonical book order for sorting
+  const getBookOrder = (bookName: string): number => {
+    const order: Record<string, number> = {
+      'Genesis': 1, 'Exodus': 2, 'Leviticus': 3, 'Numbers': 4, 'Deuteronomy': 5,
+      'Joshua': 6, 'Judges': 7, 'Ruth': 8, '1 Samuel': 9, '2 Samuel': 10,
+      '1 Kings': 11, '2 Kings': 12, '1 Chronicles': 13, '2 Chronicles': 14,
+      'Ezra': 15, 'Nehemiah': 16, 'Esther': 17, 'Job': 18, 'Psalms': 19,
+      'Proverbs': 20, 'Ecclesiastes': 21, 'Song of Solomon': 22, 'Isaiah': 23,
+      'Jeremiah': 24, 'Lamentations': 25, 'Ezekiel': 26, 'Daniel': 27,
+      'Hosea': 28, 'Joel': 29, 'Amos': 30, 'Obadiah': 31, 'Jonah': 32,
+      'Micah': 33, 'Nahum': 34, 'Habakkuk': 35, 'Zephaniah': 36,
+      'Haggai': 37, 'Zechariah': 38, 'Malachi': 39, 'Matthew': 40,
+      'Mark': 41, 'Luke': 42, 'John': 43, 'Acts': 44, 'Romans': 45,
+      '1 Corinthians': 46, '2 Corinthians': 47, 'Galatians': 48,
+      'Ephesians': 49, 'Philippians': 50, 'Colossians': 51,
+      '1 Thessalonians': 52, '2 Thessalonians': 53, '1 Timothy': 54,
+      '2 Timothy': 55, 'Titus': 56, 'Philemon': 57, 'Hebrews': 58,
+      'James': 59, '1 Peter': 60, '2 Peter': 61, '1 John': 62,
+      '2 John': 63, '3 John': 64, 'Jude': 65, 'Revelation': 66
+    };
+    return order[bookName] ?? 999;
+  };
+
+  const handleSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      return;
     }
-    // Use theme-aware highlight colors: darker text on light highlight in both themes
-    return text.replace(
-      pattern,
-      (m) => `<mark class="bg-yellow-200 text-gray-900 dark:bg-amber-300 dark:text-black rounded px-0.5">${m}</mark>`
-    );
-  };
 
-  const inScope = (apiName: string) => {
-    if (scope === 'all') return true;
-    if (scope === 'ot') return otSet.has(apiName);
-    if (scope === 'nt') return !otSet.has(apiName);
-    if (scope === 'book') return apiName === scopeBook;
-    return true;
-  };
-
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const raw = searchQuery.trim();
-    if (!raw) { setSearchResults([]); setIsSearching(false); return; }
-
-    const version = selectedVersion || 'kjv';
-    const currentRun = ++runIdRef.current;
     setIsSearching(true);
-    setSearchResults([]);
-
-    // Debug: Log current search settings
-    console.log('🔍 Search settings:', {
-      query: raw,
-      version: version,
-      sortCanonically: sortCanonically,
-      scope: scope,
-      matchType: matchType,
-      caseSensitive: caseSensitive
-    });
-
-    const matcher = buildMatcher(raw);
+    const currentRun = ++runIdRef.current;
 
     try {
-      // 1) Try API-backed search first (fastest when supported)
-      let apiResults: SearchResult[] = [];
-      try {
-        const verses = await enhancedApiBibleService.search(version, raw);
-        apiResults = (verses || []).map(v => {
-          // Map result.book (pretty name) to apiName
-          const found = allBooks.find(b => b.name.toLowerCase() === (v.book || '').toLowerCase())
-            || allBooks.find(b => b.apiName.toLowerCase() === (v.book || '').toLowerCase())
-            || allBooks.find(b => b.name.toLowerCase().includes((v.book || '').toLowerCase()))
-            || allBooks.find(b => (v.book || '').toLowerCase().includes(b.name.toLowerCase()));
-          
-          const apiName = found ? found.apiName : normalizeBookApiName(v.book || '');
-          const bookName = found ? found.name : (v.book || '');
-          
-          // Debug: Log the mapping to see what's happening
-          console.log('🔍 Book mapping:', {
-            originalBook: v.book,
-            foundBook: found?.name,
-            apiName: apiName,
-            bookName: bookName,
-            chapter: v.chapter,
-            verse: v.verse
-          });
-          
-          return {
-            book: apiName,
-            chapter: v.chapter || 1,
-            verse: parseInt(String(v.verse || 1)) || 1,
-            text: v.text || '',
-            bookName: bookName || apiName
-          } as SearchResult;
-        }).filter(r => inScope(r.book) && matcher(r.text));
-      } catch {}
+      console.log('🔍 BibleSearch: Starting search with settings:', {
+        query,
+        scope,
+        scopeBook,
+        matchType,
+        caseSensitive,
+        sortCanonically,
+        selectedVersion
+      });
 
-      // If API gave enough, use it; else fallback to local scan with a time budget
-      let combined: SearchResult[] = apiResults.slice(0, 200);
+      // Get books to search based on scope
+      let booksToSearch = allBooks;
+      if (scope === 'ot') {
+        booksToSearch = otBooks;
+      } else if (scope === 'nt') {
+        booksToSearch = ntBooks;
+      } else if (scope === 'book') {
+        booksToSearch = allBooks.filter(b => b.apiName === scopeBook);
+      }
 
-      if (combined.length < 25) {
-        const results: SearchResult[] = [...combined];
-        const baseBudget = scope === 'all' ? 10000 : (scope === 'ot' || scope === 'nt' ? 6000 : 4000);
-        const deadline = Date.now() + baseBudget; // adaptive time budget for fallback scan
-        let cancelled = false;
-        let lastFlush = Date.now();
-        outer: for (const bookInfo of scanBooks) {
-          if (!inScope(bookInfo.apiName)) continue;
-          for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-            if (runIdRef.current !== currentRun) { cancelled = true; break outer; }
-            if (Date.now() > deadline) break outer;
-            const chapterData = await enhancedApiBibleService.getChapter(version, bookInfo.apiName, chapter);
-            if (chapterData?.verses) {
-              for (const v of chapterData.verses) {
-                const verseText = String(v.text || '');
-                if (matcher(verseText)) {
-                  results.push({
-                    book: bookInfo.apiName,
-                    bookName: bookInfo.name,
-                    chapter,
-                    verse: parseInt(String(v.verse || '1')) || 1,
-                    text: verseText
-                  });
-                  if (results.length >= 200) break outer;
-                }
-              }
-              // Periodically flush partial results for responsiveness (every ~250ms)
-              if (Date.now() - lastFlush > 250 && runIdRef.current === currentRun) {
-                setSearchResults([...results]);
-                lastFlush = Date.now();
-              }
-            }
-          }
-        }
-        combined = results;
-        if (!cancelled && combined.length === 0 && Date.now() > deadline) {
-          // Indicate partial timeout (optional toast)
-          try { toast({ title: 'Partial Results', description: 'Showing partial results. Refine your search to narrow further.' }); } catch {}
+      console.log('🔍 BibleSearch: Books to search:', booksToSearch.map(b => b.name));
+
+      // Search each book
+      const allResults: SearchResult[] = [];
+      for (const book of booksToSearch) {
+        try {
+          const results = await enhancedApiBibleService.search(
+            selectedVersion || 'de4e12af7f28f599-02',
+            query
+          );
+
+          console.log(`🔍 BibleSearch: Results for ${book.name}:`, results.length);
+
+          // Convert API results to our format
+          const convertedResults = results.map(result => ({
+            book: book.apiName,
+            chapter: result.chapter,
+            verse: typeof result.verse === 'string' ? parseInt(result.verse) || 1 : result.verse,
+            text: result.text,
+            bookName: book.name
+          }));
+
+          allResults.push(...convertedResults);
+        } catch (error) {
+          console.error(`🔍 BibleSearch: Error searching ${book.name}:`, error);
         }
       }
 
-      if (sortCanonically) {
-        const order: Record<string, number> = {};
-        allBooks.forEach((b, i) => { order[b.apiName] = i; });
-        
-        // Debug: Log the sorting process
-        console.log('🔍 Canonical sorting:', {
-          totalResults: combined.length,
-          firstFewResults: combined.slice(0, 3).map(r => ({
-            book: r.book,
-            bookName: r.bookName,
-            chapter: r.chapter,
-            verse: r.verse,
-            order: order[r.book]
-          }))
-        });
-        
-        combined.sort((a, b) => {
-          const bookOrder = (order[a.book] ?? 999) - (order[b.book] ?? 999);
-          if (bookOrder !== 0) return bookOrder;
-          
-          const chapterOrder = a.chapter - b.chapter;
-          if (chapterOrder !== 0) return chapterOrder;
-          
+      console.log('🔍 BibleSearch: Total results before sorting:', allResults.length);
+
+      // Sort results canonically if requested
+      if (sortCanonically && allResults.length > 0) {
+        console.log('🔍 BibleSearch: Sorting canonically...');
+        allResults.sort((a, b) => {
+          const orderA = getBookOrder(a.bookName);
+          const orderB = getBookOrder(b.bookName);
+          if (orderA !== orderB) return orderA - orderB;
+          if (a.chapter !== b.chapter) return a.chapter - b.chapter;
           return a.verse - b.verse;
         });
-        
-        console.log('🔍 After canonical sorting:', {
-          firstFewResults: combined.slice(0, 3).map(r => ({
-            book: r.book,
-            bookName: r.bookName,
-            chapter: r.chapter,
-            verse: r.verse
-          }))
-        });
+        console.log('🔍 BibleSearch: Canonically sorted results');
       }
 
-      if (runIdRef.current !== currentRun) return; // allow finally to clear for the latest
-      setSearchResults(combined);
-      if (combined.length === 0) {
-        toast({ title: 'No Results', description: `No verses found containing "${raw}".` });
+      if (runIdRef.current === currentRun) {
+        setSearchResults(allResults);
+        console.log('🔍 BibleSearch: Final results set:', allResults.length);
       }
     } catch (error) {
-      if (runIdRef.current !== currentRun) {
-        // Another run started; let the latest run manage the spinner
-      } else {
-        console.error('Search error:', error);
-        toast({ title: 'Search Error', description: 'Failed to search Bible. Please try again.', variant: 'destructive' });
+      console.error('🔍 BibleSearch: Search error:', error);
+      if (runIdRef.current === currentRun) {
+        toast({
+          title: "Search Error",
+          description: "Failed to search the Bible. Please try again.",
+          variant: "destructive",
+        });
       }
     } finally {
-      // Only clear the spinner if this is still the latest run
       if (runIdRef.current === currentRun) setIsSearching(false);
     }
   };
@@ -298,142 +195,146 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] mt-32 sm:mt-36 md:mt-40 lg:mt-44">
-        <DialogHeader className="pb-4 pt-2">
-          <DialogTitle className="flex items-center space-x-2 text-lg">
-            <Search className="w-5 h-5" />
-            <span>Bible Search</span>
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => handleSearch(e)} className="space-y-4">
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Search verses, phrases, or topics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
-              {isSearching ? (
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
+      <DialogPortal>
+        <DialogOverlay className="fixed inset-0 z-[100] bg-black/80" style={{ pointerEvents: 'none' }} />
+        <DialogContent className="w-full h-[calc(100vh-80px)] max-w-none max-h-none m-0 rounded-none flex flex-col z-[101] bg-background" style={{ zIndex: 101, pointerEvents: 'auto' }}>
+          <DialogHeader className="pb-4 pt-2">
+            <DialogTitle className="flex items-center space-x-2 text-lg">
+              <Search className="w-5 h-5" />
+              <span>Bible Search</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="space-y-4">
+            <div className="flex space-x-2">
+              <Input
+                placeholder="Search verses, phrases, or topics..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="flex-1"
+              />
+              <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
+                {isSearching ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
 
-          {/* Advanced options toggle */}
-          <div className="border rounded-lg">
-            <button
-              type="button"
-              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filters</span>
-              </div>
-              {showAdvancedOptions ? (
-                <ChevronUp className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
-            
-            {showAdvancedOptions && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Settings2 className="w-3 h-3" /> Scope
-                  </div>
-                  <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Whole Bible</SelectItem>
-                      <SelectItem value="ot">Old Testament</SelectItem>
-                      <SelectItem value="nt">New Testament</SelectItem>
-                      <SelectItem value="book">Specific Book</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {scope === 'book' && (
-                    <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
-                      <SelectTrigger className="w-full mt-2">
+            {/* Advanced options toggle */}
+            <div className="border rounded-lg">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings2 className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filters</span>
+                </div>
+                {showAdvancedOptions ? (
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                )}
+              </button>
+              
+              {showAdvancedOptions && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Settings2 className="w-3 h-3" /> Scope
+                    </div>
+                    <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {allBooks.map(b => (
-                          <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
-                        ))}
+                        <SelectItem value="all">Whole Bible</SelectItem>
+                        <SelectItem value="ot">Old Testament</SelectItem>
+                        <SelectItem value="nt">New Testament</SelectItem>
+                        <SelectItem value="book">Specific Book</SelectItem>
                       </SelectContent>
                     </Select>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">Match Type</div>
-                  <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contains">Contains</SelectItem>
-                      <SelectItem value="phrase">Exact Phrase</SelectItem>
-                      <SelectItem value="all">All Words</SelectItem>
-                      <SelectItem value="any">Any Word</SelectItem>
-                      <SelectItem value="whole">Whole Word</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
-                    <label htmlFor="cs" className="text-xs text-muted-foreground">Case sensitive</label>
+                    {scope === 'book' && (
+                      <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
+                        <SelectTrigger className="w-full mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allBooks.map(b => (
+                            <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
-                    <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
+
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Match Type</div>
+                    <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="phrase">Exact Phrase</SelectItem>
+                        <SelectItem value="all">All Words</SelectItem>
+                        <SelectItem value="any">Any Word</SelectItem>
+                        <SelectItem value="whole">Whole Word</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
+                      <label htmlFor="cs" className="text-xs text-muted-foreground">Case sensitive</label>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
+                      <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </form>
+              )}
+            </div>
+          </form>
 
-        {searchResults.length > 0 && (
-          <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
-            <span>Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
-            {sortCanonically && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                Canonically sorted
-              </span>
-            )}
-          </div>
-        )}
+          {searchResults.length > 0 && (
+            <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
+              <span>Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+              {sortCanonically && (
+                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+                  Canonically sorted
+                </span>
+              )}
+            </div>
+          )}
 
-        <ScrollArea className="max-h-64 sm:max-h-80 md:max-h-96 mt-2">
-          <div className="space-y-2">
-            {searchResults.map((result, index) => (
-              <div
-                key={`${result.book}-${result.chapter}-${result.verse}-${index}`}
-                onClick={() => handleResultClick(result)}
-                className="p-3 rounded-lg border cursor-pointer hover:bg-muted transition-colors"
-              >
-                <div className="flex items-center space-x-2 mb-1">
-                  <BookOpen className="w-4 h-4 text-primary" />
-                  <span className="font-medium text-sm">
-                    {result.bookName} {result.chapter}:{result.verse}
-                  </span>
+          <ScrollArea className="flex-1 mt-2">
+            <div className="space-y-2">
+              {searchResults.map((result, index) => (
+                <div
+                  key={`${result.book}-${result.chapter}-${result.verse}-${index}`}
+                  onClick={() => handleResultClick(result)}
+                  className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-2 mb-1">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">
+                      {result.bookName} {result.chapter}:{result.verse}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: highlight(result.text, searchQuery) }} />
                 </div>
-                <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: highlight(result.text, searchQuery) }} />
-              </div>
-            ))}
-            {isSearching && (
-              <div className="text-xs text-muted-foreground p-2">Searching...</div>
-            )}
-          </div>
-        </ScrollArea>
-      </DialogContent>
+              ))}
+              {isSearching && (
+                <div className="text-xs text-muted-foreground p-2">Searching...</div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 };

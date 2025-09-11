@@ -583,10 +583,26 @@ export const BibleChapterContent = ({
   };
 
 
-  // Get the book display name (e.g., "Luke" instead of "Luke")
+  // Get the book display name (e.g., "2 Peter" instead of "2pe")
   const getBookDisplayName = () => {
-    if (!book) return selectedBook.replace(/_/g, ' ');
-    return book.name;
+    if (book) return book.name;
+    
+    // Fallback: try to convert API abbreviation to proper name
+    const abbreviationMap: Record<string, string> = {
+      '1sa': '1 Samuel', '2sa': '2 Samuel', '1ki': '1 Kings', '2ki': '2 Kings',
+      '1ch': '1 Chronicles', '2ch': '2 Chronicles', '1co': '1 Corinthians', '2co': '2 Corinthians',
+      '1th': '1 Thessalonians', '2th': '2 Thessalonians', '1ti': '1 Timothy', '2ti': '2 Timothy',
+      '1pe': '1 Peter', '2pe': '2 Peter', '1jn': '1 John', '2jn': '2 John', '3jn': '3 John',
+      'song': 'Song of Solomon', 'sos': 'Song of Solomon', 'eccl': 'Ecclesiastes'
+    };
+    
+    const normalizedBook = selectedBook.toLowerCase();
+    if (abbreviationMap[normalizedBook]) {
+      return abbreviationMap[normalizedBook];
+    }
+    
+    // Last resort: replace underscores and capitalize
+    return selectedBook.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   // Get the version display name from the versions array (same as modals)
