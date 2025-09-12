@@ -128,7 +128,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('pause', () => pause());
         navigator.mediaSession.setActionHandler('stop', () => stop());
         navigator.mediaSession.setActionHandler('previoustrack', () => goToPreviousChapter());
-        navigator.mediaSession.setActionHandler('nexttrack', () => goToNextChapter());
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          console.log('🎵 Media session nexttrack action triggered');
+          goToNextChapter();
+        });
       }
     }
 
@@ -140,6 +143,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.log('🎵 GlobalAudioContext: Page visible, ensuring audio context is active');
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
           audioContextRef.current.resume();
+        }
+        
+        // Check for any pending chapter changes from service worker
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'CHECK_PENDING_CHAPTER_CHANGE'
+          });
         }
       }
     };
@@ -295,10 +305,22 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             // Handle auto-play next chapter if enabled (use current state)
             if (prev.autoPlayNext && !isAutoAdvancingRef.current) {
               console.log('🎵 Auto-playing next chapter after MP3 completion');
-              // Use setTimeout to avoid state update conflicts
-              setTimeout(() => {
-                goToNextChapter();
-              }, 100);
+              
+              // Use requestIdleCallback for better background compatibility
+              const scheduleNextChapter = () => {
+                if (window.requestIdleCallback) {
+                  window.requestIdleCallback(() => {
+                    goToNextChapter();
+                  }, { timeout: 1000 });
+                } else {
+                  // Fallback to setTimeout with longer delay for background
+                  setTimeout(() => {
+                    goToNextChapter();
+                  }, document.hidden ? 500 : 100);
+                }
+              };
+              
+              scheduleNextChapter();
             }
             
             return { ...prev, isPlaying: false, isPaused: false };
@@ -443,6 +465,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const goToNextChapter = useCallback(() => {
     if (isAutoAdvancingRef.current) return;
     
+    console.log('🎵 goToNextChapter called, document.hidden:', document.hidden);
+    
     setAudioState(prev => {
       const { currentBook, currentChapter } = prev;
       if (!currentBook) return prev;
@@ -461,8 +485,37 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         
         if (nextChapter <= bookInfo.chapters) {
           console.log(`🎵 Going to next chapter: ${currentBook} ${nextChapter}`);
-          if (chapterChangeCallbackRef.current) {
-            chapterChangeCallbackRef.current(nextChapter, true);
+          
+          // Use a more robust callback mechanism for background scenarios
+          const triggerChapterChange = () => {
+            if (chapterChangeCallbackRef.current) {
+              try {
+                chapterChangeCallbackRef.current(nextChapter, true);
+              } catch (error) {
+                console.error('🎵 Error in chapter change callback:', error);
+              }
+            }
+          };
+          
+          // For background scenarios, use multiple fallback mechanisms
+          if (document.hidden) {
+            // When in background, try multiple approaches
+            triggerChapterChange();
+            
+            // Also try with a delay as backup
+            setTimeout(triggerChapterChange, 200);
+            
+            // Send message to service worker as additional backup
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: 'AUDIO_CHAPTER_CHANGE',
+                book: currentBook,
+                chapter: nextChapter,
+                isAutoPlay: true
+              });
+            }
+          } else {
+            triggerChapterChange();
           }
         } else {
           // Move to next book
@@ -474,8 +527,22 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (currentBookIndex < allBooks.length - 1) {
             const nextBook = allBooks[currentBookIndex + 1];
             console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
-            if (bookChangeCallbackRef.current) {
-              bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+            
+            const triggerBookChange = () => {
+              if (bookChangeCallbackRef.current) {
+                try {
+                  bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+                } catch (error) {
+                  console.error('🎵 Error in book change callback:', error);
+                }
+              }
+            };
+            
+            if (document.hidden) {
+              triggerBookChange();
+              setTimeout(triggerBookChange, 200);
+            } else {
+              triggerBookChange();
             }
           } else {
             console.log('🎵 Reached end of Bible - no more books');

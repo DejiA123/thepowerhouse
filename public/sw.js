@@ -117,6 +117,44 @@ self.addEventListener('message', (event) => {
         console.warn('🎵 Service Worker: Failed to persist audio state:', error);
       }
     }
+  } else if (event.data && event.data.type === 'AUDIO_CHAPTER_CHANGE') {
+    console.log('🎵 Service Worker: Chapter change message received:', event.data);
+    
+    // Store the chapter change for background persistence
+    try {
+      localStorage.setItem('sw_chapter_change', JSON.stringify({
+        book: event.data.book,
+        chapter: event.data.chapter,
+        isAutoPlay: event.data.isAutoPlay,
+        timestamp: Date.now()
+      }));
+      console.log('🎵 Service Worker: Chapter change persisted for background playback');
+    } catch (error) {
+      console.warn('🎵 Service Worker: Failed to persist chapter change:', error);
+    }
+  } else if (event.data && event.data.type === 'CHECK_PENDING_CHAPTER_CHANGE') {
+    console.log('🎵 Service Worker: Checking for pending chapter changes');
+    
+    try {
+      const pendingChange = localStorage.getItem('sw_chapter_change');
+      if (pendingChange) {
+        const changeData = JSON.parse(pendingChange);
+        console.log('🎵 Service Worker: Found pending chapter change:', changeData);
+        
+        // Send the pending change back to the main thread
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({
+            type: 'PENDING_CHAPTER_CHANGE',
+            data: changeData
+          });
+        }
+        
+        // Clear the pending change
+        localStorage.removeItem('sw_chapter_change');
+      }
+    } catch (error) {
+      console.warn('🎵 Service Worker: Error checking pending chapter changes:', error);
+    }
   }
 });
 

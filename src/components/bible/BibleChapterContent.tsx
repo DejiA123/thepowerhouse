@@ -733,8 +733,7 @@ export const BibleChapterContent = ({
           if (autoPlayNext) {
             console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
             
-            // Use setTimeout to ensure the state update happens even in background
-            setTimeout(() => {
+            const triggerNextChapter = () => {
               const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
               const nextChapter = selectedChapter + 1;
               
@@ -748,10 +747,20 @@ export const BibleChapterContent = ({
                   console.log(`🎵 Reached end of Bible - no more books to auto-play`);
                 }
               } else if (onChapterChange) {
-              console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
-              onChapterChange(nextChapter, true); // true indicates this is auto-play
+                console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
+                onChapterChange(nextChapter, true); // true indicates this is auto-play
               }
-            }, 100);
+            };
+            
+            // Use requestIdleCallback for better background compatibility
+            if (window.requestIdleCallback) {
+              window.requestIdleCallback(() => {
+                triggerNextChapter();
+              }, { timeout: 1000 });
+            } else {
+              // Fallback to setTimeout with longer delay for background
+              setTimeout(triggerNextChapter, document.hidden ? 500 : 100);
+            }
           }
         }}
         onPause={() => {
