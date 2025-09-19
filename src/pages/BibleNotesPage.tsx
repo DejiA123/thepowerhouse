@@ -501,9 +501,9 @@ const BibleNotesPage = () => {
 
       {/* iOS Style Note View Dialog */}
       <Dialog open={showNoteDialog} onOpenChange={setShowNoteDialog}>
-        <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0">
+        <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0 safe-area-inset">
           {/* iOS Style Header */}
-          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 pt-safe border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <Button
               variant="ghost"
               onClick={() => setShowNoteDialog(false)}
@@ -549,7 +549,7 @@ const BibleNotesPage = () => {
                 title="Click anywhere to edit this note"
               >
                 {/* Date with Close */}
-                <div className="relative mb-4">
+                <div className="relative mb-4 mt-safe">
                   <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
                     {formatDateTime(selectedNote.created_at)}
                   </div>
@@ -615,9 +615,9 @@ const BibleNotesPage = () => {
 
       {/* iOS Style New/Edit Note Dialog */}
       <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
-        <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0">
+        <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0 safe-area-inset">
           {/* iOS Style Header */}
-          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 pt-safe border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <Button
               variant="ghost"
               onClick={() => setShowNewNoteDialog(false)}
