@@ -3,6 +3,17 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
+// Register service worker for background audio support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then((registration) => {
+      console.log('🎵 Service Worker registered for background audio:', registration);
+    })
+    .catch((error) => {
+      console.warn('🎵 Service Worker registration failed:', error);
+    });
+}
+
 // Ensure React is available globally for debugging
 (window as any).React = React;
 

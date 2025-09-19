@@ -121,47 +121,128 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.warn('🎵 GlobalAudioContext: Failed to set audio attributes:', error);
       }
       
-      // Set up media session controls
+      // Set up media session controls for background audio
       if ('mediaSession' in navigator) {
-        console.log('🎵 GlobalAudioContext: Setting up media session controls');
-        navigator.mediaSession.setActionHandler('play', () => resume());
-        navigator.mediaSession.setActionHandler('pause', () => pause());
-        navigator.mediaSession.setActionHandler('stop', () => stop());
-        navigator.mediaSession.setActionHandler('previoustrack', () => goToPreviousChapter());
+        console.log('🎵 GlobalAudioContext: Setting up enhanced media session controls for background audio');
+        navigator.mediaSession.setActionHandler('play', () => {
+          console.log('🎵 Media Session: Play from background');
+          resume();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          console.log('🎵 Media Session: Pause from background');
+          pause();
+        });
+        navigator.mediaSession.setActionHandler('stop', () => {
+          console.log('🎵 Media Session: Stop from background');
+          stop();
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          console.log('🎵 Media Session: Previous track from background');
+          goToPreviousChapter();
+        });
         navigator.mediaSession.setActionHandler('nexttrack', () => {
-          console.log('🎵 Media session nexttrack action triggered');
+          console.log('🎵 Media Session: Next track from background');
           goToNextChapter();
         });
+        
+        // Enable background audio features
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: 0,
+            playbackRate: 1,
+            position: 0
+          });
+        } catch (error) {
+          console.warn('🎵 Failed to set position state:', error);
+        }
       }
     }
 
     // Enhanced page visibility handling for background audio
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.log('🎵 GlobalAudioContext: Page hidden, maintaining audio playback');
+        console.log('🎵 GlobalAudioContext: Page hidden, enabling background audio mode');
+        
+        // Ensure audio continues in background
+        if (currentAudioRef.current && !currentAudioRef.current.paused) {
+          console.log('🎵 Audio playing in background, maintaining playback');
+          
+          // Update media session for background mode
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing';
+          }
+        }
       } else {
-        console.log('🎵 GlobalAudioContext: Page visible, ensuring audio context is active');
+        console.log('🎵 GlobalAudioContext: Page visible, resuming foreground audio mode');
+        
+        // Resume audio context if suspended
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume();
+          audioContextRef.current.resume().catch(console.error);
         }
         
         // Check for any pending chapter changes from service worker
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          const messageChannel = new MessageChannel();
+          messageChannel.port1.onmessage = (event) => {
+            if (event.data.type === 'PENDING_CHAPTER_CHANGE') {
+              console.log('🎵 Found pending chapter change from background:', event.data.data);
+              const { book, chapter, isAutoPlay } = event.data.data;
+              
+              // Apply the pending chapter change
+              if (chapterChangeCallbackRef.current) {
+                chapterChangeCallbackRef.current(chapter, isAutoPlay);
+              } else if (bookChangeCallbackRef.current) {
+                bookChangeCallbackRef.current(book, chapter, isAutoPlay);
+              }
+            }
+          };
+          
           navigator.serviceWorker.controller.postMessage({
             type: 'CHECK_PENDING_CHAPTER_CHANGE'
-          });
+          }, [messageChannel.port2]);
         }
       }
     };
 
-    // Add event listeners
+    // Add event listeners for background audio support
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Enhanced service worker message handling for background audio
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      console.log('🎵 GlobalAudioContext: Service worker message:', event.data);
+      
+      if (event.data.type === 'BACKGROUND_NEXT_CHAPTER' || event.data.type === 'EXECUTE_NEXT_CHAPTER') {
+        const { book, chapter, isAutoPlay } = event.data;
+        console.log(`🎵 Background next chapter triggered: ${book} ${chapter}`);
+        
+        // Execute the chapter change
+        if (chapterChangeCallbackRef.current) {
+          chapterChangeCallbackRef.current(chapter, isAutoPlay || true);
+        } else if (bookChangeCallbackRef.current) {
+          bookChangeCallbackRef.current(book, chapter, isAutoPlay || true);
+        }
+      }
+    };
+    
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      
+      // Register this audio context with service worker
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'REGISTER_AUDIO_CONTEXT'
+        });
+      }
+    }
 
-    console.log('🎵 GlobalAudioContext: Background audio session setup complete');
+    console.log('🎵 GlobalAudioContext: Enhanced background audio session setup complete');
 
     // Cleanup function
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
     };
   }, []);
 
@@ -298,29 +379,51 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         currentAudioRef.current.preload = 'auto';
         currentAudioRef.current.volume = 1.0;
         
-        // Set up event listeners
+        // Enhanced event listeners for background audio support
         currentAudioRef.current.addEventListener('ended', () => {
-          console.log(`🎵 MP3 audio ended for ${book} ${chapter}`);
+          console.log(`🎵 MP3 audio ended for ${book} ${chapter}, document.hidden: ${document.hidden}`);
+          
+          // Notify service worker about audio end for background processing
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'AUDIO_ENDED',
+              book,
+              chapter,
+              autoPlayNext: audioState.autoPlayNext
+            });
+          }
+          
           setAudioState(prev => {
-            // Handle auto-play next chapter if enabled (use current state)
+            // Enhanced auto-play logic for background scenarios
             if (prev.autoPlayNext && !isAutoAdvancingRef.current) {
-              console.log('🎵 Auto-playing next chapter after MP3 completion');
+              console.log('🎵 Auto-playing next chapter after MP3 completion (background-aware)');
               
-              // Use requestIdleCallback for better background compatibility
-              const scheduleNextChapter = () => {
-                if (window.requestIdleCallback) {
-                  window.requestIdleCallback(() => {
-                    goToNextChapter();
-                  }, { timeout: 1000 });
-                } else {
-                  // Fallback to setTimeout with longer delay for background
-                  setTimeout(() => {
-                    goToNextChapter();
-                  }, document.hidden ? 500 : 100);
-                }
+              // Multiple strategies for background execution
+              const executeNextChapter = () => {
+                console.log('🎵 Executing next chapter transition');
+                goToNextChapter();
               };
               
-              scheduleNextChapter();
+              if (document.hidden) {
+                // Background execution - use service worker
+                console.log('🎵 App in background, using service worker for next chapter');
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                  navigator.serviceWorker.controller.postMessage({
+                    type: 'SCHEDULE_NEXT_CHAPTER',
+                    book,
+                    chapter
+                  });
+                }
+                // Also schedule locally as fallback
+                setTimeout(executeNextChapter, 100);
+              } else {
+                // Foreground execution
+                if (window.requestIdleCallback) {
+                  window.requestIdleCallback(executeNextChapter, { timeout: 1000 });
+                } else {
+                  setTimeout(executeNextChapter, 100);
+                }
+              }
             }
             
             return { ...prev, isPlaying: false, isPaused: false };
@@ -362,12 +465,54 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         hasAudio: true
       }));
 
-      // Update media session
+      // Update media session with enhanced metadata for background audio
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
+        const metadata = new MediaMetadata({
+          title: `${book} ${chapter}`,
+          artist: 'Bible Audio',
+          album: version.toUpperCase(),
+          artwork: [
+            { src: '/bible-icon.svg', sizes: '96x96', type: 'image/svg+xml' },
+            { src: '/bible-icon.svg', sizes: '128x128', type: 'image/svg+xml' },
+            { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' },
+            { src: '/bible-icon.svg', sizes: '256x256', type: 'image/svg+xml' },
+            { src: '/bible-icon.svg', sizes: '384x384', type: 'image/svg+xml' },
+            { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+          ]
+        });
+        navigator.mediaSession.metadata = metadata;
+        navigator.mediaSession.playbackState = 'playing';
+        
+        // Update position state for background audio tracking
+        try {
+          if (currentAudioRef.current) {
+            navigator.mediaSession.setPositionState({
+              duration: currentAudioRef.current.duration || 0,
+              playbackRate: currentAudioRef.current.playbackRate || 1,
+              position: currentAudioRef.current.currentTime || 0
+            });
+          }
+        } catch (error) {
+          console.warn('🎵 Failed to update position state:', error);
+        }
+        
+        console.log('🎵 Media session updated for background audio:', {
           title: `${book} ${chapter}`,
           artist: 'Bible Audio',
           album: version.toUpperCase()
+        });
+      }
+
+      // Notify service worker about current audio state
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'AUDIO_STATE_UPDATE',
+          book,
+          chapter,
+          version,
+          autoPlayNext,
+          loopChapter,
+          audioUrl
         });
       }
 

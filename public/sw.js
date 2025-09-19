@@ -235,16 +235,77 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Handle messages from main thread
+// Enhanced background audio message handling
 self.addEventListener('message', (event) => {
-  console.log('🎵 Service Worker: Message received:', event.data);
+  console.log('🎵 Service Worker: Enhanced message received:', event.data);
   
-  if (event.data.type === 'REGISTER_AUDIO') {
-    // Register background audio playback
-    console.log('🎵 Service Worker: Audio registered for background playback');
-  } else if (event.data.type === 'AUDIO_ENDED') {
-    // Handle audio ended event
-    console.log('🎵 Service Worker: Audio ended, checking for auto-play');
+  if (event.data.type === 'AUDIO_ENDED') {
+    console.log('🎵 Service Worker: Audio ended, processing auto-play logic');
+    
+    const { book, chapter, autoPlayNext } = event.data;
+    if (autoPlayNext) {
+      // Schedule next chapter in background
+      setTimeout(() => {
+        console.log('🎵 Service Worker: Auto-triggering next chapter from background');
+        
+        // Store the scheduled chapter change
+        try {
+          localStorage.setItem('sw_scheduled_next', JSON.stringify({
+            book,
+            nextChapter: chapter + 1,
+            timestamp: Date.now(),
+            isAutoPlay: true
+          }));
+          
+          // Try to communicate with main thread if available
+          self.clients.matchAll().then((clients) => {
+            clients.forEach((client) => {
+              client.postMessage({
+                type: 'BACKGROUND_NEXT_CHAPTER',
+                book,
+                chapter: chapter + 1
+              });
+            });
+          });
+        } catch (error) {
+          console.warn('🎵 Service Worker: Failed to schedule next chapter:', error);
+        }
+      }, 500); // Small delay to ensure proper background execution
+    }
+  } else if (event.data.type === 'SCHEDULE_NEXT_CHAPTER') {
+    console.log('🎵 Service Worker: Scheduling next chapter from background');
+    
+    const { book, chapter } = event.data;
+    
+    // Schedule immediate execution for background scenarios
+    setTimeout(() => {
+      console.log('🎵 Service Worker: Executing scheduled next chapter');
+      
+      try {
+        localStorage.setItem('sw_chapter_change', JSON.stringify({
+          book,
+          chapter: chapter + 1,
+          isAutoPlay: true,
+          timestamp: Date.now()
+        }));
+        
+        // Notify all clients
+        self.clients.matchAll().then((clients) => {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: 'EXECUTE_NEXT_CHAPTER',
+              book,
+              chapter: chapter + 1,
+              isAutoPlay: true
+            });
+          });
+        });
+      } catch (error) {
+        console.warn('🎵 Service Worker: Failed to execute next chapter:', error);
+      }
+    }, 100);
+  } else if (event.data.type === 'REGISTER_AUDIO_CONTEXT') {
+    console.log('🎵 Service Worker: Audio context registered for enhanced background playback');
   }
 });
 
