@@ -63,8 +63,8 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
     autoPlayNext 
   } = audioState;
 
-  // Don't show if no audio is active
-  if (!hasAudio && !isPlaying && !isPaused && !isLoading) {
+  // Don't show if no audio is active OR if audio is currently playing
+  if ((!hasAudio && !isPlaying && !isPaused && !isLoading) || isPlaying) {
     return null;
   }
 
