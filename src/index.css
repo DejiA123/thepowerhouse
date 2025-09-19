@@ -293,8 +293,21 @@
 }
 
 .bible-header-full {
-  @apply flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky top-0 z-[70] shadow-sm;
-  /* Removed padding-top: env(safe-area-inset-top) - main layout already handles safe area */
+  @apply flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky z-[70] shadow-sm;
+  top: env(safe-area-inset-top, 0);
+  /* Ensure proper positioning in PWA mode */
+}
+
+/* PWA specific adjustments for Bible header */
+@media (display-mode: standalone) {
+  .bible-header-full {
+    top: env(safe-area-inset-top, 0);
+    position: -webkit-sticky;
+    position: sticky;
+    /* Ensure visibility in PWA mode on iOS */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
 }
 
 .bible-header-buttons-full {
