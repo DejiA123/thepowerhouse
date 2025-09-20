@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageSquare, Users, Book, Lock, Calendar, Map } from "lucide-react";
+import { Heart, MessageSquare, Users, Book, Lock, Calendar, Video, Map, Play } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import DailyScripture from "@/components/DailyScripture";
 import EventCountdown from "@/components/EventCountdown";
 import LocationsSection from "@/components/LocationsSection";
-
+import PowerHouseVideos from "@/components/PowerHouseVideos";
 
 const HomePage = () => {
   const { user } = useAuth();
@@ -277,6 +277,10 @@ const HomePage = () => {
         <LocationsSection />
       </div>
 
+      {/* Power House Videos */}
+      <div className="px-4 mb-6">
+        <PowerHouseVideos />
+      </div>
     </div>
   );
 };
