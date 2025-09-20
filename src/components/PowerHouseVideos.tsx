@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Youtube, ExternalLink, Play, RefreshCw } from "lucide-react";
+import { ExternalLink, Play, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import VideoModal from "./VideoModal";
 
@@ -108,7 +108,6 @@ const PowerHouseVideos = () => {
     <div className="bg-card rounded-lg p-6 border-2 border-primary/20">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
         <div className="flex items-center space-x-3">
-          <Youtube className="w-6 h-6 text-red-500" />
           <h2 className="text-xl font-bold">The Power House International</h2>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -143,14 +142,12 @@ const PowerHouseVideos = () => {
 
       {error && videos.length === 0 && (
         <div className="text-center py-8">
-          <Youtube className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Unable to Load Videos</h3>
           <p className="text-muted-foreground mb-4">{error}</p>
           <Button 
             onClick={handleChannelClick}
             className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-full"
           >
-            <Youtube className="w-5 h-5 mr-2" />
             Visit YouTube Channel
             <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
@@ -159,7 +156,6 @@ const PowerHouseVideos = () => {
 
       {!loading && !error && videos.length === 0 && (
         <div className="text-center py-8">
-          <Youtube className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Videos Found</h3>
           <p className="text-muted-foreground mb-4">
             We couldn't find any videos right now. Visit the channel directly to see the latest content.
@@ -168,7 +164,6 @@ const PowerHouseVideos = () => {
             onClick={handleChannelClick}
             className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-full"
           >
-            <Youtube className="w-5 h-5 mr-2" />
             Visit YouTube Channel
             <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
@@ -239,7 +234,6 @@ const PowerHouseVideos = () => {
             onClick={handleChannelClick}
             className="border-primary text-primary hover:bg-primary hover:text-black rounded-full"
           >
-            <Youtube className="w-4 h-4 mr-2" />
             View All Videos
             <ExternalLink className="w-4 h-4 ml-2" />
           </Button>
