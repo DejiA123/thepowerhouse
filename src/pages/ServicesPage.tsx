@@ -3,10 +3,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, Calendar, MapPin, Users, Volume2, Eye } from "lucide-react";
+import { Clock, Calendar, MapPin, Users, Volume2, Eye } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
 import { supabase } from "@/integrations/supabase/client";
-import PowerHouseVideos from "@/components/PowerHouseVideos";
+
 
 interface LiveService {
   id: string;
@@ -185,7 +185,6 @@ const ServicesPage = () => {
                     className="flex-1"
                     variant={service.isLive ? "default" : "outline"}
                   >
-                    <Play className="w-4 h-4 mr-2" />
                     {service.isLive ? "Watch Live" : "Join Next Service"}
                   </Button>
                   <Button variant="outline" size="sm">
@@ -253,12 +252,10 @@ const ServicesPage = () => {
               <CardContent className="p-4">
                 <div className="flex space-x-4">
                   <div 
-                    className="w-32 h-20 bg-cover bg-center rounded-lg flex items-center justify-center cursor-pointer"
+                    className="w-32 h-20 bg-cover bg-center rounded-lg cursor-pointer"
                     style={{ backgroundImage: video.thumbnail }}
                     onClick={() => handleWatchPrevious(video)}
-                  >
-                    <Play className="w-8 h-8 text-white" />
-                  </div>
+                  ></div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground mb-1">{video.title}</h3>
                     <p className="text-sm text-muted-foreground mb-2">{video.date}</p>
@@ -278,7 +275,7 @@ const ServicesPage = () => {
                     size="sm"
                     onClick={() => handleWatchPrevious(video)}
                   >
-                    <Play className="w-4 h-4" />
+                    Watch
                   </Button>
                 </div>
               </CardContent>
@@ -311,8 +308,6 @@ const ServicesPage = () => {
         </CardContent>
       </Card>
 
-      {/* Power House YouTube Videos */}
-      <PowerHouseVideos />
 
       <VideoModal
         isOpen={isModalOpen}
