@@ -73,7 +73,7 @@ const SocialMediaPage = () => {
       name: "YouTube",
       handle: "@thepowerhouseintl",
       url: "https://www.youtube.com/@thepowerhouseintl",
-      icon: <YouTubeIcon />,
+      icon: null,
       color: "bg-red-600 text-white",
       description: "Watch full sermons, worship sessions, and ministry updates"
     },
