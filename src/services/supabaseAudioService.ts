@@ -153,7 +153,10 @@ export const supabaseAudioService = {
     }
     
     // Format: A01___01_Genesis_____ENGKJVO1DA.mp3
-    const chapterStr = chapter.toString().padStart(2, '0');
+    // Special case: Psalms uses 3-digit chapter padding instead of 2-digit
+    const chapterStr = normalizedBook === 'Psalms' 
+      ? chapter.toString().padStart(3, '0')
+      : chapter.toString().padStart(2, '0');
     let bookName = normalizedBook.replace(/\s+/g, ''); // Remove spaces
     
     // Special handling for abbreviated book names in the bucket
