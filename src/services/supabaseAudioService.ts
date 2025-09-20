@@ -169,7 +169,9 @@ export const supabaseAudioService = {
     // Calculate padding needed to make book name + underscores = 12 characters total
     const paddingNeeded = Math.max(0, 12 - bookName.length);
     const underscores = '_'.repeat(paddingNeeded);
-    const fileName = `${bookCode}___${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
+    // Special case: Psalms uses 2 underscores instead of 3 between book code and chapter
+    const separator = normalizedBook === 'Psalms' ? '__' : '___';
+    const fileName = `${bookCode}${separator}${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
     
     console.log(`✅ Generated filename: ${fileName} for ${book} ${chapter} (${version})`);
     console.log(`✅ Book: ${normalizedBook} → Code: ${bookCode}`);
