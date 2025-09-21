@@ -52,22 +52,114 @@ export const BibleBrainAudioPlayer = ({
     }
   }, [autoPlay, hasAudio, audioUrl, isLoading]);
 
-  // Set up audio event listeners
+  // Set up audio event listeners and Media Session
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Set up Media Session metadata
+    if ('mediaSession' in navigator && audioUrl) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `${book} Chapter ${chapter}`,
+        artist: 'Bible Audio',
+        album: version || 'Bible',
+        artwork: [
+          { src: '/bible-icon.svg', sizes: '96x96', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '128x128', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '256x256', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '384x384', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+        ]
+      });
+
+      // Set up Media Session action handlers
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('🎵 Media Session: Play from control center');
+        handlePlay();
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('🎵 Media Session: Pause from control center');
+        handlePause();
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        console.log('🎵 Media Session: Stop from control center');
+        handlePause();
+        if (audio) {
+          audio.currentTime = 0;
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        console.log('🎵 Media Session: Previous chapter from control center');
+        handlePreviousChapter();
+      });
+
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        console.log('🎵 Media Session: Next chapter from control center');
+        handleNextChapter();
+      });
+
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        if (audio) {
+          audio.currentTime = Math.max(0, audio.currentTime - skipTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        if (audio) {
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + skipTime);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && audio) {
+          audio.currentTime = details.seekTime;
+        }
+      });
+
+      // Set initial playback state
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
+      
+      // Update Media Session position state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime
+        });
+      }
     };
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
+      
+      // Update Media Session position
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime
+        });
+      }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
+      
+      // Update Media Session state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
       
       // Auto play next chapter if enabled
       if (preferences.autoPlayNext) {
@@ -95,6 +187,11 @@ export const BibleBrainAudioPlayer = ({
       setError('Audio playback failed');
       setIsPlaying(false);
       setIsLoading(false);
+      
+      // Update Media Session state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
     };
 
     const handleCanPlay = () => {
@@ -102,11 +199,31 @@ export const BibleBrainAudioPlayer = ({
       setError(null);
     };
 
+    const handlePlay = () => {
+      setIsPlaying(true);
+      
+      // Update Media Session state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+    };
+
+    const handlePauseEvent = () => {
+      setIsPlaying(false);
+      
+      // Update Media Session state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    };
+
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePauseEvent);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -114,8 +231,10 @@ export const BibleBrainAudioPlayer = ({
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePauseEvent);
     };
-  }, [chapter, onChapterChange, preferences.autoPlayNext]);
+  }, [chapter, onChapterChange, preferences.autoPlayNext, audioUrl, book, version, isPlaying]);
 
   const loadAudio = async () => {
     try {

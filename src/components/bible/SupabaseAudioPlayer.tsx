@@ -45,6 +45,77 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     }
   }, [preferences?.pitch]);
 
+  // Set up Media Session when audio file is loaded
+  useEffect(() => {
+    if (!audioFileInfo) return;
+
+    // Set up Media Session metadata
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `${book} Chapter ${chapter}`,
+        artist: 'Bible Audio',
+        album: version || 'Bible',
+        artwork: [
+          { src: '/bible-icon.svg', sizes: '96x96', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '128x128', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '256x256', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '384x384', type: 'image/svg+xml' },
+          { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+        ]
+      });
+
+      // Set up Media Session action handlers
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('🎵 Media Session: Play from control center');
+        if (audioRef.current && !isPlaying) {
+          togglePlayPause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('🎵 Media Session: Pause from control center');
+        if (audioRef.current && isPlaying) {
+          togglePlayPause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        console.log('🎵 Media Session: Stop from control center');
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        skipBackward();
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        const skipTime = details.seekOffset || 10;
+        skipForward();
+      });
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && audioRef.current) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
+
+      // Set initial playback state
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [audioFileInfo, book, chapter, version]);
+
+  // Update Media Session playback state when playing state changes
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
   const loadAudioFile = async () => {
     try {
       setIsLoading(true);
@@ -97,12 +168,30 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
+      
+      // Update Media Session position
+      if ('mediaSession' in navigator && duration > 0) {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: audioRef.current.playbackRate,
+          position: audioRef.current.currentTime
+        });
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
+      
+      // Update Media Session position state
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setPositionState({
+          duration: audioRef.current.duration,
+          playbackRate: audioRef.current.playbackRate,
+          position: audioRef.current.currentTime
+        });
+      }
     }
   };
 
