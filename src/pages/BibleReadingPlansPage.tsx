@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { readingPlanService, ReadingPlan } from "@/services/readingPlanService";
+import { useToast } from "@/hooks/use-toast";
 
 const BibleReadingPlansPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("Find Plans");
   const [searchQuery, setSearchQuery] = useState("");
   const [enrolledPlans, setEnrolledPlans] = useState<string[]>([]);
@@ -19,24 +21,19 @@ const BibleReadingPlansPage = () => {
 
   const tabs = ["My Plans", "Find Plans", "Saved", "Completed"];
 
-  // Mock data for categories and featured plans
+  // Categories based on reading plan difficulty levels
   const categories = [
-    { name: "New", color: "bg-blue-100 text-blue-800" },
-    { name: "Relationships", color: "bg-green-100 text-green-800" },
-    { name: "Listen & Watch", color: "bg-purple-100 text-purple-800" },
-    { name: "Grace", color: "bg-orange-100 text-orange-800" },
-    { name: "Prayer", color: "bg-red-100 text-red-800" },
-    { name: "Purpose", color: "bg-indigo-100 text-indigo-800" },
+    { name: "Beginner", color: "bg-green-100 text-green-800" },
+    { name: "Intermediate", color: "bg-blue-100 text-blue-800" },
+    { name: "Advanced", color: "bg-purple-100 text-purple-800" },
+    { name: "Wisdom", color: "bg-orange-100 text-orange-800" },
+    { name: "Gospels", color: "bg-red-100 text-red-800" },
+    { name: "Letters", color: "bg-indigo-100 text-indigo-800" },
   ];
-
-  const featuredPlan = {
-    id: "genesis-explained",
-    title: "Genesis Explained",
-    subtitle: "Part 2 | the Journey Begins",
-    image: "/api/placeholder/400/200",
-    category: "New",
-    participants: 1247
-  };
+  
+  const allPlans = readingPlanService.getAllPlans();
+  // Get featured plan (Bible in a Year)
+  const featuredPlan = allPlans.find(plan => plan.id === "bible-year");
 
   useEffect(() => {
     if (user) {
@@ -48,7 +45,6 @@ const BibleReadingPlansPage = () => {
     if (!user) return;
 
     try {
-      // For now, we'll use localStorage as a fallback until the database table is created
       const storedProgress = localStorage.getItem(`reading_plans_${user.id}`);
       if (storedProgress) {
         const parsedData = JSON.parse(storedProgress);
@@ -60,8 +56,6 @@ const BibleReadingPlansPage = () => {
       console.error('Error fetching user progress:', error);
     }
   };
-
-  const allPlans = readingPlanService.getAllPlans();
   const filteredPlans = allPlans.filter(plan => 
     plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     plan.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -102,15 +96,92 @@ const BibleReadingPlansPage = () => {
       
       setEnrolledPlans(newEnrolled);
       setUserProgress(newProgress);
+      
+      toast({
+        title: "Plan Started!",
+        description: `You've enrolled in ${readingPlanService.getPlanById(planId)?.name}`,
+      });
     } catch (error) {
       console.error('Error starting plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start the reading plan. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReadToday = (planId: string) => {
+    const plan = readingPlanService.getPlanById(planId);
+    const currentDay = userProgress[planId] || 1;
+    const todaysReading = readingPlanService.getTodaysReading(planId, currentDay);
+    
+    if (todaysReading && todaysReading.readings.length > 0) {
+      // Navigate to Bible page with the first reading
+      const firstReading = todaysReading.readings[0];
+      const [book, chapters] = firstReading.split(' ');
+      const chapter = chapters ? chapters.split('-')[0] : '1';
+      
+      navigate(`/bible?book=${encodeURIComponent(book)}&chapter=${chapter}`);
+    }
+  };
+
+  const markDayComplete = (planId: string) => {
+    const currentDay = userProgress[planId] || 1;
+    const plan = readingPlanService.getPlanById(planId);
+    
+    if (!plan) return;
+    
+    const newDay = currentDay + 1;
+    const newProgress = { ...userProgress, [planId]: newDay };
+    
+    // Check if plan is completed
+    if (newDay > plan.totalDays) {
+      const newCompleted = [...completedPlans, planId];
+      setCompletedPlans(newCompleted);
+      
+      localStorage.setItem(`reading_plans_${user?.id}`, JSON.stringify({
+        enrolled: enrolledPlans,
+        progress: newProgress,
+        completed: newCompleted
+      }));
+      
+      toast({
+        title: "🎉 Plan Completed!",
+        description: `Congratulations! You've completed ${plan.name}. ${plan.reward}`,
+      });
+    } else {
+      setUserProgress(newProgress);
+      
+      localStorage.setItem(`reading_plans_${user?.id}`, JSON.stringify({
+        enrolled: enrolledPlans,
+        progress: newProgress,
+        completed: completedPlans
+      }));
+      
+      toast({
+        title: "Day Complete!",
+        description: `Great job! You're on day ${newDay} of ${plan.totalDays}.`,
+      });
     }
   };
 
   const renderPlanCard = (plan: ReadingPlan) => {
     const isEnrolled = enrolledPlans.includes(plan.id);
+    const isCompleted = completedPlans.includes(plan.id);
     const progress = userProgress[plan.id] || 0;
     const progressPercentage = (progress / plan.totalDays) * 100;
+    const currentDay = progress;
+    const todaysReading = readingPlanService.getTodaysReading(plan.id, currentDay);
+
+    const getCategoryColor = (category: string) => {
+      switch (category) {
+        case "beginner": return "bg-green-100 text-green-800";
+        case "intermediate": return "bg-blue-100 text-blue-800";
+        case "advanced": return "bg-purple-100 text-purple-800";
+        default: return "bg-gray-100 text-gray-800";
+      }
+    };
 
     return (
       <Card key={plan.id} className="hover:shadow-lg transition-shadow">
@@ -126,18 +197,50 @@ const BibleReadingPlansPage = () => {
             {/* Plan Content */}
             <div className="flex-1 p-4">
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
+                    <Badge className={getCategoryColor(plan.category)} variant="outline">
+                      {plan.category}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                 </div>
-                <Button 
-                  size="sm" 
-                  onClick={() => handleStartPlan(plan.id)}
-                  disabled={isEnrolled}
-                  className="ml-4"
-                >
-                  {isEnrolled ? "Enrolled" : "Start"}
-                </Button>
+                
+                <div className="flex gap-2 ml-4">
+                  {!isEnrolled && !isCompleted && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleStartPlan(plan.id)}
+                    >
+                      Start
+                    </Button>
+                  )}
+                  
+                  {isEnrolled && !isCompleted && (
+                    <>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleReadToday(plan.id)}
+                      >
+                        Read Today
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => markDayComplete(plan.id)}
+                      >
+                        Mark Complete
+                      </Button>
+                    </>
+                  )}
+                  
+                  {isCompleted && (
+                    <Badge className="bg-green-100 text-green-800">
+                      ✓ Completed
+                    </Badge>
+                  )}
+                </div>
               </div>
               
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -147,7 +250,7 @@ const BibleReadingPlansPage = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{Math.floor(Math.random() * 1000)} participants</span>
+                  <span>{Math.floor(Math.random() * 1000) + 100} participants</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -155,18 +258,29 @@ const BibleReadingPlansPage = () => {
                 </div>
               </div>
               
-              {isEnrolled && (
+              {isEnrolled && !isCompleted && todaysReading && (
                 <div className="mt-3">
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <strong>Today's Reading (Day {currentDay}):</strong> {todaysReading.readings.join(", ")}
+                  </div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Progress</span>
-                    <span>{Math.round(progressPercentage)}%</span>
+                    <span>{Math.round(progressPercentage)}% ({currentDay}/{plan.totalDays} days)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
-                      className="bg-primary h-2 rounded-full" 
+                      className="bg-primary h-2 rounded-full transition-all" 
                       style={{ width: `${progressPercentage}%` }}
                     ></div>
                   </div>
+                </div>
+              )}
+
+              {isCompleted && (
+                <div className="mt-3 p-2 bg-green-50 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    🎉 Completed! {plan.reward}
+                  </p>
                 </div>
               )}
             </div>
@@ -177,23 +291,19 @@ const BibleReadingPlansPage = () => {
   };
 
   const renderCategoryPlans = () => {
-    const plansByCategory = categories.reduce((acc, category) => {
-      const categoryPlans = filteredPlans.filter(plan => 
-        plan.category.toLowerCase() === category.name.toLowerCase()
-      );
-      if (categoryPlans.length > 0) {
-        acc[category.name] = categoryPlans.slice(0, 3); // Show max 3 per category
-      }
-      return acc;
-    }, {} as Record<string, ReadingPlan[]>);
+    const plansByCategory = {
+      "Beginner": allPlans.filter(plan => plan.category === "beginner"),
+      "Intermediate": allPlans.filter(plan => plan.category === "intermediate"), 
+      "Advanced": allPlans.filter(plan => plan.category === "advanced")
+    };
 
     return Object.entries(plansByCategory).map(([categoryName, plans]) => {
-      const category = categories.find(c => c.name === categoryName);
+      if (plans.length === 0) return null;
       
       return (
         <div key={categoryName} className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">{categoryName}</h2>
+            <h2 className="text-xl font-bold">{categoryName} Plans</h2>
             <Button variant="ghost" size="sm" className="text-primary">
               See all <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
@@ -204,7 +314,7 @@ const BibleReadingPlansPage = () => {
           </div>
         </div>
       );
-    });
+    }).filter(Boolean);
   };
 
   return (
@@ -254,28 +364,41 @@ const BibleReadingPlansPage = () => {
         {activeTab === "Find Plans" && (
           <>
             {/* Featured Plan */}
-            <Card className="mb-6 overflow-hidden">
-              <CardContent className="p-0">
-                <div className="relative">
-                  <div className="h-48 bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <h2 className="text-3xl font-bold mb-2">Genesis</h2>
-                      <h3 className="text-3xl font-bold">Explained</h3>
-                      <Badge className="mt-4 bg-orange-500 text-white">PART 2</Badge>
+            {featuredPlan && (
+              <Card className="mb-6 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative">
+                    <div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                      <div className="text-center text-white">
+                        <h2 className="text-3xl font-bold mb-2">{featuredPlan.name}</h2>
+                        <p className="text-lg opacity-90">{featuredPlan.description}</p>
+                        <Badge className="mt-4 bg-white/20 text-white">FEATURED</Badge>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-lg">Genesis Explained Part 2 | the Journey Begins</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>1 participant</span>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{featuredPlan.duration}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            <span>{Math.floor(Math.random() * 1000) + 500} participants</span>
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={() => handleStartPlan(featuredPlan.id)}
+                          disabled={enrolledPlans.includes(featuredPlan.id)}
+                        >
+                          {enrolledPlans.includes(featuredPlan.id) ? "Enrolled" : "Start Plan"}
+                        </Button>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Categories */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
