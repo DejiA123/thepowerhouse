@@ -76,12 +76,18 @@ export const BibleBrainAudioPlayer = ({
       // Set up Media Session action handlers
       navigator.mediaSession.setActionHandler('play', () => {
         console.log('🎵 Media Session: Play from control center');
-        handlePlay();
+        if (audioRef.current && audioRef.current.paused) {
+          audioRef.current.play().catch(err => {
+            console.error('Media Session play error:', err);
+          });
+        }
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
         console.log('🎵 Media Session: Pause from control center');
-        handlePause();
+        if (audioRef.current && !audioRef.current.paused) {
+          audioRef.current.pause();
+        }
       });
 
       navigator.mediaSession.setActionHandler('stop', () => {

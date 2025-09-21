@@ -68,15 +68,17 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
       // Set up Media Session action handlers
       navigator.mediaSession.setActionHandler('play', () => {
         console.log('🎵 Media Session: Play from control center');
-        if (audioRef.current && !isPlaying) {
-          togglePlayPause();
+        if (audioRef.current && audioRef.current.paused) {
+          audioRef.current.play().catch(err => {
+            console.error('Media Session play error:', err);
+          });
         }
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
         console.log('🎵 Media Session: Pause from control center');
-        if (audioRef.current && isPlaying) {
-          togglePlayPause();
+        if (audioRef.current && !audioRef.current.paused) {
+          audioRef.current.pause();
         }
       });
 
