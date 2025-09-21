@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Star, Users, Clock, ChevronRight, ArrowLeft } from "lucide-react";
+import { Search, Star, Users, Clock, ChevronRight, ArrowLeft, X, BookOpen, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { readingPlanService, ReadingPlan } from "@/services/readingPlanService";
@@ -18,6 +19,9 @@ const BibleReadingPlansPage = () => {
   const [enrolledPlans, setEnrolledPlans] = useState<string[]>([]);
   const [userProgress, setUserProgress] = useState<Record<string, number>>({});
   const [completedPlans, setCompletedPlans] = useState<string[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<ReadingPlan | null>(null);
+  const [showStartModal, setShowStartModal] = useState(false);
+  const [planParticipants, setPlanParticipants] = useState<Record<string, number>>({});
 
   const tabs = ["My Plans", "Find Plans", "Saved", "Completed"];
 
@@ -39,7 +43,17 @@ const BibleReadingPlansPage = () => {
     if (user) {
       fetchUserProgress();
     }
+    initializePlanParticipants();
   }, [user]);
+
+  const initializePlanParticipants = () => {
+    const participants: Record<string, number> = {};
+    allPlans.forEach(plan => {
+      const stored = localStorage.getItem(`plan_participants_${plan.id}`);
+      participants[plan.id] = stored ? parseInt(stored) : 0;
+    });
+    setPlanParticipants(participants);
+  };
 
   const fetchUserProgress = async () => {
     if (!user) return;
@@ -77,16 +91,29 @@ const BibleReadingPlansPage = () => {
     }
   };
 
-  const handleStartPlan = async (planId: string) => {
+  const handlePlanClick = (planId: string) => {
     if (!user) {
       navigate('/auth');
       return;
     }
 
+    const plan = readingPlanService.getPlanById(planId);
+    if (plan) {
+      setSelectedPlan(plan);
+      setShowStartModal(true);
+    }
+  };
+
+  const handleStartPlan = async (planId: string) => {
     try {
       // For now, we'll use localStorage as a fallback
       const newEnrolled = [...enrolledPlans, planId];
       const newProgress = { ...userProgress, [planId]: 1 };
+      
+      // Increment participant count
+      const currentCount = planParticipants[planId] || 0;
+      const newCount = currentCount + 1;
+      const newParticipants = { ...planParticipants, [planId]: newCount };
       
       localStorage.setItem(`reading_plans_${user.id}`, JSON.stringify({
         enrolled: newEnrolled,
@@ -94,8 +121,12 @@ const BibleReadingPlansPage = () => {
         completed: completedPlans
       }));
       
+      localStorage.setItem(`plan_participants_${planId}`, newCount.toString());
+      
       setEnrolledPlans(newEnrolled);
       setUserProgress(newProgress);
+      setPlanParticipants(newParticipants);
+      setShowStartModal(false);
       
       toast({
         title: "Plan Started!",
@@ -106,6 +137,43 @@ const BibleReadingPlansPage = () => {
       toast({
         title: "Error",
         description: "Failed to start the reading plan. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleStopPlan = async (planId: string) => {
+    try {
+      const newEnrolled = enrolledPlans.filter(id => id !== planId);
+      const newProgress = { ...userProgress };
+      delete newProgress[planId];
+      
+      // Decrement participant count
+      const currentCount = planParticipants[planId] || 0;
+      const newCount = Math.max(0, currentCount - 1);
+      const newParticipants = { ...planParticipants, [planId]: newCount };
+      
+      localStorage.setItem(`reading_plans_${user?.id}`, JSON.stringify({
+        enrolled: newEnrolled,
+        progress: newProgress,
+        completed: completedPlans
+      }));
+      
+      localStorage.setItem(`plan_participants_${planId}`, newCount.toString());
+      
+      setEnrolledPlans(newEnrolled);
+      setUserProgress(newProgress);
+      setPlanParticipants(newParticipants);
+      
+      toast({
+        title: "Plan Stopped",
+        description: `You've left ${readingPlanService.getPlanById(planId)?.name}`,
+      });
+    } catch (error) {
+      console.error('Error stopping plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to stop the reading plan. Please try again.",
         variant: "destructive"
       });
     }
@@ -211,7 +279,7 @@ const BibleReadingPlansPage = () => {
                   {!isEnrolled && !isCompleted && (
                     <Button 
                       size="sm" 
-                      onClick={() => handleStartPlan(plan.id)}
+                      onClick={() => handlePlanClick(plan.id)}
                     >
                       Start
                     </Button>
@@ -232,6 +300,14 @@ const BibleReadingPlansPage = () => {
                       >
                         Mark Complete
                       </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => handleStopPlan(plan.id)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Stop Plan
+                      </Button>
                     </>
                   )}
                   
@@ -250,7 +326,7 @@ const BibleReadingPlansPage = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{Math.floor(Math.random() * 1000) + 100} participants</span>
+                  <span>{planParticipants[plan.id] || 0} participants</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -398,6 +474,89 @@ const BibleReadingPlansPage = () => {
           </>
         )}
       </div>
+
+      {/* Start Plan Modal */}
+      <Dialog open={showStartModal} onOpenChange={setShowStartModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="w-6 h-6" />
+              Start Reading Plan
+            </DialogTitle>
+            <DialogDescription>
+              Review the plan details before starting your journey
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPlan && (
+            <div className="space-y-6">
+              {/* Plan Overview */}
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-lg">
+                <h3 className="text-xl font-bold mb-2">{selectedPlan.name}</h3>
+                <p className="text-muted-foreground mb-3">{selectedPlan.description}</p>
+                
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{selectedPlan.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>{selectedPlan.totalDays} days</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    <span>{planParticipants[selectedPlan.id] || 0} participants</span>
+                  </div>
+                  <Badge className="ml-auto">
+                    {selectedPlan.category}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Today's Reading Preview */}
+              {(() => {
+                const todaysReading = readingPlanService.getTodaysReading(selectedPlan.id, 1);
+                return todaysReading ? (
+                  <div>
+                    <h4 className="font-semibold mb-2">Day 1 Reading:</h4>
+                    <div className="bg-muted p-3 rounded-lg">
+                      <p className="text-sm">{todaysReading.readings.join(", ")}</p>
+                      {todaysReading.description && (
+                        <p className="text-xs text-muted-foreground mt-1">{todaysReading.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Plan Reward */}
+              <div className="bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Completion Reward:</strong> {selectedPlan.reward}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowStartModal(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => handleStartPlan(selectedPlan.id)}
+                  className="flex-1"
+                >
+                  Start This Plan
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
