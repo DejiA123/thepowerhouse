@@ -363,55 +363,6 @@ const BibleReadingPlansPage = () => {
       <div className="max-w-4xl mx-auto p-4">
         {activeTab === "Find Plans" && (
           <>
-            {/* Featured Plan */}
-            {featuredPlan && (
-              <Card className="mb-6 overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="relative">
-                    <div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <div className="text-center text-white">
-                        <h2 className="text-3xl font-bold mb-2">{featuredPlan.name}</h2>
-                        <p className="text-lg opacity-90">{featuredPlan.description}</p>
-                        <Badge className="mt-4 bg-white/20 text-white">FEATURED</Badge>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{featuredPlan.duration}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>{Math.floor(Math.random() * 1000) + 500} participants</span>
-                          </div>
-                        </div>
-                        <Button 
-                          onClick={() => handleStartPlan(featuredPlan.id)}
-                          disabled={enrolledPlans.includes(featuredPlan.id)}
-                        >
-                          {enrolledPlans.includes(featuredPlan.id) ? "Enrolled" : "Start Plan"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Categories */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-              {categories.map((category) => (
-                <Badge
-                  key={category.name}
-                  variant="outline"
-                  className={`whitespace-nowrap cursor-pointer hover:opacity-80 ${category.color}`}
-                >
-                  {category.name}
-                </Badge>
-              ))}
-            </div>
 
             {/* Category Sections */}
             {renderCategoryPlans()}
