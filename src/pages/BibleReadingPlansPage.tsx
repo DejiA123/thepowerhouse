@@ -496,8 +496,8 @@ const BibleReadingPlansPage = () => {
 
       {/* Start Plan Modal */}
       <Dialog open={showStartModal} onOpenChange={setShowStartModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-6 pb-0 flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="w-6 h-6" />
               Start Reading Plan
@@ -506,6 +506,8 @@ const BibleReadingPlansPage = () => {
               Review the plan details before starting your journey
             </DialogDescription>
           </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
           
           {selectedPlan && (
             <div className="space-y-6">
@@ -686,6 +688,7 @@ const BibleReadingPlansPage = () => {
               })()}
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
