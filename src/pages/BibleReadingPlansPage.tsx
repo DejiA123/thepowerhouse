@@ -126,7 +126,7 @@ const BibleReadingPlansPage = () => {
       setEnrolledPlans(newEnrolled);
       setUserProgress(newProgress);
       setPlanParticipants(newParticipants);
-      setShowStartModal(false);
+      // Don't close modal - keep it open for progress tracking
       
       toast({
         title: "Plan Started!",
@@ -231,6 +231,25 @@ const BibleReadingPlansPage = () => {
         title: "Day Complete!",
         description: `Great job! You're on day ${newDay} of ${plan.totalDays}.`,
       });
+    }
+  };
+
+  const getPlanIntroduction = (planId: string): string => {
+    switch (planId) {
+      case "bible-year":
+        return "Embark on a transformative year-long journey through the entire Bible. This comprehensive plan will take you through both Old and New Testaments, giving you a complete overview of God's word. Perfect for building a strong foundation in Biblical knowledge.";
+      case "psalms-proverbs":
+        return "Dive deep into the wisdom literature of the Bible. This plan focuses on the Psalms for worship and praise, and Proverbs for practical daily wisdom. Ideal for daily inspiration and guidance in your spiritual walk.";
+      case "new-testament":
+        return "Focus on the life, teachings, and early church described in the New Testament. This plan will take you through the Gospels, Acts, Epistles, and Revelation, providing insight into Christian living and doctrine.";
+      case "four-gospels":
+        return "Experience the life and teachings of Jesus Christ through the four different perspectives of Matthew, Mark, Luke, and John. Each Gospel offers unique insights into the Savior's ministry and message.";
+      case "major-prophets":
+        return "Explore the powerful messages of God's major prophets: Isaiah, Jeremiah, Lamentations, Ezekiel, and Daniel. These books contain some of the most profound prophecies and spiritual insights in Scripture.";
+      case "pauls-letters":
+        return "Study the theological foundations of Christianity through the Apostle Paul's letters. From Romans to Philemon, discover the deep truths about salvation, Christian living, and church doctrine.";
+      default:
+        return "Begin your journey through this carefully selected portion of Scripture designed to strengthen your faith and deepen your understanding of God's word.";
     }
   };
 
@@ -490,10 +509,17 @@ const BibleReadingPlansPage = () => {
           
           {selectedPlan && (
             <div className="space-y-6">
-              {/* Plan Overview */}
+              {/* Plan Introduction */}
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-lg">
                 <h3 className="text-xl font-bold mb-2">{selectedPlan.name}</h3>
                 <p className="text-muted-foreground mb-3">{selectedPlan.description}</p>
+                
+                <div className="bg-background/50 p-3 rounded-lg mb-3">
+                  <h4 className="font-semibold text-sm mb-2">About This Plan:</h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {getPlanIntroduction(selectedPlan.id)}
+                  </p>
+                </div>
                 
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
@@ -514,45 +540,150 @@ const BibleReadingPlansPage = () => {
                 </div>
               </div>
 
-              {/* Today's Reading Preview */}
+              {/* Plan Status & Progress */}
               {(() => {
-                const todaysReading = readingPlanService.getTodaysReading(selectedPlan.id, 1);
-                return todaysReading ? (
-                  <div>
-                    <h4 className="font-semibold mb-2">Day 1 Reading:</h4>
-                    <div className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm">{todaysReading.readings.join(", ")}</p>
-                      {todaysReading.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{todaysReading.description}</p>
+                const isEnrolled = enrolledPlans.includes(selectedPlan.id);
+                const isCompleted = completedPlans.includes(selectedPlan.id);
+                const currentDay = userProgress[selectedPlan.id] || 1;
+                const progressPercentage = isEnrolled ? (currentDay / selectedPlan.totalDays) * 100 : 0;
+                const todaysReading = readingPlanService.getTodaysReading(selectedPlan.id, isEnrolled ? currentDay : 1);
+
+                if (isCompleted) {
+                  return (
+                    <div className="bg-green-50 p-4 rounded-lg text-center">
+                      <h4 className="text-lg font-bold text-green-800 mb-2">🎉 Plan Completed!</h4>
+                      <p className="text-green-700">{selectedPlan.reward}</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowStartModal(false)}
+                        className="mt-3"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  );
+                }
+
+                if (isEnrolled) {
+                  return (
+                    <div className="space-y-4">
+                      {/* Progress Bar */}
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="font-medium">Your Progress</span>
+                          <span>{Math.round(progressPercentage)}% ({currentDay}/{selectedPlan.totalDays} days)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-primary h-3 rounded-full transition-all duration-300" 
+                            style={{ width: `${progressPercentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Today's Reading */}
+                      {todaysReading && (
+                        <div className="bg-muted p-4 rounded-lg">
+                          <h4 className="font-semibold mb-2 flex items-center gap-2">
+                            <BookOpen className="w-4 h-4" />
+                            Day {currentDay} Reading:
+                          </h4>
+                          <p className="text-sm mb-3">{todaysReading.readings.join(", ")}</p>
+                          {todaysReading.description && (
+                            <p className="text-xs text-muted-foreground mb-3">{todaysReading.description}</p>
+                          )}
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                handleReadToday(selectedPlan.id);
+                                setShowStartModal(false);
+                              }}
+                              className="flex-1"
+                            >
+                              Read Now
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => markDayComplete(selectedPlan.id)}
+                              className="flex-1"
+                            >
+                              Mark Complete
+                            </Button>
+                          </div>
+                        </div>
                       )}
+
+                      {/* Plan Management */}
+                      <div className="flex gap-3 pt-2">
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => {
+                            handleStopPlan(selectedPlan.id);
+                            setShowStartModal(false);
+                          }}
+                          className="flex-1"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Stop Plan
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowStartModal(false)}
+                          className="flex-1"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Not enrolled yet
+                return (
+                  <div className="space-y-4">
+                    {/* Preview Reading */}
+                    {todaysReading && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Day 1 Reading Preview:</h4>
+                        <div className="bg-muted p-3 rounded-lg">
+                          <p className="text-sm">{todaysReading.readings.join(", ")}</p>
+                          {todaysReading.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{todaysReading.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Plan Reward */}
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <p className="text-sm text-green-800">
+                        <strong>Completion Reward:</strong> {selectedPlan.reward}
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowStartModal(false)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={() => handleStartPlan(selectedPlan.id)}
+                        className="flex-1"
+                      >
+                        Start This Plan
+                      </Button>
                     </div>
                   </div>
-                ) : null;
+                );
               })()}
-
-              {/* Plan Reward */}
-              <div className="bg-green-50 p-3 rounded-lg">
-                <p className="text-sm text-green-800">
-                  <strong>Completion Reward:</strong> {selectedPlan.reward}
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowStartModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => handleStartPlan(selectedPlan.id)}
-                  className="flex-1"
-                >
-                  Start This Plan
-                </Button>
-              </div>
             </div>
           )}
         </DialogContent>
