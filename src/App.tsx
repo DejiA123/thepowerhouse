@@ -13,6 +13,7 @@ import NewsPage from "@/pages/NewsPage";
 import GroupsPage from "@/pages/GroupsPage";
 import GivePage from "@/pages/GivePage";
 import ResourcesPage from "@/pages/ResourcesPage";
+import BibleReadingPlansPage from "@/pages/BibleReadingPlansPage";
 import ServicesPage from "@/pages/ServicesPage";
 import AuthPage from "@/pages/AuthPage";
 import UserSettingsPage from "@/pages/UserSettingsPage";
@@ -166,6 +167,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute>
                   <ResourcesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bible-reading-plans" 
+              element={
+                <ProtectedRoute>
+                  <BibleReadingPlansPage />
                 </ProtectedRoute>
               } 
             />

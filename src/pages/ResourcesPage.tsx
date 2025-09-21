@@ -201,9 +201,6 @@ const ResourcesPage = () => {
     navigate("/news");
   };
 
-  const handleBibleReadingPlan = () => {
-    setShowReadingPlans(true);
-  };
 
   const quickActions = [
     { 
@@ -228,11 +225,11 @@ const ResourcesPage = () => {
       onClick: handleEventCalendar
     },
     { 
-      title: "Bible Reading Plan", 
+      title: "Bible Reading Plans", 
       icon: <Book className="w-6 h-6" />, 
       description: "Structured reading", 
       color: "bg-orange-500",
-      onClick: handleBibleReadingPlan
+      onClick: () => navigate("/bible-reading-plans")
     }
   ];
 
