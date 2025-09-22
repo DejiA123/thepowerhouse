@@ -45,6 +45,75 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     }
   }, [preferences?.pitch]);
 
+  // Setup Media Session API for iPhone control center integration
+  useEffect(() => {
+    if ('mediaSession' in navigator && audioFileInfo) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `${book} Chapter ${chapter}`,
+        artist: 'The PowerHouse',
+        album: version,
+        artwork: [
+          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' }
+        ]
+      });
+
+      // Set up action handlers for iPhone control center
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (audioRef.current && !isPlaying) {
+          audioRef.current.play().catch(console.error);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (audioRef.current && isPlaying) {
+          audioRef.current.pause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekbackward', () => {
+        skipBackward();
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', () => {
+        skipForward();
+      });
+
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (audioRef.current && details.seekTime) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
+    }
+
+    return () => {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+        navigator.mediaSession.setActionHandler('seekto', null);
+      }
+    };
+  }, [audioFileInfo, book, chapter, version, isPlaying]);
+
+  // Update Media Session playback state
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
+  // Update Media Session position state
+  useEffect(() => {
+    if ('mediaSession' in navigator && duration > 0) {
+      navigator.mediaSession.setPositionState({
+        duration: duration,
+        playbackRate: 1,
+        position: currentTime
+      });
+    }
+  }, [currentTime, duration]);
+
   const loadAudioFile = async () => {
     try {
       setIsLoading(true);
