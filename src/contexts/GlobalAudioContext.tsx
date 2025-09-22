@@ -297,7 +297,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else if (audioRef.current) {
       console.log('UI: Resume requested, but src is empty. Re-fetching...');
       playBibleChapterMP3(
-        audioState..currentBook,
+        audioState.currentBook,
         audioState.currentChapter,
         audioState.currentVersion,
         audioState.autoPlayNext,
