@@ -56,9 +56,9 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
 
+  // Callback for going to the next chapter
   const goToNextChapter = useCallback(() => {
     if (isAutoAdvancingRef.current) return;
-
     isAutoAdvancingRef.current = true;
 
     setAudioState(prev => {
@@ -90,17 +90,44 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       setTimeout(() => {
         isAutoAdvancingRef.current = false;
-      }, 1000);
+      }, 1000); // Prevent rapid advancement
 
       return prev;
     });
   }, []);
 
+  // Callback for going to the previous chapter
+  const goToPreviousChapter = useCallback(() => {
+    setAudioState(prev => {
+      const { currentBook, currentChapter } = prev;
+      if (!currentBook || currentChapter <= 1) return prev;
+
+      const prevChapter = currentChapter - 1;
+      if (chapterChangeCallbackRef.current) {
+        chapterChangeCallbackRef.current(prevChapter, false);
+      }
+
+      return prev;
+    });
+  }, []);
+
+  // Initialize audio element and set up all event listeners and media session handlers once on mount
   useEffect(() => {
-    audioRef.current = new Audio();
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = 'auto';
+      audioRef.current.volume = 1.0;
+      // Ensure playsInline for iOS compatibility
+      if (typeof window !== 'undefined') {
+        (audioRef.current as any).playsInline = true;
+        audioRef.current.setAttribute('playsinline', 'true');
+        audioRef.current.setAttribute('webkit-playsinline', 'true');
+      }
+    }
     const audio = audioRef.current;
 
     const handlePlay = () => {
+      console.log('Audio element event: play');
       setAudioState(prev => ({ ...prev, isPlaying: true }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
@@ -108,6 +135,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handlePause = () => {
+      console.log('Audio element event: pause');
       setAudioState(prev => ({ ...prev, isPlaying: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
@@ -115,19 +143,27 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handleEnded = () => {
+      console.log('Audio element event: ended');
       setAudioState(prev => {
         if (prev.loopChapter) {
           audio?.play();
         } else if (prev.autoPlayNext) {
           goToNextChapter();
         }
-        return prev;
+        // Set playbackState to 'none' only if not looping/auto-playing immediately
+        if (!prev.loopChapter && !prev.autoPlayNext && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'none';
+        }
+        return prev; // State update for isPlaying will come from handlePause if not immediately playing again
       });
     };
 
     const handleError = (e: Event) => {
       console.error('Audio playback error:', e);
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
     };
 
     audio.addEventListener('play', handlePlay);
@@ -136,45 +172,51 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('error', handleError);
 
     if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => audio.play());
-      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+      console.log('Setting Media Session action handlers.');
+      navigator.mediaSession.setActionHandler('play', () => {
+        console.log('Media Session: Play triggered');
+        audio.play().catch(e => console.error('Error playing from media session:', e));
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        console.log('Media Session: Pause triggered');
+        audio.pause();
+      });
       navigator.mediaSession.setActionHandler('stop', () => {
+        console.log('Media Session: Stop triggered');
         audio.pause();
         audio.currentTime = 0;
+        // State will be updated by handlePause and then potential reset by stop function
       });
-      navigator.mediaSession.setActionHandler('nexttrack', () => goToNextChapter());
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        console.log('Media Session: Next track triggered');
+        goToNextChapter();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        console.log('Media Session: Previous track triggered');
+        goToPreviousChapter();
+      });
     }
 
+    // Cleanup function for useEffect
     return () => {
+      console.log('Cleaning up GlobalAudioProvider effect.');
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+
       if ('mediaSession' in navigator) {
+        console.log('Clearing Media Session action handlers.');
         navigator.mediaSession.setActionHandler('play', null);
         navigator.mediaSession.setActionHandler('pause', null);
         navigator.mediaSession.setActionHandler('stop', null);
         navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
       }
-      audio.pause();
-      audioRef.current = null;
+      // Do not pause or reset audio.currentTime here directly, as the audio element might persist.
+      // The audio element itself is left for garbage collection when the app unloads/reloads.
     };
-  }, [goToNextChapter]);
-
-  const pause = useCallback(() => {
-    audioRef.current?.pause();
-  }, []);
-
-  const resume = useCallback(() => {
-    audioRef.current?.play().catch(console.error);
-  }, []);
-
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-  }, []);
+  }, [goToNextChapter, goToPreviousChapter]); // Dependencies are stable useCallback functions
 
   const playBibleChapterMP3 = useCallback(async (
     book: string,
@@ -183,7 +225,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      console.error("Audio element not initialized. Cannot play.");
+      setAudioState(prev => ({ ...prev, isLoading: false, isPlaying: false }));
+      return;
+    }
 
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
@@ -203,6 +249,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading: false,
       }));
 
+      // Set metadata for media session
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: `${book} ${chapter}`,
@@ -212,6 +259,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             { src: '/public/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
           ],
         });
+        // The playbackState will be updated by the 'play' event listener
       }
 
       audioRef.current.src = audioUrl;
@@ -221,24 +269,35 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Failed to play MP3:', error);
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
     }
+  }, [goToNextChapter]); // goToNextChapter is a dependency of `handleEnded` which is called from this effect indirectly
+
+  // UI-facing controls - these directly interact with the singleton audioRef.current
+  const pause = useCallback(() => {
+    console.log('UI: Pause requested');
+    audioRef.current?.pause();
   }, []);
 
-  const goToPreviousChapter = useCallback(() => {
-    setAudioState(prev => {
-      const { currentBook, currentChapter } = prev;
-      if (!currentBook || currentChapter <= 1) return prev;
+  const resume = useCallback(() => {
+    console.log('UI: Resume requested');
+    audioRef.current?.play().catch(console.error);
+  }, []);
 
-      const prevChapter = currentChapter - 1;
-      if (chapterChangeCallbackRef.current) {
-        chapterChangeCallbackRef.current(prevChapter, false);
+  const stop = useCallback(() => {
+    console.log('UI: Stop requested');
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
       }
-
-      return prev;
-    });
+    }
+    // State update for isPlaying will come from handlePause
+    setAudioState(prev => ({ ...prev, isPlaying: false }));
   }, []);
 
   const reset = useCallback(() => {
-    stop();
+    console.log('UI: Reset requested');
+    stop(); // This will also handle mediaSession.playbackState = 'none'
     setAudioState({
       isPlaying: false,
       isLoading: false,
