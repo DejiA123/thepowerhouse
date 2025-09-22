@@ -56,6 +56,31 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
 
+  const reset = useCallback(() => {
+    console.log('UI: Reset requested');
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.src = '';
+        audioRef.current.load();
+    }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+    }
+    setAudioState({
+      isPlaying: false,
+      isLoading: false,
+      currentBook: '',
+      currentChapter: 0,
+      currentVersion: 'kjv',
+      autoPlayNext: false,
+      loopChapter: false,
+      audioUrl: undefined,
+      hasAudio: false,
+    });
+  }, []);
+
   const goToNextChapter = useCallback(() => {
     if (isAutoAdvancingRef.current) return;
     isAutoAdvancingRef.current = true;
@@ -177,25 +202,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       
       navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('Media Session: AGGRESSIVE PAUSE triggered for iOS debugging');
-        if (audio) {
-            audio.pause();
-            audio.src = ''; // Tear down the audio stream
-            audio.load(); // Force unload of the resource
-        }
+        console.log('Media Session: SUPER AGGRESSIVE PAUSE triggered for iOS debugging');
+        reset();
       });
 
       navigator.mediaSession.setActionHandler('stop', () => {
-        console.log('Media Session: AGGRESSIVE STOP triggered');
-        if (audio) {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.src = ''; // Tear down the audio stream
-            audio.load(); // Force unload
-        }
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'none';
-        }
+        console.log('Media Session: Stop triggered, resetting audio.');
+        reset();
       });
 
       navigator.mediaSession.setActionHandler('nexttrack', () => {
@@ -224,7 +237,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('previoustrack', null);
       }
     };
-  }, [goToNextChapter, goToPreviousChapter]);
+  }, [goToNextChapter, goToPreviousChapter, reset]);
 
   const playBibleChapterMP3 = useCallback(async (
     book: string,
@@ -304,31 +317,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audioRef.current.currentTime = 0;
     }
     setAudioState(prev => ({ ...prev, isPlaying: false }));
-  }, []);
-
-  const reset = useCallback(() => {
-    console.log('UI: Reset requested');
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.src = '';
-        audioRef.current.load();
-    }
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'none';
-      navigator.mediaSession.metadata = null;
-    }
-    setAudioState({
-      isPlaying: false,
-      isLoading: false,
-      currentBook: '',
-      currentChapter: 0,
-      currentVersion: 'kjv',
-      autoPlayNext: false,
-      loopChapter: false,
-      audioUrl: undefined,
-      hasAudio: false,
-    });
   }, []);
 
   const setAutoPlayNext = useCallback((enabled: boolean) => {
