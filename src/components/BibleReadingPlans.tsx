@@ -376,7 +376,7 @@ const BibleReadingPlans = () => {
                   </div>
                 )}
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button 
                     onClick={() => handleEnrollPlan(plan.id)}
                     variant={isEnrolled ? "outline" : "default"}
@@ -390,6 +390,7 @@ const BibleReadingPlans = () => {
                       variant="outline"
                       onClick={() => markDayComplete(plan.id, currentDay)}
                       disabled={completedDays.includes(currentDay.toString())}
+                      className="flex-1 sm:flex-none"
                     >
                       Mark Complete
                     </Button>

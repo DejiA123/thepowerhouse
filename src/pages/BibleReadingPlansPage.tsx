@@ -283,7 +283,7 @@ const BibleReadingPlansPage = () => {
             
             {/* Plan Content */}
             <div className="flex-1 p-4">
-              <div className="flex justify-between items-start mb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
@@ -294,28 +294,31 @@ const BibleReadingPlansPage = () => {
                   <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                 </div>
                 
-                <div className="flex gap-2 ml-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:ml-4 w-full sm:w-auto">
                   {!isEnrolled && !isCompleted && (
                     <Button 
                       size="sm" 
                       onClick={() => handlePlanClick(plan.id)}
+                      className="w-full sm:w-auto"
                     >
                       Start
                     </Button>
                   )}
                   
                   {isEnrolled && !isCompleted && (
-                    <>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handleReadToday(plan.id)}
+                        className="w-full sm:w-auto text-xs"
                       >
                         Read Today
                       </Button>
                       <Button 
                         size="sm" 
                         onClick={() => markDayComplete(plan.id)}
+                        className="w-full sm:w-auto text-xs"
                       >
                         Mark Complete
                       </Button>
@@ -323,11 +326,12 @@ const BibleReadingPlansPage = () => {
                         size="sm" 
                         variant="destructive"
                         onClick={() => handleStopPlan(plan.id)}
+                        className="w-full sm:w-auto text-xs"
                       >
                         <X className="w-4 h-4 mr-1" />
                         Stop Plan
                       </Button>
-                    </>
+                    </div>
                   )}
                   
                   {isCompleted && (
