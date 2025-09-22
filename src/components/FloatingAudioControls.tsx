@@ -21,6 +21,7 @@ interface FloatingAudioControlsProps {
 }
 
 export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ className }) => {
+  const [isVisible, setIsVisible] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const audioContext = useGlobalAudio();
@@ -34,7 +35,16 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
     }
   }, [isExpanded]);
 
-  if (!audioContext) {
+  useEffect(() => {
+    if (audioContext?.audioState.hasAudio) {
+      setIsVisible(true);
+    } else {
+      setIsVisible(false);
+      setIsExpanded(false); // Collapse when not visible
+    }
+  }, [audioContext?.audioState.hasAudio]);
+
+  if (!audioContext || !isVisible) {
     return null;
   }
 
@@ -49,19 +59,12 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
   } = audioContext;
 
   const { 
-    hasAudio,
     isPlaying,
     isLoading,
     currentBook,
     currentChapter,
     autoPlayNext
   } = audioState;
-
-  // This is the key change: Only show the controls if there is audio to control.
-  // This simplifies the logic and makes it more robust.
-  if (!hasAudio) {
-    return null;
-  }
 
   const toggleExpanded = () => setIsExpanded(!isExpanded);
   const toggleSettings = () => setShowSettings(!showSettings);

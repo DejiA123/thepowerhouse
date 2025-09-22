@@ -134,6 +134,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   }, []);
 
+  const pause = useCallback(() => {
+    console.log('UI: Pause requested');
+    audioRef.current?.pause();
+  }, []);
+
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
@@ -194,24 +199,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('Setting Media Session action handlers.');
       navigator.mediaSession.setActionHandler('play', () => {
         console.log('Media Session: Play triggered');
-        if (audio.src) {
-          audio.play().catch(e => console.error('Error playing from media session:', e));
-        } else {
-          console.log('Media Session: Play triggered but src is empty. User must re-initiate from app.');
-        }
+        audio.play().catch(e => console.error('Error playing from media session:', e));
       });
       
       navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('Media Session: Pause triggered for iOS debugging.');
-        if (audioRef.current) {
-            console.log(`Pausing. Current src: ${audioRef.current.src}`);
-            console.log(`Audio properties: paused=${audioRef.current.paused}, readyState=${audioRef.current.readyState}, volume=${audioRef.current.volume}, currentTime=${audioRef.current.currentTime}`);
-            audioRef.current.pause();
-            console.log(`Called pause(). New paused state: ${audioRef.current.paused}`);
-        } else {
-            console.log('Pause triggered, but no audio ref found.');
-        }
-        setAudioState(prev => ({ ...prev, isPlaying: false }));
+        console.log('Media Session: Pause triggered for iOS. Calling pause() on audio element.');
+        pause();
       });
 
       navigator.mediaSession.setActionHandler('stop', () => {
@@ -245,7 +238,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('previoustrack', null);
       }
     };
-  }, [goToNextChapter, goToPreviousChapter, reset]);
+  }, [goToNextChapter, goToPreviousChapter, reset, pause]);
 
   const playBibleChapterMP3 = useCallback(async (
     book: string,
@@ -297,11 +290,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  const pause = useCallback(() => {
-    console.log('UI: Pause requested');
-    audioRef.current?.pause();
-  }, []);
-
   const resume = useCallback(() => {
     console.log('UI: Resume requested');
     if (audioRef.current && audioRef.current.src) {
@@ -309,7 +297,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } else if (audioRef.current) {
       console.log('UI: Resume requested, but src is empty. Re-fetching...');
       playBibleChapterMP3(
-        audioState.currentBook,
+        audioState..currentBook,
         audioState.currentChapter,
         audioState.currentVersion,
         audioState.autoPlayNext,
