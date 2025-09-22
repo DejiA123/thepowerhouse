@@ -66,13 +66,19 @@ export const BibleBrainAudioPlayer = ({
 
       // Set up action handlers for iPhone control center
       navigator.mediaSession.setActionHandler('play', () => {
-        if (audioRef.current && !isPlaying) {
+        if (audioRef.current) {
           audioRef.current.play().catch(console.error);
         }
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
-        if (audioRef.current && isPlaying) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        if (audioRef.current) {
           audioRef.current.pause();
         }
       });
@@ -85,8 +91,20 @@ export const BibleBrainAudioPlayer = ({
         handleNextChapter();
       });
 
+      navigator.mediaSession.setActionHandler('seekbackward', () => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('seekforward', () => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10);
+        }
+      });
+
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (audioRef.current && details.seekTime) {
+        if (audioRef.current && details.seekTime != null) {
           audioRef.current.currentTime = details.seekTime;
         }
       });
@@ -96,12 +114,15 @@ export const BibleBrainAudioPlayer = ({
       if ('mediaSession' in navigator) {
         navigator.mediaSession.setActionHandler('play', null);
         navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('stop', null);
         navigator.mediaSession.setActionHandler('previoustrack', null);
         navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
         navigator.mediaSession.setActionHandler('seekto', null);
       }
     };
-  }, [hasAudio, book, chapter, version, isPlaying]);
+  }, [hasAudio, book, chapter, version, duration]);
 
   // Update Media Session playback state
   useEffect(() => {
@@ -460,7 +481,9 @@ export const BibleBrainAudioPlayer = ({
             ref={audioRef}
             src={audioUrl}
             preload="metadata"
-            className="hidden"
+            className="sr-only"
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
           />
         )}
       </CardContent>

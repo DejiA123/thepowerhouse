@@ -59,13 +59,19 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
 
       // Set up action handlers for iPhone control center
       navigator.mediaSession.setActionHandler('play', () => {
-        if (audioRef.current && !isPlaying) {
+        if (audioRef.current) {
           audioRef.current.play().catch(console.error);
         }
       });
 
       navigator.mediaSession.setActionHandler('pause', () => {
-        if (audioRef.current && isPlaying) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        if (audioRef.current) {
           audioRef.current.pause();
         }
       });
@@ -79,7 +85,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
       });
 
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (audioRef.current && details.seekTime) {
+        if (audioRef.current && details.seekTime != null) {
           audioRef.current.currentTime = details.seekTime;
         }
       });
@@ -89,12 +95,13 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
       if ('mediaSession' in navigator) {
         navigator.mediaSession.setActionHandler('play', null);
         navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('stop', null);
         navigator.mediaSession.setActionHandler('seekbackward', null);
         navigator.mediaSession.setActionHandler('seekforward', null);
         navigator.mediaSession.setActionHandler('seekto', null);
       }
     };
-  }, [audioFileInfo, book, chapter, version, isPlaying]);
+  }, [audioFileInfo, book, chapter, version]);
 
   // Update Media Session playback state
   useEffect(() => {
