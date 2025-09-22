@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
-import { bibleBooks } from '@/components/bible/bookUtils'; // Assuming bookUtils contains the bibleBooks data
+import { bibleBooks } from '@/components/bible/BibleBookList';
 
 interface GlobalAudioState {
   isPlaying: boolean;
