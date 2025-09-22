@@ -202,8 +202,16 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
       
       navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('Media Session: SUPER AGGRESSIVE PAUSE triggered for iOS debugging');
-        reset();
+        console.log('Media Session: Pause triggered for iOS debugging.');
+        if (audioRef.current) {
+            console.log(`Pausing. Current src: ${audioRef.current.src}`);
+            console.log(`Audio properties: paused=${audioRef.current.paused}, readyState=${audioRef.current.readyState}, volume=${audioRef.current.volume}, currentTime=${audioRef.current.currentTime}`);
+            audioRef.current.pause();
+            console.log(`Called pause(). New paused state: ${audioRef.current.paused}`);
+        } else {
+            console.log('Pause triggered, but no audio ref found.');
+        }
+        setAudioState(prev => ({ ...prev, isPlaying: false }));
       });
 
       navigator.mediaSession.setActionHandler('stop', () => {

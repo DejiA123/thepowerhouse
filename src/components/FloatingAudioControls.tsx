@@ -23,25 +23,21 @@ interface FloatingAudioControlsProps {
 export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ className }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Safely get the global audio context with error handling
   const audioContext = useGlobalAudio();
-  
-  // Don't render if context is not available
-  if (!audioContext) {
-    return null;
-  }
-  
-  // Auto-hide expanded view after 5 seconds of inactivity
+
   useEffect(() => {
-    if (isExpanded && !audioContext.audioState.isLoading) {
+    if (isExpanded) {
       const timer = setTimeout(() => {
         setIsExpanded(false);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [isExpanded, audioContext.audioState.isLoading]);
-  
+  }, [isExpanded]);
+
+  if (!audioContext) {
+    return null;
+  }
+
   const { 
     audioState, 
     pause, 
@@ -52,19 +48,18 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
     setAutoPlayNext 
   } = audioContext;
 
-  // Show floating controls when audio is active for background audio support
   const { 
     hasAudio,
     isPlaying,
-    isPaused,
     isLoading,
     currentBook,
     currentChapter,
-    autoPlayNext 
+    autoPlayNext
   } = audioState;
 
-  // Don't show if no audio is active OR if audio is currently playing OR if audio is paused
-  if ((!hasAudio && !isPlaying && !isPaused && !isLoading) || isPlaying || isPaused) {
+  // This is the key change: Only show the controls if there is audio to control.
+  // This simplifies the logic and makes it more robust.
+  if (!hasAudio) {
     return null;
   }
 
@@ -79,8 +74,7 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
     )}>
       <Card className="border-border/50 shadow-lg">
         <CardContent className="p-3">
-          {/* Compact View */}
-          {!isExpanded && (
+          {!isExpanded ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -91,8 +85,7 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
                     {currentBook} {currentChapter}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {isLoading ? 'Loading...' : isPlaying ? 'Playing' : isPaused ? 'Paused' : 'Ready'}
-                    {autoPlayNext && ' • Auto-play enabled'}
+                    {isLoading ? 'Loading...' : isPlaying ? 'Playing' : 'Paused'}
                   </p>
                 </div>
               </div>
@@ -121,10 +114,7 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
                 </Button>
               </div>
             </div>
-          )}
-
-          {/* Expanded View */}
-          {isExpanded && (
+          ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -158,7 +148,6 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
                 </div>
               </div>
 
-              {/* Audio Controls */}
               <div className="flex items-center justify-center space-x-4">
                 <Button
                   variant="ghost"
@@ -192,7 +181,6 @@ export const FloatingAudioControls: React.FC<FloatingAudioControlsProps> = ({ cl
                 </Button>
               </div>
 
-              {/* Settings Panel */}
               {showSettings && (
                 <div className="border-t pt-3 space-y-3">
                   <div className="flex items-center justify-between">
