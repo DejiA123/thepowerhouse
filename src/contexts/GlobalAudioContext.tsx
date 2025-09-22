@@ -51,7 +51,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     hasAudio: false,
   });
 
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const isAutoAdvancingRef = useRef<boolean>(false);
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
@@ -96,46 +96,85 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   }, []);
 
+  useEffect(() => {
+    audioRef.current = new Audio();
+    const audio = audioRef.current;
+
+    const handlePlay = () => {
+      setAudioState(prev => ({ ...prev, isPlaying: true }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+    };
+
+    const handlePause = () => {
+      setAudioState(prev => ({ ...prev, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    };
+
+    const handleEnded = () => {
+      setAudioState(prev => {
+        if (prev.loopChapter) {
+          audio?.play();
+        } else if (prev.autoPlayNext) {
+          goToNextChapter();
+        }
+        return prev;
+      });
+    };
+
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e);
+      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+    };
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => audio.play());
+      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+      navigator.mediaSession.setActionHandler('stop', () => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => goToNextChapter());
+    }
+
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('stop', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+      }
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, [goToNextChapter]);
+
   const pause = useCallback(() => {
-    currentAudioRef.current?.pause();
+    audioRef.current?.pause();
   }, []);
 
   const resume = useCallback(() => {
-    currentAudioRef.current?.play().catch(console.error);
+    audioRef.current?.play().catch(console.error);
   }, []);
 
   const stop = useCallback(() => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.currentTime = 0;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-    setAudioState(prev => ({ ...prev, isPlaying: false }));
   }, []);
-
-  useEffect(() => {
-    const audio = currentAudioRef.current;
-    if (audio) {
-      const handlePlay = () => setAudioState(prev => ({ ...prev, isPlaying: true }));
-      const handlePause = () => setAudioState(prev => ({ ...prev, isPlaying: false }));
-
-      audio.addEventListener('play', handlePlay);
-      audio.addEventListener('pause', handlePause);
-
-      return () => {
-        audio.removeEventListener('play', handlePlay);
-        audio.removeEventListener('pause', handlePause);
-      };
-    }
-  }, [currentAudioRef.current]);
-
-  useEffect(() => {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => resume());
-      navigator.mediaSession.setActionHandler('pause', () => pause());
-      navigator.mediaSession.setActionHandler('stop', () => stop());
-      navigator.mediaSession.setActionHandler('nexttrack', () => goToNextChapter());
-    }
-  }, [resume, pause, stop, goToNextChapter]);
 
   const playBibleChapterMP3 = useCallback(async (
     book: string,
@@ -144,31 +183,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
+    if (!audioRef.current) return;
+
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
     try {
       const audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
       if (!audioUrl) throw new Error('Audio URL not found.');
-
-      if (!currentAudioRef.current) {
-        currentAudioRef.current = new Audio();
-
-        currentAudioRef.current.addEventListener('ended', () => {
-          setAudioState(prev => {
-            if (prev.loopChapter) {
-              currentAudioRef.current?.play();
-            } else if (prev.autoPlayNext) {
-              goToNextChapter();
-            }
-            return { ...prev, isPlaying: false };
-          });
-        });
-
-        currentAudioRef.current.addEventListener('error', (e) => {
-          console.error('Audio playback error:', e);
-          setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false }));
-        });
-      }
 
       setAudioState(prev => ({
         ...prev,
@@ -182,11 +203,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading: false,
       }));
 
-      currentAudioRef.current.src = audioUrl;
-      await currentAudioRef.current.play();
-
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'playing';
         navigator.mediaSession.metadata = new MediaMetadata({
           title: `${book} ${chapter}`,
           artist: 'Bible Audio',
@@ -197,11 +214,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
+      audioRef.current.src = audioUrl;
+      await audioRef.current.play();
+
     } catch (error) {
       console.error('Failed to play MP3:', error);
-      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false }));
+      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
     }
-  }, [goToNextChapter]);
+  }, []);
 
   const goToPreviousChapter = useCallback(() => {
     setAudioState(prev => {
