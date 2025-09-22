@@ -1,5 +1,5 @@
-
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
 import FloatingAudioControls from "./FloatingAudioControls";
@@ -9,6 +9,8 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  const location = useLocation();
+
   // Initialize theme on app load
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'system';
@@ -125,7 +127,7 @@ const Layout = ({ children }: LayoutProps) => {
       <BottomNavigation />
       
       {/* Floating Audio Controls for Background Audio */}
-      <FloatingAudioControls />
+      {location.pathname !== '/bible' && <FloatingAudioControls />}
     </div>
   );
 };
