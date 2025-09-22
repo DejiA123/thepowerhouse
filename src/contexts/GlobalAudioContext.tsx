@@ -541,6 +541,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       currentAudioRef.current.pause();
     }
     
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
+    
     setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: true }));
   }, []);
 
@@ -555,6 +559,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Resume HTML5 audio
     if (currentAudioRef.current && currentAudioRef.current.paused) {
       currentAudioRef.current.play().catch(console.error);
+    }
+    
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
     }
     
     setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
@@ -577,6 +585,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
+    }
+    
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'none';
     }
     
     setAudioState(prev => ({
