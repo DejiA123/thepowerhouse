@@ -76,24 +76,17 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    setAudioState(prev => ({ ...prev, isLoading: true }));
+    // Explicitly set loading and not-playing states to ensure UI consistency
+    setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: false }));
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
 
     try {
       const audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
       if (!audioUrl) throw new Error('Audio URL not found.');
 
-      setAudioState(prev => ({
-        ...prev,
-        currentBook: book,
-        currentChapter: chapter,
-        currentVersion: version,
-        autoPlayNext,
-        loopChapter,
-        audioUrl,
-        hasAudio: true,
-        isLoading: false,
-      }));
-
+      // Update metadata before loading the new source for better lock screen behavior
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: `${book} ${chapter}`,
@@ -106,11 +99,30 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       audio.src = audioUrl;
+      // Calling load() is crucial for iOS to recognize the track change
+      audio.load();
       await audio.play();
+
+      // The 'play' event handler will set isPlaying to true and update the media session.
+      // We update the rest of the state here.
+      setAudioState(prev => ({
+        ...prev,
+        currentBook: book,
+        currentChapter: chapter,
+        currentVersion: version,
+        autoPlayNext,
+        loopChapter,
+        audioUrl,
+        hasAudio: true,
+        isLoading: false,
+      }));
 
     } catch (error) {
       console.error('Failed to play MP3:', error);
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
     }
   }, []);
 
@@ -252,15 +264,18 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (prev.loopChapter) {
           audio.currentTime = 0;
           audio.play();
-        } else if (prev.autoPlayNext) {
-          goToNextChapter();
-        } else {
-          setAudioState(p => ({...p, isPlaying: false}));
-          if ('mediaSession' in navigator) {
-            navigator.mediaSession.playbackState = 'paused';
-          }
+          return prev; // isPlaying will be set by the 'play' handler
         }
-        return prev;
+        if (prev.autoPlayNext) {
+          // Defer the call to prevent side-effects in the updater function
+          setTimeout(() => goToNextChapter(), 0);
+          return prev; // goToNextChapter will trigger its own state updates
+        }
+        // If not looping or auto-playing, update the state to paused
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'paused';
+        }
+        return { ...prev, isPlaying: false };
       });
     };
 
