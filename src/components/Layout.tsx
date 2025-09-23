@@ -127,7 +127,7 @@ const Layout = ({ children }: LayoutProps) => {
       <BottomNavigation />
       
       {/* Floating Audio Controls for Background Audio */}
-      {location.pathname !== '/bible' && <FloatingAudioControls />}
+      {location.pathname === '/bible' && <FloatingAudioControls />}
     </div>
   );
 };
