@@ -98,6 +98,44 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       const colorThemeClass = `theme-${themeSettings.colorTheme}`;
       root.classList.add(colorThemeClass);
       body.classList.add(colorThemeClass);
+      
+      // Apply the theme color as background with !important to override any other styles
+      if (themeSettings.colorTheme === 'blue') {
+        const color = 'hsl(210, 100%, 97%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'green') {
+        const color = 'hsl(120, 60%, 97%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'purple') {
+        const color = 'hsl(270, 60%, 90%)'; // Changed from 97% to 90% for more visible purple
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'yellow') {
+        const color = 'hsl(48, 100%, 97%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'red') {
+        const color = 'hsl(0, 60%, 97%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'orange') {
+        const color = 'hsl(30, 100%, 97%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      }
+    } else {
+      // Reset background for default theme
+      document.body.style.removeProperty('background-color');
+      document.documentElement.style.removeProperty('background-color');
+      document.documentElement.style.removeProperty('--background-color');
     }
     
     // Apply light/dark theme
@@ -113,6 +151,41 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     
     // Apply background color based on selected theme
     const isDark = themeSettings.theme === 'dark' || (themeSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    // Adjust background color for dark mode
+    if (isDark && themeSettings.colorTheme !== 'default') {
+      if (themeSettings.colorTheme === 'blue') {
+        const color = 'hsl(210, 50%, 6%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'green') {
+        const color = 'hsl(120, 50%, 6%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'purple') {
+        const color = 'hsl(270, 50%, 15%)'; // Changed from 6% to 15% for more visible purple in dark mode
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'yellow') {
+        const color = 'hsl(48, 50%, 6%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'red') {
+        const color = 'hsl(0, 50%, 6%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      } else if (themeSettings.colorTheme === 'orange') {
+        const color = 'hsl(30, 50%, 6%)';
+        document.body.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('background-color', color, 'important');
+        document.documentElement.style.setProperty('--background-color', color, 'important');
+      }
+    }
     
     // Get the computed styles for the current theme combination
     const computedStyles = getComputedStyle(root);
