@@ -69,174 +69,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
 
-  const pause = useCallback(() => {
-    console.log('UI or Media Session: Pause requested');
-    audio.pause();
-  }, []);
-
-  const resume = useCallback(() => {
-    console.log('UI or Media Session: Resume requested');
-    if (audio.src) {
-      audio.play().catch(console.error);
-    } else if (audioState.currentBook) {
-      console.log('Resume requested, but src is empty. Re-fetching...');
-      playBibleChapterMP3(
-        audioState.currentBook,
-        audioState.currentChapter,
-        audioState.currentVersion,
-        audioState.autoPlayNext,
-        audioState.loopChapter
-      );
-    }
-  }, [audioState]);
-
-  const reset = useCallback(() => {
-    console.log('UI: Reset requested');
-    audio.pause();
-    audio.currentTime = 0;
-    audio.src = '';
-    audio.load();
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'none';
-      navigator.mediaSession.metadata = null;
-    }
-    setAudioState({
-      isPlaying: false,
-      isLoading: false,
-      currentBook: '',
-      currentChapter: 0,
-      currentVersion: 'kjv',
-      autoPlayNext: false,
-      loopChapter: false,
-      audioUrl: undefined,
-      hasAudio: false,
-    });
-  }, []);
-
-  const goToNextChapter = useCallback(() => {
-    if (isAutoAdvancingRef.current) return;
-    isAutoAdvancingRef.current = true;
-
-    setAudioState(prev => {
-      const { currentBook, currentChapter } = prev;
-      if (!currentBook) {
-        isAutoAdvancingRef.current = false;
-        return prev;
-      }
-
-      const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-      const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-
-      if (bookInfo && currentChapter < bookInfo.chapters) {
-        const nextChapter = currentChapter + 1;
-        if (chapterChangeCallbackRef.current) {
-          chapterChangeCallbackRef.current(nextChapter, true);
-        }
-      } else if (bookInfo) {
-        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-        if (currentBookIndex < allBooks.length - 1) {
-          const nextBook = allBooks[currentBookIndex + 1];
-          if (bookChangeCallbackRef.current) {
-            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
-          }
-        } else {
-          console.log('End of Bible');
-        }
-      }
-
-      setTimeout(() => {
-        isAutoAdvancingRef.current = false;
-      }, 1000);
-
-      return prev;
-    });
-  }, []);
-
-  const goToPreviousChapter = useCallback(() => {
-    setAudioState(prev => {
-      const { currentBook, currentChapter } = prev;
-      if (!currentBook || currentChapter <= 1) return prev;
-
-      const prevChapter = currentChapter - 1;
-      if (chapterChangeCallbackRef.current) {
-        chapterChangeCallbackRef.current(prevChapter, false);
-      }
-
-      return prev;
-    });
-  }, []);
-
-  useEffect(() => {
-    const handlePlay = () => {
-      console.log('Audio element event: play');
-      setAudioState(prev => ({ ...prev, isPlaying: true }));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'playing';
-      }
-    };
-
-    const handlePause = () => {
-      console.log('Audio element event: pause');
-      setAudioState(prev => ({ ...prev, isPlaying: false }));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'paused';
-      }
-    };
-
-    const handleEnded = () => {
-      console.log('Audio element event: ended');
-      setAudioState(prev => {
-        if (prev.loopChapter) {
-          audio.play();
-        } else if (prev.autoPlayNext) {
-          goToNextChapter();
-        } else if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'none';
-        }
-        return prev;
-      });
-    };
-
-    const handleError = (e: Event) => {
-      console.error('Audio playback error:', e);
-      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'none';
-      }
-    };
-
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-
-    if ('mediaSession' in navigator) {
-      console.log('Setting Media Session action handlers.');
-      navigator.mediaSession.setActionHandler('play', resume);
-      navigator.mediaSession.setActionHandler('pause', pause);
-      navigator.mediaSession.setActionHandler('stop', reset);
-      navigator.mediaSession.setActionHandler('nexttrack', goToNextChapter);
-      navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
-    }
-
-    return () => {
-      console.log('Cleaning up GlobalAudioProvider effect.');
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-
-      if ('mediaSession' in navigator) {
-        console.log('Clearing Media Session action handlers.');
-        navigator.mediaSession.setActionHandler('play', null);
-        navigator.mediaSession.setActionHandler('pause', null);
-        navigator.mediaSession.setActionHandler('stop', null);
-        navigator.mediaSession.setActionHandler('nexttrack', null);
-        navigator.mediaSession.setActionHandler('previoustrack', null);
-      }
-    };
-  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume]);
-
   const playBibleChapterMP3 = useCallback(async (
     book: string,
     chapter: number,
@@ -281,6 +113,196 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
     }
   }, []);
+
+
+  const pause = useCallback(() => {
+    console.log('UI or Media Session: Pause requested');
+    audio.pause();
+  }, []);
+
+  const resume = useCallback(() => {
+    console.log('UI or Media Session: Resume requested');
+    if (audio.src) {
+      audio.play().catch(console.error);
+    } else if (audioState.currentBook) {
+      console.log('Resume requested, but src is empty. Re-fetching...');
+      playBibleChapterMP3(
+        audioState.currentBook,
+        audioState.currentChapter,
+        audioState.currentVersion,
+        audioState.autoPlayNext,
+        audioState.loopChapter
+      );
+    }
+  }, [audioState, playBibleChapterMP3]);
+
+  const reset = useCallback(() => {
+    console.log('UI: Reset requested');
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = '';
+    audio.load();
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+    }
+    setAudioState({
+      isPlaying: false,
+      isLoading: false,
+      currentBook: '',
+      currentChapter: 0,
+      currentVersion: 'kjv',
+      autoPlayNext: false,
+      loopChapter: false,
+      audioUrl: undefined,
+      hasAudio: false,
+    });
+  }, []);
+
+  const goToNextChapter = useCallback(() => {
+    if (isAutoAdvancingRef.current) return;
+    isAutoAdvancingRef.current = true;
+
+    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioState;
+    if (!currentBook) {
+      isAutoAdvancingRef.current = false;
+      return;
+    }
+
+    const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
+    const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+
+    if (bookInfo && currentChapter < bookInfo.chapters) {
+      const nextChapter = currentChapter + 1;
+      playBibleChapterMP3(currentBook, nextChapter, currentVersion, autoPlayNext, loopChapter);
+      if (chapterChangeCallbackRef.current) {
+        chapterChangeCallbackRef.current(nextChapter, true);
+      }
+    } else if (bookInfo) {
+      const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+      if (currentBookIndex < allBooks.length - 1) {
+        const nextBook = allBooks[currentBookIndex + 1];
+        playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter);
+        if (bookChangeCallbackRef.current) {
+          bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+        }
+      } else {
+        console.log('End of Bible');
+        reset();
+      }
+    }
+
+    setTimeout(() => {
+      isAutoAdvancingRef.current = false;
+    }, 1000); // Prevent rapid firing
+
+  }, [audioState, playBibleChapterMP3, reset]);
+
+  const goToPreviousChapter = useCallback(() => {
+    setAudioState(prev => {
+      const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = prev;
+      if (!currentBook || (currentChapter <= 1 && bibleBooks['Old Testament'].findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase()) === 0)) {
+        return prev; // At the beginning of the Bible
+      }
+
+      const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
+      const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+
+      if (bookInfo && currentChapter > 1) {
+        const prevChapter = currentChapter - 1;
+        playBibleChapterMP3(currentBook, prevChapter, currentVersion, autoPlayNext, loopChapter);
+        if (chapterChangeCallbackRef.current) {
+          chapterChangeCallbackRef.current(prevChapter, false);
+        }
+      } else if (bookInfo) {
+        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+        if (currentBookIndex > 0) {
+          const prevBook = allBooks[currentBookIndex - 1];
+          const lastChapterOfPrevBook = prevBook.chapters;
+          playBibleChapterMP3(prevBook.apiName, lastChapterOfPrevBook, currentVersion, autoPlayNext, loopChapter);
+          if (bookChangeCallbackRef.current) {
+            bookChangeCallbackRef.current(prevBook.apiName, lastChapterOfPrevBook, false);
+          }
+        }
+      }
+      return prev;
+    });
+  }, [playBibleChapterMP3]);
+
+  useEffect(() => {
+    const handlePlay = () => {
+      console.log('Audio element event: play');
+      setAudioState(prev => ({ ...prev, isPlaying: true }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+    };
+
+    const handlePause = () => {
+      console.log('Audio element event: pause');
+      setAudioState(prev => ({ ...prev, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    };
+
+    const handleEnded = () => {
+      console.log('Audio element event: ended');
+      setAudioState(prev => {
+        if (prev.loopChapter) {
+          audio.currentTime = 0;
+          audio.play();
+        } else if (prev.autoPlayNext) {
+          goToNextChapter();
+        } else {
+          setAudioState(p => ({...p, isPlaying: false}));
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+          }
+        }
+        return prev;
+      });
+    };
+
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e);
+      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
+    };
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    if ('mediaSession' in navigator) {
+      console.log('Setting Media Session action handlers.');
+      navigator.mediaSession.setActionHandler('play', resume);
+      navigator.mediaSession.setActionHandler('pause', pause);
+      navigator.mediaSession.setActionHandler('stop', reset);
+      navigator.mediaSession.setActionHandler('nexttrack', goToNextChapter);
+      navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
+    }
+
+    return () => {
+      console.log('Cleaning up GlobalAudioProvider effect.');
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+
+      if ('mediaSession' in navigator) {
+        console.log('Clearing Media Session action handlers.');
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('stop', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+      }
+    };
+  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume]);
 
   const stop = useCallback(() => {
     console.log('UI: Stop requested');
