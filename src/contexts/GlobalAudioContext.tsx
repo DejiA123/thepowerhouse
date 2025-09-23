@@ -76,11 +76,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    // Set loading state and keep playing state during auto-advance
-    setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: isAutoAdvancingRef.current }));
-    if ('mediaSession' in navigator && !isAutoAdvancingRef.current) {
-      navigator.mediaSession.playbackState = 'paused';
+    // Proactively update Media Session for smooth transitions on lock screen
+    if ('mediaSession' in navigator && isAutoAdvancingRef.current) {
+      navigator.mediaSession.playbackState = 'playing';
     }
+
+    setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: isAutoAdvancingRef.current }));
 
     try {
       const audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
@@ -92,7 +93,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           artist: 'Bible Audio',
           album: version.toUpperCase(),
           artwork: [
-            { src: '/public/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+            { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
           ],
         });
       }
@@ -114,6 +115,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     } catch (error) {
       console.error('Failed to play MP3:', error);
+      isAutoAdvancingRef.current = false;
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';
@@ -146,6 +148,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const reset = useCallback(() => {
     console.log('UI: Reset requested');
+    isAutoAdvancingRef.current = false;
     audio.pause();
     audio.currentTime = 0;
     audio.src = '';
@@ -201,12 +204,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         reset();
       }
     }
-
-    // Reset the ref after a delay to allow the new track to load and play
-    setTimeout(() => {
-      isAutoAdvancingRef.current = false;
-    }, 1500); // Increased delay to be safe
-
   }, [audioState, playBibleChapterMP3, reset]);
 
   const goToPreviousChapter = useCallback(() => {
@@ -243,6 +240,9 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     const handlePlay = () => {
       console.log('Audio element event: play');
+      // The track has started playing, so the transition is complete.
+      isAutoAdvancingRef.current = false;
+
       setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
@@ -251,9 +251,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const handlePause = () => {
       console.log(`Audio element event: pause (isAutoAdvancing: ${isAutoAdvancingRef.current})`);
+      // This is a temporary pause during chapter transition; ignore it.
       if (isAutoAdvancingRef.current) {
-        // This is a temporary pause during chapter transition, so we don't update the UI state.
-        // The 'play' event for the next chapter will set the correct state.
         return;
       }
       setAudioState(prev => ({ ...prev, isPlaying: false }));
