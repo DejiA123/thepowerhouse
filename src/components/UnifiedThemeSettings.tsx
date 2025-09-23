@@ -11,7 +11,9 @@ interface UnifiedThemeSettingsProps {
 
 interface ThemeSettings {
   theme: 'light' | 'dark' | 'system';
-  colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange';
+  colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange' | 'custom';
+  customPrimaryColor?: string;
+  customBackgroundColor?: string;
 }
 
 export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
@@ -20,7 +22,9 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
   
   const [settings, setSettings] = useState<ThemeSettings>({
     theme: 'system',
-    colorTheme: 'default'
+    colorTheme: 'default',
+    customPrimaryColor: '#3b82f6',
+    customBackgroundColor: '#ffffff'
   });
 
   useEffect(() => {
@@ -31,7 +35,9 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     // Load from localStorage first
     const localSettings = {
       theme: (localStorage.getItem('theme') || 'system') as 'light' | 'dark' | 'system',
-      colorTheme: (localStorage.getItem('colorTheme') || 'default') as 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange'
+      colorTheme: (localStorage.getItem('colorTheme') || 'default') as 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange' | 'custom',
+      customPrimaryColor: localStorage.getItem('customPrimaryColor') || '#3b82f6',
+      customBackgroundColor: localStorage.getItem('customBackgroundColor') || '#ffffff'
     };
 
     setSettings(localSettings);
@@ -45,6 +51,8 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     // Save to localStorage
     localStorage.setItem('theme', updated.theme);
     localStorage.setItem('colorTheme', updated.colorTheme);
+    if (updated.customPrimaryColor) localStorage.setItem('customPrimaryColor', updated.customPrimaryColor);
+    if (updated.customBackgroundColor) localStorage.setItem('customBackgroundColor', updated.customBackgroundColor);
 
     // Save to database if user is logged in
     if (user) {
@@ -54,7 +62,9 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           .upsert({
             user_id: user.id,
             theme: updated.theme,
-            color_theme: updated.colorTheme
+            color_theme: updated.colorTheme,
+            custom_primary_color: updated.customPrimaryColor,
+            custom_background_color: updated.customBackgroundColor
           }, {
             onConflict: 'user_id'
           });
@@ -78,11 +88,13 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     const body = document.body;
     
     // Remove existing theme classes from both html and body
-    root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
-    body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
+    root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
+    body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
     
-    // Apply color theme first
-    if (themeSettings.colorTheme !== 'default') {
+    // Apply custom theme colors if selected
+    if (themeSettings.colorTheme === 'custom') {
+      applyCustomTheme(themeSettings);
+    } else if (themeSettings.colorTheme !== 'default') {
       const colorThemeClass = `theme-${themeSettings.colorTheme}`;
       root.classList.add(colorThemeClass);
       body.classList.add(colorThemeClass);
@@ -140,11 +152,67 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     console.log('🎨 Theme applied:', themeSettings.theme, 'Color:', themeSettings.colorTheme, 'Classes:', root.className);
   };
 
+  const applyCustomTheme = (themeSettings: ThemeSettings) => {
+    const root = document.documentElement;
+    
+    if (themeSettings.customPrimaryColor && themeSettings.customBackgroundColor) {
+      // Convert hex to HSL for CSS variables
+      const primaryHSL = hexToHSL(themeSettings.customPrimaryColor);
+      const backgroundHSL = hexToHSL(themeSettings.customBackgroundColor);
+      
+      // Apply custom CSS variables
+      root.style.setProperty('--primary', primaryHSL);
+      root.style.setProperty('--background', backgroundHSL);
+      root.style.setProperty('--card', backgroundHSL);
+      root.style.setProperty('--popover', backgroundHSL);
+      
+      // Calculate contrasting foreground color
+      const isDarkBackground = isColorDark(themeSettings.customBackgroundColor);
+      const foregroundHSL = isDarkBackground ? '0 0% 95%' : '0 0% 5%';
+      root.style.setProperty('--foreground', foregroundHSL);
+      root.style.setProperty('--card-foreground', foregroundHSL);
+      root.style.setProperty('--popover-foreground', foregroundHSL);
+      
+      root.classList.add('theme-custom');
+    }
+  };
+
+  const hexToHSL = (hex: string): string => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+
+    return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  };
+
+  const isColorDark = (hex: string): boolean => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128;
+  };
+
   const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
     saveThemeSettings({ theme });
   };
 
-  const handleColorThemeChange = (colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange') => {
+  const handleColorThemeChange = (colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange' | 'custom') => {
     saveThemeSettings({ colorTheme });
   };
 
@@ -156,6 +224,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       case 'yellow': return <div className="w-4 h-4 rounded-full bg-yellow-500" />;
       case 'red': return <div className="w-4 h-4 rounded-full bg-red-500" />;
       case 'orange': return <div className="w-4 h-4 rounded-full bg-orange-500" />;
+      case 'custom': return <div className="w-4 h-4 rounded-full border-2 border-foreground flex items-center justify-center"><span className="text-xs">✨</span></div>;
       default: return <Palette className="w-4 h-4" />;
     }
   };
@@ -168,6 +237,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       case 'yellow': return 'Yellow';
       case 'red': return 'Red';
       case 'orange': return 'Orange';
+      case 'custom': return 'Custom';
       default: return 'Default';
     }
   };
@@ -234,7 +304,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           </h2>
           
           <div className="grid grid-cols-3 gap-3">
-            {['default', 'blue', 'green', 'purple', 'yellow', 'red', 'orange'].map((colorTheme) => (
+            {['default', 'blue', 'green', 'purple', 'yellow', 'red', 'orange', 'custom'].map((colorTheme) => (
               <Button
                 key={colorTheme}
                 variant={settings.colorTheme === colorTheme ? "default" : "outline"}
@@ -250,6 +320,53 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           <div className="text-sm text-muted-foreground mt-4">
             Choose your preferred color scheme to personalize your experience.
           </div>
+
+          {/* Custom Color Picker */}
+          {settings.colorTheme === 'custom' && (
+            <div className="space-y-4 border border-border rounded-lg p-4 bg-card">
+              <h3 className="text-sm font-medium text-foreground">Custom Colors</h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Primary Color</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.customPrimaryColor} 
+                      onChange={(e) => saveThemeSettings({ customPrimaryColor: e.target.value })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input 
+                      type="text" 
+                      value={settings.customPrimaryColor} 
+                      onChange={(e) => saveThemeSettings({ customPrimaryColor: e.target.value })}
+                      className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded"
+                      placeholder="#3b82f6"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Background Color</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.customBackgroundColor} 
+                      onChange={(e) => saveThemeSettings({ customBackgroundColor: e.target.value })}
+                      className="w-8 h-8 rounded border border-border cursor-pointer"
+                    />
+                    <input 
+                      type="text" 
+                      value={settings.customBackgroundColor} 
+                      onChange={(e) => saveThemeSettings({ customBackgroundColor: e.target.value })}
+                      className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded"
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
