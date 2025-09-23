@@ -76,10 +76,17 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    // Explicitly set loading and not-playing states to ensure UI consistency
-    setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: false }));
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'paused';
+    // If this is NOT an automatic transition, explicitly pause to give user feedback.
+    // If it IS an auto-transition, we want to avoid the "flicker" on the lock screen
+    // by not setting the state to paused.
+    if (!isAutoAdvancingRef.current) {
+      setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    } else {
+      // For auto-advancing chapters, just show loading state.
+      setAudioState(prev => ({ ...prev, isLoading: true }));
     }
 
     try {
@@ -252,7 +259,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const handlePause = () => {
       console.log('Audio element event: pause');
-      setAudioState(prev => ({ ...prev, isPlaying: false }));
+      // Do not set isPlaying to false if we are in the middle of an auto-advancing transition
+      if (!isAutoAdvancingRef.current) {
+        setAudioState(prev => ({ ...prev, isPlaying: false }));
+      }
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
