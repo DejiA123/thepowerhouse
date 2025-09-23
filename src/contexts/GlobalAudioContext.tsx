@@ -2,6 +2,20 @@ import React, { createContext, useContext, useRef, useState, useCallback, useEff
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 
+// Create a single, persistent audio element to be used throughout the app.
+// This singleton approach prevents duplicate audio instances when interacting with
+// external controls like the iOS lock screen.
+let audio: HTMLAudioElement;
+if (typeof window !== 'undefined') {
+  audio = new Audio();
+  audio.preload = 'auto';
+  audio.volume = 1.0;
+  // Required for audio to play in the background on iOS
+  (audio as any).playsInline = true;
+  audio.setAttribute('playsinline', 'true');
+  audio.setAttribute('webkit-playsinline', 'true');
+}
+
 interface GlobalAudioState {
   isPlaying: boolean;
   isLoading: boolean;
@@ -51,19 +65,37 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     hasAudio: false,
   });
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const isAutoAdvancingRef = useRef<boolean>(false);
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
 
+  const pause = useCallback(() => {
+    console.log('UI or Media Session: Pause requested');
+    audio.pause();
+  }, []);
+
+  const resume = useCallback(() => {
+    console.log('UI or Media Session: Resume requested');
+    if (audio.src) {
+      audio.play().catch(console.error);
+    } else if (audioState.currentBook) {
+      console.log('Resume requested, but src is empty. Re-fetching...');
+      playBibleChapterMP3(
+        audioState.currentBook,
+        audioState.currentChapter,
+        audioState.currentVersion,
+        audioState.autoPlayNext,
+        audioState.loopChapter
+      );
+    }
+  }, [audioState]);
+
   const reset = useCallback(() => {
     console.log('UI: Reset requested');
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.src = '';
-        audioRef.current.load();
-    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = '';
+    audio.load();
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'none';
       navigator.mediaSession.metadata = null;
@@ -134,24 +166,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   }, []);
 
-  const pause = useCallback(() => {
-    console.log('UI: Pause requested');
-    audioRef.current?.pause();
-  }, []);
-
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.preload = 'auto';
-      audioRef.current.volume = 1.0;
-      if (typeof window !== 'undefined') {
-        (audioRef.current as any).playsInline = true;
-        audioRef.current.setAttribute('playsinline', 'true');
-        audioRef.current.setAttribute('webkit-playsinline', 'true');
-      }
-    }
-    const audio = audioRef.current;
-
     const handlePlay = () => {
       console.log('Audio element event: play');
       setAudioState(prev => ({ ...prev, isPlaying: true }));
@@ -172,7 +187,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('Audio element event: ended');
       setAudioState(prev => {
         if (prev.loopChapter) {
-          audio?.play();
+          audio.play();
         } else if (prev.autoPlayNext) {
           goToNextChapter();
         } else if ('mediaSession' in navigator) {
@@ -197,29 +212,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     if ('mediaSession' in navigator) {
       console.log('Setting Media Session action handlers.');
-      navigator.mediaSession.setActionHandler('play', () => {
-        console.log('Media Session: Play triggered');
-        audio.play().catch(e => console.error('Error playing from media session:', e));
-      });
-      
-      navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('Media Session: Pause triggered for iOS. Calling pause() on audio element.');
-        pause();
-      });
-
-      navigator.mediaSession.setActionHandler('stop', () => {
-        console.log('Media Session: Stop triggered, resetting audio.');
-        reset();
-      });
-
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
-        console.log('Media Session: Next track triggered');
-        goToNextChapter();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => {
-        console.log('Media Session: Previous track triggered');
-        goToPreviousChapter();
-      });
+      navigator.mediaSession.setActionHandler('play', resume);
+      navigator.mediaSession.setActionHandler('pause', pause);
+      navigator.mediaSession.setActionHandler('stop', reset);
+      navigator.mediaSession.setActionHandler('nexttrack', goToNextChapter);
+      navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
     }
 
     return () => {
@@ -238,7 +235,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('previoustrack', null);
       }
     };
-  }, [goToNextChapter, goToPreviousChapter, reset, pause]);
+  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume]);
 
   const playBibleChapterMP3 = useCallback(async (
     book: string,
@@ -247,11 +244,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    if (!audioRef.current) {
-      console.error("Audio element not initialized. Cannot play.");
-      return;
-    }
-
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
     try {
@@ -281,8 +273,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
-      audioRef.current.src = audioUrl;
-      await audioRef.current.play();
+      audio.src = audioUrl;
+      await audio.play();
 
     } catch (error) {
       console.error('Failed to play MP3:', error);
@@ -290,28 +282,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  const resume = useCallback(() => {
-    console.log('UI: Resume requested');
-    if (audioRef.current && audioRef.current.src) {
-      audioRef.current.play().catch(console.error);
-    } else if (audioRef.current) {
-      console.log('UI: Resume requested, but src is empty. Re-fetching...');
-      playBibleChapterMP3(
-        audioState.currentBook,
-        audioState.currentChapter,
-        audioState.currentVersion,
-        audioState.autoPlayNext,
-        audioState.loopChapter
-      );
-    }
-  }, [audioState, playBibleChapterMP3]);
-
   const stop = useCallback(() => {
     console.log('UI: Stop requested');
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+    audio.pause();
+    audio.currentTime = 0;
     setAudioState(prev => ({ ...prev, isPlaying: false }));
   }, []);
 
