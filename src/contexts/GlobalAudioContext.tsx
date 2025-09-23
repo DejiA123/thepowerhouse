@@ -76,24 +76,16 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
-    // If this is NOT an automatic transition, explicitly pause to give user feedback.
-    // If it IS an auto-transition, we want to avoid the "flicker" on the lock screen
-    // by not setting the state to paused.
-    if (!isAutoAdvancingRef.current) {
-      setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: false }));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'paused';
-      }
-    } else {
-      // For auto-advancing chapters, just show loading state.
-      setAudioState(prev => ({ ...prev, isLoading: true }));
+    // Set loading state and keep playing state during auto-advance
+    setAudioState(prev => ({ ...prev, isLoading: true, isPlaying: isAutoAdvancingRef.current }));
+    if ('mediaSession' in navigator && !isAutoAdvancingRef.current) {
+      navigator.mediaSession.playbackState = 'paused';
     }
 
     try {
       const audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
       if (!audioUrl) throw new Error('Audio URL not found.');
 
-      // Update metadata before loading the new source for better lock screen behavior
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: `${book} ${chapter}`,
@@ -106,12 +98,9 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       audio.src = audioUrl;
-      // Calling load() is crucial for iOS to recognize the track change
       audio.load();
       await audio.play();
 
-      // The 'play' event handler will set isPlaying to true and update the media session.
-      // We update the rest of the state here.
       setAudioState(prev => ({
         ...prev,
         currentBook: book,
@@ -121,7 +110,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         loopChapter,
         audioUrl,
         hasAudio: true,
-        isLoading: false,
       }));
 
     } catch (error) {
@@ -136,6 +124,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const pause = useCallback(() => {
     console.log('UI or Media Session: Pause requested');
+    isAutoAdvancingRef.current = false; // User-initiated pause should stop auto-advance
     audio.pause();
   }, []);
 
@@ -193,76 +182,81 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     if (bookInfo && currentChapter < bookInfo.chapters) {
       const nextChapter = currentChapter + 1;
-      playBibleChapterMP3(currentBook, nextChapter, currentVersion, autoPlayNext, loopChapter);
-      if (chapterChangeCallbackRef.current) {
-        chapterChangeCallbackRef.current(nextChapter, true);
-      }
+      playBibleChapterMP3(currentBook, nextChapter, currentVersion, autoPlayNext, loopChapter).finally(() => {
+        if (chapterChangeCallbackRef.current) {
+          chapterChangeCallbackRef.current(nextChapter, true);
+        }
+      });
     } else if (bookInfo) {
       const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
       if (currentBookIndex < allBooks.length - 1) {
         const nextBook = allBooks[currentBookIndex + 1];
-        playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter);
-        if (bookChangeCallbackRef.current) {
-          bookChangeCallbackRef.current(nextBook.apiName, 1, true);
-        }
+        playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter).finally(() => {
+          if (bookChangeCallbackRef.current) {
+            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+          }
+        });
       } else {
         console.log('End of Bible');
         reset();
       }
     }
 
+    // Reset the ref after a delay to allow the new track to load and play
     setTimeout(() => {
       isAutoAdvancingRef.current = false;
-    }, 1000); // Prevent rapid firing
+    }, 1500); // Increased delay to be safe
 
   }, [audioState, playBibleChapterMP3, reset]);
 
   const goToPreviousChapter = useCallback(() => {
-    setAudioState(prev => {
-      const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = prev;
-      if (!currentBook || (currentChapter <= 1 && bibleBooks['Old Testament'].findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase()) === 0)) {
-        return prev; // At the beginning of the Bible
-      }
+    isAutoAdvancingRef.current = false; // Previous is always a manual action
+    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioState;
+    if (!currentBook || (currentChapter <= 1 && bibleBooks['Old Testament'].findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase()) === 0)) {
+      return; // At the beginning of the Bible
+    }
 
-      const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-      const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+    const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
+    const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
 
-      if (bookInfo && currentChapter > 1) {
-        const prevChapter = currentChapter - 1;
-        playBibleChapterMP3(currentBook, prevChapter, currentVersion, autoPlayNext, loopChapter);
+    if (bookInfo && currentChapter > 1) {
+      const prevChapter = currentChapter - 1;
+      playBibleChapterMP3(currentBook, prevChapter, currentVersion, autoPlayNext, loopChapter).finally(() => {
         if (chapterChangeCallbackRef.current) {
           chapterChangeCallbackRef.current(prevChapter, false);
         }
-      } else if (bookInfo) {
-        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-        if (currentBookIndex > 0) {
-          const prevBook = allBooks[currentBookIndex - 1];
-          const lastChapterOfPrevBook = prevBook.chapters;
-          playBibleChapterMP3(prevBook.apiName, lastChapterOfPrevBook, currentVersion, autoPlayNext, loopChapter);
+      });
+    } else if (bookInfo) {
+      const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+      if (currentBookIndex > 0) {
+        const prevBook = allBooks[currentBookIndex - 1];
+        const lastChapterOfPrevBook = prevBook.chapters;
+        playBibleChapterMP3(prevBook.apiName, lastChapterOfPrevBook, currentVersion, autoPlayNext, loopChapter).finally(() => {
           if (bookChangeCallbackRef.current) {
             bookChangeCallbackRef.current(prevBook.apiName, lastChapterOfPrevBook, false);
           }
-        }
+        });
       }
-      return prev;
-    });
-  }, [playBibleChapterMP3]);
+    }
+  }, [audioState, playBibleChapterMP3]);
 
   useEffect(() => {
     const handlePlay = () => {
       console.log('Audio element event: play');
-      setAudioState(prev => ({ ...prev, isPlaying: true }));
+      setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
     };
 
     const handlePause = () => {
-      console.log('Audio element event: pause');
-      // Do not set isPlaying to false if we are in the middle of an auto-advancing transition
-      if (!isAutoAdvancingRef.current) {
-        setAudioState(prev => ({ ...prev, isPlaying: false }));
+      console.log(`Audio element event: pause (isAutoAdvancing: ${isAutoAdvancingRef.current})`);
+      if (isAutoAdvancingRef.current) {
+        // This is a temporary pause during chapter transition, so we don't update the UI state.
+        // The 'play' event for the next chapter will set the correct state.
+        return;
       }
+      setAudioState(prev => ({ ...prev, isPlaying: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
@@ -270,27 +264,22 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const handleEnded = () => {
       console.log('Audio element event: ended');
-      setAudioState(prev => {
-        if (prev.loopChapter) {
-          audio.currentTime = 0;
-          audio.play();
-          return prev; // isPlaying will be set by the 'play' handler
-        }
-        if (prev.autoPlayNext) {
-          // Defer the call to prevent side-effects in the updater function
-          setTimeout(() => goToNextChapter(), 0);
-          return prev; // goToNextChapter will trigger its own state updates
-        }
-        // If not looping or auto-playing, update the state to paused
+      if (audioState.loopChapter) {
+        audio.currentTime = 0;
+        audio.play();
+      } else if (audioState.autoPlayNext) {
+        goToNextChapter();
+      } else {
+        setAudioState(prev => ({ ...prev, isPlaying: false }));
         if ('mediaSession' in navigator) {
           navigator.mediaSession.playbackState = 'paused';
         }
-        return { ...prev, isPlaying: false };
-      });
+      }
     };
 
     const handleError = (e: Event) => {
       console.error('Audio playback error:', e);
+      isAutoAdvancingRef.current = false;
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';
@@ -327,10 +316,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('previoustrack', null);
       }
     };
-  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume]);
+  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, audioState.loopChapter, audioState.autoPlayNext]);
 
   const stop = useCallback(() => {
     console.log('UI: Stop requested');
+    isAutoAdvancingRef.current = false;
     audio.pause();
     audio.currentTime = 0;
     setAudioState(prev => ({ ...prev, isPlaying: false }));
