@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
-import FloatingAudioControls from "./FloatingAudioControls";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -125,9 +124,6 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
 
       <BottomNavigation />
-      
-      {/* Floating Audio Controls for Background Audio */}
-      {location.pathname === '/bible' && <FloatingAudioControls />}
     </div>
   );
 };
