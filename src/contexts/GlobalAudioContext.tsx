@@ -18,6 +18,7 @@ if (typeof window !== 'undefined') {
 
 interface GlobalAudioState {
   isPlaying: boolean;
+  isPaused: boolean;
   isLoading: boolean;
   currentBook: string;
   currentChapter: number;
@@ -55,6 +56,7 @@ export const useGlobalAudio = () => {
 export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [audioState, setAudioState] = useState<GlobalAudioState>({
     isPlaying: false,
+    isPaused: false,
     isLoading: false,
     currentBook: '',
     currentChapter: 0,
@@ -110,7 +112,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     } catch (error) {
       console.error('Failed to play MP3:', error);
-      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
     }
   }, []);
 
@@ -148,6 +150,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     setAudioState({
       isPlaying: false,
+      isPaused: false,
       isLoading: false,
       currentBook: '',
       currentChapter: 0,
@@ -232,7 +235,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     const handlePlay = () => {
       console.log('Audio element event: play');
-      setAudioState(prev => ({ ...prev, isPlaying: true }));
+      setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
@@ -240,7 +243,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const handlePause = () => {
       console.log('Audio element event: pause');
-      setAudioState(prev => ({ ...prev, isPlaying: false }));
+      setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: true }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
@@ -255,7 +258,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } else if (prev.autoPlayNext) {
           goToNextChapter();
         } else {
-          setAudioState(p => ({...p, isPlaying: false}));
+          setAudioState(p => ({...p, isPlaying: false, isPaused: false}));
           if ('mediaSession' in navigator) {
             navigator.mediaSession.playbackState = 'paused';
           }
@@ -266,7 +269,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const handleError = (e: Event) => {
       console.error('Audio playback error:', e);
-      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false }));
+      setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';
       }

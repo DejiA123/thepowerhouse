@@ -13,48 +13,46 @@ const Layout = ({ children }: LayoutProps) => {
   // Initialize theme on app load
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'system';
+    const savedColorTheme = localStorage.getItem('colorTheme') || 'default';
     const root = document.documentElement;
     const body = document.body;
     
-    const applyTheme = (theme: string) => {
+    const applyTheme = (theme: string, colorTheme: string) => {
       // Remove existing theme classes from both html and body
-      root.classList.remove('light', 'dark');
-      body.classList.remove('light', 'dark');
+      root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
+      body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
       
+      // Apply color theme first
+      if (colorTheme !== 'default') {
+        const colorThemeClass = `theme-${colorTheme}`;
+        root.classList.add(colorThemeClass);
+        body.classList.add(colorThemeClass);
+      }
+      
+      // Apply light/dark theme
       if (theme === 'system') {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const themeClass = isDark ? 'dark' : 'light';
         root.classList.add(themeClass);
         body.classList.add(themeClass);
-        
-        // Apply background color based on system preference
-        if (isDark) {
-          body.style.backgroundColor = '#0a0a0a';
-          body.style.color = '#ffffff';
-          root.style.backgroundColor = '#0a0a0a';
-          root.style.color = '#ffffff';
-        } else {
-          body.style.backgroundColor = '#ffffff';
-          body.style.color = '#000000';
-          root.style.backgroundColor = '#ffffff';
-          root.style.color = '#000000';
-        }
       } else {
         root.classList.add(theme);
         body.classList.add(theme);
-        
-        // Apply background color based on selected theme
-        if (theme === 'dark') {
-          body.style.backgroundColor = '#0a0a0a';
-          body.style.color = '#ffffff';
-          root.style.backgroundColor = '#0a0a0a';
-          root.style.color = '#ffffff';
-        } else {
-          body.style.backgroundColor = '#ffffff';
-          body.style.color = '#000000';
-          root.style.backgroundColor = '#ffffff';
-          root.style.color = '#000000';
-        }
+      }
+      
+      // Apply background color based on selected theme
+      const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      // Get the computed styles for the current theme combination
+      const computedStyles = getComputedStyle(root);
+      const backgroundColor = computedStyles.getPropertyValue('--background');
+      const foregroundColor = computedStyles.getPropertyValue('--foreground');
+      
+      if (backgroundColor && foregroundColor) {
+        body.style.backgroundColor = `hsl(${backgroundColor})`;
+        body.style.color = `hsl(${foregroundColor})`;
+        root.style.backgroundColor = `hsl(${backgroundColor})`;
+        root.style.color = `hsl(${foregroundColor})`;
       }
       
       // Dynamically update iOS status bar style for PWA
@@ -63,9 +61,6 @@ const Layout = ({ children }: LayoutProps) => {
           'meta[name="apple-mobile-web-app-status-bar-style"]'
         ) as HTMLMetaElement | null;
         if (statusBarMeta) {
-          // For dark mode, use 'black' to show black status bar text on dark background
-          // For light mode, use 'default' to show black status bar text on light background
-          const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           statusBarMeta.setAttribute('content', isDark ? 'black' : 'default');
         }
         
@@ -74,23 +69,23 @@ const Layout = ({ children }: LayoutProps) => {
           'meta[name="theme-color"]'
         ) as HTMLMetaElement | null;
         if (themeColorMeta) {
-          const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          themeColorMeta.setAttribute('content', isDark ? '#0a0a0a' : '#ffffff');
+          themeColorMeta.setAttribute('content', `hsl(${backgroundColor})`);
         }
       } catch (e) {
         console.warn('Failed to update status bar meta tags:', e);
       }
       
-      console.log('🎨 Layout: Theme applied:', theme, 'Body classes:', body.className);
+      console.log('🎨 Layout: Theme applied:', theme, 'Color:', colorTheme, 'Body classes:', body.className);
     };
     
     // Apply initial theme
-    applyTheme(savedTheme);
+    applyTheme(savedTheme, savedColorTheme);
     
     // Listen for theme changes
     const handleThemeChange = () => {
       const currentTheme = localStorage.getItem('theme') || 'system';
-      applyTheme(currentTheme);
+      const currentColorTheme = localStorage.getItem('colorTheme') || 'default';
+      applyTheme(currentTheme, currentColorTheme);
     };
     
     // Listen for storage changes (when theme is changed from another tab/window)

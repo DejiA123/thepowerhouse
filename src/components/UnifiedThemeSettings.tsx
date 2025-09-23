@@ -11,6 +11,7 @@ interface UnifiedThemeSettingsProps {
 
 interface ThemeSettings {
   theme: 'light' | 'dark' | 'system';
+  colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange';
 }
 
 export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
@@ -18,7 +19,8 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
   const { toast } = useToast();
   
   const [settings, setSettings] = useState<ThemeSettings>({
-    theme: 'system'
+    theme: 'system',
+    colorTheme: 'default'
   });
 
   useEffect(() => {
@@ -28,7 +30,8 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
   const loadThemeSettings = async () => {
     // Load from localStorage first
     const localSettings = {
-      theme: (localStorage.getItem('theme') || 'system') as 'light' | 'dark' | 'system'
+      theme: (localStorage.getItem('theme') || 'system') as 'light' | 'dark' | 'system',
+      colorTheme: (localStorage.getItem('colorTheme') || 'default') as 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange'
     };
 
     setSettings(localSettings);
@@ -41,6 +44,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
 
     // Save to localStorage
     localStorage.setItem('theme', updated.theme);
+    localStorage.setItem('colorTheme', updated.colorTheme);
 
     // Save to database if user is logged in
     if (user) {
@@ -49,7 +53,8 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           .from('user_preferences')
           .upsert({
             user_id: user.id,
-            theme: updated.theme
+            theme: updated.theme,
+            color_theme: updated.colorTheme
           }, {
             onConflict: 'user_id'
           });
@@ -73,44 +78,40 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     const body = document.body;
     
     // Remove existing theme classes from both html and body
-    root.classList.remove('light', 'dark');
-    body.classList.remove('light', 'dark');
+    root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
+    body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange');
     
-    // Apply theme
+    // Apply color theme first
+    if (themeSettings.colorTheme !== 'default') {
+      const colorThemeClass = `theme-${themeSettings.colorTheme}`;
+      root.classList.add(colorThemeClass);
+      body.classList.add(colorThemeClass);
+    }
+    
+    // Apply light/dark theme
     if (themeSettings.theme === 'system') {
       const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const themeClass = isDark ? 'dark' : 'light';
       root.classList.add(themeClass);
       body.classList.add(themeClass);
-      
-      // Apply background color based on system preference
-      if (isDark) {
-        body.style.backgroundColor = '#0a0a0a';
-        body.style.color = '#ffffff';
-        root.style.backgroundColor = '#0a0a0a';
-        root.style.color = '#ffffff';
-      } else {
-        body.style.backgroundColor = '#ffffff';
-        body.style.color = '#000000';
-        root.style.backgroundColor = '#ffffff';
-        root.style.color = '#000000';
-      }
     } else {
       root.classList.add(themeSettings.theme);
       body.classList.add(themeSettings.theme);
-      
-      // Apply background color based on selected theme
-      if (themeSettings.theme === 'dark') {
-        body.style.backgroundColor = '#0a0a0a';
-        body.style.color = '#ffffff';
-        root.style.backgroundColor = '#0a0a0a';
-        root.style.color = '#ffffff';
-      } else {
-        body.style.backgroundColor = '#ffffff';
-        body.style.color = '#000000';
-        root.style.backgroundColor = '#ffffff';
-        root.style.color = '#000000';
-      }
+    }
+    
+    // Apply background color based on selected theme
+    const isDark = themeSettings.theme === 'dark' || (themeSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    // Get the computed styles for the current theme combination
+    const computedStyles = getComputedStyle(root);
+    const backgroundColor = computedStyles.getPropertyValue('--background');
+    const foregroundColor = computedStyles.getPropertyValue('--foreground');
+    
+    if (backgroundColor && foregroundColor) {
+      body.style.backgroundColor = `hsl(${backgroundColor})`;
+      body.style.color = `hsl(${foregroundColor})`;
+      root.style.backgroundColor = `hsl(${backgroundColor})`;
+      root.style.color = `hsl(${foregroundColor})`;
     }
     
     // Dynamically update iOS status bar style for PWA
@@ -119,9 +120,6 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
         'meta[name="apple-mobile-web-app-status-bar-style"]'
       ) as HTMLMetaElement | null;
       if (statusBarMeta) {
-        // For dark mode, use 'black' to show black status bar text on dark background
-        // For light mode, use 'default' to show black status bar text on light background
-        const isDark = themeSettings.theme === 'dark' || (themeSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         statusBarMeta.setAttribute('content', isDark ? 'black' : 'default');
       }
       
@@ -130,8 +128,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
         'meta[name="theme-color"]'
       ) as HTMLMetaElement | null;
       if (themeColorMeta) {
-        const isDark = themeSettings.theme === 'dark' || (themeSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        themeColorMeta.setAttribute('content', isDark ? '#0a0a0a' : '#ffffff');
+        themeColorMeta.setAttribute('content', `hsl(${backgroundColor})`);
       }
     } catch (e) {
       console.warn('Failed to update status bar meta tags:', e);
@@ -140,11 +137,39 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     // Dispatch theme change event
     window.dispatchEvent(new Event('themechange'));
     
-    console.log('🎨 Theme applied:', themeSettings.theme, 'Classes:', root.className, 'Body classes:', body.className);
+    console.log('🎨 Theme applied:', themeSettings.theme, 'Color:', themeSettings.colorTheme, 'Classes:', root.className);
   };
 
   const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
     saveThemeSettings({ theme });
+  };
+
+  const handleColorThemeChange = (colorTheme: 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange') => {
+    saveThemeSettings({ colorTheme });
+  };
+
+  const getColorThemeIcon = (colorTheme: string) => {
+    switch (colorTheme) {
+      case 'blue': return <div className="w-4 h-4 rounded-full bg-blue-500" />;
+      case 'green': return <div className="w-4 h-4 rounded-full bg-green-500" />;
+      case 'purple': return <div className="w-4 h-4 rounded-full bg-purple-500" />;
+      case 'yellow': return <div className="w-4 h-4 rounded-full bg-yellow-500" />;
+      case 'red': return <div className="w-4 h-4 rounded-full bg-red-500" />;
+      case 'orange': return <div className="w-4 h-4 rounded-full bg-orange-500" />;
+      default: return <Palette className="w-4 h-4" />;
+    }
+  };
+
+  const getColorThemeName = (colorTheme: string) => {
+    switch (colorTheme) {
+      case 'blue': return 'Blue';
+      case 'green': return 'Green';
+      case 'purple': return 'Purple';
+      case 'yellow': return 'Yellow';
+      case 'red': return 'Red';
+      case 'orange': return 'Orange';
+      default: return 'Default';
+    }
   };
 
   const getThemeIcon = (theme: string) => {
@@ -178,8 +203,8 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
         {/* Theme Selection */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Palette className="w-5 h-5" />
-            Theme Selection
+            <Sun className="w-5 h-5" />
+            Appearance
           </h2>
           
           <div className="grid grid-cols-3 gap-3">
@@ -197,7 +222,33 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           </div>
           
           <div className="text-sm text-muted-foreground mt-4">
-            Choose your preferred theme. Light theme provides a bright, clean interface, while Dark theme offers a comfortable viewing experience in low-light conditions.
+            Choose your preferred appearance. Light theme provides a bright, clean interface, while Dark theme offers a comfortable viewing experience in low-light conditions.
+          </div>
+        </div>
+
+        {/* Color Theme Selection */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Color Theme
+          </h2>
+          
+          <div className="grid grid-cols-3 gap-3">
+            {['default', 'blue', 'green', 'purple', 'yellow', 'red', 'orange'].map((colorTheme) => (
+              <Button
+                key={colorTheme}
+                variant={settings.colorTheme === colorTheme ? "default" : "outline"}
+                onClick={() => handleColorThemeChange(colorTheme as any)}
+                className="flex flex-col items-center gap-2 h-20"
+              >
+                {getColorThemeIcon(colorTheme)}
+                <span className="text-sm">{getColorThemeName(colorTheme)}</span>
+              </Button>
+            ))}
+          </div>
+          
+          <div className="text-sm text-muted-foreground mt-4">
+            Choose your preferred color scheme to personalize your experience.
           </div>
         </div>
       </div>
