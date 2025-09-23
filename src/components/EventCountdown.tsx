@@ -143,6 +143,8 @@ const EventCountdown = () => {
 
       // Update local state
       setReminderSet(true);
+      setAttendees(prev => prev + 1);
+
 
       // Request notification permission and set up reminder
       if ("Notification" in window) {
@@ -213,6 +215,7 @@ const EventCountdown = () => {
       
       if (success) {
         setReminderSet(false);
+        setAttendees(prev => prev - 1);
         toast({
           title: "Attendance Cancelled",
           description: "You're no longer attending this service.",
