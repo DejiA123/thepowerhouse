@@ -744,9 +744,14 @@ export const BibleChapterContent = ({
                   setTimeout(() => {
                     if (audioRef.current) {
                       audioRef.current.play();
-                      if ('mediaSession' in navigator) {
-                        navigator.mediaSession.playbackState = 'playing';
-                      }
+                      // Add play event listener to sync MediaSession
+                      const syncMediaSession = () => {
+                        if ('mediaSession' in navigator) {
+                          navigator.mediaSession.playbackState = 'playing';
+                        }
+                        audioRef.current?.removeEventListener('play', syncMediaSession);
+                      };
+                      audioRef.current.addEventListener('play', syncMediaSession);
                     }
                   }, 250);
                 } else {
@@ -759,9 +764,14 @@ export const BibleChapterContent = ({
                 setTimeout(() => {
                   if (audioRef.current) {
                     audioRef.current.play();
-                    if ('mediaSession' in navigator) {
-                      navigator.mediaSession.playbackState = 'playing';
-                    }
+                    // Add play event listener to sync MediaSession
+                    const syncMediaSession = () => {
+                      if ('mediaSession' in navigator) {
+                        navigator.mediaSession.playbackState = 'playing';
+                      }
+                      audioRef.current?.removeEventListener('play', syncMediaSession);
+                    };
+                    audioRef.current.addEventListener('play', syncMediaSession);
                   }
                 }, 250);
               }
