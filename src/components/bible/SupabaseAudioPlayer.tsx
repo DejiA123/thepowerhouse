@@ -196,6 +196,14 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
         setIsPlaying(false);
         setError(`Playback error: ${err.message}`);
       });
+      // Add play event listener to sync MediaSession for iOS
+      const syncMediaSession = () => {
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'playing';
+        }
+        audioRef.current?.removeEventListener('play', syncMediaSession);
+      };
+      audioRef.current.addEventListener('play', syncMediaSession);
     }
   }, [audioFileInfo]);
 
