@@ -161,7 +161,7 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="min-h-screen text-foreground" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
-        className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg" 
+        className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
         style={{ 
           height: 'env(safe-area-inset-top)',
           minHeight: 'env(safe-area-inset-top)'

@@ -399,7 +399,7 @@ const BibleNotesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Modern Header */}
         <div className="mb-8">
@@ -453,7 +453,7 @@ const BibleNotesPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="bg-background min-h-screen">
+        <div className="bg-white dark:bg-gray-900 min-h-screen">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-orange-500"></div>

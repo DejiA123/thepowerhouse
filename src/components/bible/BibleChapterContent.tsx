@@ -744,16 +744,11 @@ export const BibleChapterContent = ({
                   setTimeout(() => {
                     if (audioRef.current) {
                       audioRef.current.play();
-                      // Add play event listener to sync MediaSession
-                      const syncMediaSession = () => {
-                        if ('mediaSession' in navigator) {
-                          navigator.mediaSession.playbackState = 'playing';
-                        }
-                        audioRef.current?.removeEventListener('play', syncMediaSession);
-                      };
-                      audioRef.current.addEventListener('play', syncMediaSession);
+                      if ('mediaSession' in navigator) {
+                        navigator.mediaSession.playbackState = 'playing';
+                      }
                     }
-                  }, 150);
+                  }, 250);
                 } else {
                   console.log(`🎵 Reached end of Bible - no more books to auto-play`);
                 }
@@ -764,15 +759,6 @@ export const BibleChapterContent = ({
                 setTimeout(() => {
                   if (audioRef.current) {
                     audioRef.current.play();
-                    // Add play event listener to sync MediaSession
-                    const syncMediaSession = () => {
-                      if ('mediaSession' in navigator) {
-                        navigator.mediaSession.playbackState = 'playing';
-                      }
-                      audioRef.current?.removeEventListener('play', syncMediaSession);
-                    };
-                    audioRef.current.addEventListener('play', syncMediaSession);
-                    // Proactively set playing state to help iOS reflect correct icon
                     if ('mediaSession' in navigator) {
                       navigator.mediaSession.playbackState = 'playing';
                     }

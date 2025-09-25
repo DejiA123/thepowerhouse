@@ -185,7 +185,7 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <button onClick={onBack} className="p-2">
@@ -332,4 +332,4 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
       </div>
     </div>
   );
-};
+}; 

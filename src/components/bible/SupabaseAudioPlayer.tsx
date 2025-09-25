@@ -182,40 +182,10 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     }
   };
 
-  useEffect(() => {
-    // If audioFileInfo changes (new chapter loaded), auto-play if not loading and audioRef is ready
-    if (audioFileInfo && audioRef.current && !isLoading) {
-      // Attempt to auto-play
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-        // Ensure Media Session playbackState is set to 'playing' immediately
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'playing';
-        }
-      }).catch((err) => {
-        setIsPlaying(false);
-        setError(`Playback error: ${err.message}`);
-      });
-      // Add play event listener to sync MediaSession for iOS
-      const syncMediaSession = () => {
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.playbackState = 'playing';
-        }
-        audioRef.current?.removeEventListener('play', syncMediaSession);
-      };
-      audioRef.current.addEventListener('play', syncMediaSession);
-    }
-  }, [audioFileInfo]);
-
   const handleEnded = () => {
     setIsPlaying(false);
     setCurrentTime(0);
     onChapterComplete?.();
-    // After chapter completes, Media Session playbackState should be set to 'paused'
-    if ('mediaSession' in navigator) {
-      // Temporarily set to 'paused', but if auto-advancing occurs, it will become 'playing' on next chapter load
-      navigator.mediaSession.playbackState = 'paused';
-    }
   };
 
   const handleSeek = (value: number[]) => {

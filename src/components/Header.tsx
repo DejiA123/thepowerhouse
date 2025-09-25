@@ -39,7 +39,7 @@ const Header = () => {
   };
 
   return (
-    <header className={`bg-background border-b border-border/30 sticky z-[60] transition-all duration-300 ease-in-out ${
+    <header className={`bg-card border-b border-border/30 sticky z-[60] transition-all duration-300 ease-in-out ${
       isBiblePage && isScrolled ? 'transform -translate-y-full opacity-0' : 'transform translate-y-0 opacity-100'
     }`} style={{ top: 'env(safe-area-inset-top)' }}>
       <div className="px-4 py-4">
