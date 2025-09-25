@@ -105,10 +105,17 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             { src: '/public/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
           ],
         });
+        // Immediately reflect upcoming playback in iOS lock screen/Control Center
+        navigator.mediaSession.playbackState = 'playing';
       }
 
       audio.src = audioUrl;
+      // Start playback and synchronously set state for iOS
       await audio.play();
+      setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
 
     } catch (error) {
       console.error('Failed to play MP3:', error);
@@ -126,6 +133,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     console.log('UI or Media Session: Resume requested');
     if (audio.src) {
       audio.play().catch(console.error);
+      // Immediately sync Media Session state for iOS
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
     } else if (audioState.currentBook) {
       console.log('Resume requested, but src is empty. Re-fetching...');
       playBibleChapterMP3(

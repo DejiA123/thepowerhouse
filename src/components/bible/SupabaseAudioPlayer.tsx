@@ -213,6 +213,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     onChapterComplete?.();
     // After chapter completes, Media Session playbackState should be set to 'paused'
     if ('mediaSession' in navigator) {
+      // Temporarily set to 'paused', but if auto-advancing occurs, it will become 'playing' on next chapter load
       navigator.mediaSession.playbackState = 'paused';
     }
   };

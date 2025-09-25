@@ -753,7 +753,7 @@ export const BibleChapterContent = ({
                       };
                       audioRef.current.addEventListener('play', syncMediaSession);
                     }
-                  }, 250);
+                  }, 150);
                 } else {
                   console.log(`🎵 Reached end of Bible - no more books to auto-play`);
                 }
@@ -772,6 +772,10 @@ export const BibleChapterContent = ({
                       audioRef.current?.removeEventListener('play', syncMediaSession);
                     };
                     audioRef.current.addEventListener('play', syncMediaSession);
+                    // Proactively set playing state to help iOS reflect correct icon
+                    if ('mediaSession' in navigator) {
+                      navigator.mediaSession.playbackState = 'playing';
+                    }
                   }
                 }, 250);
               }
