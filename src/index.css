@@ -424,13 +424,23 @@
     background-color: hsl(0 0% 8%) !important;
   }
   
-  /* Force html background on theme change */
-  .light html {
+  /* Force html and body background on theme change using CSS variables */
+  html.light {
     background-color: hsl(var(--background)) !important;
     color: hsl(var(--foreground)) !important;
   }
   
-  .dark html {
+  html.dark {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  body.light {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  body.dark {
     background-color: hsl(var(--background)) !important;
     color: hsl(var(--foreground)) !important;
   }
