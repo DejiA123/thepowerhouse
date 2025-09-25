@@ -185,7 +185,7 @@
 
   /* Purple Theme */
   .theme-purple {
-    --background: 270 60% 97%;
+    --background: 270 60% 90%;
     --foreground: 270 25% 15%;
     --card: 270 60% 99%;
     --card-foreground: 270 25% 15%;
@@ -208,7 +208,7 @@
   }
 
   .theme-purple.dark {
-    --background: 270 50% 6%;
+    --background: 270 50% 15%;
     --foreground: 270 20% 95%;
     --card: 270 50% 8%;
     --card-foreground: 270 20% 95%;
@@ -424,75 +424,47 @@
     background-color: hsl(0 0% 8%) !important;
   }
   
-  /* Force body background on theme change */
-  .light body {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-  }
-  
-  .dark body {
-    background-color: #0a0a0a !important;
-    color: #ffffff !important;
-  }
-  
   /* Force html background on theme change */
   .light html {
-    background-color: #ffffff !important;
-    color: #000000 !important;
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   .dark html {
-    background-color: #0a0a0a !important;
-    color: #ffffff !important;
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
-  /* Ensure all major containers get dark background */
+  /* Ensure all major containers get themed background */
   .dark .min-h-screen {
-    background-color: #0a0a0a !important;
+    background-color: hsl(var(--background)) !important;
   }
   
   .dark .bg-background {
-    background-color: #0a0a0a !important;
+    background-color: hsl(var(--background)) !important;
   }
   
   .dark .bg-card {
-    background-color: #1a1a1a !important;
+    background-color: hsl(var(--card)) !important;
   }
   
   /* Ensure cards and other containers follow theme */
   .light .bg-card {
-    background-color: hsl(0 0% 100%) !important;
+    background-color: hsl(var(--card)) !important;
   }
   
   .dark .bg-card {
-    background-color: hsl(0 0% 12%) !important;
-  }
-  
-  /* Additional dark theme overrides for better coverage */
-  .dark * {
-    border-color: hsl(0 0% 25%) !important;
-  }
-  
-  .dark .border-border {
-    border-color: hsl(0 0% 25%) !important;
-  }
-  
-  .dark .text-foreground {
-    color: hsl(0 0% 95%) !important;
-  }
-  
-  .dark .text-muted-foreground {
-    color: hsl(0 0% 75%) !important;
+    background-color: hsl(var(--card)) !important;
   }
   
   /* Force status bar background to be properly themed */
   .status-bar-bg {
-    background-color: #ffffff !important;
+    background-color: hsl(var(--background)) !important;
     transition: background-color 0.3s ease;
   }
   
   .dark .status-bar-bg {
-    background-color: #0a0a0a !important;
+    background-color: hsl(var(--background)) !important;
   }
   
   /* Additional status bar styling for better coverage */
