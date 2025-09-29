@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Clock, Phone, Mail } from "lucide-react";
+import { MapPin, Clock, Phone, Mail, MessageCircle } from "lucide-react";
 
 const LocationsSection = () => {
   const locations = [
@@ -10,28 +10,32 @@ const LocationsSection = () => {
       address: "The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit Heights, Galway, H91 958A",
       serviceTime: "Sunday 10:00 AM",
       phone: "089 953 4714",
-      email: "contact.thepowerhouse@gmail.com"
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/GalwayGroup"
     },
     {
       name: "Kildare",
       address: "Eyre St, Greatconnell, Newbridge, Co. Kildare",
       serviceTime: "Sunday 10:00 AM",
       phone: "089 953 5663",
-      email: "contact.thepowerhouse@gmail.com"
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/KildareGroup"
     },
     {
       name: "Athlone",
       address: "Unit 22 Athlone Shopping Centre, Sean Costello Street, Athlone, Co. Westmeath, N37 V2Y2",
       serviceTime: "Sunday: 10:00 AM",
       phone: "089 982 2556",
-      email: "contact.thepowerhouse@gmail.com"
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/AthloneGroup"
     },
     {
       name: "Dublin",
       address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
       serviceTime: "Sunday: 10:00 AM",
       phone: "089 252 7008",
-      email: "contact.thepowerhouse@gmail.com"
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/DublinGroup"
     }
   ];
 
@@ -64,6 +68,15 @@ const LocationsSection = () => {
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">{location.email}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                  <button 
+                    onClick={() => window.open(location.whatsappGroup, '_blank')}
+                    className="text-muted-foreground hover:text-primary transition-colors underline text-left"
+                  >
+                    Join WhatsApp Group
+                  </button>
                 </div>
               </div>
               <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => {
