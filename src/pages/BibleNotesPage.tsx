@@ -576,14 +576,6 @@ const BibleNotesPage = () => {
                   className="prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed [&_p]:mb-0 [&_p:last-child]:mb-0 [&_p+p]:mt-4"
                   dangerouslySetInnerHTML={{ __html: selectedNote.note_text }}
                 />
-                
-                {/* Edit hint */}
-                <div className="mt-6 text-center">
-                  <div className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-full">
-                    <Edit3 className="w-4 h-4" />
-                    <span>Tap anywhere to edit</span>
-                  </div>
-                </div>
               </div>
             )}
           </div>
