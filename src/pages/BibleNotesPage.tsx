@@ -543,9 +543,6 @@ const BibleNotesPage = () => {
                           <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
                             {getCategoryInfo(note.category || 'insight').name}
                           </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {getLocationText(note)}
-                          </span>
                         </div>
                       </div>
                       {note.is_favorite && (
