@@ -399,101 +399,205 @@ const BibleNotesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Modern Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/bible')}
-              className="flex items-center gap-2 self-start hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Bible</span>
-              <span className="sm:hidden">Back</span>
-            </Button>
-            <Button 
-              onClick={() => setShowNewNoteDialog(true)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Note
-            </Button>
-          </div>
-          
-          <div className="text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-3 mb-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                <span className="text-xl">📖</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Hero Header */}
+        <div className="relative mb-12 overflow-hidden rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-white/20 dark:border-gray-700/20 shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 dark:from-blue-400/5 dark:to-indigo-400/5"></div>
+          <div className="relative p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/bible')}
+                className="flex items-center gap-2 self-start bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/30 dark:border-gray-600/30 hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to Bible</span>
+                <span className="sm:hidden">Back</span>
+              </Button>
+              <Button 
+                onClick={() => setShowNewNoteDialog(true)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 self-start sm:self-auto"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Note
+              </Button>
+            </div>
+            
+            <div className="text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-4 mb-6">
+                <div className="relative p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl shadow-2xl">
+                  <div className="absolute inset-0 bg-white/20 rounded-3xl"></div>
+                  <BookOpen className="w-8 h-8 text-white relative z-10" />
+                </div>
+                <div>
+                  <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                    Bible Notes
+                  </h1>
+                  <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"></div>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Bible Notes
-                </h1>
+              <p className="text-gray-600 dark:text-gray-300 text-xl max-w-3xl mx-auto sm:mx-0 leading-relaxed">
+                Capture divine insights, spiritual reflections, and profound discoveries as you journey through the sacred pages of God's Word
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Search & Filters */}
+        <div className="mb-8">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 dark:border-gray-700/20">
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-500" />
+                <Input
+                  placeholder="Search through your spiritual insights..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-12 h-12 bg-white/90 dark:bg-gray-700/90 border-blue-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-xl shadow-lg"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-40 h-12 bg-white/90 dark:bg-gray-700/90 border-blue-200 dark:border-gray-600 rounded-xl shadow-lg">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-600">
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {NOTE_CATEGORIES.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{category.icon}</span>
+                          {category.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={(value: 'date' | 'book' | 'title') => setSortBy(value)}>
+                  <SelectTrigger className="w-32 h-12 bg-white/90 dark:bg-gray-700/90 border-blue-200 dark:border-gray-600 rounded-xl shadow-lg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-600">
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="book">Book</SelectItem>
+                    <SelectItem value="title">Title</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto sm:mx-0">
-              Capture your insights, reflections, and spiritual discoveries as you journey through God's Word
-            </p>
           </div>
         </div>
 
-        {/* Enhanced Search */}
-        <div className="mb-6">
-          <div className="relative max-w-md mx-auto sm:mx-0">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
-            <Input
-              placeholder="Search your notes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 h-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 rounded-xl"
-            />
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white dark:bg-gray-900 min-h-screen">
+        {/* Notes Content */}
+        <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/20 shadow-xl overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-orange-500"></div>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-blue-200 dark:border-gray-600 rounded-full animate-spin"></div>
+                <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+              <p className="mt-4 text-gray-600 dark:text-gray-400 font-medium">Loading your sacred notes...</p>
             </div>
           ) : filteredNotes.length > 0 ? (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredNotes.map((note) => (
+            <div className="grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredNotes.map((note, index) => (
                 <div
                   key={note.id}
-                  className="px-4 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-750"
+                  className="group relative bg-white/90 dark:bg-gray-700/90 backdrop-blur-sm rounded-2xl p-6 cursor-pointer hover:bg-white dark:hover:bg-gray-700 transition-all duration-300 shadow-lg hover:shadow-2xl border border-gray-200/50 dark:border-gray-600/50 hover:border-blue-300 dark:hover:border-blue-500 transform hover:-translate-y-2"
                   onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <Folder className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                          <BookOpen className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                            {getCategoryInfo(note.category || 'insight').name}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {getLocationText(note)}
+                          </span>
+                        </div>
+                      </div>
+                      {note.is_favorite && (
+                        <Star className="w-5 h-5 text-yellow-500 fill-current" />
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 line-clamp-1">
-                        {note.title || 'Bible notes'}
+                    
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+                      {note.title || 'Untitled Note'}
+                    </h3>
+                    
+                    <p className="text-gray-600 dark:text-gray-300 line-clamp-3 mb-4 leading-relaxed">
+                      {getNotePreview(note.note_text)}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {formatDate(note.created_at)}
+                        </span>
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                        {formatDate(note.created_at)} {getNotePreview(note.note_text).substring(0, 50)}...
-                      </div>
-                      <div className="flex items-center text-xs text-gray-400 dark:text-gray-500">
-                        <Folder className="w-3 h-3 mr-1" />
-                        <span>Notes</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                       </div>
                     </div>
+                    
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {note.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {note.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                            +{note.tags.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 px-4">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-gray-400" />
+            <div className="flex flex-col items-center justify-center py-24 px-8">
+              <div className="relative mb-8">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-gray-700 dark:to-gray-600 rounded-3xl flex items-center justify-center shadow-2xl">
+                  <BookOpen className="w-12 h-12 text-blue-500 dark:text-blue-400" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
               </div>
-              <p className="text-gray-500 dark:text-gray-400 text-center">
-                {searchTerm ? 'No matching notes found' : 'No notes yet'}
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                {searchTerm ? 'No matching insights found' : 'Begin Your Spiritual Journey'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-center max-w-md leading-relaxed mb-8">
+                {searchTerm 
+                  ? 'Try adjusting your search terms or explore different categories to find your spiritual insights.'
+                  : 'Start capturing your divine revelations, profound thoughts, and spiritual discoveries as you study God\'s Word.'
+                }
               </p>
+              {!searchTerm && (
+                <Button 
+                  onClick={() => setShowNewNoteDialog(true)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create Your First Note
+                </Button>
+              )}
             </div>
           )}
         </div>
