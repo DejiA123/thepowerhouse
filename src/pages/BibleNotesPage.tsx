@@ -379,18 +379,6 @@ const BibleNotesPage = () => {
     return `${day} ${month} ${year} at ${hours}:${minutes}`;
   };
 
-  const getLocationText = (note: BibleNote) => {
-    // Ensure we have valid book and chapter data
-    if (!note.book || !note.chapter) {
-      return 'Unknown Location';
-    }
-    
-    const bookName = getBookDisplayName(note.book);
-    if (note.verse) {
-      return `${bookName} ${note.chapter}:${note.verse}`;
-    }
-    return `${bookName} ${note.chapter}`;
-  };
 
   // Create a readable preview from rich-text HTML by preserving basic line breaks
   const getNotePreview = (html: string): string => {
@@ -802,57 +790,6 @@ const BibleNotesPage = () => {
                 onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                 className="text-2xl font-semibold border-none bg-transparent focus:ring-0 px-0 placeholder:text-gray-400 text-gray-900 dark:text-gray-100 mb-4"
               />
-              
-              {/* Bible Location Selection */}
-              <div className="space-y-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Bible Reference</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Book</label>
-                    <Select value={newNote.book} onValueChange={(value) => setNewNote({ ...newNote, book: value })}>
-                      <SelectTrigger className="h-10 bg-white dark:bg-gray-700">
-                        <SelectValue placeholder="Select book" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-gray-800 max-h-60">
-                        <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">Old Testament</div>
-                        {bibleBooks["Old Testament"].map((book) => (
-                          <SelectItem key={book.apiName} value={book.apiName}>
-                            {book.name}
-                          </SelectItem>
-                        ))}
-                        <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 mt-2">New Testament</div>
-                        {bibleBooks["New Testament"].map((book) => (
-                          <SelectItem key={book.apiName} value={book.apiName}>
-                            {book.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Chapter</label>
-                    <Input
-                      type="number"
-                      placeholder="Chapter"
-                      value={newNote.chapter}
-                      onChange={(e) => setNewNote({ ...newNote, chapter: e.target.value })}
-                      className="h-10 bg-white dark:bg-gray-700"
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Verse (optional)</label>
-                    <Input
-                      type="number"
-                      placeholder="Verse"
-                      value={newNote.verse}
-                      onChange={(e) => setNewNote({ ...newNote, verse: e.target.value })}
-                      className="h-10 bg-white dark:bg-gray-700"
-                      min="1"
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Content Area */}
