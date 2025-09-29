@@ -573,7 +573,7 @@ const BibleNotesPage = () => {
                 
                 {/* Content */}
                 <div 
-                  className="prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed [&_p]:mb-0 [&_p:last-child]:mb-0 [&_p+p]:mt-4"
+                  className="prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed [&_p]:mb-0 [&_p:last-child]:mb-0 [&_p+p]:mt-4 [&_br]:block [&_br]:content-[''] [&_br]:mt-0 [&_br]:mb-0"
                   dangerouslySetInnerHTML={{ __html: selectedNote.note_text }}
                 />
               </div>
