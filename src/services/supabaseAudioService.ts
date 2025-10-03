@@ -177,12 +177,13 @@ export const supabaseAudioService = {
     
     // New Testament books (B##) don't have padding underscores
     // Old Testament books (A##) have padding to make book name + underscores = 12 characters
+    // Exception: Thessalonians books need padding even though they're New Testament
     let fileName;
-    if (bookCode.startsWith('B')) {
-      // New Testament format: B01___01_MatthewENGKJVN1DA.mp3
+    if (bookCode.startsWith('B') && !bookName.includes('Thess')) {
+      // New Testament format (except Thessalonians): B01___01_MatthewENGKJVN1DA.mp3
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${versionCode}.mp3`;
     } else {
-      // Old Testament format: A01___01_Genesis_____ENGKJVO1DA.mp3
+      // Old Testament format or Thessalonians: A01___01_Genesis_____ENGKJVO1DA.mp3 or B13___01_1Thess______ENGKJVN1DA.mp3
       const paddingNeeded = Math.max(0, 12 - bookName.length);
       const underscores = '_'.repeat(paddingNeeded);
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
