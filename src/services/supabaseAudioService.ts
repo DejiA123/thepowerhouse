@@ -270,19 +270,12 @@ export const supabaseAudioService = {
         return null;
       }
 
-      // Get the public URL from Supabase storage directly - much faster
-      console.log(`🔍 Getting public URL for: ${fileName}`);
-      const { data } = await supabase.storage
-        .from(AUDIO_BUCKET)
-        .getPublicUrl(fileName);
-
-      if (!data?.publicUrl) {
-        console.error(`Error getting public URL for ${fileName}: No URL returned`);
-        return null;
-      }
-
-      console.log(`🎵 Audio URL for ${book} ${chapter}:`, data.publicUrl);
-      return data.publicUrl;
+      // Use archive.org base URL instead of Supabase storage
+      const archiveBaseUrl = 'https://archive.org/download/a-19-119-psalms-engkjvo-1-da_20251003';
+      const url = `${archiveBaseUrl}/${fileName}`;
+      
+      console.log(`🎵 Audio URL for ${book} ${chapter}:`, url);
+      return url;
     } catch (error) {
       console.error(`❌ Error getting audio URL for ${book} ${chapter}:`, error);
       return null;
