@@ -175,15 +175,15 @@ export const supabaseAudioService = {
     // Special case: Psalms uses 2 underscores instead of 3 between book code and chapter
     const separator = normalizedBook === 'Psalms' ? '__' : '___';
     
-    // New Testament books (B##) don't have padding underscores
-    // Old Testament books (A##) have padding to make book name + underscores = 12 characters
-    // Exception: Thessalonians books need padding even though they're New Testament
+    // New Testament books (B##): B01-B11 don't have padding, B12 onwards do
+    // Old Testament books (A##) always have padding to make book name + underscores = 12 characters
     let fileName;
-    if (bookCode.startsWith('B') && !bookName.includes('Thess')) {
-      // New Testament format (except Thessalonians): B01___01_MatthewENGKJVN1DA.mp3
+    const bookNumber = parseInt(bookCode.substring(1));
+    if (bookCode.startsWith('B') && bookNumber >= 1 && bookNumber <= 11) {
+      // New Testament format (B01-B11): B01___01_MatthewENGKJVN1DA.mp3
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${versionCode}.mp3`;
     } else {
-      // Old Testament format or Thessalonians: A01___01_Genesis_____ENGKJVO1DA.mp3 or B13___01_1Thess______ENGKJVN1DA.mp3
+      // Old Testament or NT B12+: A01___01_Genesis_____ENGKJVO1DA.mp3 or B12___04_Colossians__ENGKJVN1DA.mp3
       const paddingNeeded = Math.max(0, 12 - bookName.length);
       const underscores = '_'.repeat(paddingNeeded);
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
