@@ -36,7 +36,8 @@ const IntroPage = () => {
         muted
         playsInline
         preload="auto"
-        className="absolute inset-0 w-full h-full object-cover z-0"
+        poster="/placeholder.svg"
+        className="absolute inset-0 w-full h-full object-cover z-0 bg-black"
         onError={(e) => {
           console.error('❌ Video error:', e);
         }}
@@ -47,7 +48,7 @@ const IntroPage = () => {
           console.log('✅ Video can play');
         }}
       >
-        <source src="/App_Intro_1.mp4" type="video/mp4" />
+        <source src="/App_Intro_1.mp4?v=3" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
