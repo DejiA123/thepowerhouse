@@ -36,12 +36,18 @@ const IntroPage = () => {
         muted
         playsInline
         preload="auto"
-        poster="/placeholder.svg"
         className="absolute inset-0 w-full h-full object-cover z-0 bg-black"
         onError={(e) => {
           console.error('❌ Video error:', e);
         }}
         onLoadedData={() => {
+          // Ensure playback once data is ready (handles autoplay quirks)
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.play().catch((err) => {
+              console.error('❌ Video play retry failed:', err);
+            });
+          }
           console.log('✅ Video loaded');
         }}
         onCanPlay={() => {
