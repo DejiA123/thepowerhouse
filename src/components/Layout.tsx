@@ -9,6 +9,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const showChrome = location.pathname !== "/intro";
 
   // Initialize theme on app load
   useEffect(() => {
@@ -168,14 +169,14 @@ const Layout = ({ children }: LayoutProps) => {
         }}
       />
       
-      <Header />
+      {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className="pb-20 lg:pb-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <main className={showChrome ? "pb-20 lg:pb-4" : "pb-0"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
         {children}
       </main>
 
-      <BottomNavigation />
+      {showChrome && <BottomNavigation />}
     </div>
   );
 };

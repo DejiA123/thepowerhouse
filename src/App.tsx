@@ -28,6 +28,7 @@ import SocialMediaPage from "@/pages/SocialMediaPage";
 import BibleNotesPage from "@/pages/BibleNotesPage";
 import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
 import { EmailConfirmationDebug } from "@/components/EmailConfirmationDebug";
+import IntroPage from "@/pages/IntroPage";
 
 console.log('App.tsx: Component loading...');
 
@@ -119,6 +120,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () => {
+  const { user, loading } = useAuth();
   console.log('AppRoutes: Rendering routes...');
   
   try {
@@ -130,7 +132,8 @@ const AppRoutes = () => {
       }}>
         <Layout>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/intro" element={<IntroPage />} />
+            <Route path="/" element={loading ? <LoadingSpinner /> : (user ? <HomePage /> : <Navigate to="/intro" replace />)} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
             <Route 
