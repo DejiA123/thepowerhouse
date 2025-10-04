@@ -2,6 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import HomePage from "./HomePage";
+import IntroPage from "./IntroPage";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -15,8 +16,8 @@ const Index = () => {
   }
 
   // If user is authenticated, show the home page
-  // If not authenticated, they can still see the home page but with limited functionality
-  return <HomePage />;
+  // If not authenticated, show intro page
+  return user ? <HomePage /> : <IntroPage />;
 };
 
 export default Index;
