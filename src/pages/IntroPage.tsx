@@ -36,7 +36,7 @@ const IntroPage = () => {
         muted
         playsInline
         preload="auto"
-        className="fixed inset-0 w-full h-full object-cover z-30 bg-black pointer-events-none"
+        className="fixed inset-0 w-full h-full object-cover z-[9999] bg-black pointer-events-none"
         onError={(e) => {
           console.error('❌ Video error:', e);
         }}
@@ -59,10 +59,10 @@ const IntroPage = () => {
       </video>
 
       {/* Dark Overlay for better text readability */}
-      <div className="fixed inset-0 bg-black/50 z-40 pointer-events-none" />
+      
 
       {/* Content - Above everything */}
-      <div className="relative z-50 flex flex-col items-center justify-between min-h-screen px-6 py-12">
+      <div className="relative z-0 opacity-0 pointer-events-none bg-transparent flex flex-col items-center justify-between min-h-screen px-6 py-12">
         {/* Centered Text Content */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl">
