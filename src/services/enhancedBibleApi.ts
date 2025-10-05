@@ -1,13 +1,13 @@
-// Enhanced Bible API that combines multiple sources to provide NIV, NLT, ESV, GNT, and AMP translations
 import { esvApi } from './esvApi';
 import { apiBibleService } from './apiBibleService';
+import { nltApiService } from './nltApiService';
 
 export interface BibleVersion {
   name: string;
   abbreviation: string;
   language: string;
   version: string;
-  source: 'bible.helloao.org' | 'esv-api' | 'api-bible' | 'rapidapi';
+  source: 'bible.helloao.org' | 'esv-api' | 'api-bible' | 'rapidapi' | 'nlt-api';
 }
 
 export interface BibleVerse {
@@ -23,12 +23,9 @@ export interface BibleChapter {
   verses: BibleVerse[];
 }
 
-// Enhanced Bible API with multiple sources
 export const enhancedBibleApi = {
-  // Get all available versions including the requested ones
   async getVersions(): Promise<BibleVersion[]> {
     const versions: BibleVersion[] = [
-      // Primary requested translations
       {
         name: 'New International Version',
         abbreviation: 'NIV',
@@ -41,7 +38,7 @@ export const enhancedBibleApi = {
         abbreviation: 'NLT',
         language: 'English',
         version: 'nlt',
-        source: 'api-bible'
+        source: 'nlt-api'
       },
       {
         name: 'English Standard Version',
@@ -64,7 +61,6 @@ export const enhancedBibleApi = {
         version: 'amp',
         source: 'api-bible'
       },
-      // Additional quality translations from bible.helloao.org
       {
         name: 'King James Version',
         abbreviation: 'KJV',
@@ -127,12 +123,21 @@ export const enhancedBibleApi = {
     return versions;
   },
 
-  // Get chapter content from the appropriate source
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 enhancedBibleApi: Fetching ${book} chapter ${chapter} (version: ${version})`);
       
-      // Determine the source for this version
+      const legacyVersionMap: Record<string, string> = {
+        'de4e12af7f28f599-01': 'niv',
+        'de4e12af7f28f599-02': 'niv',
+        '61fd76efafe199c0-01': 'gnt',
+        '592420522e16049f-01': 'amp',
+      };
+  
+      if (legacyVersionMap[version]) {
+        version = legacyVersionMap[version];
+      }
+
       const versionInfo = await this.getVersionInfo(version);
       if (!versionInfo) {
         console.error(`❌ Version not found: ${version}`);
@@ -141,8 +146,9 @@ export const enhancedBibleApi = {
 
       console.log(`🔍 Using source: ${versionInfo.source} for version: ${versionInfo.abbreviation}`);
 
-      // Route to appropriate API based on source
       switch (versionInfo.source) {
+        case 'nlt-api':
+          return await this.getNLTChapter(book, chapter);
         case 'esv-api':
           return await this.getESVChapter(book, chapter);
         case 'api-bible':
@@ -160,35 +166,50 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Get version information
   async getVersionInfo(version: string): Promise<BibleVersion | null> {
     const versions = await this.getVersions();
     return versions.find(v => v.version.toLowerCase() === version.toLowerCase()) || null;
   },
 
-  // Get chapter from ESV API
+  async getNLTChapter(book: string, chapter: number): Promise<BibleChapter | null> {
+    try {
+      console.log(`🔍 Fetching from NLT API: ${book} ${chapter}`);
+      
+      const nltChapter = await nltApiService.getChapter(book, chapter);
+      
+      if (nltChapter && Array.isArray(nltChapter.content)) {
+        const verses = nltChapter.content.map(item => ({
+          book: nltChapter.book,
+          chapter: parseInt(nltChapter.chapter, 10),
+          verse: item.number,
+          text: item.content.join(' '),
+        }));
+
+        return { book: nltChapter.book, chapter: parseInt(nltChapter.chapter, 10), verses };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching from NLT API:', error);
+      return null;
+    }
+  },
+
   async getESVChapter(book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from ESV API: ${book} ${chapter}`);
       
-      // Use the existing ESV API service
       const passageText = await esvApi.getPassageText(book, chapter);
       if (!passageText) {
         console.error('❌ No passage text from ESV API');
         return null;
       }
 
-      // Parse the passage text into verses
-      // ESV API returns formatted text, so we'll split by verse numbers
       const verses = this.parseESVText(passageText, book, chapter);
       
       if (verses.length > 0) {
         console.log(`✅ Successfully loaded ${verses.length} verses from ESV API`);
-        return {
-          book,
-          chapter,
-          verses
-        };
+        return { book, chapter, verses };
       }
 
       return null;
@@ -198,12 +219,10 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Get chapter from API.Bible (for NIV, NLT, GNT, AMP)
   async getApiBibleChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from API.Bible: ${version} ${book} ${chapter}`);
       
-      // Use the updated API.Bible service
       return await apiBibleService.getChapter(version, book, chapter);
     } catch (error) {
       console.error('❌ Error fetching from API.Bible:', error);
@@ -211,12 +230,10 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Get chapter from bible.helloao.org
   async getHelloaoChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from bible.helloao.org: ${version} ${book} ${chapter}`);
       
-      // Map version to bible.helloao.org format
       const versionMappings: Record<string, string> = {
         'kjv': 'eng_kjv',
         'asv': 'eng_asv',
@@ -234,7 +251,6 @@ export const enhancedBibleApi = {
         return null;
       }
 
-      // Map book name to bible.helloao.org format
       const bookMappings: Record<string, string> = {
         'genesis': 'GEN', 'exodus': 'EXO', 'leviticus': 'LEV', 'numbers': 'NUM',
         'deuteronomy': 'DEU', 'joshua': 'JOS', 'judges': 'JDG', 'ruth': 'RUT',
@@ -271,7 +287,6 @@ export const enhancedBibleApi = {
 
       const data = await response.json();
       
-      // Parse the response
       if (data && data.chapter && data.chapter.content && Array.isArray(data.chapter.content)) {
         const verses = data.chapter.content
           .filter((verse: any) => verse.type === 'verse' && verse.content && Array.isArray(verse.content))
@@ -296,17 +311,13 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Parse ESV text into verses
   parseESVText(text: string, book: string, chapter: number): BibleVerse[] {
     try {
-      // ESV API returns formatted text with verse numbers
-      // This is a simple parser - can be enhanced
       const verses: BibleVerse[] = [];
       const lines = text.split('\n');
       
       lines.forEach((line, index) => {
         if (line.trim()) {
-          // Extract verse number and text
           const verseMatch = line.match(/^(\d+)\s+(.+)$/);
           if (verseMatch) {
             const verseNumber = parseInt(verseMatch[1]);
@@ -331,7 +342,6 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Get verse from appropriate source
   async getVerse(version: string, book: string, chapter: number, verse: number): Promise<BibleVerse | null> {
     try {
       const chapterData = await this.getChapter(version, book, chapter);
@@ -345,7 +355,6 @@ export const enhancedBibleApi = {
     }
   },
 
-  // Search functionality (placeholder)
   async search(version: string, query: string): Promise<BibleVerse[]> {
     console.log(`🔍 Search not yet implemented for ${version}: "${query}"`);
     return [];
