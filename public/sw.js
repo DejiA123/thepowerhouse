@@ -51,9 +51,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - handle audio requests and caching
+// Fetch event - handle audio/video requests and caching
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  
+  // Handle video files - always fetch from network, don't cache
+  if (request.url.includes('.mp4') || request.url.includes('.webm') || request.url.includes('video')) {
+    event.respondWith(
+      fetch(request, {
+        mode: 'cors',
+        credentials: 'omit'
+      }).catch(() => {
+        console.error('🎵 Service Worker: Video fetch failed:', request.url);
+        return new Response('Video not available', { status: 404 });
+      })
+    );
+    return;
+  }
   
   // Handle audio-related requests
   if (request.url.includes('audio') || request.url.includes('tts') || request.url.includes('speech')) {
