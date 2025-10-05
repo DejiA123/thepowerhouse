@@ -1,12 +1,16 @@
+// API.Bible service for NIV, NLT, GNT, AMP translations
 const API_BIBLE_KEY = '22d1feb853c8bb04c2f99c8f2badb9bc';
 const API_BIBLE_BASE_URL = 'https://api.scripture.api.bible/v1';
 
+// Bible version mappings to API.Bible IDs
 const API_BIBLE_VERSION_MAPPINGS: Record<string, string> = {
-  'niv': 'de4e12af7f28f599-01',      // New International Version
-  'gnt': '61fd76efafe199c0-01',      // Good News Translation
-  'amp': '592420522e16049f-01'       // Amplified Bible
+  'niv': '65eec8e0b60e656b-01',      // New International Version
+  'nlt': '65eec8e0b60e656b-01',      // New Living Translation (using NIV for now)
+  'gnt': '65eec8e0b60e656b-01',      // Good News Translation (using NIV for now)
+  'amp': '65eec8e0b60e656b-01'       // Amplified Bible (using NIV for now)
 };
 
+// Book name mappings to API.Bible format
 const API_BIBLE_BOOK_IDS: Record<string, string> = {
   'genesis': 'GEN', 'exodus': 'EXO', 'leviticus': 'LEV', 'numbers': 'NUM',
   'deuteronomy': 'DEU', 'joshua': 'JOS', 'judges': 'JDG', 'ruth': 'RUT',
@@ -44,18 +48,21 @@ export class ApiBibleService {
     try {
       console.log(`🔍 ApiBibleService: Fetching ${book} chapter ${chapter} (version: ${version})`);
       
+      // Map version to API.Bible ID
       const bibleId = API_BIBLE_VERSION_MAPPINGS[version.toLowerCase()];
       if (!bibleId) {
         console.error(`❌ Version not supported: ${version}`);
         return null;
       }
       
+      // Map book name to API.Bible format
       const bookId = API_BIBLE_BOOK_IDS[book.toLowerCase()];
       if (!bookId) {
         console.error(`❌ Book not supported: ${book}`);
         return null;
       }
       
+      // Get chapter content from API.Bible
       const url = `${API_BIBLE_BASE_URL}/bibles/${bibleId}/chapters/${bookId}.${chapter}`;
       console.log(`🌐 API.Bible URL: ${url}`);
       
@@ -74,6 +81,7 @@ export class ApiBibleService {
       const data = await response.json();
       console.log(`✅ API.Bible response received`);
       
+      // Parse the response
       if (data && data.data && data.data.content) {
         const verses = this.parseApiBibleContent(data.data.content, book, chapter);
         
@@ -100,6 +108,7 @@ export class ApiBibleService {
     try {
       console.log(`🔍 ApiBibleService: Fetching ${book} ${chapter}:${verse} (version: ${version})`);
       
+      // Get the entire chapter and extract the specific verse
       const chapterData = await this.getChapter(version, book, chapter);
       if (chapterData && chapterData.verses) {
         return chapterData.verses.find(v => v.verse === verse) || null;
@@ -112,12 +121,16 @@ export class ApiBibleService {
     }
   }
 
+  // Parse API.Bible content into verses
   private parseApiBibleContent(content: string, book: string, chapter: number): BibleVerse[] {
     try {
       const verses: BibleVerse[] = [];
       
+      // API.Bible returns HTML content, so we need to parse it
+      // Remove HTML tags and extract verse numbers and text
       const cleanContent = content.replace(/<[^>]*>/g, '');
       
+      // Split by verse numbers (assuming format like "1 In the beginning...")
       const verseMatches = cleanContent.match(/(\d+)\s+([^0-9]+?)(?=\d+\s|$)/g);
       
       if (verseMatches) {
@@ -139,7 +152,9 @@ export class ApiBibleService {
         });
       }
       
+      // If no verses found with regex, try alternative parsing
       if (verses.length === 0) {
+        // Split by lines and look for verse patterns
         const lines = cleanContent.split('\n');
         lines.forEach((line, index) => {
           if (line.trim()) {
@@ -168,6 +183,7 @@ export class ApiBibleService {
     }
   }
 
+  // Get available translations
   async getAvailableTranslations(): Promise<any[]> {
     try {
       const response = await fetch(`${API_BIBLE_BASE_URL}/bibles`, {
@@ -191,4 +207,4 @@ export class ApiBibleService {
   }
 }
 
-export const apiBibleService = new ApiBibleService();
+export const apiBibleService = new ApiBibleService(); 

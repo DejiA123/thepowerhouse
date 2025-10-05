@@ -122,62 +122,123 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   const { user, loading } = useAuth();
   console.log('AppRoutes: Rendering routes...');
-
-  // When loading, show a spinner
-  if (loading) {
-    return <LoadingSpinner />;
+  
+  try {
+    return (
+      <AudioProvider onAudioEnd={() => {
+        // This will be handled by the BibleChapterContent component
+        // The callback is passed through the AudioContext
+        console.log('🎵 Audio ended at app level');
+      }}>
+        <Layout>
+          <Routes>
+            <Route path="/intro" element={<IntroPage />} />
+            <Route path="/" element={loading ? <LoadingSpinner /> : (user ? <HomePage /> : <Navigate to="/intro" replace />)} />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
+            <Route 
+              path="/bible" 
+              element={<BiblePage />} 
+            />
+            <Route 
+              path="/bible-notes" 
+              element={
+                <ProtectedRoute>
+                  <BibleNotesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/news" 
+              element={
+                <ProtectedRoute>
+                  <NewsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/groups" 
+              element={
+                <ProtectedRoute>
+                  <GroupsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/give" element={<GivePage />} />
+            <Route 
+              path="/resources" 
+              element={
+                <ProtectedRoute>
+                  <ResourcesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/bible-reading-plans" 
+              element={
+                <ProtectedRoute>
+                  <BibleReadingPlansPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <UserSettingsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/auth" 
+              element={
+                <PublicRoute>
+                  <AuthPage />
+                </PublicRoute>
+              } 
+            />
+            <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+            <Route path="/debug-email" element={<EmailConfirmationDebug />} />
+            <Route 
+              path="/prayer" 
+              element={
+                <ProtectedRoute>
+                  <PrayerWallPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/social-media" 
+              element={
+                <ProtectedRoute>
+                  <SocialMediaPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/fellowship-group/:groupId" 
+              element={
+                <ProtectedRoute>
+                  <GroupPageWrapper />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Layout>
+      </AudioProvider>
+    );
+  } catch (error) {
+    console.error('Error in AppRoutes:', error);
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Routing Error</h1>
+          <p className="text-red-500">Failed to load application routes.</p>
+        </div>
+      </div>
+    );
   }
-
-  return (
-    <AudioProvider onAudioEnd={() => console.log('🎵 Audio ended at app level')}>
-      <Routes>
-        {/* Intro page is outside the main layout */}
-        <Route path="/intro" element={<IntroPage />} />
-
-        {/* Auth page is also outside the main layout */}
-        <Route 
-          path="/auth" 
-          element={
-            <PublicRoute>
-              <AuthPage />
-            </PublicRoute>
-          }
-        />
-
-        {/* Main application routes with Layout */}
-        <Route 
-          path="/*" 
-          element={
-            user ? (
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/services" element={<ServicesPage />} />
-                  <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
-                  <Route path="/bible" element={<BiblePage />} />
-                  <Route path="/bible-notes" element={<ProtectedRoute><BibleNotesPage /></ProtectedRoute>} />
-                  <Route path="/news" element={<ProtectedRoute><NewsPage /></ProtectedRoute>} />
-                  <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
-                  <Route path="/give" element={<GivePage />} />
-                  <Route path="/resources" element={<ProtectedRoute><ResourcesPage /></ProtectedRoute>} />
-                  <Route path="/bible-reading-plans" element={<ProtectedRoute><BibleReadingPlansPage /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><UserSettingsPage /></ProtectedRoute>} />
-                  <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
-                  <Route path="/debug-email" element={<EmailConfirmationDebug />} />
-                  <Route path="/prayer" element={<ProtectedRoute><PrayerWallPage /></ProtectedRoute>} />
-                  <Route path="/social-media" element={<ProtectedRoute><SocialMediaPage /></ProtectedRoute>} />
-                  <Route path="/fellowship-group/:groupId" element={<ProtectedRoute><GroupPageWrapper /></ProtectedRoute>} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Layout>
-            ) : (
-              <Navigate to="/intro" replace />
-            )
-          }
-        />
-      </Routes>
-    </AudioProvider>
-  );
 };
 
 const applyTheme = () => {
