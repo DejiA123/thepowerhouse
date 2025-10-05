@@ -27,7 +27,7 @@ const IntroPage = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-transparent">
+    <div className="relative h-screen w-full overflow-hidden bg-transparent">
       {/* Background Video */}
       <video
         ref={videoRef}
@@ -60,7 +60,7 @@ const IntroPage = () => {
 
 
       {/* Content - Above everything */}
-      <div className="relative z-50 bg-transparent flex flex-col items-center justify-between min-h-screen px-6 py-12">
+      <div className="relative z-50 bg-transparent flex flex-col items-center justify-between h-screen px-6 py-12">
         {/* Centered Text Content */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl">
