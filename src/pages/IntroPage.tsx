@@ -5,37 +5,74 @@ import { useEffect, useRef } from "react";
 const IntroPage = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  // iOS PWA detection and video helpers
+  const isIOS = typeof navigator !== 'undefined' && ((/iPad|iPhone|iPod/.test(navigator.userAgent)) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
+  const isStandalone = typeof window !== 'undefined' && ((((window as any).navigator)?.standalone) || window.matchMedia('(display-mode: standalone)').matches);
+  const avoidOverflowHidden = isIOS && isStandalone;
 
   const handleGetStarted = () => {
     navigate("/auth");
   };
 
+  const safePlay = async () => {
+    if (videoRef.current) {
+      try {
+        await videoRef.current.play();
+        console.log('✅ Video playing');
+      } catch (error) {
+        console.warn('⚠️ play() failed, will retry on gesture', error);
+      }
+    }
+  };
   useEffect(() => {
-    // Ensure video plays on mount
-    const playVideo = async () => {
-      if (videoRef.current) {
-        try {
-          await videoRef.current.play();
-          console.log('✅ Video playing');
-        } catch (error) {
-          console.error('❌ Video play failed:', error);
-        }
+    const v = videoRef.current;
+    if (!v) return;
+
+    // Ensure inline playback on iOS PWA
+    v.setAttribute('playsinline', '');
+    (v as any).playsInline = true;
+    v.setAttribute('webkit-playsinline', 'true');
+    v.muted = true;
+    v.autoplay = true;
+    v.loop = true;
+
+    const onCanPlay = () => {
+      safePlay();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        safePlay();
       }
     };
-    
-    playVideo();
+    const onGesture = () => safePlay();
+
+    v.addEventListener('canplay', onCanPlay);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('touchend', onGesture, { once: true, passive: true } as any);
+    window.addEventListener('click', onGesture, { once: true } as any);
+
+    // Try immediately too
+    safePlay();
+
+    return () => {
+      v.removeEventListener('canplay', onCanPlay);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('touchend', onGesture);
+      window.removeEventListener('click', onGesture);
+    };
   }, []);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className={`relative h-screen w-full ${avoidOverflowHidden ? '' : 'overflow-hidden'}`}>
       {/* Background Video */}
       <video
         ref={videoRef}
+        src="/App_Intro_1.mp4?v=4"
         autoPlay
         loop
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         poster="/placeholder.svg"
         className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
         onError={(e) => {
@@ -47,10 +84,8 @@ const IntroPage = () => {
         onCanPlay={() => {
           console.log('✅ Video can play');
         }}
-      >
-        <source src="/App_Intro_1.mp4?v=3" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        {...{ 'webkit-playsinline': 'true' }}
+      />
 
 
       {/* Content - Above everything */}
