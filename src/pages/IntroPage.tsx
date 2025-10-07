@@ -27,7 +27,7 @@ const IntroPage = () => {
   }, []);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden">
       {/* Background Video */}
       <video
         ref={videoRef}
@@ -37,7 +37,7 @@ const IntroPage = () => {
         playsInline
         preload="auto"
         poster="/placeholder.svg"
-        className="absolute inset-0 w-full h-full object-cover z-0 bg-black"
+        className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
         onError={(e) => {
           console.error('❌ Video error:', e);
         }}
@@ -52,11 +52,9 @@ const IntroPage = () => {
         Your browser does not support the video tag.
       </video>
 
-      {/* Reduced overlay for minimal darkening */}
-      <div className="absolute inset-0 bg-black/20 z-[1]" />
 
       {/* Content - Above everything */}
-      <div className="relative z-10 flex flex-col items-center justify-between min-h-screen px-6 py-12">
+      <div className="relative z-0 flex flex-col items-center justify-between h-screen px-6 py-12">
         {/* Centered Text Content */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl">
