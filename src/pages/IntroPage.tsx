@@ -55,8 +55,11 @@ const IntroPage = () => {
 
       {/* Content - Above everything */}
       <div className="relative z-20 flex flex-col items-center justify-between h-screen px-6 py-12">
-        {/* Centered Text Content */}
-        <div className="flex-1 flex items-center justify-center">
+        {/* Spacer to push content down */}
+        <div className="flex-[2]" />
+        
+        {/* Text Content */}
+        <div className="flex-1 flex items-end justify-center pb-8">
           <div className="text-center max-w-2xl">
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-2xl">
               Welcome to,
