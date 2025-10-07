@@ -1,33 +1,55 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const IntroPage = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [showTapToStart, setShowTapToStart] = useState(false);
 
   const handleGetStarted = () => {
     navigate("/auth");
   };
 
-  useEffect(() => {
-    // Ensure video plays on mount
-    const playVideo = async () => {
-      if (videoRef.current) {
-        try {
-          await videoRef.current.play();
-          console.log('✅ Video playing');
-        } catch (error) {
-          console.error('❌ Video play failed:', error);
-        }
+  const playVideo = async () => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.load(); // Force reload for iOS
+        await videoRef.current.play();
+        console.log('✅ Video playing');
+        setVideoPlaying(true);
+        setShowTapToStart(false);
+      } catch (error) {
+        console.error('❌ Video play failed:', error);
+        setShowTapToStart(true);
       }
-    };
+    }
+  };
+
+  const handleTapToStart = async () => {
+    await playVideo();
+  };
+
+  useEffect(() => {
+    // Detect if running as PWA on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
     
-    playVideo();
+    if (isIOS && isPWA) {
+      // For iOS PWA, require user interaction
+      setShowTapToStart(true);
+    } else {
+      // For browser, try autoplay
+      const timer = setTimeout(() => {
+        playVideo();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden" onClick={handleTapToStart}>
       {/* Background Video */}
       <video
         ref={videoRef}
@@ -36,10 +58,10 @@ const IntroPage = () => {
         muted
         playsInline
         preload="auto"
-        poster="/placeholder.svg"
         className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
         onError={(e) => {
           console.error('❌ Video error:', e);
+          setShowTapToStart(true);
         }}
         onLoadedData={() => {
           console.log('✅ Video loaded');
@@ -47,10 +69,29 @@ const IntroPage = () => {
         onCanPlay={() => {
           console.log('✅ Video can play');
         }}
+        onPlay={() => {
+          console.log('✅ Video started playing');
+          setVideoPlaying(true);
+          setShowTapToStart(false);
+        }}
+        onPause={() => {
+          console.log('⏸️ Video paused');
+          setVideoPlaying(false);
+        }}
       >
-        <source src="/App_Intro_1.mp4?v=3" type="video/mp4" />
+        <source src="/App_Intro_1.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
+
+      {/* Tap to start overlay for iOS PWA */}
+      {showTapToStart && !videoPlaying && (
+        <div className="absolute inset-0 z-30 bg-black/70 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-white text-2xl mb-4">Tap to Start</div>
+            <div className="text-white/70 text-sm">Tap anywhere to begin</div>
+          </div>
+        </div>
+      )}
 
 
       {/* Content - Above everything */}
