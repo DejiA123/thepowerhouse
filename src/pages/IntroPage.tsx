@@ -52,8 +52,8 @@ const IntroPage = () => {
         Your browser does not support the video tag.
       </video>
 
-      {/* Dark Overlay for better text readability */}
-      <div className="absolute inset-0 bg-black/50 z-[1]" />
+      {/* Reduced overlay for minimal darkening */}
+      <div className="absolute inset-0 bg-black/20 z-[1]" />
 
       {/* Content - Above everything */}
       <div className="relative z-10 flex flex-col items-center justify-between min-h-screen px-6 py-12">
