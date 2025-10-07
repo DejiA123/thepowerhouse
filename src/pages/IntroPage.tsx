@@ -7,7 +7,6 @@ const IntroPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
-  const [showFallback, setShowFallback] = useState(true);
   // iOS PWA detection and video helpers
   const isIOS = typeof navigator !== 'undefined' && ((/iPad|iPhone|iPod/.test(navigator.userAgent)) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
   const isStandalone = typeof window !== 'undefined' && ((((window as any).navigator)?.standalone) || window.matchMedia('(display-mode: standalone)').matches);
@@ -92,7 +91,6 @@ const IntroPage = () => {
         onPlay={() => {
           console.log('▶️ Video playing');
           setVideoPlaying(true);
-          setShowFallback(false);
         }}
         onPause={() => {
           console.log('⏸️ Video paused');
@@ -102,7 +100,7 @@ const IntroPage = () => {
       />
       {/* Poster fallback overlay for iOS PWA to avoid black screen */}
       <div
-        className={`absolute inset-0 z-15 pointer-events-none transition-opacity duration-500 ${showFallback ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 z-15 pointer-events-none transition-opacity duration-500 ${!videoPlaying ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
       >
         <img
