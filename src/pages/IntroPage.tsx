@@ -54,7 +54,7 @@ const IntroPage = () => {
 
 
       {/* Content - Above everything */}
-      <div className="relative z-0 flex flex-col items-center justify-between h-screen px-6 py-12">
+      <div className="relative z-20 flex flex-col items-center justify-between h-screen px-6 py-12">
         {/* Centered Text Content */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl">
