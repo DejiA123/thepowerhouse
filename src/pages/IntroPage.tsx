@@ -92,19 +92,20 @@ const IntroPage = () => {
       {/* Background Video */}
       <video
         ref={videoRef}
+        src="/App_Intro_1.mp4"
         autoPlay
         loop
         muted
         playsInline
-        preload="auto"
-        poster="/favicon.png"
+        preload="metadata"
         className="absolute inset-0 w-full h-full object-cover z-10 bg-black transform-gpu"
         onError={(e) => {
           console.error('❌ Video error:', e);
           setShowTapToStart(true);
         }}
-        onLoadedData={() => {
-          console.log('✅ Video loaded');
+        onLoadedMetadata={() => {
+          console.log('✅ Video metadata loaded');
+          playVideo();
         }}
         onCanPlay={() => {
           console.log('✅ Video can play');
@@ -118,10 +119,7 @@ const IntroPage = () => {
           console.log('⏸️ Video paused');
           setVideoPlaying(false);
         }}
-      >
-        <source src="/App_Intro_1.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+      />
 
       {/* Tap to start overlay for iOS PWA */}
       {showTapToStart && !videoPlaying && (
