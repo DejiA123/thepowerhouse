@@ -20,15 +20,30 @@ const IntroPage = () => {
 
   const safePlay = async () => {
     if (!videoLoaded) {
+      console.log("safePlay() called, but video is not loaded yet (oncanplaythrough has not fired). Ignoring.");
       return;
     }
+    console.log('safePlay() called.');
     const video = videoRef.current;
 
     if (video) {
+        console.log('Video State on safePlay tap:', {
+            paused: video.paused,
+            ended: video.ended,
+            readyState: video.readyState, // 4 means HAVE_ENOUGH_DATA
+            networkState: video.networkState, // 1 means NETWORK_IDLE
+            currentTime: video.currentTime,
+            src: video.src.substring(0, 40) + '...',
+            error: video.error,
+        });
         try {
+            console.log('Attempting to call video.play().');
             await video.play();
+            console.log('video.play() promise was resolved.');
         } catch (error: any) {
-            if (error.name !== 'AbortError') {
+            if (error.name === 'AbortError') {
+                console.log('video.play() was aborted, likely because it was already playing. This is safe to ignore.');
+            } else {
                 console.error('⚠️ video.play() was rejected with an unexpected error.', error);
             }
         }
@@ -38,6 +53,7 @@ const IntroPage = () => {
   };
 
   useEffect(() => {
+    console.log('IntroPage useEffect running. isIOSPWA:', isIOSPWA);
     const video = videoRef.current;
     if (!video) {
       console.error("Video ref is not available on mount!");
@@ -47,31 +63,56 @@ const IntroPage = () => {
     let objectUrl: string | null = null;
 
     const onPlay = () => {
-      setVideoPlaying(true);
+        console.log("Event: 'play' - Video has started playing.");
+        setVideoPlaying(true);
     };
     const onPause = () => {
-      setVideoPlaying(false);
+        console.log("Event: 'pause' - Video has been paused.");
+        setVideoPlaying(false);
     };
-    const onError = (e: Event) => {
-      console.error('🔥🔥🔥 Video Element Error Event Fired! 🔥🔥🔥', video.error);
+    const onWaiting = () => {
+        console.warn("Event: 'waiting' - Playback stopped due to temporary lack of data.");
     };
+    const onStalled = () => {
+        console.warn("Event: 'stalled' - Browser is trying to fetch data but it is not available.");
+    };
+    const onError = () => {
+        console.error('🔥🔥🔥 Video Element Error Event Fired! 🔥🔥🔥', video.error);
+    };
+    const onCanPlayThrough = () => {
+        console.log("✅ Event: 'canplaythrough' - Video is loaded and ready to play without buffering.");
+        setVideoLoaded(true);
+    }
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('stalled', onStalled);
     video.addEventListener('error', onError);
+    video.addEventListener('canplaythrough', onCanPlayThrough);
 
 
     const loadVideoAsBlob = async () => {
-      const videoUrl = "/App_Intro_1.mp4?v=10"; // Incremented version
+      // Increment version to try and break any caches.
+      const videoUrl = "/App_Intro_1.mp4?v=11";
+      console.log(`Starting to fetch video as blob: ${videoUrl}`);
       try {
         const response = await fetch(videoUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+        console.log("Video fetch response OK. Converting to blob...");
         const blob = await response.blob();
+        console.log(`Blob created. Size: ${blob.size}, Type: ${blob.type}`);
+        
         objectUrl = URL.createObjectURL(blob);
+        console.log(`Created object URL: ${objectUrl.substring(0, 40)}...`);
+        
         video.src = objectUrl;
-        setVideoLoaded(true);
+        console.log("Video source set to object URL. Calling video.load().");
+        video.load(); // Explicitly trigger load for the new source
+        console.log("video.load() called. Now waiting for 'canplaythrough' event.");
+
       } catch (error) {
         console.error("🔥🔥🔥 Failed to fetch and load video via blob. 🔥🔥🔥", error);
       }
@@ -80,14 +121,19 @@ const IntroPage = () => {
     loadVideoAsBlob();
 
     return () => {
+      console.log('Cleaning up IntroPage listeners and object URL.');
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('stalled', onStalled);
       video.removeEventListener('error', onError);
+      video.removeEventListener('canplaythrough', onCanPlayThrough);
       if (objectUrl) {
+        console.log(`Revoking object URL: ${objectUrl.substring(0, 40)}...`);
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, []);
+  }, [isIOSPWA]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={safePlay}>
