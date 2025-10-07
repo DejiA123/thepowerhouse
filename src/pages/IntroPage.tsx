@@ -93,16 +93,16 @@ const IntroPage = () => {
       setVideoPlaying(false);
     };
     const onStalled = () => {
-      console.warn('Event: 'stalled' - Playback stalled. Browser is trying to fetch data but it is not available.');
+      console.warn("Event: 'stalled' - Playback stalled. Browser is trying to fetch data but it is not available.");
     };
      const onCanPlay = () => {
-      console.log('Event: 'canplay' - Browser can play media, but estimates that not enough data has been loaded to play through to the end.');
+      console.log("Event: 'canplay' - Browser can play media, but estimates that not enough data has been loaded to play through to the end.");
     };
     const onCanPlayThrough = () => {
-      console.log('Event: 'canplaythrough' - Browser estimates it can play through the media without stopping for buffering.');
+      console.log("Event: 'canplaythrough' - Browser estimates it can play through the media without stopping for buffering.");
     };
     const onWaiting = () => {
-      console.warn('Event: 'waiting' - Playback has stopped because of a temporary lack of data.');
+      console.warn("Event: 'waiting' - Playback has stopped because of a temporary lack of data.");
     }
 
     // Adding all listeners
