@@ -26,16 +26,30 @@ const IntroPage = () => {
     }
     console.log('safePlay() called.');
     const video = videoRef.current;
-    if (video && video.paused) {
-      try {
-        console.log('Attempting to play video...');
-        await video.play();
-        console.log('video.play() promise was resolved.');
-      } catch (error) {
-        console.error('⚠️ video.play() was rejected.', error);
-      }
+
+    if (video) {
+        console.log('Video State on safePlay tap:', {
+            paused: video.paused,
+            ended: video.ended,
+            readyState: video.readyState,
+            networkState: video.networkState,
+            currentTime: video.currentTime,
+            src: video.src.substring(0, 30) + '...', // Don't log the whole blob URL
+            error: video.error,
+        });
+        try {
+            console.log('Attempting to call video.play().');
+            await video.play();
+            console.log('video.play() promise was resolved.');
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('video.play() was aborted, which is expected if the video is already playing. No action needed.');
+            } else {
+                console.error('⚠️ video.play() was rejected with an unexpected error.', error);
+            }
+        }
     } else {
-      console.log('safePlay() called but video was not paused or doesn\'t exist.');
+        console.error('safePlay called but video ref is null!');
     }
   };
 
@@ -49,9 +63,6 @@ const IntroPage = () => {
 
     let objectUrl: string | null = null;
 
-    const onError = (e: Event) => {
-      console.error('🔥🔥🔥 Video Element Error Event Fired! 🔥🔥🔥', video.error);
-    };
     const onPlay = () => {
       console.log("Event: 'play' - Video has started playing.");
       setVideoPlaying(true);
@@ -60,13 +71,25 @@ const IntroPage = () => {
       console.log("Event: 'pause' - Video has been paused.");
       setVideoPlaying(false);
     };
+    const onWaiting = () => {
+        console.warn("Event: 'waiting' - Playback stopped due to temporary lack of data.");
+    };
+    const onStalled = () => {
+        console.warn("Event: 'stalled' - Browser is trying to fetch data but it is not available.");
+    };
+    const onError = (e: Event) => {
+      console.error('🔥🔥🔥 Video Element Error Event Fired! 🔥🔥🔥', video.error);
+    };
 
-    video.addEventListener('error', onError);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('stalled', onStalled);
+    video.addEventListener('error', onError);
+
 
     const loadVideoAsBlob = async () => {
-      const videoUrl = "/App_Intro_1.mp4?v=8"; // Incremented version
+      const videoUrl = "/App_Intro_1.mp4?v=9"; // Incremented version
       console.log(`Starting to fetch video as blob: ${videoUrl}`);
       try {
         const response = await fetch(videoUrl);
@@ -78,18 +101,15 @@ const IntroPage = () => {
         console.log(`Blob created. Size: ${blob.size}, Type: ${blob.type}`);
         
         objectUrl = URL.createObjectURL(blob);
-        console.log(`Created object URL: ${objectUrl}`);
+        console.log(`Created object URL: ${objectUrl.substring(0, 40)}...`);
         
         video.src = objectUrl;
         setVideoLoaded(true);
         console.log("Video source set to object URL. Ready for playback.");
         
-        if (!isIOSPWA) {
-          console.log('Not an iOS PWA, attempting autoplay after blob load.');
-          safePlay();
-        } else {
-          console.log('iOS PWA detected. Video is loaded and ready. Awaiting user tap to play.');
-        }
+        // We no longer autoplay here, even for non-PWA, to have consistent logic.
+        // Playback will always be initiated by user interaction via safePlay.
+        console.log('Video is loaded. Awaiting user interaction to play.');
 
       } catch (error) {
         console.error("🔥🔥🔥 Failed to fetch and load video via blob. 🔥🔥🔥", error);
@@ -100,11 +120,13 @@ const IntroPage = () => {
 
     return () => {
       console.log('Cleaning up IntroPage listeners and object URL.');
-      video.removeEventListener('error', onError);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('stalled', onStalled);
+      video.removeEventListener('error', onError);
       if (objectUrl) {
-        console.log(`Revoking object URL: ${objectUrl}`);
+        console.log(`Revoking object URL: ${objectUrl.substring(0, 40)}...`);
         URL.revokeObjectURL(objectUrl);
       }
     };
