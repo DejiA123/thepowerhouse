@@ -1,10 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const IntroPage = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [showFallback, setShowFallback] = useState(true);
   // iOS PWA detection and video helpers
   const isIOS = typeof navigator !== 'undefined' && ((/iPad|iPhone|iPod/.test(navigator.userAgent)) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
   const isStandalone = typeof window !== 'undefined' && ((((window as any).navigator)?.standalone) || window.matchMedia('(display-mode: standalone)').matches);
@@ -28,7 +31,7 @@ const IntroPage = () => {
     const v = videoRef.current;
     if (!v) return;
 
-    // Ensure inline playback on iOS PWA
+    // Ensure inline playback on iOS PWA before load
     v.setAttribute('playsinline', '');
     (v as any).playsInline = true;
     v.setAttribute('webkit-playsinline', 'true');
@@ -37,6 +40,7 @@ const IntroPage = () => {
     v.loop = true;
 
     const onCanPlay = () => {
+      setVideoReady(true);
       safePlay();
     };
     const onVisibility = () => {
@@ -61,20 +65,20 @@ const IntroPage = () => {
       window.removeEventListener('click', onGesture);
     };
   }, []);
-
   return (
     <div className={`relative h-screen w-full ${avoidOverflowHidden ? '' : 'overflow-hidden'}`}>
       {/* Background Video */}
       <video
         ref={videoRef}
-        src="/App_Intro_1.mp4?v=4"
+        src="/App_Intro_1.mp4?v=5"
         autoPlay
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         poster="/placeholder.svg"
-        className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
+        className="absolute inset-0 w-full h-full object-cover z-10 bg-black transform-gpu will-change-transform [backface-visibility:hidden]"
+        crossOrigin="anonymous"
         onError={(e) => {
           console.error('❌ Video error:', e);
         }}
@@ -83,10 +87,31 @@ const IntroPage = () => {
         }}
         onCanPlay={() => {
           console.log('✅ Video can play');
+          setVideoReady(true);
+        }}
+        onPlay={() => {
+          console.log('▶️ Video playing');
+          setVideoPlaying(true);
+          setShowFallback(false);
+        }}
+        onPause={() => {
+          console.log('⏸️ Video paused');
+          setVideoPlaying(false);
         }}
         {...{ 'webkit-playsinline': 'true' }}
       />
-
+      {/* Poster fallback overlay for iOS PWA to avoid black screen */}
+      <div
+        className={`absolute inset-0 z-15 pointer-events-none transition-opacity duration-500 ${showFallback ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      >
+        <img
+          src="/placeholder.svg"
+          alt="Intro background poster"
+          className="w-full h-full object-cover"
+          loading="eager"
+        />
+      </div>
 
       {/* Content - Above everything */}
       <div className="relative z-20 flex flex-col items-center justify-between h-screen px-6 py-12">

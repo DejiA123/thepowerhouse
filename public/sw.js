@@ -51,9 +51,16 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - handle audio requests and caching
+// Fetch event - handle audio requests and caching; bypass video to keep Range support
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  // Bypass SW for video to ensure Range/streaming works in iOS PWA
+  const isVideo = request.destination === 'video' || request.url.match(/\.mp4(\?|$)/i) || request.headers.has('range');
+  if (isVideo) {
+    event.respondWith(fetch(request));
+    return;
+  }
   
   // Handle audio-related requests
   if (request.url.includes('audio') || request.url.includes('tts') || request.url.includes('speech')) {
@@ -64,9 +71,7 @@ self.addEventListener('fetch', (event) => {
             console.log('🎵 Service Worker: Serving cached audio:', request.url);
             return response;
           }
-          
           return fetch(request).then((fetchResponse) => {
-            // Cache successful audio responses
             if (fetchResponse && fetchResponse.status === 200) {
               cache.put(request, fetchResponse.clone());
             }
@@ -80,9 +85,7 @@ self.addEventListener('fetch', (event) => {
   
   // Handle other requests with network-first strategy
   event.respondWith(
-    fetch(request).catch(() => {
-      return caches.match(request);
-    })
+    fetch(request).catch(() => caches.match(request))
   );
 });
 
