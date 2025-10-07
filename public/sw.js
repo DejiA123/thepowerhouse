@@ -55,12 +55,6 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   
-  // Skip service worker for video files - always fetch from network
-  if (request.url.includes('.mp4') || request.url.includes('.webm') || request.url.includes('video')) {
-    event.respondWith(fetch(request));
-    return;
-  }
-  
   // Handle audio-related requests
   if (request.url.includes('audio') || request.url.includes('tts') || request.url.includes('speech')) {
     event.respondWith(
