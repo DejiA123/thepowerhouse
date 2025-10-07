@@ -32,24 +32,63 @@ const IntroPage = () => {
   };
 
   useEffect(() => {
-    // Detect if running as PWA on iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-    
+    // Robust iOS PWA detection
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1);
+    const isStandaloneMQ = window.matchMedia('(display-mode: standalone)').matches;
+    const isStandaloneNav = (window.navigator as any).standalone === true;
+    const isPWA = isStandaloneMQ || isStandaloneNav;
+
+    console.log('IntroPage iOS/PWA detection', { isIOS, isPWA, isStandaloneMQ, isStandaloneNav });
+
+    if (videoRef.current) {
+      // Ensure correct inline playback flags for iOS
+      videoRef.current.muted = true;
+      videoRef.current.setAttribute('muted', 'true');
+      videoRef.current.setAttribute('playsinline', 'true');
+      videoRef.current.setAttribute('webkit-playsinline', 'true');
+    }
+
+    const tryAuto = () => {
+      playVideo();
+    };
+
     if (isIOS && isPWA) {
-      // For iOS PWA, require user interaction
+      // Require user gesture in iOS PWA
       setShowTapToStart(true);
     } else {
-      // For browser, try autoplay
-      const timer = setTimeout(() => {
-        playVideo();
-      }, 100);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(tryAuto, 100);
+      // Cleanup for timer
+      const cleanup = () => clearTimeout(timer);
+      // Return cleanup later with other listeners
+      (cleanup as any)._timer = true;
     }
-  }, []);
+
+    // Add user gesture listeners to reliably trigger playback
+    const onUserGesture = () => {
+      playVideo();
+      document.removeEventListener('touchstart', onUserGesture);
+      document.removeEventListener('click', onUserGesture);
+    };
+    document.addEventListener('touchstart', onUserGesture, { once: true });
+    document.addEventListener('click', onUserGesture, { once: true });
+
+    // Replay when app becomes visible
+    const onVisibility = () => {
+      if (!document.hidden && !videoPlaying) {
+        playVideo();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      document.removeEventListener('touchstart', onUserGesture);
+      document.removeEventListener('click', onUserGesture);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [videoPlaying]);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden" onClick={handleTapToStart}>
+    <div className="relative h-screen w-full overflow-hidden" onClick={handleTapToStart} onTouchStart={handleTapToStart}>
       {/* Background Video */}
       <video
         ref={videoRef}
@@ -58,7 +97,8 @@ const IntroPage = () => {
         muted
         playsInline
         preload="auto"
-        className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
+        poster="/favicon.png"
+        className="absolute inset-0 w-full h-full object-cover z-10 bg-black transform-gpu"
         onError={(e) => {
           console.error('❌ Video error:', e);
           setShowTapToStart(true);
