@@ -5,123 +5,91 @@ import { useEffect, useRef, useState } from "react";
 const IntroPage = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoReady, setVideoReady] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
-  // iOS PWA detection and video helpers
+
+  // iOS PWA detection
   const isIOS = typeof navigator !== 'undefined' && ((/iPad|iPhone|iPod/.test(navigator.userAgent)) || (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
-  const isStandalone = typeof window !== 'undefined' && ((((window as any).navigator)?.standalone) || window.matchMedia('(display-mode: standalone)').matches);
-  const avoidOverflowHidden = isIOS && isStandalone;
+  const isStandalone = typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || ((window as any).navigator)?.standalone);
+  const isIOSPWA = isIOS && isStandalone;
 
   const handleGetStarted = () => {
-    if (videoRef.current && !videoPlaying) {
-      safePlay();
-    }
     navigate("/auth");
   };
 
-  const safePlay = async () => {
-    if (videoRef.current) {
-      try {
-        await videoRef.current.play();
-        console.log('✅ Video playing');
-      } catch (error) {
-        console.warn('⚠️ play() failed, will retry on gesture', error);
-      }
+  // Function to attempt to play the video
+  const safePlay = () => {
+    const video = videoRef.current;
+    if (video && video.paused) {
+      video.play().catch(error => {
+        console.warn('⚠️ Video play() was rejected. This is expected on iOS if not user-initiated.', error);
+      });
     }
   };
+
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
+    const video = videoRef.current;
+    if (!video) return;
 
-    // Ensure inline playback on iOS PWA before load
-    v.setAttribute('playsinline', '');
-    (v as any).playsInline = true;
-    v.setAttribute('webkit-playsinline', 'true');
-    v.muted = true;
-    v.autoplay = true;
-    v.loop = true;
+    // Set properties for inline playback, crucial for iOS
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true; // Muted is essential for any autoplay attempt
+    video.loop = true;
 
-    const onCanPlay = () => {
-      setVideoReady(true);
+    // Event listeners to update our videoPlaying state
+    const onPlay = () => setVideoPlaying(true);
+    const onPause = () => setVideoPlaying(false);
+
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
+
+    // If it's not an iOS PWA, we can try to autoplay more aggressively
+    if (!isIOSPWA) {
+      video.autoplay = true;
       safePlay();
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        safePlay();
-      }
-    };
-    const onGesture = () => safePlay();
-
-    v.addEventListener('canplay', onCanPlay);
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('touchend', onGesture, { once: true, passive: true } as any);
-    window.addEventListener('click', onGesture, { once: true } as any);
-
-    // Try immediately too
-    safePlay();
-
+    }
+    
+    // Cleanup listeners
     return () => {
-      v.removeEventListener('canplay', onCanPlay);
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('touchend', onGesture);
-      window.removeEventListener('click', onGesture);
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
     };
-  }, []);
+  }, [isIOSPWA]);
+
   return (
-    <div className={`relative h-screen w-full ${avoidOverflowHidden ? '' : 'overflow-hidden'}`} onClick={safePlay}>
+    <div className="relative h-screen w-full overflow-hidden bg-black">
       {/* Background Video */}
       <video
         ref={videoRef}
         src="/App_Intro_1.mp4?v=5"
-        autoPlay
         loop
         muted
         playsInline
         preload="auto"
-        poster="/placeholder.svg"
-        className="absolute inset-0 w-full h-full object-cover z-10 bg-black transform-gpu will-change-transform [backface-visibility:hidden]"
-        crossOrigin="anonymous"
-        onError={(e) => {
-          console.error('❌ Video error:', e);
-        }}
-        onLoadedData={() => {
-          console.log('✅ Video loaded');
-        }}
-        onCanPlay={() => {
-          console.log('✅ Video can play');
-          setVideoReady(true);
-        }}
-        onPlay={() => {
-          console.log('▶️ Video playing');
-          setVideoPlaying(true);
-        }}
-        onPause={() => {
-          console.log('⏸️ Video paused');
-          setVideoPlaying(false);
-        }}
-        {...{ 'webkit-playsinline': 'true' }}
+        className="absolute inset-0 w-full h-full object-cover z-10"
       />
-      {/* Poster fallback overlay for iOS PWA to avoid black screen */}
+      
+      {/* Clickable Poster Fallback/Overlay */}
+      {/* This overlay is visible when the video is not playing. Clicking it will start the video. */}
       <div
-        className={`absolute inset-0 z-15 pointer-events-none transition-opacity duration-500 ${!videoPlaying ? 'opacity-100' : 'opacity-0'}`}
-        aria-hidden="true"
+        className={`absolute inset-0 z-20 transition-opacity duration-500 ${!videoPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        aria-hidden={videoPlaying}
+        onClick={safePlay}
       >
         <img
           src="/placeholder.svg"
-          alt="Intro background poster"
+          alt="Tap to play intro video"
           className="w-full h-full object-cover"
           loading="eager"
         />
       </div>
 
       {/* Content - Above everything */}
-      <div className="relative z-20 flex flex-col items-center justify-between h-screen px-6 py-12">
-        {/* Spacer to push content down */}
+      <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12">
         <div className="flex-[2]" />
         
-        {/* Text Content */}
-        <div className="flex-1 flex items-end justify-center pb-8">
-          <div className="text-center max-w-2xl">
+        <div className="flex-1 flex items-end justify-center pb-8 text-center max-w-2xl">
+          <div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-2xl">
               Welcome to,
             </h1>
@@ -134,7 +102,6 @@ const IntroPage = () => {
           </div>
         </div>
 
-        {/* Bottom CTA Button */}
         <div className="w-full max-w-md pb-8">
           <Button
             onClick={handleGetStarted}
