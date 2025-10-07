@@ -329,13 +329,18 @@ const BiblePage = () => {
     
     if (loadError) {
       return (
-        <div className="flex flex-col items-center justify-center py-12">
+        <div className="flex flex-col items-center justify-center py-12 space-y-3">
           <p className="text-destructive mb-4">{loadError}</p>
-          <Button onClick={() => {
-            if (selectedBook && selectedChapter) loadChapter(selectedBook, selectedChapter);
-          }}>
-            Retry
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => {
+              if (selectedBook && selectedChapter) loadChapter(selectedBook, selectedChapter);
+            }}>
+              Retry
+            </Button>
+            <Button variant="outline" onClick={resetToReasonableDefaults}>
+              Reset to Genesis 1
+            </Button>
+          </div>
         </div>
       );
     }
