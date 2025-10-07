@@ -13,6 +13,9 @@ const IntroPage = () => {
   const avoidOverflowHidden = isIOS && isStandalone;
 
   const handleGetStarted = () => {
+    if (videoRef.current && !videoPlaying) {
+      safePlay();
+    }
     navigate("/auth");
   };
 
@@ -65,7 +68,7 @@ const IntroPage = () => {
     };
   }, []);
   return (
-    <div className={`relative h-screen w-full ${avoidOverflowHidden ? '' : 'overflow-hidden'}`}>
+    <div className={`relative h-screen w-full ${avoidOverflowHidden ? '' : 'overflow-hidden'}`} onClick={safePlay}>
       {/* Background Video */}
       <video
         ref={videoRef}
