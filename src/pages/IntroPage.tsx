@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
@@ -13,20 +14,21 @@ const IntroPage = () => {
   const isIOSPWA = isIOS && isStandalone;
 
   const handleGetStarted = (e: React.MouseEvent) => {
-    // Prevent the click from bubbling up to the parent div which would trigger safePlay
-    e.stopPropagation();
+    e.stopPropagation(); // Stop click from bubbling to the parent div
     navigate("/auth");
   };
 
-  // Function to attempt to play the video
-  const safePlay = () => {
+  // Async function to attempt to play the video safely
+  const safePlay = async () => {
     const video = videoRef.current;
     if (video && video.paused) {
-      // The play() method returns a Promise.
-      // We'll catch potential errors to avoid unhandled promise rejections.
-      video.play().catch(error => {
-        console.warn('⚠️ Video play() was rejected. This is expected on iOS if not user-initiated.', error);
-      });
+      try {
+        console.log('Attempting to play video. ReadyState:', video.readyState);
+        await video.play();
+        console.log('video.play() promise resolved.');
+      } catch (error) {
+        console.error('⚠️ Video play() was rejected.', error);
+      }
     }
   };
 
@@ -34,50 +36,53 @@ const IntroPage = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Set properties for inline playback, crucial for iOS
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', 'true');
-    video.muted = true; // Muted is essential for any autoplay attempt
+    video.muted = true;
     video.loop = true;
 
-    // Event listeners to update our videoPlaying state
-    const onPlay = () => setVideoPlaying(true);
-    const onPause = () => setVideoPlaying(false);
+    const onPlay = () => {
+      console.log("Video 'play' event triggered.");
+      setVideoPlaying(true);
+    };
+    const onPause = () => {
+      console.log("Video 'pause' event triggered.");
+      setVideoPlaying(false);
+    };
+    const onStalled = () => {
+      console.warn('Video playback stalled. Check network or service worker.');
+    };
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('stalled', onStalled);
 
-    // On non-iOS PWAs, we can be more aggressive with autoplay.
     if (!isIOSPWA) {
       video.autoplay = true;
       safePlay();
     }
     
-    // Cleanup listeners on component unmount
     return () => {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('stalled', onStalled);
     };
   }, [isIOSPWA]);
 
   return (
-    // Make the entire container clickable to play the video
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={safePlay}>
-      {/* Background Video */}
       <video
         ref={videoRef}
-        src="/App_Intro_1.mp4?v=5" // Appended version for cache-busting
+        src="/App_Intro_1.mp4?v=5"
         loop
         muted
         playsInline
-        preload="auto"
+        webkit-playsinline // More aggressive inline playback for iOS
+        preload="metadata"     // Only load metadata initially
         className="absolute inset-0 w-full h-full object-cover z-10"
       />
       
-      {/* Visual Poster Overlay (not clickable itself) */}
-      {/* This is shown when the video is not playing and fades out when it starts */}
+      {/* Visual Poster Overlay */}
       <div
-        className={`absolute inset-0 z-20 transition-opacity duration-500 ${!videoPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`absolute inset-0 z-20 transition-opacity duration-500 ${videoPlaying ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
         aria-hidden={videoPlaying}
       >
         <img
@@ -88,8 +93,8 @@ const IntroPage = () => {
         />
       </div>
 
-      {/* Content - Above the video and poster */}
-      <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12">
+      {/* Content Layer (non-interactive by default) */}
+      <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12 pointer-events-none">
         <div className="flex-[2]" />
         
         <div className="flex-1 flex items-end justify-center pb-8 text-center max-w-2xl">
@@ -106,7 +111,8 @@ const IntroPage = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-md pb-8">
+        {/* Button container (re-enables interaction) */}
+        <div className="w-full max-w-md pb-8 pointer-events-auto">
           <Button
             onClick={handleGetStarted}
             size="lg"
