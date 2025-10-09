@@ -1,66 +1,129 @@
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const IntroPage = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
-  const handleGetStarted = () => {
+  const handleGetStarted = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigate("/auth");
   };
 
+  const handleContainerClick = () => {
+    const video = videoRef.current;
+    if (video && video.paused) {
+      console.log("Container clicked, attempting to play video.");
+      video.play().catch(error => {
+        console.error("❌ Video play failed on container click:", error);
+      });
+    }
+  };
+
   useEffect(() => {
-    // Ensure video plays on mount
-    const playVideo = async () => {
-      if (videoRef.current) {
-        try {
-          await videoRef.current.play();
-          console.log('✅ Video playing');
-        } catch (error) {
-          console.error('❌ Video play failed:', error);
+    const video = videoRef.current;
+    if (!video) return;
+
+    let objectUrl: string | undefined;
+
+    const onPlay = () => {
+      console.log("✅ Event: 'play'");
+      setVideoPlaying(true);
+    };
+
+    const onPause = () => {
+      console.log("Event: 'pause'");
+      setVideoPlaying(false);
+    };
+
+    const onCanPlay = () => {
+      console.log("✅ Event: 'oncanplay' - Video can play.");
+      setVideoLoaded(true);
+      // Attempt to play after loaded
+      video.play().catch(error => {
+         console.warn("⚠️ Auto-play was prevented. Waiting for user interaction.", error.name);
+      });
+    };
+    
+    const onError = (e: Event) => {
+      console.error("❌ Video Element Error:", video.error);
+    };
+
+    const loadVideo = async () => {
+      const videoUrl = "/App_Intro_1.mp4?v=4"; // Version bump
+      console.log(`Fetching video: ${videoUrl}`);
+      try {
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        const blob = await response.blob();
+        console.log(`Blob created. Size: ${blob.size}, Type: ${blob.type}`);
+        objectUrl = URL.createObjectURL(blob);
+        video.src = objectUrl;
+        video.load(); // Important: Trigger load for the new src
+        console.log("Video source set to object URL. Waiting for 'canplay' event.");
+
+      } catch (error) {
+        console.error("❌ Failed to load video via blob:", error);
       }
     };
     
-    playVideo();
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("error", onError);
+
+    loadVideo();
+
+    return () => {
+      console.log("Cleaning up IntroPage.");
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("error", onError);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        console.log("Revoked object URL.");
+      }
+    };
   }, []);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
-      {/* Background Video */}
+    <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
+      
+      {/* Video Element */}
       <video
         ref={videoRef}
-        autoPlay
         loop
         muted
         playsInline
-        preload="auto"
-        poster="/placeholder.svg"
-        className="absolute inset-0 w-full h-full object-cover z-10 bg-black"
-        onError={(e) => {
-          console.error('❌ Video error:', e);
-        }}
-        onLoadedData={() => {
-          console.log('✅ Video loaded');
-        }}
-        onCanPlay={() => {
-          console.log('✅ Video can play');
-        }}
+        webkit-playsinline
+        className="absolute inset-0 w-full h-full object-cover z-10"
+      />
+      
+      {/* Placeholder Image Overlay - Fades out when video plays */}
+      <div
+        className={`absolute inset-0 z-20 transition-opacity duration-1000 ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}
+        aria-hidden={videoPlaying}
       >
-        <source src="/App_Intro_1.mp4?v=3" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        <img
+          src="/placeholder.svg"
+          alt="Intro background poster"
+          className="w-full h-full object-cover"
+        />
+      </div>
 
-
-      {/* Content - Above everything */}
-      <div className="relative z-20 flex flex-col items-center justify-between h-screen px-6 py-12">
-        {/* Spacer to push content down */}
+      {/* UI Content - Always on top */}
+      <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12 pointer-events-none">
         <div className="flex-[2]" />
         
-        {/* Text Content */}
-        <div className="flex-1 flex items-end justify-center pb-8">
-          <div className="text-center max-w-2xl">
+        <div className="flex-1 flex items-end justify-center pb-8 text-center max-w-2xl">
+          <div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-2xl">
               Welcome to,
             </h1>
@@ -73,8 +136,7 @@ const IntroPage = () => {
           </div>
         </div>
 
-        {/* Bottom CTA Button */}
-        <div className="w-full max-w-md pb-8">
+        <div className="w-full max-w-md pb-8 pointer-events-auto">
           <Button
             onClick={handleGetStarted}
             size="lg"
