@@ -119,7 +119,7 @@ const TermsOfServicePage = () => {
             <section>
               <h2 className="text-xl font-semibold mb-3">10. Governing Law</h2>
               <p>
-                These Terms shall be governed and construed in accordance with the laws of [Your Jurisdiction], without regard to its conflict of law provisions.
+                These Terms shall be governed and construed in accordance with the laws of Ireland, without regard to its conflict of law provisions.
               </p>
             </section>
           </div>
