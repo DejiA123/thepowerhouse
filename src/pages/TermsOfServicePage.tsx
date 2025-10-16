@@ -110,9 +110,9 @@ const TermsOfServicePage = () => {
               </p>
               <div className="mt-2 space-y-1">
                 <p><strong>The Power House International</strong></p>
-                <p>Email: info@thepowerhouseintl.org</p>
-                <p>Phone: +1 (XXX) XXX-XXXX</p>
-                <p>Address: [Church Physical Address]</p>
+                <p>Email: contact.thepowerhouse@gmail.com</p>
+                <p>Phone: 089 953 4714</p>
+                <p>Address: The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit Heights, Galway, H91 958A</p>
               </div>
             </section>
 
