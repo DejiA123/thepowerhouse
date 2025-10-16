@@ -15,7 +15,9 @@ import {
   Settings,
   Video,
   MessageSquare,
-  MapPin
+  MapPin,
+  FileText,
+  Shield
 } from "lucide-react";
 
 interface MenuDrawerProps {
@@ -80,6 +82,32 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
                 </Button>
               );
             })}
+            
+            <div className="border-t my-2 pt-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-xs"
+                onClick={() => {
+                  navigate("/terms-of-service");
+                  setMenuOpen(false);
+                }}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Terms of Service
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-xs"
+                onClick={() => {
+                  navigate("/privacy-policy");
+                  setMenuOpen(false);
+                }}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Privacy Policy
+              </Button>
+            </div>
+            
             {user && (
               <Button
                 variant="ghost"

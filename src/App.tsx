@@ -29,6 +29,8 @@ import BibleNotesPage from "@/pages/BibleNotesPage";
 import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
 import { EmailConfirmationDebug } from "@/components/EmailConfirmationDebug";
 import IntroPage from "@/pages/IntroPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 
 console.log('App.tsx: Component loading...');
 
@@ -223,6 +225,8 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
