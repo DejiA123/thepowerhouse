@@ -871,7 +871,36 @@ export const BibleChapterContent = ({
       </div>
               
       {/* Main Content Area */}
-      <div className="bible-main-content-full">
+      <div 
+        className="bible-main-content-full"
+        onTouchStart={(e) => {
+          const touch = e.touches[0];
+          const startX = touch.clientX;
+          const startTime = Date.now();
+          
+          const handleTouchEnd = (endEvent: TouchEvent) => {
+            const endTouch = endEvent.changedTouches[0];
+            const endX = endTouch.clientX;
+            const deltaX = endX - startX;
+            const deltaTime = Date.now() - startTime;
+            
+            // Check if it's a valid swipe (minimum distance and speed)
+            if (Math.abs(deltaX) > 50 && deltaTime < 300) {
+              if (deltaX > 0) {
+                // Swipe right - go to previous chapter
+                handlePreviousChapter();
+              } else {
+                // Swipe left - go to next chapter
+                handleNextChapter();
+              }
+            }
+            
+            document.removeEventListener('touchend', handleTouchEnd);
+          };
+          
+          document.addEventListener('touchend', handleTouchEnd);
+        }}
+      >
           {loading ? (
             <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
