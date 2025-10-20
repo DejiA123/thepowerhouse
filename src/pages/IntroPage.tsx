@@ -43,51 +43,53 @@ const IntroPage = () => {
     const onCanPlay = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
-      // Immediately play when can play event fires
+      // Attempt to play after loaded
       video.play().catch(error => {
-        console.warn("⚠️ Auto-play was prevented. Trying again...", error.name);
-        // Try again with user activation state
-        setTimeout(() => {
-          video.play().catch(e => 
-            console.error("❌ Second play attempt failed:", e)
-          );
-        }, 50);
+         console.warn("⚠️ Auto-play was prevented. Waiting for user interaction.", error.name);
       });
-    };
-    
-    const onLoadedMetadata = () => {
-      console.log("✅ Video metadata loaded - attempting immediate playback");
-      video.play().catch(e => console.log("Initial play attempt waiting for canplay"));
     };
     
     const onError = (e: Event) => {
       console.error("❌ Video Element Error:", video.error);
     };
 
-    // Set direct source instead of fetch+blob for faster loading
-    video.src = "/App_Intro_1.mp4?v=5"; // Version bump
-    video.load(); // Force load
+    const loadVideo = async () => {
+      const videoUrl = "/App_Intro_1.mp4?v=4"; // Version bump
+      console.log(`Fetching video: ${videoUrl}`);
+      try {
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const blob = await response.blob();
+        console.log(`Blob created. Size: ${blob.size}, Type: ${blob.type}`);
+        objectUrl = URL.createObjectURL(blob);
+        video.src = objectUrl;
+        video.load(); // Important: Trigger load for the new src
+        console.log("Video source set to object URL. Waiting for 'canplay' event.");
+
+      } catch (error) {
+        console.error("❌ Failed to load video via blob:", error);
+      }
+    };
     
-    // Add event listeners
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("canplay", onCanPlay);
-    video.addEventListener("loadedmetadata", onLoadedMetadata);
     video.addEventListener("error", onError);
 
-    // Try to play immediately
-    if (document.hasFocus()) {
-      video.play().catch(() => console.log("Waiting for canplay event"));
-    }
+    loadVideo();
 
     return () => {
       console.log("Cleaning up IntroPage.");
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("canplay", onCanPlay);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
       video.removeEventListener("error", onError);
-      video.src = ""; // Clear source
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        console.log("Revoked object URL.");
+      }
     };
   }, []);
 
@@ -105,8 +107,6 @@ const IntroPage = () => {
         x5-video-player-type="h5"
         x5-video-player-fullscreen="true"
         preload="auto"
-        autoPlay
-        disablePictureInPicture
         className="absolute inset-0 w-full h-full object-cover z-10"
         style={{ backgroundColor: "#000" }}
       />
