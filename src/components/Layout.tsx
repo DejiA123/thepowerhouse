@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,7 +10,6 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const showChrome = location.pathname !== "/intro";
-  const { user } = useAuth();
 
   // Initialize theme on app load
   useEffect(() => {
@@ -160,24 +158,8 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
-  // Force viewport recalculation on auth state change (fixes PWA bottom nav gap)
-  useEffect(() => {
-    if (user) {
-      // Slight delay to let PWA viewport settle after login
-      const timer = setTimeout(() => {
-        // Force viewport recalculation
-        window.scrollTo(0, 0);
-        requestAnimationFrame(() => {
-          window.dispatchEvent(new Event('resize'));
-        });
-      }, 150);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
-
   return (
-    <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
+    <div className="min-h-screen text-foreground" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
@@ -190,7 +172,7 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+      <main className={showChrome ? "pb-20 lg:pb-4" : "pb-0"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
         {children}
       </main>
 

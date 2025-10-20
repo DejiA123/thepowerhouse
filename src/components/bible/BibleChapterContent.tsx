@@ -872,40 +872,20 @@ export const BibleChapterContent = ({
               
       {/* Main Content Area */}
       <div 
-        className="bible-main-content-full overscroll-none"
+        className="bible-main-content-full"
         onTouchStart={(e) => {
-          // Only handle swipes if not on an interactive element
-          if ((e.target as HTMLElement).closest('button, input, a, [role="button"]')) {
-            return;
-          }
-          
           const touch = e.touches[0];
           const startX = touch.clientX;
-          const startY = touch.clientY;
           const startTime = Date.now();
-          let isSwiping = false;
-          
-          const handleTouchMove = (moveEvent: TouchEvent) => {
-            const moveTouch = moveEvent.touches[0];
-            const deltaX = moveTouch.clientX - startX;
-            
-            // If horizontal movement is significant, mark as swiping and prevent scrolling
-            if (Math.abs(deltaX) > 30) {
-              isSwiping = true;
-              moveEvent.preventDefault();
-            }
-          };
           
           const handleTouchEnd = (endEvent: TouchEvent) => {
             const endTouch = endEvent.changedTouches[0];
             const endX = endTouch.clientX;
-            const endY = endTouch.clientY;
             const deltaX = endX - startX;
-            const deltaY = Math.abs(endY - startY);
             const deltaTime = Date.now() - startTime;
             
-            // Check if it's a valid swipe (minimum distance and speed, more horizontal than vertical)
-            if (Math.abs(deltaX) > 70 && deltaTime < 400 && Math.abs(deltaX) > deltaY * 2) {
+            // Check if it's a valid swipe (minimum distance and speed)
+            if (Math.abs(deltaX) > 50 && deltaTime < 300) {
               if (deltaX > 0) {
                 // Swipe right - go to previous chapter
                 handlePreviousChapter();
@@ -915,11 +895,9 @@ export const BibleChapterContent = ({
               }
             }
             
-            document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
           };
           
-          document.addEventListener('touchmove', handleTouchMove, { passive: false });
           document.addEventListener('touchend', handleTouchEnd);
         }}
       >
