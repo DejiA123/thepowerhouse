@@ -158,8 +158,30 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
+  // Fix for PWA viewport height on iOS
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+
+    const handleResize = () => {
+      setTimeout(setViewportHeight, 150);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
+    <div className="text-foreground overscroll-none" style={{ height: 'calc(var(--vh, 1vh) * 100)', backgroundColor: 'var(--background-color, inherit)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
