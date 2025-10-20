@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const showChrome = location.pathname !== "/intro";
+  const { user } = useAuth();
 
   // Initialize theme on app load
   useEffect(() => {
@@ -157,6 +159,22 @@ const Layout = ({ children }: LayoutProps) => {
       window.removeEventListener('themechange', handleThemeChange);
     };
   }, []);
+
+  // Force viewport recalculation on auth state change (fixes PWA bottom nav gap)
+  useEffect(() => {
+    if (user) {
+      // Slight delay to let PWA viewport settle after login
+      const timer = setTimeout(() => {
+        // Force viewport recalculation
+        window.scrollTo(0, 0);
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new Event('resize'));
+        });
+      }, 150);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
