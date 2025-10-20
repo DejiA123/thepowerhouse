@@ -14,7 +14,7 @@ const BottomNavigation = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card backdrop-blur-md border-t border-border/30 z-[102]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card backdrop-blur-md border-t border-border/30 z-[102] h-[72px] will-change-transform">
       <div className="flex justify-around py-2">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;

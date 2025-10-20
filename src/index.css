@@ -678,7 +678,7 @@
 }
 
 .bible-navigation-controls {
-  @apply fixed bottom-20 left-0 right-0 flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50;
+  @apply fixed bottom-[72px] left-0 right-0 flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50 border-t border-border/30;
 }
 
 /* Bible book selection styles */
