@@ -102,7 +102,11 @@ const IntroPage = () => {
         loop
         muted
         playsInline
-        webkit-playsinline
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
+        preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
       />
       
