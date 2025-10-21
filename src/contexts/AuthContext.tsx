@@ -51,31 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
-          
-          // iOS PWA viewport normalization after email/password login
-          if (event === 'SIGNED_IN') {
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-            const isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-            if (isStandalone && isiOS) {
-              setTimeout(() => {
-                // Update CSS var tied to real innerHeight
-                const setDvh = () => {
-                  const vh = window.innerHeight;
-                  document.documentElement.style.setProperty('--app-dvh', vh + 'px');
-                };
-                setDvh();
-                if (window.visualViewport) {
-                  window.visualViewport.removeEventListener('resize', setDvh);
-                  window.visualViewport.addEventListener('resize', setDvh, { once: true });
-                }
-                window.scrollTo(0, 0);
-                window.dispatchEvent(new Event('resize'));
-                // Brief reflow nudge:
-                document.body.style.transform = 'translateZ(0)';
-                requestAnimationFrame(() => { document.body.style.transform = ''; });
-              }, 300);
-            }
-          }
         }
       );
 
@@ -112,20 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Sign in error:', error);
       } else {
         console.log('Sign in successful');
-        // iOS PWA viewport normalization after successful email/password login
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-        const isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-        if (isStandalone && isiOS) {
-          setTimeout(() => {
-            const setDvh = () => {
-              const vh = window.innerHeight;
-              document.documentElement.style.setProperty('--app-dvh', vh + 'px');
-            };
-            setDvh();
-            window.scrollTo(0, 0);
-            window.dispatchEvent(new Event('resize'));
-          }, 300);
-        }
       }
       return { error };
     } catch (error) {
