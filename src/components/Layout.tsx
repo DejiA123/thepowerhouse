@@ -165,7 +165,8 @@ const Layout = ({ children }: LayoutProps) => {
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
 
-    setViewportHeight();
+    // Recalculate on route change, with a small delay
+    setTimeout(setViewportHeight, 100);
 
     const handleResize = () => {
       setTimeout(setViewportHeight, 150);
@@ -181,7 +182,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, [location.pathname]);
 
   return (
-    <div className="text-foreground overscroll-none" style={{ height: 'calc(var(--vh, 1vh) * 100)', backgroundColor: 'var(--background-color, inherit)' }}>
+    <div className="text-foreground overscroll-none" style={{ minHeight: 'calc(var(--vh, 1vh) * 100)', backgroundColor: 'var(--background-color, inherit)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
