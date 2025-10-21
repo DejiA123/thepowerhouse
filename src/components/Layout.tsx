@@ -178,7 +178,7 @@ const Layout = ({ children }: LayoutProps) => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, []);
+  }, [location.pathname]);
 
   return (
     <div className="text-foreground overscroll-none" style={{ height: 'calc(var(--vh, 1vh) * 100)', backgroundColor: 'var(--background-color, inherit)' }}>
