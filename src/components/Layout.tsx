@@ -172,7 +172,16 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+      <main
+        className={showChrome ? "overscroll-none" : "overscroll-none"}
+        style={showChrome
+          ? {
+              paddingTop: 'env(safe-area-inset-top)',
+              paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+            }
+          : {}
+        }
+      >
         {children}
       </main>
 

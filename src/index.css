@@ -678,7 +678,26 @@
 }
 
 .bible-navigation-controls {
-  @apply fixed bottom-[72px] left-0 right-0 flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50 border-t border-border/30;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  @apply flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50 border-t border-border/30;
+}
+
+/* Disable backdrop filters on iOS PWA for stability */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    .bottom-nav {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+    
+    .bible-navigation-controls {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+  }
 }
 
 /* Bible book selection styles */

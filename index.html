@@ -102,14 +102,10 @@
         background-color: inherit; 
       }
 
-      /* iOS PWA visual viewport fix: ensure full-height after keyboard dismiss */
-      @supports (-webkit-touch-callout: none) {
-        @media (display-mode: standalone) {
-          html, body, #root {
-            height: 100dvh; /* use dynamic viewport to avoid bottom gap */
-            min-height: 100dvh;
-          }
-        }
+      /* iOS PWA visual viewport fix: use CSS variable for dynamic height */
+      html, body, #root {
+        height: var(--app-dvh, 100dvh);
+        min-height: var(--app-dvh, 100dvh);
       }
       
       /* Status bar background styling */
@@ -169,6 +165,20 @@
         display: none !important;
       }
     </style>
+    <script>
+      // Set and maintain --app-dvh CSS variable for robust viewport height
+      (function() {
+        const setDvh = () => {
+          const vh = window.innerHeight;
+          document.documentElement.style.setProperty('--app-dvh', vh + 'px');
+        };
+        setDvh();
+        window.addEventListener('resize', setDvh);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', setDvh);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Service Worker Registration (skip in development) -->
