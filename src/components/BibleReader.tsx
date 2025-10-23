@@ -163,7 +163,7 @@ const BibleReader = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       <div className="flex flex-col lg:flex-row gap-4">
         <EnhancedBibleVersionSelector 
           selectedVersion={selectedVersion}
@@ -218,7 +218,7 @@ const BibleReader = () => {
               selectedChapter={selectedChapter}
               chapterContent={currentChapter}
               loading={loading}
-              onBackToChapters={handleBackToChapters}
+              onBack toChapters={handleBackToChapters}
               onBackToBooks={handleBackToBooks}
               onChapterChange={handleChapterChange}
               autoPlayNext={preferences.autoPlayNext}
