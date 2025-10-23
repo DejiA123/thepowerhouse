@@ -1358,3 +1358,12 @@ input:focus, textarea:focus, select:focus {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* iOS PWA: hide bottom nav when keyboard open and avoid gap */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    [data-keyboard-open="true"] .bottom-nav {
+      transform: translateY(100%);
+    }
+  }
+}

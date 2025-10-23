@@ -2,25 +2,51 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Book, Calendar, Heart, Info } from "lucide-react";
 
-const navItems = [
-  { name: "Home", icon: <Home />, path: "/" },
-  { name: "News", icon: <Calendar />, path: "/news" },
-  { name: "Bible", icon: <Book />, path: "/bible" },
-  { name: "Give", icon: <Heart />, path: "/give" },
-  { name: "Resources", icon: <Info />, path: "/resources" },
-];
-
 const BottomNavigation = () => {
   const location = useLocation();
+
+  const navigationItems = [
+    { name: "Home", path: "/", icon: Home },
+    { name: "News", path: "/news", icon: Calendar },
+    { name: "Bible", path: "/bible", icon: Book },
+    { name: "Give", path: "/give", icon: Heart },
+    { name: "Resources", path: "/resources", icon: Info },
+  ];
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card backdrop-blur-md border-t border-border/30 z-[102] h-[72px] will-change-transform">
-      <div className="flex justify-around items-center h-full">
-        {navItems.map((item) => (
-          <Link key={item.name} to={item.path} className={`flex flex-col items-center justify-center text-xs ${location.pathname === item.path ? 'text-primary' : 'text-muted-foreground'}`}> 
-            {item.icon}
-            <span>{item.name}</span>
-          </Link>
-        ))}
+    <nav
+      className="bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border/30 z-[102]"
+      style={{
+        height: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      }}
+    >
+      <div className="flex justify-around py-2">
+        {navigationItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          const Icon = item.icon;
+          
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="flex flex-col items-center justify-center py-3 px-4 min-w-0 flex-1"
+            >
+              <Icon 
+                className={`w-6 h-6 mb-1 ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`} 
+              />
+              <span 
+                className={`text-xs ${
+                  isActive ? "text-primary font-medium" : "text-muted-foreground"
+                }`}
+              >
+                {item.name}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
