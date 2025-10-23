@@ -4,10 +4,10 @@ import { Home, Book, Calendar, Heart, Info } from "lucide-react";
 
 const navItems = [
   { name: "Home", icon: <Home />, path: "/" },
+  { name: "News", icon: <Calendar />, path: "/news" },
   { name: "Bible", icon: <Book />, path: "/bible" },
-  { name: "Events", icon: <Calendar />, path: "/news" },
-  { name: "Prayer", icon: <Heart />, path: "/prayer-wall" },
-  { name: "Info", icon: <Info />, path: "/resources" },
+  { name: "Give", icon: <Heart />, path: "/give" },
+  { name: "Resources", icon: <Info />, path: "/resources" },
 ];
 
 const BottomNavigation = () => {
