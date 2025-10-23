@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
@@ -10,14 +10,17 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const showChrome = location.pathname !== "/intro";
+  const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
 
-  const isiOSStandalone = useMemo(() => {
-    const isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
-    return isiOS && standalone;
+  // Handle viewport height for mobile keyboard
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Initialize theme on app load
   useEffect(() => {
@@ -166,60 +169,15 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
-  // iOS PWA keyboard detection to avoid bottom gap when keyboard opens
-  useEffect(() => {
-    if (!isiOSStandalone) return;
-    const vv = window.visualViewport;
-    let t: number | undefined;
-
-    const recompute = () => {
-      const innerH = window.innerHeight;
-      document.documentElement.style.setProperty('--app-dvh', innerH + 'px');
-      const isOpen = vv ? (vv.height < innerH - 80 || vv.offsetTop > 0) : false;
-      setKeyboardOpen(isOpen);
-    };
-
-    const onFocusIn = () => { if (t) clearTimeout(t); t = window.setTimeout(recompute, 50); };
-    const onFocusOut = () => { if (t) clearTimeout(t); t = window.setTimeout(recompute, 150); };
-
-    vv?.addEventListener('resize', recompute);
-    window.addEventListener('focusin', onFocusIn);
-    window.addEventListener('focusout', onFocusOut);
-    window.addEventListener('orientationchange', recompute);
-    window.addEventListener('resize', recompute);
-
-    // Initial set
-    recompute();
-
-    return () => {
-      vv?.removeEventListener('resize', recompute);
-      window.removeEventListener('focusin', onFocusIn);
-      window.removeEventListener('focusout', onFocusOut);
-      window.removeEventListener('orientationchange', recompute);
-      window.removeEventListener('resize', recompute);
-      if (t) clearTimeout(t);
-    };
-  }, [isiOSStandalone]);
-
-  // After keyboard closes, nudge layout and update dvh to remove any gap
-  useEffect(() => {
-    if (!isiOSStandalone) return;
-    if (!keyboardOpen) {
-      const t = setTimeout(() => {
-        const innerH = window.innerHeight;
-        document.documentElement.style.setProperty('--app-dvh', innerH + 'px');
-        // Force a reflow and notify listeners
-        document.body.getBoundingClientRect();
-        window.dispatchEvent(new Event('resize'));
-      }, 120);
-      return () => clearTimeout(t);
-    }
-  }, [keyboardOpen, isiOSStandalone]);
-
-  const navVisible = showChrome;
-
   return (
-    <div className="min-h-screen text-foreground overscroll-none" data-keyboard-open={keyboardOpen ? 'true' : 'false'} style={{ minHeight: 'var(--app-dvh, 100vh)' }}>
+    <div 
+      className="text-foreground overscroll-none" 
+      style={{ 
+        backgroundColor: 'var(--background-color, inherit)',
+        height: `${windowHeight}px`,
+        overflow: 'hidden'
+      }}
+    >
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
@@ -232,23 +190,18 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main
-        className="overscroll-none"
-        style={
-          showChrome
-            ? {
-                paddingTop: 'env(safe-area-inset-top)',
-                paddingBottom: navVisible
-                  ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
-                  : 'env(safe-area-inset-bottom, 0px)',
-              }
-            : {}
-        }
+      <main 
+        className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} 
+        style={{
+          ...showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {},
+          height: 'calc(100% - 56px)', // Subtract bottom navigation height
+          overflowY: 'auto'
+        }}
       >
         {children}
       </main>
 
-      {navVisible && <BottomNavigation />}
+      {showChrome && <BottomNavigation />}
     </div>
   );
 };
