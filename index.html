@@ -92,15 +92,13 @@
       
       /* Ensure body spans full viewport height so status bar overlays same color */
       html, body { 
-        height: var(--app-dvh, 100dvh);
-        min-height: var(--app-dvh, 100dvh);
+        height: 100%; 
         margin: 0;
         padding: 0;
       }
       
       #root { 
-        min-height: var(--app-dvh, 100dvh);
-        height: var(--app-dvh, 100dvh);
+        min-height: 100%; 
         background-color: inherit; 
       }
       
@@ -161,20 +159,6 @@
         display: none !important;
       }
     </style>
-    <script>
-      (function(){
-        const setDvh = () => {
-          const vh = window.innerHeight;
-          document.documentElement.style.setProperty('--app-dvh', vh + 'px');
-        };
-        setDvh();
-        window.addEventListener('resize', setDvh);
-        if (window.visualViewport) {
-          window.visualViewport.addEventListener('resize', setDvh);
-        }
-        window.addEventListener('orientationchange', () => setTimeout(setDvh, 50));
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Service Worker Registration (skip in development) -->
