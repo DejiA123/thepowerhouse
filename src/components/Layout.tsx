@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
@@ -10,6 +10,14 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const showChrome = location.pathname !== "/intro";
+
+  const isiOSStandalone = useMemo(() => {
+    const isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+    return isiOS && standalone;
+  }, []);
+
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Initialize theme on app load
   useEffect(() => {
@@ -158,8 +166,40 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
+  // iOS PWA keyboard detection to avoid bottom gap when keyboard opens
+  useEffect(() => {
+    if (!isiOSStandalone) return;
+    const vv = window.visualViewport;
+    let t: number | undefined;
+
+    const recompute = () => {
+      const isOpen = vv ? (vv.height < window.innerHeight - 80 || vv.offsetTop > 0) : false;
+      setKeyboardOpen(isOpen);
+    };
+
+    const onFocusIn = () => { if (t) clearTimeout(t); t = window.setTimeout(recompute, 50); };
+    const onFocusOut = () => { if (t) clearTimeout(t); t = window.setTimeout(recompute, 150); };
+
+    vv?.addEventListener('resize', recompute);
+    window.addEventListener('focusin', onFocusIn);
+    window.addEventListener('focusout', onFocusOut);
+    window.addEventListener('orientationchange', recompute);
+    window.addEventListener('resize', recompute);
+
+    return () => {
+      vv?.removeEventListener('resize', recompute);
+      window.removeEventListener('focusin', onFocusIn);
+      window.removeEventListener('focusout', onFocusOut);
+      window.removeEventListener('orientationchange', recompute);
+      window.removeEventListener('resize', recompute);
+      if (t) clearTimeout(t);
+    };
+  }, [isiOSStandalone]);
+
+  const navVisible = showChrome && !(isiOSStandalone && keyboardOpen);
+
   return (
-    <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
+    <div className="min-h-screen text-foreground overscroll-none" data-keyboard-open={keyboardOpen ? 'true' : 'false'}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
@@ -172,11 +212,23 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+      <main
+        className="overscroll-none"
+        style={
+          showChrome
+            ? {
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingBottom: navVisible
+                  ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
+                  : 'env(safe-area-inset-bottom, 0px)',
+              }
+            : {}
+        }
+      >
         {children}
       </main>
 
-      {showChrome && <BottomNavigation />}
+      {navVisible && <BottomNavigation />}
     </div>
   );
 };
