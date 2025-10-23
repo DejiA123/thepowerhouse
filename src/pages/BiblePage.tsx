@@ -20,7 +20,6 @@ import BibleNotes from "@/components/bible/BibleNotes";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { FileText, Volume2, Smartphone } from "lucide-react";
-import BottomNavigation from "@/components/BottomNavigation";
 
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
@@ -450,7 +449,6 @@ const BiblePage = () => {
     return (
       <div className="min-h-screen bg-background pb-[72px]">
         {renderContent()}
-        <BottomNavigation />
         
         {/* Version Selector Dialog */}
         <Dialog open={showVersionSelector} onOpenChange={setShowVersionSelector}>
@@ -513,7 +511,6 @@ const BiblePage = () => {
   return (
     <div className="h-screen overflow-hidden bg-background overscroll-contain">
       {renderContent()}
-      <BottomNavigation />
       
       {/* Bible History Dialog */}
       <BibleHistory
