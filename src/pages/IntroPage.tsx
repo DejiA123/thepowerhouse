@@ -108,19 +108,8 @@ const IntroPage = () => {
         x5-video-player-fullscreen="true"
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
+        style={{ backgroundColor: "#000" }}
       />
-      
-      {/* Placeholder Image Overlay - Fades out when video plays */}
-      <div
-        className={`absolute inset-0 z-20 transition-opacity duration-1000 ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}
-        aria-hidden={videoPlaying}
-      >
-        <img
-          src="/placeholder.svg"
-          alt="Intro background poster"
-          className="w-full h-full object-cover"
-        />
-      </div>
 
       {/* UI Content - Always on top */}
       <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12 pointer-events-none">

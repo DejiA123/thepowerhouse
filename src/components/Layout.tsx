@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
@@ -10,17 +10,6 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const showChrome = location.pathname !== "/intro";
-  const [windowHeight, setWindowHeight] = useState<number>(window.innerHeight);
-
-  // Handle viewport height for mobile keyboard
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowHeight(window.innerHeight);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Initialize theme on app load
   useEffect(() => {
@@ -170,14 +159,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div 
-      className="text-foreground overscroll-none" 
-      style={{ 
-        backgroundColor: 'var(--background-color, inherit)',
-        height: `${windowHeight}px`,
-        overflow: 'hidden'
-      }}
-    >
+    <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
@@ -190,14 +172,7 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main 
-        className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} 
-        style={{
-          ...showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {},
-          height: 'calc(100% - 56px)', // Subtract bottom navigation height
-          overflowY: 'auto'
-        }}
-      >
+      <main className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
         {children}
       </main>
 
