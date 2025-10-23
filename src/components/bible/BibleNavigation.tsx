@@ -22,7 +22,7 @@ export const BibleNavigation = ({
 
   if (selectedChapter && selectedBook) {
     return (
-      <div className="flex items-center justify-between mb-4 will-change-transform">
+      <div className="flex items-center justify-between will-change-transform">
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={onBackToChapters}>
             <ChevronLeft className="w-4 h-4 mr-1" />
