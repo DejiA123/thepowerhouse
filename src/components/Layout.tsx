@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
@@ -159,21 +160,22 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="min-h-screen text-foreground overscroll-none" style={{ backgroundColor: 'var(--background-color, inherit)' }}>
+    <div className="flex flex-col h-screen text-foreground bg-background overscroll-none">
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
-        className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
+        className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg" 
         style={{ 
           height: 'env(safe-area-inset-top)',
-          minHeight: 'env(safe-area-inset-top)'
         }}
       />
       
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className={showChrome ? "pb-20 lg:pb-4 overscroll-none" : "pb-0 overscroll-none"} style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
-        {children}
+      <main className="flex-1 overflow-y-auto" style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+        <div className={showChrome ? "lg:pb-4" : ""}>
+            {children}
+        </div>
       </main>
 
       {showChrome && <BottomNavigation />}
