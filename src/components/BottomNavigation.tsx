@@ -15,7 +15,7 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border/30 z-[102] will-change-transform"
+      className="bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border/30 z-[102]"
       style={{
         height: 'calc(72px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)'

@@ -173,7 +173,9 @@ const Layout = ({ children }: LayoutProps) => {
     let t: number | undefined;
 
     const recompute = () => {
-      const isOpen = vv ? (vv.height < window.innerHeight - 80 || vv.offsetTop > 0) : false;
+      const innerH = window.innerHeight;
+      document.documentElement.style.setProperty('--app-dvh', innerH + 'px');
+      const isOpen = vv ? (vv.height < innerH - 80 || vv.offsetTop > 0) : false;
       setKeyboardOpen(isOpen);
     };
 
@@ -186,6 +188,9 @@ const Layout = ({ children }: LayoutProps) => {
     window.addEventListener('orientationchange', recompute);
     window.addEventListener('resize', recompute);
 
+    // Initial set
+    recompute();
+
     return () => {
       vv?.removeEventListener('resize', recompute);
       window.removeEventListener('focusin', onFocusIn);
@@ -196,10 +201,25 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, [isiOSStandalone]);
 
-  const navVisible = showChrome && !(isiOSStandalone && keyboardOpen);
+  // After keyboard closes, nudge layout and update dvh to remove any gap
+  useEffect(() => {
+    if (!isiOSStandalone) return;
+    if (!keyboardOpen) {
+      const t = setTimeout(() => {
+        const innerH = window.innerHeight;
+        document.documentElement.style.setProperty('--app-dvh', innerH + 'px');
+        // Force a reflow and notify listeners
+        document.body.getBoundingClientRect();
+        window.dispatchEvent(new Event('resize'));
+      }, 120);
+      return () => clearTimeout(t);
+    }
+  }, [keyboardOpen, isiOSStandalone]);
+
+  const navVisible = showChrome;
 
   return (
-    <div className="min-h-screen text-foreground overscroll-none" data-keyboard-open={keyboardOpen ? 'true' : 'false'}>
+    <div className="min-h-screen text-foreground overscroll-none" data-keyboard-open={keyboardOpen ? 'true' : 'false'} style={{ minHeight: 'var(--app-dvh, 100vh)' }}>
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-white dark:bg-[#0a0a0a] z-[100] pointer-events-none status-bar-bg" 
