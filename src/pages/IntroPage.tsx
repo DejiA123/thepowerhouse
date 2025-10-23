@@ -102,14 +102,29 @@ const IntroPage = () => {
         loop
         muted
         playsInline
+<<<<<<< HEAD
+        webkit-playsinline
+=======
         webkit-playsinline="true"
         x5-playsinline="true"
         x5-video-player-type="h5"
         x5-video-player-fullscreen="true"
         preload="auto"
+>>>>>>> a6bf6082d1cd6e1d00eb0ef1ab32b381e4f1f439
         className="absolute inset-0 w-full h-full object-cover z-10"
-        style={{ backgroundColor: "#000" }}
       />
+      
+      {/* Placeholder Image Overlay - Fades out when video plays */}
+      <div
+        className={`absolute inset-0 z-20 transition-opacity duration-1000 ${videoPlaying ? 'opacity-0' : 'opacity-100'}`}
+        aria-hidden={videoPlaying}
+      >
+        <img
+          src="/placeholder.svg"
+          alt="Intro background poster"
+          className="w-full h-full object-cover"
+        />
+      </div>
 
       {/* UI Content - Always on top */}
       <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12 pointer-events-none">
