@@ -89,7 +89,7 @@
 
 .bible-navigation-controls {
   position: fixed;
-  bottom: 56px; /* Adjust based on your BottomNavigation height */
+  bottom: 72px; /* Height of BottomNavigation */
   left: 0;
   right: 0;
   display: flex;
