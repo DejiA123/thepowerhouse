@@ -17,8 +17,4 @@ body {
   color: hsl(var(--foreground));
 }
 
-
-/* Bible Styles */
-.bible-main-content-full {
-  padding-top: 10px; /* Adjusted padding */
-}
+/* No specific padding-top here for bible-main-content-full */
