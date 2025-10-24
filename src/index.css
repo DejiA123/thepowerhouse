@@ -1,39 +1,641 @@
-/* src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Global Styles */
-body {
-  margin: 0;
-  font-family: sans-serif;
-  overscroll-behavior: none; /* Prevent pull-to-refresh */
+/* Custom animations for email confirmation page */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Theme aware background */
-.bg-background {
-  background-color: hsl(var(--background));
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
 }
 
-/* Theme aware foreground */
-.text-foreground {
-  color: hsl(var(--foreground));
-}
-
-
-/* Bible Styles */
-.bible-header-full {
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+  }
   
-}
-.bible-header-buttons-full{
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+  }
+  
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 62.8% 60.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 25%;
+    --input: 0 0% 18%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+  }
 
-}
-.bible-header-icons-full{
+  /* Blue Theme */
+  .theme-blue {
+    --background: 210 100% 97%;
+    --foreground: 210 22% 22%;
+    --card: 213 100% 99%;
+    --card-foreground: 210 22% 22%;
+    --popover: 213 100% 99%;
+    --popover-foreground: 210 22% 22%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 94%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 94%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 85%;
+    --input: 214.3 31.8% 85%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+  }
 
-}
-.bible-book-button-full{
+  .theme-blue.dark {
+    --background: 210 50% 6%;
+    --foreground: 210 40% 98%;
+    --card: 210 50% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 210 50% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 12%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 12%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --radius: 0.75rem;
+  }
 
-}
-.bible-version-button-full{
+  /* Green Theme */
+  .theme-green {
+    --background: 120 60% 97%;
+    --foreground: 120 25% 15%;
+    --card: 120 60% 99%;
+    --card-foreground: 120 25% 15%;
+    --popover: 120 60% 99%;
+    --popover-foreground: 120 25% 15%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 120 50% 94%;
+    --secondary-foreground: 120 25% 15%;
+    --muted: 120 50% 94%;
+    --muted-foreground: 120 15% 40%;
+    --accent: 120 50% 94%;
+    --accent-foreground: 120 25% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 120 30% 85%;
+    --input: 120 30% 85%;
+    --ring: 142 76% 36%;
+    --radius: 0.75rem;
+  }
 
+  .theme-green.dark {
+    --background: 120 50% 6%;
+    --foreground: 120 20% 95%;
+    --card: 120 50% 8%;
+    --card-foreground: 120 20% 95%;
+    --popover: 120 50% 8%;
+    --popover-foreground: 120 20% 95%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 120 50% 6%;
+    --secondary: 120 30% 12%;
+    --secondary-foreground: 120 20% 95%;
+    --muted: 120 30% 12%;
+    --muted-foreground: 120 15% 70%;
+    --accent: 120 30% 12%;
+    --accent-foreground: 120 20% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 120 20% 95%;
+    --border: 120 30% 20%;
+    --input: 120 30% 20%;
+    --ring: 142 71% 45%;
+    --radius: 0.75rem;
+  }
+
+  /* Purple Theme */
+  .theme-purple {
+    --background: 270 60% 97%;
+    --foreground: 270 25% 15%;
+    --card: 270 60% 99%;
+    --card-foreground: 270 25% 15%;
+    --popover: 270 60% 99%;
+    --popover-foreground: 270 25% 15%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 270 50% 94%;
+    --secondary-foreground: 270 25% 15%;
+    --muted: 270 50% 94%;
+    --muted-foreground: 270 15% 40%;
+    --accent: 270 50% 94%;
+    --accent-foreground: 270 25% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 270 30% 85%;
+    --input: 270 30% 85%;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
+  }
+
+  .theme-purple.dark {
+    --background: 270 50% 6%;
+    --foreground: 270 20% 95%;
+    --card: 270 50% 8%;
+    --card-foreground: 270 20% 95%;
+    --popover: 270 50% 8%;
+    --popover-foreground: 270 20% 95%;
+    --primary: 263 70% 50%;
+    --primary-foreground: 270 50% 6%;
+    --secondary: 270 30% 12%;
+    --secondary-foreground: 270 20% 95%;
+    --muted: 270 30% 12%;
+    --muted-foreground: 270 15% 70%;
+    --accent: 270 30% 12%;
+    --accent-foreground: 270 20% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 270 20% 95%;
+    --border: 270 30% 20%;
+    --input: 270 30% 20%;
+    --ring: 263 70% 50%;
+    --radius: 0.75rem;
+  }
+
+  /* Yellow Theme */
+  .theme-yellow {
+    --background: 48 100% 96%;
+    --foreground: 25 25% 20%;
+    --card: 48 100% 98%;
+    --card-foreground: 25 25% 20%;
+    --popover: 48 100% 98%;
+    --popover-foreground: 25 25% 20%;
+    --primary: 45 93% 47%;
+    --primary-foreground: 26 83% 14%;
+    --secondary: 48 90% 92%;
+    --secondary-foreground: 25 25% 20%;
+    --muted: 48 90% 92%;
+    --muted-foreground: 48 15% 40%;
+    --accent: 48 90% 92%;
+    --accent-foreground: 25 25% 20%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 48 30% 82%;
+    --input: 48 30% 82%;
+    --ring: 45 93% 47%;
+    --radius: 0.75rem;
+  }
+
+  .theme-yellow.dark {
+    --background: 30 25% 6%;
+    --foreground: 48 100% 95%;
+    --card: 30 25% 8%;
+    --card-foreground: 48 100% 95%;
+    --popover: 30 25% 8%;
+    --popover-foreground: 48 100% 95%;
+    --primary: 47.9 95.8% 53.1%;
+    --primary-foreground: 26 83% 14%;
+    --secondary: 30 20% 12%;
+    --secondary-foreground: 48 100% 95%;
+    --muted: 30 20% 12%;
+    --muted-foreground: 48 15% 70%;
+    --accent: 30 20% 12%;
+    --accent-foreground: 48 100% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 48 100% 95%;
+    --border: 30 20% 18%;
+    --input: 30 20% 18%;
+    --ring: 35.5 91.7% 32.9%;
+    --radius: 0.75rem;
+  }
+
+  /* Red Theme */
+  .theme-red {
+    --background: 0 60% 97%;
+    --foreground: 0 25% 15%;
+    --card: 0 60% 99%;
+    --card-foreground: 0 25% 15%;
+    --popover: 0 60% 99%;
+    --popover-foreground: 0 25% 15%;
+    --primary: 0 84% 60%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 50% 94%;
+    --secondary-foreground: 0 25% 15%;
+    --muted: 0 50% 94%;
+    --muted-foreground: 0 15% 40%;
+    --accent: 0 50% 94%;
+    --accent-foreground: 0 25% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 30% 85%;
+    --input: 0 30% 85%;
+    --ring: 0 84% 60%;
+    --radius: 0.75rem;
+  }
+
+  .theme-red.dark {
+    --background: 0 50% 6%;
+    --foreground: 0 20% 95%;
+    --card: 0 50% 8%;
+    --card-foreground: 0 20% 95%;
+    --popover: 0 50% 8%;
+    --popover-foreground: 0 20% 95%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 50% 6%;
+    --secondary: 0 30% 12%;
+    --secondary-foreground: 0 20% 95%;
+    --muted: 0 30% 12%;
+    --muted-foreground: 0 15% 70%;
+    --accent: 0 30% 12%;
+    --accent-foreground: 0 20% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 20% 95%;
+    --border: 0 30% 20%;
+    --input: 0 30% 20%;
+    --ring: 0 72% 51%;
+    --radius: 0.75rem;
+  }
+
+  /* Orange Theme */
+  .theme-orange {
+    --background: 30 80% 97%;
+    --foreground: 30 25% 15%;
+    --card: 30 80% 99%;
+    --card-foreground: 30 25% 15%;
+    --popover: 30 80% 99%;
+    --popover-foreground: 30 25% 15%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 30 60% 94%;
+    --secondary-foreground: 30 25% 15%;
+    --muted: 30 60% 94%;
+    --muted-foreground: 30 15% 40%;
+    --accent: 30 60% 94%;
+    --accent-foreground: 30 25% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 40% 85%;
+    --input: 30 40% 85%;
+    --ring: 25 95% 53%;
+    --radius: 0.75rem;
+  }
+
+  .theme-orange.dark {
+    --background: 20 50% 6%;
+    --foreground: 30 40% 95%;
+    --card: 20 50% 8%;
+    --card-foreground: 30 40% 95%;
+    --popover: 20 50% 8%;
+    --popover-foreground: 30 40% 95%;
+    --primary: 20.5 90.2% 48.2%;
+    --primary-foreground: 20 14.3% 4.1%;
+    --secondary: 20 30% 12%;
+    --secondary-foreground: 30 40% 95%;
+    --muted: 20 30% 12%;
+    --muted-foreground: 30 15% 70%;
+    --accent: 20 30% 12%;
+    --accent-foreground: 30 40% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 30 40% 95%;
+    --border: 20 30% 20%;
+    --input: 20 30% 20%;
+    --ring: 20.5 90.2% 48.2%;
+    --radius: 0.75rem;
+  }
 }
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-['Inter',sans-serif] font-normal;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Ensure selected text is readable in dark mode */
+  ::selection {
+    background: rgba(250, 204, 21, 0.5); /* yellow-400 at ~50% */
+    color: #111827; /* gray-900 */
+  }
+  .dark ::selection {
+    background: rgba(250, 204, 21, 0.6);
+    color: #111827;
+  }
+
+  /* Ensure highlighted Bible verses are readable in dark mode */
+  .verse-highlight {
+    color: #111827 !important; /* gray-900 */
+  }
+  
+  /* Ensure theme changes affect all major containers */
+  .min-h-screen {
+    @apply bg-background;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Force background updates for theme changes */
+  .light .min-h-screen {
+    background-color: hsl(0 0% 100%);
+  }
+  
+  .dark .min-h-screen {
+    background-color: hsl(0 0% 8%);
+  }
+  
+  /* Ensure all major containers follow theme */
+  .bg-background {
+    transition: background-color 0.3s ease;
+  }
+  
+  .light .bg-background {
+    background-color: hsl(0 0% 100%) !important;
+  }
+  
+  .dark .bg-background {
+    background-color: hsl(0 0% 8%) !important;
+  }
+  
+  /* Force body background on theme change */
+  .light body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .dark body {
+    background-color: #0a0a0a !important;
+    color: #ffffff !important;
+  }
+  
+  /* Force html background on theme change */
+  .light html {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  .dark html {
+    background-color: #0a0a0a !important;
+    color: #ffffff !important;
+  }
+  
+  /* Ensure all major containers get dark background */
+  .dark .min-h-screen {
+    background-color: #0a0a0a !important;
+  }
+  
+  .dark .bg-background {
+    background-color: #0a0a0a !important;
+  }
+  
+  .dark .bg-card {
+    background-color: #1a1a1a !important;
+  }
+  
+  /* Ensure cards and other containers follow theme */
+  .light .bg-card {
+    background-color: hsl(0 0% 100%) !important;
+  }
+  
+  .dark .bg-card {
+    background-color: hsl(0 0% 12%) !important;
+  }
+  
+  /* Additional dark theme overrides for better coverage */
+  .dark * {
+    border-color: hsl(0 0% 25%) !important;
+  }
+  
+  .dark .border-border {
+    border-color: hsl(0 0% 25%) !important;
+  }
+  
+  .dark .text-foreground {
+    color: hsl(0 0% 95%) !important;
+  }
+  
+  .dark .text-muted-foreground {
+    color: hsl(0 0% 75%) !important;
+  }
+  
+  /* Force status bar background to be properly themed */
+  .status-bar-bg {
+    background-color: #ffffff !important;
+    transition: background-color 0.3s ease;
+  }
+  
+  .dark .status-bar-bg {
+    background-color: #0a0a0a !important;
+  }
+  
+  /* Additional status bar styling for better coverage */
+  html .status-bar-bg {
+    background-color: #ffffff !important;
+  }
+  
+  html.dark .status-bar-bg {
+    background-color: #0a0a0a !important;
+  }
+  
+  html.light .status-bar-bg {
+    background-color: #ffffff !important;
+  }
+  
+  /* Ensure status bar background matches body background */
+  body .status-bar-bg {
+    background-color: inherit !important;
+  }
+  
+  /* Force status bar background on theme change */
+  .light .status-bar-bg {
+    background-color: #ffffff !important;
+  }
+  
+  .dark .status-bar-bg {
+    background-color: #0a0a0a !important;
+  }
+}
+
+.elevation-card {
+  @apply relative overflow-hidden rounded-none bg-cover bg-center bg-no-repeat h-48 flex items-end;
+}
+
+.elevation-card::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent;
+}
+
+.elevation-content {
+  @apply relative z-10 p-6 text-white w-full;
+}
+
+.elevation-title {
+  @apply text-3xl font-bold mb-2 text-white;
+}
+
+.elevation-accent {
+  @apply h-1 w-16 bg-primary rounded-none mb-3;
+}
+
+.event-card {
+  @apply bg-card border-b border-border/30 p-4 flex items-center space-x-4;
+}
+
+.event-date-card {
+  @apply bg-primary rounded-lg p-3 text-center text-white font-bold min-w-[80px] flex flex-col items-center justify-center;
+}
+
+.event-month {
+  @apply text-xs font-medium uppercase;
+}
+
+.event-day {
+  @apply text-2xl font-bold;
+}
+
+.bible-content {
+  @apply bg-card text-foreground p-6 leading-relaxed;
+}
+
+/* Bible page specific styles to match the image design */
+.bible-page {
+  @apply bg-background text-foreground font-serif;
+}
+
+/* Full Bible page styles to cover the entire app */
+.bible-page-full {
+  @apply bg-background text-foreground font-serif min-h-screen flex flex-col;
+}
+
+.bible-header-full {
+  @apply flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky z-[70] shadow-sm;
+  top: env(safe-area-inset-top, 0);
+  /* Ensure proper positioning in PWA mode */
+}
+
+/* PWA specific adjustments for Bible header */
+@media (display-mode: standalone) {
+  .bible-header-full {
+    top: env(safe-area-inset-top, 0);
+    position: -webkit-sticky;
+    position: sticky;
+    /* Ensure visibility in PWA mode on iOS */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+.bible-header-buttons-full {
+  @apply flex items-center space-x-2;
+}
+
+.bible-book-button-full {
+  @apply bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 px-3 py-1 text-sm rounded;
+}
+
+/* Safe area utilities for mobile devices */
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.mt-safe {
+  margin-top: env(safe-area-inset-top, 0);
+}
+
+/* Ensure modal dialogs respect safe area on mobile */
+@media (display-mode: standalone) {
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top, 0));
+  }
+}
+
+.bible-version-button-full {
+  @apply bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 px-3 py-1 text-sm rounded;
+}
+
+.bible-header-icons-full {
+  @apply flex items-center space-x-3;
+}
+
 .bible-header-icon-full {
   @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
@@ -49,7 +651,6 @@ body {
 
 .bible-verses-container {
   @apply space-y-4;
-  padding-top: 20px; /* added to create the desired spacing */
 }
 
 .bible-verse-text-full {
@@ -76,60 +677,688 @@ body {
   @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
-/*New Classes*/
-.bible-book-list{
-  @apply max-w-md mx-auto flex flex-col space-y-3 p-4;
+.bible-navigation-controls {
+  @apply fixed bottom-[72px] left-0 right-0 flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50 border-t border-border/30;
+}
+
+/* Bible book selection styles */
+.bible-book-selection {
+  @apply bg-white dark:bg-background flex flex-col overflow-hidden;
+  height: 100dvh; /* iOS Safari dynamic viewport to prevent bounce */
+}
+
+.bible-book-header {
+  @apply flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-border bg-white dark:bg-card;
+  /* Reduced padding to minimize gap */
+  padding-bottom: 8px;
+  margin-bottom: 2px;
+}
+
+.bible-book-cancel {
+  @apply text-gray-900 dark:text-card-foreground font-medium;
+}
+
+.bible-book-title {
+  @apply text-xl font-bold text-gray-900 dark:text-card-foreground;
+}
+
+.bible-book-history {
+  @apply text-gray-900 dark:text-card-foreground font-medium;
+}
+
+.bible-book-list {
+  @apply flex-1 overflow-y-auto pb-20;
+  scroll-behavior: auto;
+  scroll-padding-top: 0;
+  /* Let flex take available height; avoid hard-coded viewport math on iOS */
+  /* height removed to prevent double scroll and clipping of last items */
+  /* Ensure content clears bottom nav and iOS safe area */
+  /* Extra bottom space to clear BottomNavigation + sorting bar */
+  padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+  min-height: 0; /* allow flex child to shrink and scroll */
+  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+  overscroll-behavior-y: contain; /* prevent outer scroll from hijacking */
+  /* Ensure scroll position starts at top */
+  scroll-snap-type: none;
+  /* Remove any scroll snapping that might interfere */
+  /* Reduced top padding to minimize gap */
+  padding-top: 5px;
+  margin-top: 2px;
 }
 
 .bible-book-item {
-  @apply flex items-center justify-between p-3 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors;
-  cursor: pointer;
+  @apply w-full px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-muted transition-colors border-b border-gray-100 dark:border-border;
 }
 
-.bible-book-name{
-  @apply text-sm font-medium leading-none;
+/* Reduced spacing for the first book (Genesis) */
+.bible-book-item:first-child {
+  margin-top: 2px;
+  padding-top: 8px;
 }
 
-.bible-book-chapters{
-  @apply ml-2 text-xs text-muted-foreground;
+/* Horizontal Grid Layout for Bible Books */
+.bible-book-grid {
+  @apply flex-1 overflow-y-auto pb-20 px-4;
+  scroll-behavior: auto;
+  scroll-padding-top: 0;
+  /* Allow flex to size the grid; avoid fixed viewport height */
+  /* height removed */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.bible-book-grid-item {
+  @apply bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-muted hover:border-gray-300 dark:hover:border-border transition-all duration-200 shadow-sm;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bible-book-grid-content {
+  @apply flex flex-col items-center justify-center p-3 text-center w-full;
+}
+
+.bible-book-grid-name {
+  @apply text-gray-900 dark:text-card-foreground font-medium text-sm mb-1;
+}
+
+.bible-book-first-indicator {
+  @apply text-xs text-blue-500 font-medium mb-1;
+}
+
+.bible-book-grid-icons {
+  @apply flex items-center justify-center mt-1;
+}
+
+.bible-book-name {
+  @apply text-gray-900 dark:text-card-foreground font-medium;
+}
+
+.bible-book-icons {
+  @apply flex items-center space-x-3;
+}
+
+.bible-book-icon {
+  @apply w-4 h-4 text-gray-500 dark:text-muted-foreground;
+}
+
+.bible-book-sorting {
+  @apply flex border-t border-gray-200 dark:border-border bg-white dark:bg-card;
+}
+
+.bible-sort-button {
+  @apply flex-1 py-3 text-gray-900 font-medium transition-colors;
+}
+
+.bible-sort-button:first-child {
+  @apply rounded-l-lg;
+}
+
+.bible-sort-button:last-child {
+  @apply rounded-r-lg;
+}
+
+.bible-sort-active {
+  @apply bg-gray-100;
+}
+
+/* Bible chapter selection styles */
+.bible-chapter-selection {
+  @apply bg-white dark:bg-background flex flex-col;
+  height: 100dvh; /* iOS Safari dynamic viewport */
+}
+
+.bible-chapter-header {
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-border bg-white dark:bg-card;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.bible-chapter-back {
+  @apply text-gray-900 dark:text-card-foreground font-medium;
+}
+
+.bible-chapter-title {
+  @apply text-xl font-bold text-gray-900 dark:text-card-foreground;
 }
 
 .bible-chapter-list {
-  @apply max-w-2xl mx-auto;
-}
-
-.bible-chapter-grid {
-  @apply grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 p-4;
+  @apply flex-1 overflow-y-auto pb-20;
+  scroll-behavior: auto;
+  scroll-padding-top: 0;
+  /* height removed; use flex and allow scroll */
+  padding-bottom: calc(12rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: 12rem;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Ensure scroll position starts at top */
+  scroll-snap-type: none;
 }
 
 .bible-chapter-item {
-  @apply flex items-center justify-center p-2 rounded-md bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground transition-colors;
-  cursor: pointer;
+  @apply w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-muted transition-colors border-b border-gray-100 dark:border-border;
+}
+
+/* Horizontal Grid Layout for Bible Chapters */
+.bible-chapter-grid {
+  @apply flex-1 overflow-y-auto pb-20 px-4;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.bible-chapter-grid-item {
+  @apply bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-muted hover:border-gray-300 dark:hover:border-border transition-all duration-200 shadow-sm;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bible-chapter-grid-content {
+  @apply flex flex-col items-center justify-center p-2 text-center w-full;
+}
+
+.bible-chapter-grid-number {
+  @apply text-gray-900 dark:text-card-foreground font-bold text-lg;
+}
+
+.bible-chapter-grid-label {
+  @apply text-gray-600 dark:text-muted-foreground text-xs mt-1;
 }
 
 .bible-chapter-number {
-  @apply text-sm font-medium;
+  @apply text-gray-900 dark:text-card-foreground font-medium;
 }
 
-
-/*Loading*/
-.radius-visual {
-  border-radius: 5px;
-
+.bible-chapter-icons {
+  @apply flex items-center space-x-3;
 }
 
-.icon-visual{
-  height: 14px;
-  width: 14px;
+.bible-chapter-arrow {
+  @apply w-4 h-4 text-gray-500 dark:text-muted-foreground text-lg;
 }
 
-
-
-.hover-effect {
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+/* WhatsApp-style chat styles */
+.whatsapp-chat {
+  @apply bg-gray-50;
 }
 
-.hover-effect:hover {
-  transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+/* Settings page styles */
+.settings-page {
+  @apply bg-background min-h-screen;
+}
+
+.settings-header {
+  @apply bg-card border-b border-border px-4 py-3;
+}
+
+.settings-title {
+  @apply text-xl font-bold text-center text-card-foreground;
+}
+
+.settings-section {
+  @apply bg-card rounded-lg overflow-hidden;
+}
+
+.settings-item {
+  @apply w-full px-4 py-3 flex items-center justify-between hover:bg-muted transition-colors;
+}
+
+.settings-item-border {
+  @apply border-b border-border;
+}
+
+.settings-icon {
+  @apply w-5 h-5 text-muted-foreground;
+}
+
+.settings-text {
+  @apply text-card-foreground;
+}
+
+.settings-arrow {
+  @apply w-4 h-4 text-muted-foreground;
+}
+
+.settings-section-title {
+  @apply text-sm font-semibold text-card-foreground px-4 py-2 bg-muted;
+}
+
+.settings-value {
+  @apply text-sm text-muted-foreground;
+}
+
+.settings-subtitle {
+  @apply text-xs text-muted-foreground;
+}
+
+.profile-avatar {
+  @apply w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center;
+}
+
+.profile-name {
+  @apply font-bold text-gray-900;
+}
+
+.profile-bio {
+  @apply text-sm text-gray-600;
+}
+
+/* Profile page styles */
+.profile-page {
+  @apply bg-gray-100 min-h-screen;
+}
+
+.profile-header {
+  @apply bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between;
+}
+
+.profile-title {
+  @apply text-xl font-bold text-gray-900;
+}
+
+.profile-picture-large {
+  @apply flex justify-center;
+}
+
+.profile-edit-button {
+  @apply bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium;
+}
+
+.profile-field-group {
+  @apply space-y-2;
+}
+
+.profile-field-label {
+  @apply text-sm font-medium text-gray-900;
+}
+
+.profile-field-input {
+  @apply w-full bg-white rounded-lg px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors border border-gray-200;
+}
+
+.profile-field-text {
+  @apply text-gray-900;
+}
+
+.profile-field-text-masked {
+  @apply text-gray-900;
+}
+
+.profile-field-text-green {
+  @apply text-green-500;
+}
+
+.profile-field-arrow {
+  @apply w-4 h-4 text-gray-400;
+}
+
+.whatsapp-message-own {
+  @apply bg-blue-500 text-white;
+}
+
+.whatsapp-message-other {
+  @apply bg-white text-gray-900 border border-gray-200;
+}
+
+.whatsapp-header {
+  @apply bg-white border-b border-gray-200;
+}
+
+.whatsapp-input {
+  @apply bg-white border-t border-gray-200;
+}
+
+.whatsapp-bubble {
+  @apply rounded-lg px-3 py-2 max-w-xs lg:max-w-md;
+}
+
+.whatsapp-timestamp {
+  @apply text-xs opacity-70;
+}
+
+.whatsapp-date-separator {
+  @apply bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full;
+}
+
+.bible-header {
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white;
+}
+
+.bible-header-buttons {
+  @apply flex items-center space-x-2;
+}
+
+.bible-book-button {
+  @apply bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 px-3 py-1 text-sm rounded;
+}
+
+.bible-version-button {
+  @apply bg-gray-300 text-gray-700 border-gray-400 hover:bg-gray-400 px-3 py-1 text-sm rounded;
+}
+
+.bible-header-icons {
+  @apply flex items-center space-x-3;
+}
+
+.bible-header-icon {
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
+}
+
+.bible-main-content {
+  @apply flex-1 overflow-hidden bg-white;
+}
+
+.bible-text-container {
+  @apply max-w-4xl mx-auto px-4 py-6;
+}
+
+.bible-chapter-heading {
+  @apply text-xl font-bold text-gray-900 mb-6;
+}
+
+.bible-verse-text {
+  @apply text-base leading-relaxed text-gray-900 mb-4;
+}
+
+.bible-verse-number {
+  @apply text-sm font-medium text-gray-600 mr-2;
+}
+
+.bible-control-bar {
+  @apply flex items-center justify-center px-4 py-3 border-t border-gray-200 bg-white;
+}
+
+.bible-controls {
+  @apply flex items-center space-x-4;
+}
+
+.bible-play-button {
+  @apply p-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white;
+}
+
+.bible-nav-button {
+  @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
+}
+
+.bible-title {
+  @apply text-2xl font-bold mb-4 text-foreground;
+}
+
+.bible-subtitle {
+  @apply text-xl font-semibold mb-6 text-muted-foreground;
+}
+
+.bible-verse {
+  @apply mb-4 text-base leading-relaxed;
+}
+
+.bible-verse-number {
+  @apply text-sm text-muted-foreground mr-2 font-medium;
+}
+
+.bible-controls {
+  @apply fixed bottom-20 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-between;
+}
+
+.quick-action-card {
+  @apply relative overflow-hidden rounded-lg bg-cover bg-center bg-no-repeat h-32 flex items-end mb-4;
+}
+
+.quick-action-card::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent;
+}
+
+.quick-action-content {
+  @apply relative z-10 p-4 text-white w-full;
+}
+
+.quick-action-title {
+  @apply text-xl font-bold mb-1 text-white;
+}
+
+.quick-action-accent {
+  @apply h-1 w-12 bg-primary rounded-none mb-2;
+}
+
+.tab-navigation {
+  @apply flex border-b border-border/30 mb-6 bg-card;
+}
+
+.tab-item {
+  @apply px-6 py-3 text-muted-foreground font-medium relative cursor-pointer;
+}
+
+.tab-item.active {
+  @apply text-foreground;
+}
+
+.tab-item.active::after {
+  content: '';
+  @apply absolute bottom-0 left-0 right-0 h-0.5 bg-primary;
+}
+
+.glass-card {
+  @apply bg-card/90 backdrop-blur-sm border border-border shadow-lg;
+}
+
+.highlight-yellow {
+  @apply bg-yellow-200 dark:bg-yellow-600 dark:text-yellow-50;
+}
+
+.highlight-blue {
+  @apply bg-blue-200 dark:bg-blue-600 dark:text-blue-50;
+}
+
+.highlight-green {
+  @apply bg-green-200 dark:bg-green-600 dark:text-green-50;
+}
+
+.highlight-pink {
+  @apply bg-pink-200 dark:bg-pink-600 dark:text-pink-50;
+}
+
+.highlight-orange {
+  @apply bg-orange-200 dark:bg-orange-600 dark:text-orange-50;
+}
+
+.highlight-purple {
+  @apply bg-purple-200 dark:bg-purple-600 dark:text-purple-50;
+}
+
+/* Force black text for highlighted verses in dark mode (including nested spans) */
+.dark .verse-highlight,
+.dark .verse-highlight * {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Custom scrollbar styles for better cross-browser compatibility */
+.chat-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+
+.chat-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Ensure proper height calculations for chat containers */
+.chat-messages-container {
+  height: calc(100vh - 400px);
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* Bible verse glow effect for audio playback */
+.verse-playing {
+  animation: verse-glow 2s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.1));
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  transform: scale(1.02);
+  z-index: 10;
+  position: relative;
+}
+
+/* Red letters for Jesus' words */
+.jesus-words {
+  color: #dc2626 !important;
+  font-weight: 600 !important;
+  text-shadow: 0 0 1px rgba(220, 38, 38, 0.1);
+}
+
+.jesus-words-quote {
+  color: #dc2626 !important;
+  font-weight: 600 !important;
+  text-shadow: 0 0 1px rgba(220, 38, 38, 0.1);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.05), rgba(220, 38, 38, 0.02));
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+@keyframes verse-glow {
+  from {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.7), 0 0 60px rgba(59, 130, 246, 0.4);
+  }
+}
+
+/* Enhanced verse playing indicator */
+.verse-playing-indicator {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* PWA Keyboard Fixes */
+input, textarea, select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Ensure inputs are properly focusable in PWA */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+/* Fix for iOS Safari input zoom */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* PWA specific input handling */
+@media (display-mode: standalone) {
+  input, textarea, select {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  /* Force keyboard to appear */
+  input:focus, textarea:focus {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Enhanced toast swipe support */
+.toast-swipe-left {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out;
+}
+
+.toast-swipe-up {
+  transform: translateY(-100%);
+  transition: transform 0.3s ease-out;
+}
+
+.toast-swipe-right {
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out;
+}
+
+/* Toast swipe visual feedback */
+.toast[data-swipe="move"] {
+  transition: none;
+}
+
+.toast[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 0.2s ease-out;
+}
+
+/* Swipe hint styling */
+.toast .swipe-hint {
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.toast:hover .swipe-hint {
+  opacity: 0.6;
+}
+
+/* Mobile touch optimization */
+@media (hover: none) and (pointer: coarse) {
+  .toast {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Prevent scroll interference */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
