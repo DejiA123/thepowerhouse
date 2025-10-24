@@ -160,7 +160,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen text-foreground bg-background overscroll-none">
+    <div className="flex flex-col h-dvh text-foreground bg-background overscroll-none">
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg" 
