@@ -160,7 +160,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-dvh text-foreground bg-background overscroll-none">
+    <div className="flex flex-col h-dvh text-foreground bg-background overflow-hidden">
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
       <div 
         className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg" 
@@ -172,8 +172,8 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
-        <div className={showChrome ? "lg:pb-4" : ""}>
+      <main className="flex-1 overflow-hidden" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+        <div className={showChrome ? "lg:pb-4 h-full overflow-y-auto" : "h-full overflow-y-auto"}>
             {children}
         </div>
       </main>
