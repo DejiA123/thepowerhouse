@@ -8,7 +8,7 @@ import { BibleNavigation } from "@/components/bible/BibleNavigation";
 import { BibleVersionSelector } from "@/components/bible/BibleVersionSelector";
 import { BibleBookList, bibleBooks } from "@/components/bible/BibleBookList";
 import { normalizeBookApiName } from "@/components/bible/bookUtils";
-import { BibleChapterList, BibleChapterGrid } from "@/components/bible/BibleChapterList";
+import { BibleChapterList } from "@/components/bible/BibleChapterList";
 import { BibleChapterContent } from "@/components/bible/BibleChapterContent";
 // BibleHighlights component removed - functionality moved to BibleChapterContent
 import { BibleSearch } from "@/components/bible/BibleSearch";

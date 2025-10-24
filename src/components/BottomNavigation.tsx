@@ -14,7 +14,7 @@ const BottomNavigation = () => {
 
   // Detect if the app is running as a standalone PWA and is on iOS
   const isPWAOnIOS = () => {
-    return (window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches)) && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    return ((window.navigator as any).standalone || (window.matchMedia('(display-mode: standalone)').matches)) && /iPad|iPhone|iPod/.test(navigator.userAgent);
   };
 
   const navStyle = () => ({

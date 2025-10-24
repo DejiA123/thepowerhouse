@@ -642,7 +642,14 @@
 
 .bible-main-content-full {
   @apply flex-1 bg-background pb-40 overflow-y-auto;
-  /* Removed padding-top: env(safe-area-inset-top) - main layout already handles safe area */
+  padding-top: 1rem;
+}
+
+/* PWA specific adjustments for Bible main content */
+@media (display-mode: standalone) {
+  .bible-main-content-full {
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  }
 }
 
 .bible-chapter-heading-full {
