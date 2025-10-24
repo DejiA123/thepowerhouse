@@ -1,106 +1,24 @@
 /* src/App.css */
 
-.bible-page-full {
-  display: flex;
-  flex-direction: column;
-  height: 100vh; /* Full viewport height */
-  background-color: var(--background);
-  overflow: hidden; /* Prevent main page scroll */
+/* Global Styles */
+body {
+  margin: 0;
+  font-family: sans-serif;
+  overscroll-behavior: none; /* Prevent pull-to-refresh */
 }
 
-.bible-header-full {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-  background-color: var(--card);
-  flex-shrink: 0; /* Prevent header from shrinking */
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  will-change: transform; /* Optimize for animations */
+/* Theme aware background */
+.bg-background {
+  background-color: hsl(var(--background));
 }
 
-.bible-header-buttons-full {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.bible-book-button-full,
-.bible-version-button-full {
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  background-color: var(--muted);
-  color: var(--muted-foreground);
-  transition: background-color 0.2s;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px; /* Adjust as needed */
-  border: none;
-  cursor: pointer;
-}
-
-.bible-book-button-full:hover,
-.bible-version-button-full:hover {
-  background-color: var(--accent);
-}
-
-.bible-header-icons-full {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.bible-header-icon-full {
-  padding: 0.5rem;
-  border-radius: 9999px; /* Circular */
-  background-color: transparent;
-  color: var(--foreground);
-  transition: background-color 0.2s;
-  border: none;
-  cursor: pointer;
-}
-
-.bible-header-icon-full:hover {
-  background-color: var(--accent);
-}
-
-.bible-main-content-full {
-  flex-grow: 1; /* Take up remaining space */
-  overflow-y: auto; /* Enable scrolling for content */
-  overscroll-behavior: contain; /* Prevent pull-to-refresh on mobile */
-  padding-bottom: 70px; /* Space for navigation controls */
-}
-
-/* Verse-specific styles */
-.verse-highlight {
-  transition: background-color 0.3s;
-}
-
-/* Ensure readable text color in dark mode when highlighted */
-.dark .verse-highlight {
-  color: #000; /* Or a dark gray like #2d3748 */
-}
-
-.bible-navigation-controls {
-  position: fixed;
-  bottom: 56px; /* Adjust based on your BottomNavigation height */
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem;
-  background: linear-gradient(to top, var(--background) 70%, transparent 100%);
-  z-index: 10;
-  pointer-events: auto; /* Enable interaction */
-}
-
-/* Ensure the font size updates immediately */
+/* Theme aware foreground */
 .text-foreground {
-  font-size: var(--bible-font-size, 16px);
+  color: hsl(var(--foreground));
+}
+
+
+/* Bible Styles */
+.bible-main-content-full {
+  padding-top: 10px; /* Adjusted padding */
 }
