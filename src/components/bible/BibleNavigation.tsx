@@ -1,98 +1,65 @@
-import { ChevronLeft, Menu, Search, Bookmark, History } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { bibleBooks } from './BibleBookList';
+
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, Volume2 } from "lucide-react";
+import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 
 interface BibleNavigationProps {
-    selectedBook: string;
-    selectedChapter: number;
-    onBackToBooks: () => void;
-    onBackToChapters: () => void;
-    onChapterChange: (chapter: number) => void;
-    onBookChange: (book: string, chapter: number) => void;
-    onVersionSelectorOpen: () => void;
-    onSearchOpen: () => void;
-    onMenuOpen: () => void;
+  selectedBook?: string;
+  selectedChapter?: number;
+  onBookChange?: (book: string) => void;
+  onChapterChange?: (chapter: number) => void;
+  onBackToBooks?: () => void;
+  onBackToChapters?: () => void;
 }
 
-export const BibleNavigation = (props: BibleNavigationProps) => {
-    const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
-    const currentBook = allBooks.find(b => b.apiName === props.selectedBook);
+export const BibleNavigation = ({ 
+  selectedBook, 
+  selectedChapter, 
+  onBackToBooks, 
+  onBackToChapters 
+}: BibleNavigationProps) => {
+  const { preferences } = useBiblePreferences();
 
-    const handlePreviousChapter = () => {
-        if (props.selectedChapter > 1) {
-            props.onChapterChange(props.selectedChapter - 1);
-        } else {
-            const currentBookIndex = allBooks.findIndex(b => b.apiName === props.selectedBook);
-            if (currentBookIndex > 0) {
-                const prevBook = allBooks[currentBookIndex - 1];
-                props.onBookChange(prevBook.apiName, prevBook.chapters);
-            }
-        }
-    };
-
-    const handleNextChapter = () => {
-        if (currentBook && props.selectedChapter < currentBook.chapters) {
-            props.onChapterChange(props.selectedChapter + 1);
-        } else {
-            const currentBookIndex = allBooks.findIndex(b => b.apiName === props.selectedBook);
-            if (currentBookIndex < allBooks.length - 1) {
-                const nextBook = allBooks[currentBookIndex + 1];
-                props.onBookChange(nextBook.apiName, 1);
-            }
-        }
-    };
-
+  if (selectedChapter && selectedBook) {
     return (
-        <div className="bg-background border-b p-2 flex items-center justify-between sticky top-0 z-10">
-            <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon" onClick={props.onBackToBooks}>
-                    <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <Select
-                    value={props.selectedBook}
-                    onValueChange={(book) => props.onBookChange(book, 1)}
-                >
-                    <SelectTrigger className="w-[150px] truncate">
-                        <SelectValue placeholder="Select a book" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {allBooks.map(book => (
-                            <SelectItem key={book.apiName} value={book.apiName}>
-                                {book.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                <Select
-                    value={String(props.selectedChapter)}
-                    onValueChange={(chapter) => props.onChapterChange(parseInt(chapter))}
-                >
-                    <SelectTrigger className="w-[80px]">
-                        <SelectValue placeholder="Ch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {currentBook && Array.from({ length: currentBook.chapters }, (_, i) => i + 1).map(c => (
-                            <SelectItem key={c} value={String(c)}>
-                                {c}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-
-            <div className="flex items-center space-x-1">
-                <Button variant="ghost" size="icon" onClick={props.onSearchOpen}>
-                    <Search className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={props.onVersionSelectorOpen}>
-                    <Bookmark className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={props.onMenuOpen}>
-                    <Menu className="h-5 w-5" />
-                </Button>
-            </div>
+      <div className="flex items-center justify-between will-change-transform">
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm" onClick={onBackToChapters}>
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back to Chapters
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {selectedBook} Chapter {selectedChapter}
+          </span>
         </div>
+        
+        {/* Audio Settings Quick Access */}
+        <div className="flex items-center space-x-2">
+          <div className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded">
+            <Volume2 className="w-3 h-3 inline mr-1" />
+            Pitch: {preferences.pitch.toFixed(2)} | Speed: {preferences.rate.toFixed(2)}x
+          </div>
+        </div>
+      </div>
     );
+  }
+
+  if (selectedBook) {
+    return (
+      <div className="flex items-center space-x-2 mb-4">
+        <Button variant="outline" size="sm" onClick={onBackToBooks}>
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Back to Books
+        </Button>
+        <span className="text-sm text-muted-foreground">{selectedBook}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center mb-6">
+      <h1 className="text-3xl font-bold text-foreground">The Bible</h1>
+      <p className="text-muted-foreground mt-2">Choose a book to begin reading</p>
+    </div>
+  );
 };
