@@ -447,7 +447,7 @@ const BiblePage = () => {
   if (selectedChapter && !showHighlights && !showNotes) {
     // Full Bible reading layout
     return (
-      <div className="h-screen flex flex-col bg-background">
+      <div className="min-h-screen bg-background pb-[72px]">
         {renderContent()}
         
         {/* Version Selector Dialog */}
