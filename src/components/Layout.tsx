@@ -172,7 +172,7 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+      <main className="flex-1 overflow-y-auto" style={showChrome ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
         <div className={showChrome ? "lg:pb-4" : ""}>
             {children}
         </div>
