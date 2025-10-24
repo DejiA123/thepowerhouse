@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { Home, Book, Calendar, Heart, Info } from "lucide-react";
 
@@ -13,8 +12,17 @@ const BottomNavigation = () => {
     { name: "Resources", path: "/resources", icon: Info },
   ];
 
+  // Detect if the app is running as a standalone PWA and is on iOS
+  const isPWAOnIOS = () => {
+    return (window.navigator.standalone || (window.matchMedia('(display-mode: standalone)').matches)) && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  };
+
+  const navStyle = () => ({
+    marginTop: isPWAOnIOS() ? '-0.5rem' : undefined, // Adjust this value as needed
+  });
+
   return (
-    <nav className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]">
+    <nav style={navStyle()} className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-around py-2">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
