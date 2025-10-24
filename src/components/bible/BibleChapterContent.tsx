@@ -3,7 +3,6 @@ import { BibleChapter, BibleVerse } from "@/types/bible";
 import { BibleNavigation } from "@/components/bible/BibleNavigation";
 import { Button } from "@/components/ui/button";
 
-// Re-implementing BibleVerseContent directly inside this file
 const BibleVerseContent = ({ verse, isHighlighted, onVerseClick, fontSize, redLetters }: {
   verse: BibleVerse;
   isHighlighted: boolean;
@@ -11,7 +10,6 @@ const BibleVerseContent = ({ verse, isHighlighted, onVerseClick, fontSize, redLe
   fontSize: number;
   redLetters: boolean;
 }) => {
-  // A simple regex to check if the text contains words of Jesus (often in quotes)
   const isRedLetterText = redLetters && /“/.test(verse.text);
 
   return (
@@ -25,7 +23,6 @@ const BibleVerseContent = ({ verse, isHighlighted, onVerseClick, fontSize, redLe
     </p>
   );
 };
-
 
 interface BibleChapterContentProps {
   selectedBook: string;
@@ -56,8 +53,6 @@ interface BibleChapterContentProps {
 
 export const BibleChapterContent = ({ ...props }: BibleChapterContentProps) => {
   const mainContentRef = useRef<HTMLDivElement>(null);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const lastScrollTop = useRef(0);
 
   useEffect(() => {
     if (mainContentRef.current) {
@@ -65,39 +60,15 @@ export const BibleChapterContent = ({ ...props }: BibleChapterContentProps) => {
     }
   }, [props.selectedBook, props.selectedChapter]);
 
-  const handleScroll = () => {
-    if (!mainContentRef.current) return;
-    const scrollTop = mainContentRef.current.scrollTop;
-    if (scrollTop > lastScrollTop.current && scrollTop > 100) { // scrolling down
-      setIsHeaderVisible(false);
-    } else { // scrolling up
-      setIsHeaderVisible(true);
-    }
-    lastScrollTop.current = scrollTop <= 0 ? 0 : scrollTop; // For Mobile or negative scrolling
-  };
-
-  useEffect(() => {
-    const currentRef = mainContentRef.current;
-    if (currentRef) {
-      currentRef.addEventListener("scroll", handleScroll);
-    }
-    return () => {
-      if (currentRef) {
-        currentRef.removeEventListener("scroll", handleScroll);
-      }
-    };
-  }, [mainContentRef]);
-
   return (
-    <div className="flex-1 flex flex-col h-full relative">
-      <div
-        className={`bible-header-full z-10 bg-background shadow-md fixed top-0 left-0 right-0 transition-transform duration-300 ${isHeaderVisible ? "translate-y-0" : "-translate-y-full"}`}>
+    <div className="flex-1 flex flex-col h-full">
+      <div className="bible-header-full z-10 bg-background shadow-md">
         <div style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <BibleNavigation {...props} />
         </div>
       </div>
 
-      <div ref={mainContentRef} className="bible-main-content-full flex-1 overflow-y-auto pb-16" style={{ paddingTop: isHeaderVisible ? '120px' : 'env(safe-area-inset-top)' }}>
+      <div ref={mainContentRef} className="bible-main-content-full flex-1 overflow-y-auto pb-16">
         {props.loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
