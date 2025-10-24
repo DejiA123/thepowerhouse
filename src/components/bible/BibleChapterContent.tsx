@@ -1,8 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 import { BibleChapter, BibleVerse } from "@/types/bible";
 import { BibleNavigation } from "@/components/bible/BibleNavigation";
-import { BibleVerseContent } from "@/components/bible/BibleVerseContent";
 import { Button } from "@/components/ui/button";
+
+// Re-implementing BibleVerseContent directly inside this file
+const BibleVerseContent = ({ verse, isHighlighted, onVerseClick, fontSize, redLetters }: {
+  verse: BibleVerse;
+  isHighlighted: boolean;
+  onVerseClick: () => void;
+  fontSize: number;
+  redLetters: boolean;
+}) => {
+  // A simple regex to check if the text contains words of Jesus (often in quotes)
+  const isRedLetterText = redLetters && /“/.test(verse.text);
+
+  return (
+    <p 
+      className={`mb-2 transition-colors duration-300 ${isHighlighted ? 'bg-primary/10 rounded-md p-2' : 'p-2'}`}
+      style={{ fontSize: `${fontSize}px` }}
+      onClick={onVerseClick}
+    >
+      <sup className="text-xs text-muted-foreground mr-1">{verse.verse}</sup>
+      <span className={isRedLetterText ? 'text-red-500' : ''}>{verse.text}</span>
+    </p>
+  );
+};
+
 
 interface BibleChapterContentProps {
   selectedBook: string;
@@ -62,8 +85,8 @@ export const BibleChapterContent = ({ ...props }: BibleChapterContentProps) => {
               <BibleVerseContent
                 key={verse.verse}
                 verse={verse}
-                isHighlighted={props.currentVerse === verse.verse}
-                onVerseClick={() => props.onVerseHighlight(verse.verse)}
+                isHighlighted={props.currentVerse === parseInt(verse.verse)}
+                onVerseClick={() => props.onVerseHighlight(parseInt(verse.verse))}
                 fontSize={props.fontSize}
                 redLetters={props.redLetters}
               />
