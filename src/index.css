@@ -814,6 +814,10 @@
 
 .bible-chapter-header {
   @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-border bg-white dark:bg-card;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .bible-chapter-back {

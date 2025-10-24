@@ -218,7 +218,7 @@ const BibleReader = () => {
               selectedChapter={selectedChapter}
               chapterContent={currentChapter}
               loading={loading}
-              onBack toChapters={handleBackToChapters}
+              onBackToChapters={handleBackToChapters}
               onBackToBooks={handleBackToBooks}
               onChapterChange={handleChapterChange}
               autoPlayNext={preferences.autoPlayNext}
