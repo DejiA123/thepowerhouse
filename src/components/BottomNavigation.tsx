@@ -18,11 +18,11 @@ const BottomNavigation = () => {
   };
 
   const navStyle = () => ({
-    marginTop: isPWAOnIOS() ? '-0.5rem' : undefined, // Adjust this value as needed
+    marginBottom: isPWAOnIOS() ? '0.25rem' : undefined, // Slight lift above bottom in iOS PWA
   });
 
   return (
-    <nav style={navStyle()} className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)] mb-2">
+    <nav style={navStyle()} className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-around py-2">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
