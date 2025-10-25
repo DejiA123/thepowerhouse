@@ -18,7 +18,7 @@ const BottomNavigation = () => {
   };
 
   const navStyle = () => ({
-    marginBottom: isPWAOnIOS() ? '0.25rem' : undefined, // Slight lift above bottom in iOS PWA
+    marginTop: isPWAOnIOS() ? '-0.5rem' : undefined, // Adjust this value as needed
   });
 
   return (
