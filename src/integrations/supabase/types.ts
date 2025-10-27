@@ -415,6 +415,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_access_log: {
+        Row: {
+          access_type: string
+          accessed_at: string | null
+          admin_id: string
+          id: string
+          ip_address: unknown
+          profile_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          access_type?: string
+          accessed_at?: string | null
+          admin_id: string
+          id?: string
+          ip_address?: unknown
+          profile_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string
+          accessed_at?: string | null
+          admin_id?: string
+          id?: string
+          ip_address?: unknown
+          profile_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
