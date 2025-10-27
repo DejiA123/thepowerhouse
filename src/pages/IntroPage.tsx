@@ -28,7 +28,8 @@ const IntroPage = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    let objectUrl: string | undefined;
+    // Set the video source. The `autoPlay` attribute will handle playing.
+    video.src = "/App_Intro_1.mp4?v=4";
 
     const onPlay = () => {
       console.log("✅ Event: 'play'");
@@ -43,65 +44,54 @@ const IntroPage = () => {
     const onCanPlay = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
-      // Attempt to play after loaded
-      video.play().catch(error => {
-         console.warn("⚠️ Auto-play was prevented. Waiting for user interaction.", error.name);
-      });
     };
-    
+
     const onError = (e: Event) => {
       console.error("❌ Video Element Error:", video.error);
     };
-
-    const loadVideo = async () => {
-      const videoUrl = "/App_Intro_1.mp4?v=4"; // Version bump
-      console.log(`Fetching video: ${videoUrl}`);
-      try {
-        const response = await fetch(videoUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const blob = await response.blob();
-        console.log(`Blob created. Size: ${blob.size}, Type: ${blob.type}`);
-        objectUrl = URL.createObjectURL(blob);
-        video.src = objectUrl;
-        video.load(); // Important: Trigger load for the new src
-        console.log("Video source set to object URL. Waiting for 'canplay' event.");
-
-      } catch (error) {
-        console.error("❌ Failed to load video via blob:", error);
-      }
-    };
     
+    // Add a 'playing' event listener to be more robust
+    const onPlaying = () => {
+        console.log("✅ Video is actively playing.");
+        setVideoPlaying(true);
+    }
+    
+    // A warning if autoplay is prevented
+    video.addEventListener('pause', () => {
+        if (video.paused && !video.ended) {
+            console.warn("⚠️ Auto-play might have been prevented by the browser.");
+        }
+    });
+
     video.addEventListener("play", onPlay);
+    video.addEventListener("playing", onPlaying);
     video.addEventListener("pause", onPause);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("error", onError);
-
-    loadVideo();
+    
+    // The `load` method is called to load the video resource.
+    video.load();
 
     return () => {
       console.log("Cleaning up IntroPage.");
       video.removeEventListener("play", onPlay);
+      video.removeEventListener("playing", onPlaying);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("error", onError);
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-        console.log("Revoked object URL.");
-      }
     };
   }, []);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
       
-      {/* Video Element */}
+      {/* Video Element with autoPlay */}
       <video
         ref={videoRef}
         loop
         muted
         playsInline
+        autoPlay
         webkit-playsinline="true"
         x5-playsinline="true"
         x5-video-player-type="h5"
