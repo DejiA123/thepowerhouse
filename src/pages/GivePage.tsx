@@ -105,7 +105,6 @@ const GivePage = () => {
                 <li>2. Include your name in the transfer reference</li>
                 <li>3. Specify donation type (Tithe, Offering, Missions, etc.)</li>
                 <li>4. Keep your transfer receipt for your records</li>
-                <li>5. Contact us if you need a donation receipt</li>
               </ol>
             </CardContent>
           </Card>
