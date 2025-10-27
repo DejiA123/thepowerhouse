@@ -482,7 +482,7 @@ export type Database = {
         Row: {
           downloaded_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           resource_category: string
           resource_name: string
           user_agent: string | null
@@ -491,7 +491,7 @@ export type Database = {
         Insert: {
           downloaded_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource_category: string
           resource_name: string
           user_agent?: string | null
@@ -500,7 +500,7 @@ export type Database = {
         Update: {
           downloaded_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource_category?: string
           resource_name?: string
           user_agent?: string | null
@@ -685,14 +685,8 @@ export type Database = {
         Args: { _profile_user_id: string }
         Returns: boolean
       }
-      cleanup_old_notifications: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_youtube_api_usage: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_old_notifications: { Args: never; Returns: undefined }
+      cleanup_youtube_api_usage: { Args: never; Returns: number }
       get_resource_download_count: {
         Args: { _resource_category: string; _resource_name: string }
         Returns: number
@@ -701,10 +695,7 @@ export type Database = {
         Args: { service_date_param: string; service_time_param: string }
         Returns: number
       }
-      get_user_display_name: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      get_user_display_name: { Args: { _user_id: string }; Returns: string }
       get_youtube_api_usage_summary: {
         Args: { _hours?: number }
         Returns: {
@@ -723,10 +714,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_attending_service: {
         Args: {
           service_date_param: string

@@ -18,6 +18,7 @@ import {
   Sparkles, PenTool
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import DOMPurify from 'dompurify';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { bibleBooks } from "@/components/bible/BibleBookList";
@@ -686,7 +687,12 @@ const BibleNotesPage = () => {
                 {/* Content */}
                 <div 
                   className="prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed [&_p]:mb-0 [&_p:last-child]:mb-0 [&_p+p]:mt-4 [&_br]:block [&_br]:content-[''] [&_br]:mt-0 [&_br]:mb-0"
-                  dangerouslySetInnerHTML={{ __html: selectedNote.note_text }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: DOMPurify.sanitize(selectedNote.note_text, {
+                      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'],
+                      ALLOWED_ATTR: ['class', 'style']
+                    })
+                  }}
                 />
               </div>
             )}

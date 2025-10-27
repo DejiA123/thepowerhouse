@@ -1,11 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const donationSchema = z.object({
+  amount: z.string()
+    .regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format")
+    .refine((val) => {
+      const num = parseFloat(val);
+      return num >= 1 && num <= 1000000;
+    }, "Amount must be between €1 and €1,000,000"),
+  donationType: z.enum(['tithe', 'offering', 'firstfruits', 'building', 'missions'], {
+    errorMap: () => ({ message: "Invalid donation type" })
+  }),
+  paymentMethod: z.enum(['card', 'bank_transfer', 'paypal'], {
+    errorMap: () => ({ message: "Invalid payment method" })
+  }),
+  testimony: z.string()
+    .max(1000, "Testimony must be less than 1000 characters")
+    .optional()
+    .or(z.literal(''))
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -27,12 +48,16 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
 
-    // Get request data
-    const { amount, donationType, paymentMethod, testimony } = await req.json();
+    // Get and validate request data
+    const body = await req.json();
+    const validationResult = donationSchema.safeParse(body);
     
-    if (!amount || !donationType || !paymentMethod) {
-      throw new Error("Missing required fields: amount, donationType, paymentMethod");
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      throw new Error(`Validation failed: ${errors}`);
     }
+    
+    const { amount, donationType, paymentMethod, testimony } = validationResult.data;
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {

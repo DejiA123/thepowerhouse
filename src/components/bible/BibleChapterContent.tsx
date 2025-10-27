@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
 import { supabaseAudioService } from "@/services/supabaseAudioService";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import DOMPurify from 'dompurify';
 
 
 interface BibleChapterContentProps {
@@ -1024,14 +1025,24 @@ export const BibleChapterContent = ({
                      const gospels = ['Matthew', 'Mark', 'Luke', 'John'];
                      const bookName = getBookDisplayName();
                      
-                     if (redLetters && gospels.includes(bookName)) {
-                       // Wrap quoted speech (Jesus' words) in red
-                       // Supports straight quotes "..." and curly quotes " … "
-                       const formattedText = cleanText
-                         .replace(/([""])([^"""]+)([""])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
-                       return { __html: formattedText };
-                     }
-                     return { __html: cleanText };
+                      if (redLetters && gospels.includes(bookName)) {
+                        // Wrap quoted speech (Jesus' words) in red
+                        // Supports straight quotes "..." and curly quotes " … "
+                        const formattedText = cleanText
+                          .replace(/([""])([^"""]+)([""])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
+                        return { 
+                          __html: DOMPurify.sanitize(formattedText, {
+                            ALLOWED_TAGS: ['span', 'br'],
+                            ALLOWED_ATTR: ['class']
+                          })
+                        };
+                      }
+                      return { 
+                        __html: DOMPurify.sanitize(cleanText, {
+                          ALLOWED_TAGS: ['br'],
+                          ALLOWED_ATTR: []
+                        })
+                      };
                    };
                    
                    const verseStyle = {
