@@ -45,7 +45,7 @@ const GivePage = () => {
             <span>Bank Transfer Details</span>
           </CardTitle>
           <p className="text-sm text-muted-foreground text-center">
-            Use these details to make your donation via bank transfer
+            Use these details to give via bank transfer
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
