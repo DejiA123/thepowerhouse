@@ -10,6 +10,7 @@ import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { useToast } from "@/hooks/use-toast";
 import { normalizeBookApiName } from "./bookUtils";
+import DOMPurify from "dompurify";
 
 interface BibleSearchProps {
   isOpen: boolean;
@@ -135,11 +136,13 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     return book ? book.name : apiName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  // Highlight search terms in text
+  // Highlight search terms in text with XSS protection
   const highlight = (text: string, query: string): string => {
     if (!query.trim()) return text;
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, caseSensitive ? 'g' : 'gi');
-    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>');
+    const highlighted = text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>');
+    // Sanitize to prevent XSS attacks - only allow mark tags with class attribute
+    return DOMPurify.sanitize(highlighted, { ALLOWED_TAGS: ['mark'], ALLOWED_ATTR: ['class'] });
   };
 
   // Canonical book order for sorting
