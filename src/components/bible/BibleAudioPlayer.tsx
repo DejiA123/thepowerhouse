@@ -24,6 +24,12 @@ const BibleAudioPlayer = ({ book, chapter, selectedVersion }: BibleAudioPlayerPr
       
       setCheckingMp3(true);
       try {
+        // Force a small delay for PWA to ensure network is ready
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+        if (isPWA) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
         const available = await supabaseAudioService.checkAudioExists(book, chapter, selectedVersion);
         setMp3Available(available);
         console.log(`MP3 audio check for ${book} ${chapter} (${selectedVersion}):`, available);
