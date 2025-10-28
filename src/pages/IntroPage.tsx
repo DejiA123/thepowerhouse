@@ -8,8 +8,6 @@ const IntroPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [showSoundPrompt, setShowSoundPrompt] = useState(true);
 
   const handleGetStarted = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -30,95 +28,92 @@ const IntroPage = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Set source
+    // Set the video source. The `autoPlay` attribute will handle playing.
     video.src = "/App_Intro_1.mp4?v=4";
 
-    // Force muted autoplay attributes
-    video.muted = true;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.loop = true;
-    video.preload = "auto";
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('webkit-playsinline', 'true');
-    video.setAttribute('x5-playsinline', '');
-    video.setAttribute('x5-video-player-type', 'h5');
-    video.setAttribute('x5-video-player-fullscreen', 'false');
-    video.setAttribute('x5-video-orientation', 'portrait');
+    const onPlay = () => {
+      console.log("✅ Event: 'play'");
+      setVideoPlaying(true);
+    };
 
-    // Force hardware acceleration and prevent airplay
-    video.style.setProperty('transform', 'translateZ(0)', 'important');
-    video.style.setProperty('opacity', '0.99', 'important');
-    video.style.setProperty('pointer-events', 'none', 'important');
-    video.setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback');
-    video.setAttribute('disablePictureInPicture', '');
-    video.setAttribute('disableRemotePlayback', '');
+    const onPause = () => {
+      console.log("Event: 'pause'");
+      setVideoPlaying(false);
+    };
 
-    // Aggressive autoplay attempt
+    const onCanPlay = () => {
+      console.log("✅ Event: 'oncanplay' - Video can play.");
+      setVideoLoaded(true);
+      
+      // Force play when video is ready, especially important for PWA
+      video.play().catch(error => {
+        console.error("❌ Auto-play failed on canplay event:", error);
+        // If autoplay fails, try playing on user interaction
+        document.addEventListener('touchstart', function playOnFirstTouch() {
+          video.play().catch(e => console.error("Play on touch failed:", e));
+          document.removeEventListener('touchstart', playOnFirstTouch);
+        }, { once: true });
+      });
+    };
+
+    const onError = (e: Event) => {
+      console.error("❌ Video Element Error:", video.error);
+    };
+    
+    // Add a 'playing' event listener to be more robust
+    const onPlaying = () => {
+        console.log("✅ Video is actively playing.");
+        setVideoPlaying(true);
+    }
+    
+    // A warning if autoplay is prevented
+    video.addEventListener('pause', () => {
+        if (video.paused && !video.ended) {
+            console.warn("⚠️ Auto-play might have been prevented by the browser.");
+        }
+    });
+
+    video.addEventListener("play", onPlay);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("error", onError);
+    
+    // The `load` method is called to load the video resource.
     video.load();
-    setTimeout(() => {
-      video.play().catch(() => {});
-    }, 100);
 
-    // Cleanup
     return () => {
       console.log("Cleaning up IntroPage.");
-      clearInterval(monitorInterval);
-      intersectionObserver.disconnect();
-      mutationObserver.disconnect();
-      interactionEvents.forEach(event => {
-        document.removeEventListener(event, enableSound);
-      });
       video.removeEventListener("play", onPlay);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("error", onError);
-      video.removeEventListener("loadedmetadata", () => {});
-      if (audioContext) {
-        audioContext.close().catch(() => {});
-      }
     };
   }, []);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
-      {/* Video Element */}
+      
+      {/* Video Element with autoPlay */}
       <video
         ref={videoRef}
         loop
         muted
         playsInline
         autoPlay
-        preload="auto"
-        className="absolute inset-0 w-full h-full object-cover z-10"
-        style={{
-          backgroundColor: "#000",
-          transform: "translateZ(0)",
-          opacity: "0.99",
-          pointerEvents: "none",
-        }}
         webkit-playsinline="true"
         x5-playsinline="true"
         x5-video-player-type="h5"
-        x5-video-player-fullscreen="false"
-        x5-video-orientation="portrait"
-        controlsList="nodownload nofullscreen noremoteplayback"
-        disablePictureInPicture
-        disableRemotePlayback
+        x5-video-player-fullscreen="true"
+        preload="auto"
+        className="absolute inset-0 w-full h-full object-cover z-10"
+        style={{ backgroundColor: "#000" }}
+        data-wf-ignore="true"
+        playsinline="true"
       />
 
-      {/* Sound Prompt Overlay */}
-      {showSoundPrompt && isMuted && videoLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-          <div className="bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg animate-pulse">
-            Tap anywhere to enable sound
-          </div>
-        </div>
-      )}
-
-      {/* UI Content */}
+      {/* UI Content - Always on top */}
       <div className="relative z-30 flex flex-col items-center justify-between h-screen px-6 py-12 pointer-events-none">
         <div className="flex-[2]" />
         
