@@ -27,6 +27,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import SocialMediaPage from "@/pages/SocialMediaPage";
 import BibleNotesPage from "@/pages/BibleNotesPage";
 import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
+import PasswordResetPage from "@/pages/PasswordResetPage";
 import { EmailConfirmationDebug } from "@/components/EmailConfirmationDebug";
 import IntroPage from "@/pages/IntroPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
@@ -200,6 +201,7 @@ const AppRoutes = () => {
               } 
             />
             <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+            <Route path="/reset-password" element={<PasswordResetPage />} />
             <Route path="/debug-email" element={<EmailConfirmationDebug />} />
             <Route 
               path="/prayer" 

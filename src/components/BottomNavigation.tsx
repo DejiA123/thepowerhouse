@@ -46,7 +46,6 @@ const BottomNavigation = () => {
                 className={`w-6 h-6 mb-1 ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`} 
-                draggable="false"
               />
               <span 
                 className={`text-xs ${
