@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil } from "lucide-react";
+import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -932,70 +932,7 @@ export const BibleChapterContent = ({
             </div>
           ) : chapterContent ? (
             <div className="max-w-4xl mx-auto px-4 py-6">
-              {/* Multi-select controls */}
-              <div className="flex items-center justify-between mb-4">
-                <Button
-                  variant={isMultiSelectMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setIsMultiSelectMode(!isMultiSelectMode);
-                    if (!isMultiSelectMode) {
-                      setSelectedVerses([]);
-                    }
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  <span>{isMultiSelectMode ? "Cancel" : "Select Verses"}</span>
-                </Button>
-                
-                {isMultiSelectMode && selectedVerses.length > 0 && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        // Get all selected verses and format them
-                        const versesToCopy = selectedVerses.map(vNum => {
-                          const v = chapterContent?.verses?.find(v => Number(v.verse) === vNum);
-                          if (!v) return null;
-                          const reference = `${getBookDisplayName()} ${selectedChapter}:${vNum}`;
-                          const cleanText = (v.text || '').replace(/\s+/g, ' ').trim();
-                          return `${reference} - ${cleanText}`;
-                        }).filter(Boolean);
-                        
-                        const copyText = versesToCopy.join('\n\n');
-                        
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                          await navigator.clipboard.writeText(copyText);
-                        } else {
-                          const ta = document.createElement('textarea');
-                          ta.value = copyText;
-                          ta.style.position = 'fixed';
-                          ta.style.left = '-9999px';
-                          document.body.appendChild(ta);
-                          ta.select();
-                          try { document.execCommand('copy'); } catch {}
-                          document.body.removeChild(ta);
-                        }
-                        
-                        toast({ 
-                          title: 'Verses copied', 
-                          description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} copied to clipboard` 
-                        });
-                        
-                        // Exit multi-select mode
-                        setIsMultiSelectMode(false);
-                        setSelectedVerses([]);
-                      } catch (e) {
-                        console.error('Copy to clipboard failed:', e);
-                        toast({ title: 'Copy failed', description: 'Unable to copy verses', variant: 'destructive' });
-                      }
-                    }}
-                  >
-                    Copy {selectedVerses.length} Verse{selectedVerses.length > 1 ? 's' : ''}
-                  </Button>
-                )}
-              </div>
+              {/* Multi-select controls - REMOVED FROM TOP */}
                              {/* Bible Text */}
                <div className="space-y-4" key={settingsKey}>
                 {(chapterContent.verses || []).filter((v, i, arr) => {
@@ -1033,7 +970,7 @@ export const BibleChapterContent = ({
                    
                    const highlight = getHighlightForVerse(verseNumber);
                    
-                   // Handle click: copy verse text to clipboard, then open highlight dialog
+                   // Handle click: copy verse text to clipboard and select the verse
                    const handleVerseClick = async () => {
                      if (isMultiSelectMode) {
                        // Toggle verse selection in multi-select mode
@@ -1046,6 +983,15 @@ export const BibleChapterContent = ({
                        });
                        return;
                      }
+                     
+                     // Add this verse to selected verses and show the Select Verses button
+                     setSelectedVerses(prev => {
+                       if (prev.includes(verseNumber)) {
+                         return prev; // Already selected, keep as is
+                       } else {
+                         return [...prev, verseNumber].sort((a, b) => a - b);
+                       }
+                     });
                      
                      try {
                        const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNumber}`;
@@ -1063,13 +1009,12 @@ export const BibleChapterContent = ({
                          try { document.execCommand('copy'); } catch {}
                          document.body.removeChild(ta);
                        }
-                       toast({ title: 'Verse copied', description: reference });
+                       // Silent copy - no toast notification
                      } catch (e) {
                        console.error('Copy to clipboard failed:', e);
-                       toast({ title: 'Copy failed', description: 'Unable to copy verse', variant: 'destructive' });
+                       // Silent error - no toast notification for copy failures
                      }
                      setSelectedVerse(verseNumber);
-                     setShowHighlightDialog(true);
                    };
 
                    // Format text with Jesus' words in red for Gospels
@@ -1202,6 +1147,117 @@ export const BibleChapterContent = ({
           )}
       </div>
 
+                    {/* Floating Action Bar for Verse Selection */}
+                    {(selectedVerses.length > 0 || isMultiSelectMode) && (
+                      <div className="fixed top-1/2 right-4 transform -translate-y-1/2 flex flex-col gap-2 z-[9999] bg-background rounded-lg p-4 border-2 border-primary shadow-2xl">
+                        {/* Close Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedVerses([]);
+                            setIsMultiSelectMode(false);
+                          }}
+                          className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+                          title="Close"
+                        >
+                          ✕
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+                          className="text-xs font-semibold border-2"
+                        >
+                          {isMultiSelectMode ? 'Exit Select' : 'Select Verses'}
+                        </Button>
+                        
+                        {selectedVerses.length > 0 && (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => setShowHighlightDialog(true)}
+                              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white font-bold border-2 border-yellow-600 shadow-lg"
+                            >
+                              ✨ Highlight {selectedVerses.length > 1 && `(${selectedVerses.length})`}
+                            </Button>
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const highlightsToRemove = selectedVerses
+                                    .map(verseNum => getHighlightForVerse(verseNum))
+                                    .filter(Boolean);
+                                  
+                                  if (highlightsToRemove.length > 0) {
+                                    const { error } = await supabase
+                                      .from('bible_highlights')
+                                      .delete()
+                                      .in('id', highlightsToRemove.map(h => h!.id));
+                                      
+                                    if (!error) {
+                                      await refetchHighlights();
+                                      toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('Error removing highlights:', error);
+                                }
+                                setSelectedVerses([]);
+                              }}
+                              className="text-xs font-semibold border-2 border-red-500 text-red-600 hover:bg-red-50"
+                            >
+                              🗑️ Remove Highlight{selectedVerses.length > 1 && 's'}
+                            </Button>
+                            
+                            {isMultiSelectMode && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const versesText = selectedVerses.map(verseNum => {
+                                      const verse = chapterContent?.verses?.find(v => {
+                                        const vNum = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0;
+                                        return vNum === verseNum;
+                                      });
+                                      const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNum}`;
+                                      const cleanText = (verse?.text || '').replace(/\s+/g, ' ').trim();
+                                      return `${reference} - ${cleanText}`;
+                                    }).join('\n\n');
+                                    
+                                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                                      await navigator.clipboard.writeText(versesText);
+                                    } else {
+                                      const ta = document.createElement('textarea');
+                                      ta.value = versesText;
+                                      ta.style.position = 'fixed';
+                                      ta.style.left = '-9999px';
+                                      document.body.appendChild(ta);
+                                      ta.select();
+                                      try { document.execCommand('copy'); } catch {}
+                                      document.body.removeChild(ta);
+                                    }
+                                    toast({ title: `Copied ${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''}` });
+                                  } catch (e) {
+                                    console.error('Copy to clipboard failed:', e);
+                                    toast({ title: 'Copy failed', variant: 'destructive' });
+                                  }
+                                }}
+                                className="text-xs font-semibold border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                              >
+                                📋 Copy
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
                     {/* Bible Navigation Controls */}
        <div className="bible-navigation-controls">
          <div className="flex items-center justify-center space-x-4">
@@ -1209,45 +1265,45 @@ export const BibleChapterContent = ({
              onClick={handlePreviousChapter}
              disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
               className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
-            >
-              <ChevronLeft className="w-5 h-5 text-foreground" />
-            </button>
-            
-            <button 
-              onClick={handlePlayPause}
-              disabled={globalAudio?.audioState.isLoading || false}
-              className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
-              title={
-                globalAudio?.audioState.isLoading 
-                  ? "Loading audio..." 
-                  : (globalAudio?.audioState.isPlaying && 
-                     globalAudio?.audioState.currentBook === selectedBook && 
-                     globalAudio?.audioState.currentChapter === selectedChapter)
-                    ? "Pause audio" 
-                    : "Play audio"
-              }
-            >
-              {globalAudio?.audioState.isLoading ? (
-                <Volume2 className="w-5 h-5 opacity-50" />
-              ) : (globalAudio?.audioState.isPlaying && 
+           >
+             <ChevronLeft className="w-5 h-5 text-foreground" />
+           </button>
+           
+           <button 
+             onClick={handlePlayPause}
+             disabled={globalAudio?.audioState.isLoading || false}
+             className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
+             title={
+               globalAudio?.audioState.isLoading 
+                 ? "Loading audio..." 
+                 : (globalAudio?.audioState.isPlaying && 
+                    globalAudio?.audioState.currentBook === selectedBook && 
+                    globalAudio?.audioState.currentChapter === selectedChapter)
+                   ? "Pause audio" 
+                   : "Play audio"
+             }
+           >
+             {globalAudio?.audioState.isLoading ? (
+               <Volume2 className="w-5 h-5 opacity-50" />
+             ) : (globalAudio?.audioState.isPlaying && 
                    globalAudio?.audioState.currentBook === selectedBook && 
                    globalAudio?.audioState.currentChapter === selectedChapter) ? (
-                <Pause className="w-5 h-5" />
-              ) : (
-                <Play className="w-5 h-5 ml-0.5" />
-              )}
-            </button>
-            
-            <button 
-              onClick={handleNextChapter}
-              disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
-              className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
-            >
-              <ChevronRight className="w-5 h-5 text-foreground" />
-            </button>
-          </div>
-          
-        </div>
+               <Pause className="w-5 h-5" />
+             ) : (
+               <Play className="w-5 h-5 ml-0.5" />
+             )}
+           </button>
+           
+           <button 
+             onClick={handleNextChapter}
+             disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
+             className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
+           >
+             <ChevronRight className="w-5 h-5 text-foreground" />
+           </button>
+         </div>
+         
+       </div>
 
         {/* Bible Notes Dialog */}
         <BibleNotesDialog
@@ -1287,10 +1343,10 @@ export const BibleChapterContent = ({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Palette className="w-5 h-5" />
-                Highlight Verse {selectedVerse}
+                Highlight {selectedVerses.length > 1 ? `${selectedVerses.length} Verses` : `Verse ${selectedVerse}`}
               </DialogTitle>
               <DialogDescription>
-                Choose a highlight color for this Bible verse to help with your study and reference.
+                Choose a highlight color for {selectedVerses.length > 1 ? `these ${selectedVerses.length} verses` : 'this Bible verse'} to help with your study and reference.
               </DialogDescription>
             </DialogHeader>
             
@@ -1309,43 +1365,54 @@ export const BibleChapterContent = ({
                   className={`h-12 ${color.class} hover:opacity-80`}
                   onClick={async () => {
                     if (color.value === 'remove') {
-                      // Remove highlight
-                      const existingHighlight = getHighlightForVerse(selectedVerse!);
-                      if (existingHighlight) {
-                        try {
+                      // Remove highlights from all selected verses
+                      try {
+                        const highlightsToRemove = selectedVerses
+                          .map(verseNum => getHighlightForVerse(verseNum))
+                          .filter(Boolean);
+                        
+                        if (highlightsToRemove.length > 0) {
                           const { error } = await supabase
                             .from('bible_highlights')
                             .delete()
-                            .eq('id', existingHighlight.id);
+                            .in('id', highlightsToRemove.map(h => h!.id));
+                          
                           if (!error) {
                             await refetchHighlights();
-                            toast({ title: "Highlight Removed" });
+                            toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
                           }
-                        } catch (error) {
-                          console.error('Error removing highlight:', error);
-                        }
-                      }
-                    } else {
-                      // Add/update highlight
-                      try {
-                        const { error } = await supabase
-                          .from('bible_highlights')
-                          .upsert({
-                            user_id: user?.id,
-                            book: selectedBook,
-                            chapter: selectedChapter,
-                            verse: selectedVerse,
-                            highlight_color: color.value,
-                          });
-                        if (!error) {
-                          await refetchHighlights();
-                          toast({ title: "Verse Highlighted", description: `Highlighted in ${color.name}` });
                         }
                       } catch (error) {
-                        console.error('Error adding highlight:', error);
+                        console.error('Error removing highlights:', error);
+                      }
+                    } else {
+                      // Add/update highlights for all selected verses
+                      try {
+                        const highlightsData = selectedVerses.map(verseNum => ({
+                          user_id: user?.id,
+                          book: selectedBook,
+                          chapter: selectedChapter,
+                          verse: verseNum,
+                          highlight_color: color.value,
+                        }));
+                        
+                        const { error } = await supabase
+                          .from('bible_highlights')
+                          .upsert(highlightsData);
+                        
+                        if (!error) {
+                          await refetchHighlights();
+                          toast({ 
+                            title: `Verse${selectedVerses.length > 1 ? 's' : ''} Highlighted`, 
+                            description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} highlighted in ${color.name}` 
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error adding highlights:', error);
                       }
                     }
                     setShowHighlightDialog(false);
+                    setSelectedVerses([]);
                   }}
                 >
                   {color.name}
