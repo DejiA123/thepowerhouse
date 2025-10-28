@@ -46,14 +46,16 @@ const IntroPage = () => {
       setVideoLoaded(true);
       
       // Force play when video is ready, especially important for PWA
-      video.play().catch(error => {
-        console.error("❌ Auto-play failed on canplay event:", error);
-        // If autoplay fails, try playing on user interaction
-        document.addEventListener('touchstart', function playOnFirstTouch() {
-          video.play().catch(e => console.error("Play on touch failed:", e));
-          document.removeEventListener('touchstart', playOnFirstTouch);
-        }, { once: true });
-      });
+      setTimeout(() => {
+        video.play().catch(error => {
+          console.error("❌ Auto-play failed on canplay event:", error);
+          // If autoplay fails, try playing on user interaction
+          document.addEventListener('touchstart', function playOnFirstTouch() {
+            video.play().catch(e => console.error("Play on touch failed:", e));
+            document.removeEventListener('touchstart', playOnFirstTouch);
+          }, { once: true });
+        });
+      }, 100); // Small delay to ensure browser is ready
     };
 
     const onError = (e: Event) => {
