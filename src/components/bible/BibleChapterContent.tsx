@@ -106,9 +106,9 @@ export const BibleChapterContent = ({
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [showHighlightDialog, setShowHighlightDialog] = useState(false);
   const [showHighlightsList, setShowHighlightsList] = useState(false);
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(true);
-  const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   // Use currentFontSize as the single source of truth for font size
   const [currentFontSize, setCurrentFontSize] = useState(() => {
@@ -934,10 +934,68 @@ export const BibleChapterContent = ({
             <div className="max-w-4xl mx-auto px-4 py-6">
               {/* Multi-select controls */}
               <div className="flex items-center justify-between mb-4">
-                {/* Removed "Select Verses" button */}
+                <Button
+                  variant={isMultiSelectMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setIsMultiSelectMode(!isMultiSelectMode);
+                    if (!isMultiSelectMode) {
+                      setSelectedVerses([]);
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <span>{isMultiSelectMode ? "Cancel" : "Select Verses"}</span>
+                </Button>
                 
-                
-                </div>
+                {isMultiSelectMode && selectedVerses.length > 0 && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        // Get all selected verses and format them
+                        const versesToCopy = selectedVerses.map(vNum => {
+                          const v = chapterContent?.verses?.find(v => Number(v.verse) === vNum);
+                          if (!v) return null;
+                          const reference = `${getBookDisplayName()} ${selectedChapter}:${vNum}`;
+                          const cleanText = (v.text || '').replace(/\s+/g, ' ').trim();
+                          return `${reference} - ${cleanText}`;
+                        }).filter(Boolean);
+                        
+                        const copyText = versesToCopy.join('\n\n');
+                        
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(copyText);
+                        } else {
+                          const ta = document.createElement('textarea');
+                          ta.value = copyText;
+                          ta.style.position = 'fixed';
+                          ta.style.left = '-9999px';
+                          document.body.appendChild(ta);
+                          ta.select();
+                          try { document.execCommand('copy'); } catch {}
+                          document.body.removeChild(ta);
+                        }
+                        
+                        toast({ 
+                          title: 'Verses copied', 
+                          description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} copied to clipboard` 
+                        });
+                        
+                        // Exit multi-select mode
+                        setIsMultiSelectMode(false);
+                        setSelectedVerses([]);
+                      } catch (e) {
+                        console.error('Copy to clipboard failed:', e);
+                        toast({ title: 'Copy failed', description: 'Unable to copy verses', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Copy {selectedVerses.length} Verse{selectedVerses.length > 1 ? 's' : ''}
+                  </Button>
+                )}
+              </div>
                              {/* Bible Text */}
                <div className="space-y-4" key={settingsKey}>
                 {(chapterContent.verses || []).filter((v, i, arr) => {
@@ -1201,7 +1259,7 @@ export const BibleChapterContent = ({
 
         {/* All Highlights Dialog */}
         <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-32">
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="w-5 h-5" />
