@@ -31,15 +31,53 @@ const IntroPage = () => {
     // Set the video source. The `autoPlay` attribute will handle playing.
     video.src = "/App_Intro_1.mp4?v=4";
 
-    // MOBILE AUTOPLAY STRATEGY: Create audio context to unlock media
+    // IPHONE SAFARI ULTRA-AUTOPLAY STRATEGY
+    
+    // 1. Create and resume audio context immediately
     let audioContext;
     try {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        audioContext.resume().catch(() => {});
       }
     } catch (e) {
       console.log("Audio context not available");
+    }
+
+    // 2. Force video to be muted and hidden initially
+    video.muted = true;
+    video.volume = 0;
+    video.style.opacity = '0.99'; // Just under 1 to avoid visibility issues
+    
+    // 3. Safari-specific: Try to trigger play on any document interaction
+    const safariInteractionHandler = () => {
+      console.log("📱 Safari interaction detected, attempting play");
+      video.play().then(() => {
+        console.log("✅ Safari play succeeded on interaction");
+      }).catch(() => {});
+    };
+    
+    // Add interaction listeners immediately
+    ['touchstart', 'touchend', 'touchmove', 'click', 'mousedown', 'mouseup'].forEach(event => {
+      document.addEventListener(event, safariInteractionHandler, { once: true, passive: true });
+    });
+
+    // ULTRA-AGGRESSIVE: Try to trigger play on page load events
+    const pageLoadHandler = () => {
+      console.log("📱 Page load event, attempting Safari autoplay");
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+    };
+    
+    // Try on various page events
+    ['DOMContentLoaded', 'load', 'pageshow'].forEach(event => {
+      window.addEventListener(event, pageLoadHandler, { once: true });
+    });
+    
+    // Try immediately if document is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(pageLoadHandler, 100);
     }
 
     const onPlay = () => {
@@ -56,55 +94,70 @@ const IntroPage = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
       
-      // MOBILE AUTOPLAY STRATEGY - Force immediate play
-      // Ensure video is muted (required for mobile autoplay)
+      // IPHONE SAFARI ULTRA-AUTOPLAY STRATEGY
+      console.log("🚀 Starting iPhone Safari ultra-autoplay strategy");
+      
+      // Force video to be in optimal state for Safari
       video.muted = true;
       video.volume = 0;
+      video.playsInline = true;
+      video.webkitPlaysInline = true;
       
-      const attemptMobileAutoplay = () => {
-        console.log("🚀 Attempting mobile autoplay");
+      const safariAutoplay = () => {
+        console.log("📱 Attempting Safari autoplay");
         
-        // Try to play immediately
+        // Safari-specific: Try to play with maximum compatibility
         video.play().then(() => {
-          console.log("✅ Mobile autoplay succeeded");
+          console.log("✅ Safari autoplay succeeded");
+          video.style.opacity = '1'; // Make visible on success
         }).catch(error => {
-          console.error("❌ Mobile autoplay failed:", error);
+          console.error("❌ Safari autoplay failed:", error);
           
-          // Retry with forceful techniques
+          // Safari fallback: Force play through multiple techniques
+          
+          // Technique 1: Try programmatic click
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          video.dispatchEvent(clickEvent);
+          
+          // Technique 2: Force muted state and retry
           video.muted = true;
+          video.setAttribute('muted', '');
+          
+          // Technique 3: Try to trigger through focus
+          video.focus();
           video.click();
           
+          // Final retry with delay
           setTimeout(() => {
             video.play().catch(() => {
-              // Try toggling mute state
-              video.muted = false;
-              setTimeout(() => {
-                video.muted = true;
-                video.play().catch(() => {});
-              }, 10);
+              console.log("🔄 Safari autoplay failed, waiting for user interaction");
             });
-          }, 50);
+          }, 100);
         });
       };
       
       // Immediate attempt
-      attemptMobileAutoplay();
+      safariAutoplay();
       
-      // Multiple rapid retry attempts
-      setTimeout(attemptMobileAutoplay, 100);
-      setTimeout(attemptMobileAutoplay, 250);
-      setTimeout(attemptMobileAutoplay, 500);
+      // Multiple rapid retries for Safari
+      setTimeout(safariAutoplay, 50);
+      setTimeout(safariAutoplay, 150);
+      setTimeout(safariAutoplay, 300);
+      setTimeout(safariAutoplay, 500);
+      setTimeout(safariAutoplay, 1000);
       
-      // Ultra-sensitive interaction fallback
-      const interactionPlay = (e) => {
-        console.log(`🔄 Trying play on ${e.type}`);
-        video.play().catch(() => {});
+      // Safari-specific: Also try on visibility change
+      const visibilityHandler = () => {
+        if (!document.hidden) {
+          console.log("📱 Page became visible, trying Safari autoplay");
+          safariAutoplay();
+        }
       };
-      
-      // Listen for any interaction
-      ['touchstart', 'click', 'scroll'].forEach(event => {
-        document.addEventListener(event, interactionPlay, { once: true, passive: true });
-      });
+      document.addEventListener('visibilitychange', visibilityHandler, { once: true });
     };
 
     const onError = (e: Event) => {
@@ -146,7 +199,7 @@ const IntroPage = () => {
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
       
-      {/* Video Element with aggressive mobile autoplay attributes */}
+      {/* Video Element with ULTRA iPhone Safari autoplay attributes */}
       <video
         ref={videoRef}
         loop
@@ -159,11 +212,21 @@ const IntroPage = () => {
         style={{ 
           backgroundColor: "#000",
           transform: "translateZ(0)",
-          WebkitTransform: "translateZ(0)"
+          WebkitTransform: "translateZ(0)",
+          opacity: 0.99 // Start slightly transparent for Safari
         }}
         disablePictureInPicture
         controls={false}
         disableRemotePlayback
+        // Safari-specific attributes
+        webkit-playsinline
+        webkit-muted
+        webkit-autoplay
+        // Prevent any Safari interference
+        x-webkit-airplay="deny"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="false"
       />
 
       {/* UI Content - Always on top */}
