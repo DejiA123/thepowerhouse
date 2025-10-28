@@ -1179,7 +1179,7 @@ export const BibleChapterContent = ({
 
         {/* All Highlights Dialog */}
         <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-16">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Pencil className="w-5 h-5" />

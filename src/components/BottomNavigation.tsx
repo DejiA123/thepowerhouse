@@ -22,8 +22,14 @@ const BottomNavigation = () => {
   });
 
   return (
-    <nav style={navStyle()} className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex justify-around py-2">
+    <nav 
+      style={navStyle()} 
+      className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]"
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.preventDefault()}
+      draggable="false"
+    >
+      <div className="flex justify-around py-2 touch-none select-none">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -32,17 +38,20 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-3 px-4 min-w-0 flex-1"
+              className="flex flex-col items-center justify-center py-3 px-4 min-w-0 flex-1 touch-none"
+              draggable="false"
             >
               <Icon 
                 className={`w-6 h-6 mb-1 ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`} 
+                draggable="false"
               />
               <span 
                 className={`text-xs ${
                   isActive ? "text-primary font-medium" : "text-muted-foreground"
                 }`}
+                draggable="false"
               >
                 {item.name}
               </span>

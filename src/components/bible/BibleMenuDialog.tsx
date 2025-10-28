@@ -58,27 +58,30 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`w-full max-w-md overflow-hidden flex flex-col ${
+      <DialogContent className={`w-full max-w-md overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 ${
         isMobile 
           ? 'max-h-[95vh] mx-2 my-2' 
           : 'max-h-[80vh] mx-auto'
       }`}>
-        <DialogHeader className="flex-shrink-0 pb-2">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Settings className="w-4 h-4" />
+        <DialogHeader className="flex-shrink-0 pb-2 border-b border-slate-200 dark:border-slate-700">
+          <DialogTitle className="flex items-center gap-2 text-lg text-slate-800 dark:text-slate-100">
+            <Settings className="w-5 h-5 text-primary" />
             Reading Options
           </DialogTitle>
-          <DialogDescription>
-            Customize your Bible reading experience with font size and display preferences.
+          <DialogDescription className="text-slate-500 dark:text-slate-400">
+            Customize your Bible reading experience
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-3 py-2 overflow-y-auto flex-1 px-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1 px-3 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
           {/* Font Size */}
-          <div className="space-y-1 bg-blue-50 p-2 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 mb-1">
-              <Type className="w-4 h-4 text-blue-600" />
-              <span className="font-medium text-blue-800 text-sm">Font Size</span>
+          <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Type className="w-5 h-5 text-primary" />
+                <span className="font-medium text-slate-800 dark:text-slate-200">Font Size</span>
+              </div>
+              <span className="text-sm font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{localFontSize}px</span>
             </div>
             <Slider
               value={[localFontSize]}
@@ -135,20 +138,19 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                 WebkitUserSelect: 'none'
               } : {}}
             />
-            <div className="flex justify-between items-center text-xs text-blue-600 mb-2">
-              <span>12px</span>
-              <span className="font-medium">{localFontSize}px</span>
-              <span>24px</span>
+            <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+              <span>Small</span>
+              <span>Large</span>
             </div>
           </div>
 
           {/* Auto-Play Next Chapter */}
-          <div className="space-y-1 bg-orange-50 p-2 rounded-lg border border-orange-200">
-            <div className="flex items-center gap-2 mb-1">
-              <Play className="w-4 h-4 text-orange-600" />
-              <span className="font-medium text-orange-800 text-sm">Auto-Play Next Chapter</span>
-            </div>
-            <div className="flex items-center space-x-2 mb-1">
+          <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Play className="w-5 h-5 text-primary" />
+                <span className="font-medium text-slate-800 dark:text-slate-200">Auto-Play Next Chapter</span>
+              </div>
               <Switch
                 id="auto-play-next"
                 checked={preferences.autoPlayNext}
@@ -157,23 +159,21 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                   setAutoPlayNext(checked);
                   onSettingsChange?.();
                 }}
+                className="data-[state=checked]:bg-primary"
               />
-              <Label htmlFor="auto-play-next" className="text-xs text-orange-700">
-                {preferences.autoPlayNext ? 'Enabled' : 'Disabled'}
-              </Label>
             </div>
-            <p className="text-xs text-orange-600">
-              Auto-continue to next chapter when finished
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Automatically continue to the next chapter when audio finishes
             </p>
           </div>
 
           {/* Loop Chapter */}
-          <div className="space-y-1 bg-pink-50 p-2 rounded-lg border border-pink-200">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-4 h-4 text-pink-600">🔄</div>
-              <span className="font-medium text-pink-800 text-sm">Loop Chapter</span>
-            </div>
-            <div className="flex items-center space-x-2 mb-1">
+          <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 flex items-center justify-center text-primary">🔄</div>
+                <span className="font-medium text-slate-800 dark:text-slate-200">Loop Chapter</span>
+              </div>
               <Switch
                 id="loop-chapter"
                 checked={preferences.loopChapter}
@@ -182,13 +182,11 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                   setLoopChapter(checked);
                   onSettingsChange?.();
                 }}
+                className="data-[state=checked]:bg-primary"
               />
-              <Label htmlFor="loop-chapter" className="text-xs text-pink-700">
-                {preferences.loopChapter ? 'Enabled' : 'Disabled'}
-              </Label>
             </div>
-            <p className="text-xs text-pink-600">
-              Repeat current chapter when it finishes playing
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Repeat current chapter when audio finishes playing
             </p>
           </div>
 
