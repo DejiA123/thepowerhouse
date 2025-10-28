@@ -45,17 +45,54 @@ const IntroPage = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
       
-      // Force play when video is ready, especially important for PWA
-      setTimeout(() => {
-        video.play().catch(error => {
-          console.error("❌ Auto-play failed on canplay event:", error);
-          // If autoplay fails, try playing on user interaction
-          document.addEventListener('touchstart', function playOnFirstTouch() {
-            video.play().catch(e => console.error("Play on touch failed:", e));
-            document.removeEventListener('touchstart', playOnFirstTouch);
-          }, { once: true });
+      // Enhanced mobile autoplay strategy
+      const attemptPlay = () => {
+        video.play().then(() => {
+          console.log("✅ Video autoplay succeeded");
+        }).catch(error => {
+          console.error("❌ Auto-play failed:", error);
+          
+          // Multiple fallback strategies for mobile
+          
+          // Strategy 1: Try on first touch anywhere
+          const touchHandler = () => {
+            video.play().catch(e => console.error("Touch play failed:", e));
+            document.removeEventListener('touchstart', touchHandler);
+            document.removeEventListener('touchend', touchHandler);
+          };
+          
+          document.addEventListener('touchstart', touchHandler, { once: true });
+          document.addEventListener('touchend', touchHandler, { once: true });
+          
+          // Strategy 2: Try on first click anywhere
+          const clickHandler = () => {
+            video.play().catch(e => console.error("Click play failed:", e));
+            document.removeEventListener('click', clickHandler);
+          };
+          
+          document.addEventListener('click', clickHandler, { once: true });
+          
+          // Strategy 3: Try on scroll
+          const scrollHandler = () => {
+            video.play().catch(e => console.error("Scroll play failed:", e));
+            window.removeEventListener('scroll', scrollHandler);
+          };
+          
+          window.addEventListener('scroll', scrollHandler, { once: true });
+          
+          // Strategy 4: Try again after a longer delay
+          setTimeout(() => {
+            video.play().catch(e => console.error("Delayed play failed:", e));
+          }, 1000);
         });
-      }, 100); // Small delay to ensure browser is ready
+      };
+      
+      // Try to play immediately, then with delays for mobile
+      attemptPlay();
+      
+      // Try again with increasing delays for mobile browsers
+      setTimeout(attemptPlay, 500);
+      setTimeout(attemptPlay, 1500);
     };
 
     const onError = (e: Event) => {
@@ -113,6 +150,9 @@ const IntroPage = () => {
         style={{ backgroundColor: "#000" }}
         data-wf-ignore="true"
         playsinline="true"
+        disablePictureInPicture
+        controls={false}
+        disableRemotePlayback
       />
 
       {/* UI Content - Always on top */}
