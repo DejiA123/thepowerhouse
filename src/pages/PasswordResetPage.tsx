@@ -14,6 +14,34 @@ const PasswordResetPage = () => {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // Get the access token from URL
+  useEffect(() => {
+    const accessToken = searchParams.get('access_token');
+    
+    // If there's an access token, set the session
+    if (accessToken) {
+      const refreshToken = searchParams.get('refresh_token') || '';
+      const expiresIn = searchParams.get('expires_in') || '3600';
+      const tokenType = searchParams.get('token_type') || 'bearer';
+      
+      // Set the session with the provided token
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: parseInt(expiresIn),
+        token_type: tokenType,
+      });
+    } else {
+      // If no token is provided, check if user is authenticated
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) {
+          toast.error('Invalid or expired reset link');
+          navigate('/auth');
+        }
+      });
+    }
+  }, [searchParams, navigate]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,18 +58,26 @@ const PasswordResetPage = () => {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
 
-    setLoading(false);
-
-    if (error) {
-      setStatus('error');
-      toast.error(error.message);
-    } else {
+      if (error) {
+        throw error;
+      }
+      
       setStatus('success');
       toast.success('Password updated successfully!');
+      
+      // Clear the URL parameters after successful reset
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+    } catch (error: any) {
+      setStatus('error');
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
     }
   };
 
