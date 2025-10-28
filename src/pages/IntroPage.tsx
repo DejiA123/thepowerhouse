@@ -31,6 +31,17 @@ const IntroPage = () => {
     // Set the video source. The `autoPlay` attribute will handle playing.
     video.src = "/App_Intro_1.mp4?v=4";
 
+    // MOBILE AUTOPLAY STRATEGY: Create audio context to unlock media
+    let audioContext;
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    } catch (e) {
+      console.log("Audio context not available");
+    }
+
     const onPlay = () => {
       console.log("✅ Event: 'play'");
       setVideoPlaying(true);
@@ -45,54 +56,55 @@ const IntroPage = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
       
-      // Enhanced mobile autoplay strategy
-      const attemptPlay = () => {
+      // MOBILE AUTOPLAY STRATEGY - Force immediate play
+      // Ensure video is muted (required for mobile autoplay)
+      video.muted = true;
+      video.volume = 0;
+      
+      const attemptMobileAutoplay = () => {
+        console.log("🚀 Attempting mobile autoplay");
+        
+        // Try to play immediately
         video.play().then(() => {
-          console.log("✅ Video autoplay succeeded");
+          console.log("✅ Mobile autoplay succeeded");
         }).catch(error => {
-          console.error("❌ Auto-play failed:", error);
+          console.error("❌ Mobile autoplay failed:", error);
           
-          // Multiple fallback strategies for mobile
+          // Retry with forceful techniques
+          video.muted = true;
+          video.click();
           
-          // Strategy 1: Try on first touch anywhere
-          const touchHandler = () => {
-            video.play().catch(e => console.error("Touch play failed:", e));
-            document.removeEventListener('touchstart', touchHandler);
-            document.removeEventListener('touchend', touchHandler);
-          };
-          
-          document.addEventListener('touchstart', touchHandler, { once: true });
-          document.addEventListener('touchend', touchHandler, { once: true });
-          
-          // Strategy 2: Try on first click anywhere
-          const clickHandler = () => {
-            video.play().catch(e => console.error("Click play failed:", e));
-            document.removeEventListener('click', clickHandler);
-          };
-          
-          document.addEventListener('click', clickHandler, { once: true });
-          
-          // Strategy 3: Try on scroll
-          const scrollHandler = () => {
-            video.play().catch(e => console.error("Scroll play failed:", e));
-            window.removeEventListener('scroll', scrollHandler);
-          };
-          
-          window.addEventListener('scroll', scrollHandler, { once: true });
-          
-          // Strategy 4: Try again after a longer delay
           setTimeout(() => {
-            video.play().catch(e => console.error("Delayed play failed:", e));
-          }, 1000);
+            video.play().catch(() => {
+              // Try toggling mute state
+              video.muted = false;
+              setTimeout(() => {
+                video.muted = true;
+                video.play().catch(() => {});
+              }, 10);
+            });
+          }, 50);
         });
       };
       
-      // Try to play immediately, then with delays for mobile
-      attemptPlay();
+      // Immediate attempt
+      attemptMobileAutoplay();
       
-      // Try again with increasing delays for mobile browsers
-      setTimeout(attemptPlay, 500);
-      setTimeout(attemptPlay, 1500);
+      // Multiple rapid retry attempts
+      setTimeout(attemptMobileAutoplay, 100);
+      setTimeout(attemptMobileAutoplay, 250);
+      setTimeout(attemptMobileAutoplay, 500);
+      
+      // Ultra-sensitive interaction fallback
+      const interactionPlay = (e) => {
+        console.log(`🔄 Trying play on ${e.type}`);
+        video.play().catch(() => {});
+      };
+      
+      // Listen for any interaction
+      ['touchstart', 'click', 'scroll'].forEach(event => {
+        document.addEventListener(event, interactionPlay, { once: true, passive: true });
+      });
     };
 
     const onError = (e: Event) => {
@@ -134,7 +146,7 @@ const IntroPage = () => {
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
       
-      {/* Video Element with autoPlay */}
+      {/* Video Element with aggressive mobile autoplay attributes */}
       <video
         ref={videoRef}
         loop
@@ -142,14 +154,13 @@ const IntroPage = () => {
         playsInline
         autoPlay
         webkit-playsinline="true"
-        x5-playsinline="true"
-        x5-video-player-type="h5"
-        x5-video-player-fullscreen="true"
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
-        style={{ backgroundColor: "#000" }}
-        data-wf-ignore="true"
-        playsinline="true"
+        style={{ 
+          backgroundColor: "#000",
+          transform: "translateZ(0)",
+          WebkitTransform: "translateZ(0)"
+        }}
         disablePictureInPicture
         controls={false}
         disableRemotePlayback
