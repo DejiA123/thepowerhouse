@@ -1,6 +1,4 @@
 
-// Restructure the entire component to fix syntax errors and implement clean muted autoplay with unmute on interaction
-
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
@@ -35,17 +33,129 @@ const IntroPage = () => {
     // Set source
     video.src = "/App_Intro_1.mp4?v=4";
 
-    // Ensure muted autoplay attributes
+    // Force muted autoplay attributes
     video.muted = true;
     video.autoplay = true;
     video.playsInline = true;
     video.loop = true;
+    video.preload = "auto";
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.setAttribute('x5-playsinline', '');
+    video.setAttribute('x5-video-player-type', 'h5');
+    video.setAttribute('x5-video-player-fullscreen', 'false');
+    video.setAttribute('x5-video-orientation', 'portrait');
 
-    // Basic play attempt
-    video.play().catch(error => {
-      console.error("Muted autoplay failed:", error);
+    // Force hardware acceleration and prevent airplay
+    video.style.setProperty('transform', 'translateZ(0)', 'important');
+    video.style.setProperty('opacity', '0.99', 'important');
+    video.style.setProperty('pointer-events', 'none', 'important');
+    video.setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback');
+    video.setAttribute('disablePictureInPicture', '');
+    video.setAttribute('disableRemotePlayback', '');
+
+    // Create and unlock audio context immediately
+    let audioContext: AudioContext | null = null;
+    try {
+      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('Audio context resumed');
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // Multiple aggressive play attempts
+    const aggressivePlay = () => {
+      if (!video) return;
+      
+      // Force muted state before play
+      video.muted = true;
+      video.volume = 0;
+      
+      // Multiple play attempts with different methods
+      const playPromises = [
+        video.play(),
+        new Promise(resolve => setTimeout(() => resolve(video.play()), 50)),
+        new Promise(resolve => setTimeout(() => resolve(video.play()), 100)),
+        new Promise(resolve => setTimeout(() => resolve(video.play()), 200)),
+        new Promise(resolve => setTimeout(() => resolve(video.play()), 500))
+      ];
+
+      Promise.allSettled(playPromises).then(results => {
+        const success = results.some(r => r.status === 'fulfilled');
+        if (success) {
+          console.log('✅ Aggressive autoplay succeeded');
+          setVideoPlaying(true);
+        } else {
+          console.warn('⚠️ All aggressive play attempts failed');
+        }
+      });
+    };
+
+    // Simulate user interaction programmatically
+    const simulateUserInteraction = () => {
+      const events = ['touchstart', 'touchmove', 'touchend', 'click', 'mousedown', 'mouseup'];
+      events.forEach(eventType => {
+        const syntheticEvent = new Event(eventType, { bubbles: true, cancelable: true });
+        video.dispatchEvent(syntheticEvent);
+      });
+    };
+
+    // Continuous monitoring and retry
+    let retryCount = 0;
+    const maxRetries = 20;
+    const monitorInterval = setInterval(() => {
+      if (video.paused && retryCount < maxRetries) {
+        retryCount++;
+        console.log(`🔄 Autoplay retry attempt ${retryCount}`);
+        
+        // Try different strategies
+        if (retryCount % 3 === 0) {
+          simulateUserInteraction();
+        }
+        
+        aggressivePlay();
+      } else if (!video.paused) {
+        console.log('✅ Video is playing');
+        clearInterval(monitorInterval);
+      }
+    }, 250);
+
+    // Stop monitoring after 5 seconds
+    setTimeout(() => {
+      clearInterval(monitorInterval);
+      if (video.paused) {
+        console.warn('⚠️ Autoplay failed after maximum retries');
+      }
+    }, 5000);
+
+    // Intersection Observer to trigger play when visible
+    const intersectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && video.paused) {
+          console.log('Video is visible, attempting play');
+          aggressivePlay();
+        }
+      });
+    }, { threshold: 0.1 });
+    
+    if (video.parentElement) {
+      intersectionObserver.observe(video.parentElement);
+    }
+
+    // DOM Mutation Observer to detect when video is added to DOM
+    const mutationObserver = new MutationObserver(() => {
+      if (video.parentElement && video.paused) {
+        console.log('Video detected in DOM, attempting play');
+        aggressivePlay();
+      }
+    });
+    
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
     });
 
     // Function to enable sound on interaction
@@ -60,7 +170,7 @@ const IntroPage = () => {
       }
     };
 
-    // Add one-time listeners for first touch/click
+    // Add interaction listeners for sound (one-time)
     const interactionEvents = ['touchstart', 'click'];
     interactionEvents.forEach(event => {
       document.addEventListener(event, enableSound, { once: true, passive: true });
@@ -80,6 +190,8 @@ const IntroPage = () => {
     const onCanPlay = () => {
       console.log("✅ Event: 'canplay' - Video can play.");
       setVideoLoaded(true);
+      // Immediate play attempt when video is ready
+      aggressivePlay();
     };
 
     const onError = (e: Event) => {
@@ -91,36 +203,44 @@ const IntroPage = () => {
       setVideoPlaying(true);
     };
 
-    // Warning if autoplay prevented
-    const onPauseWarning = () => {
-      if (video.paused && !video.ended) {
-        console.warn("⚠️ Auto-play might have been prevented by the browser.");
-      }
-    };
-
     // Add event listeners
     video.addEventListener("play", onPlay);
     video.addEventListener("playing", onPlaying);
     video.addEventListener("pause", onPause);
-    video.addEventListener("pause", onPauseWarning);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("error", onError);
+    video.addEventListener("loadedmetadata", () => {
+      console.log("Video metadata loaded");
+      aggressivePlay();
+    });
 
     // Load video
     video.load();
 
+    // Immediate aggressive attempt
+    setTimeout(() => {
+      simulateUserInteraction();
+      aggressivePlay();
+    }, 100);
+
     // Cleanup
     return () => {
       console.log("Cleaning up IntroPage.");
+      clearInterval(monitorInterval);
+      intersectionObserver.disconnect();
+      mutationObserver.disconnect();
       interactionEvents.forEach(event => {
         document.removeEventListener(event, enableSound);
       });
       video.removeEventListener("play", onPlay);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("pause", onPause);
-      video.removeEventListener("pause", onPauseWarning);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("error", onError);
+      video.removeEventListener("loadedmetadata", () => {});
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+      }
     };
   }, []);
 
@@ -138,7 +258,17 @@ const IntroPage = () => {
         style={{
           backgroundColor: "#000",
           transform: "translateZ(0)",
+          opacity: "0.99",
+          pointerEvents: "none",
         }}
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="false"
+        x5-video-orientation="portrait"
+        controlsList="nodownload nofullscreen noremoteplayback"
+        disablePictureInPicture
+        disableRemotePlayback
       />
 
       {/* Sound Prompt Overlay */}
