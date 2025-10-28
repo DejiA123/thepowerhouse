@@ -729,42 +729,42 @@ export const BibleChapterContent = ({
         src={audioUrl || undefined}
         onEnded={() => {
           console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}`);
-          // Auto-play next chapter if enabled
-          if (autoPlayNext) {
-            console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
-            const triggerNextChapter = () => {
-              const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
-              const nextChapter = selectedChapter + 1;
-              // Check if we need to move to the next book
-              if (nextChapter > (book?.chapters || 0)) {
-                if (currentBookIndex < allBooks.length - 1 && onBookChange) {
-                  const nextBook = allBooks[currentBookIndex + 1];
-                  console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
-                  onBookChange(nextBook.apiName, 1, true); // true indicates this is auto-play
-                  // Ensure playback starts and Media Session API is updated
-                  setTimeout(() => {
-                    if (audioRef.current) {
-                      audioRef.current.play();
-                      if ('mediaSession' in navigator) {
-                        navigator.mediaSession.playbackState = 'playing';
-                      }
-                    }
-                  }, 250);
-                } else {
-                  console.log(`🎵 Reached end of Bible - no more books to auto-play`);
-                }
-              } else if (onChapterChange) {
-                console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
-                onChapterChange(nextChapter, true); // true indicates this is auto-play
+          // Always auto-play next chapter regardless of preference setting
+          // This ensures consistent auto-play behavior as requested
+          console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
+          const triggerNextChapter = () => {
+            const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
+            const nextChapter = selectedChapter + 1;
+            // Check if we need to move to the next book
+            if (nextChapter > (book?.chapters || 0)) {
+              if (currentBookIndex < allBooks.length - 1 && onBookChange) {
+                const nextBook = allBooks[currentBookIndex + 1];
+                console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+                onBookChange(nextBook.apiName, 1, true); // true indicates this is auto-play
                 // Ensure playback starts and Media Session API is updated
                 setTimeout(() => {
-                  if (audioRef.current) {
-                    audioRef.current.play();
-                    if ('mediaSession' in navigator) {
-                      navigator.mediaSession.playbackState = 'playing';
-                    }
+                if (audioRef.current) {
+                  audioRef.current.play();
+                  if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
                   }
-                }, 250);
+                }
+              }, 250);
+              } else {
+                console.log(`🎵 Reached end of Bible - no more books to auto-play`);
+              }
+            } else if (onChapterChange) {
+              console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
+              onChapterChange(nextChapter, true); // true indicates this is auto-play
+              // Ensure playback starts and Media Session API is updated
+              setTimeout(() => {
+                if (audioRef.current) {
+                  audioRef.current.play();
+                  if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                  }
+                }
+              }, 250);
               }
             };
             // Use requestIdleCallback for better background compatibility
@@ -777,7 +777,7 @@ export const BibleChapterContent = ({
               setTimeout(triggerNextChapter, document.hidden ? 500 : 100);
             }
           }
-        }}
+        }
         onPause={() => {
           // Update media session when paused
           updateMediaSession();
@@ -1105,7 +1105,7 @@ export const BibleChapterContent = ({
                     >
                         {/* Always show verse numbers beside each verse */}
                         {shouldShowUIVerseNumber && (
-                      <sup className="text-sm font-medium text-muted-foreground mr-2">
+                      <sup className="text-sm font-medium text-muted-foreground mr-2 relative top-0.5">
                         {verseNumber}
                       </sup>
                         )}

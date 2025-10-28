@@ -24,6 +24,19 @@ import { FileText, Volume2, Smartphone } from "lucide-react";
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
   
+  // Add styles to prevent page scrolling - only allow content scrolling
+  useEffect(() => {
+    // Apply fixed height and overflow hidden to body when on Bible page
+    document.body.style.height = '100vh';
+    document.body.style.overflow = 'hidden';
+    
+    // Cleanup function to restore normal scrolling when leaving the page
+    return () => {
+      document.body.style.height = '';
+      document.body.style.overflow = '';
+    };
+  }, []);
+  
   const {
     preferences,
     isLoaded,

@@ -95,6 +95,9 @@ const BibleNotesPage = () => {
     if (user) {
       fetchNotes();
     }
+    
+    // Scroll to top when page is loaded
+    window.scrollTo(0, 0);
   }, [user]);
 
   useEffect(() => {

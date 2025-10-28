@@ -285,7 +285,7 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-4 lg:hidden">
+      <div className="fixed bottom-2 left-0 right-0 bg-white border-t border-border p-4 lg:hidden shadow-lg rounded-lg mx-2">
         <div className="flex justify-around">
           <button 
             className="text-center"
