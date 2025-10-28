@@ -44,6 +44,16 @@ const IntroPage = () => {
     const onCanPlay = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
+      
+      // Force play when video is ready, especially important for PWA
+      video.play().catch(error => {
+        console.error("❌ Auto-play failed on canplay event:", error);
+        // If autoplay fails, try playing on user interaction
+        document.addEventListener('touchstart', function playOnFirstTouch() {
+          video.play().catch(e => console.error("Play on touch failed:", e));
+          document.removeEventListener('touchstart', playOnFirstTouch);
+        }, { once: true });
+      });
     };
 
     const onError = (e: Event) => {
@@ -99,6 +109,8 @@ const IntroPage = () => {
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
         style={{ backgroundColor: "#000" }}
+        data-wf-ignore="true"
+        playsinline="true"
       />
 
       {/* UI Content - Always on top */}
