@@ -45,15 +45,26 @@ const IntroPage = () => {
       console.log("✅ Event: 'oncanplay' - Video can play.");
       setVideoLoaded(true);
       
-      // Force play when video is ready, especially important for PWA
-      video.play().catch(error => {
-        console.error("❌ Auto-play failed on canplay event:", error);
-        // If autoplay fails, try playing on user interaction
-        document.addEventListener('touchstart', function playOnFirstTouch() {
-          video.play().catch(e => console.error("Play on touch failed:", e));
-          document.removeEventListener('touchstart', playOnFirstTouch);
-        }, { once: true });
-      });
+      // iOS Safari specific: Force play immediately when video is ready
+      setTimeout(() => {
+        video.play().catch(error => {
+          console.error("❌ Auto-play failed on canplay event:", error);
+          
+          // iOS Safari workaround: Try multiple aggressive play attempts
+          let attempts = 0;
+          const maxAttempts = 10;
+          const aggressivePlay = () => {
+            if (attempts < maxAttempts && video.paused) {
+              attempts++;
+              console.log(`🔄 Aggressive play attempt ${attempts}/${maxAttempts}`);
+              video.play().catch(() => {
+                setTimeout(aggressivePlay, 100);
+              });
+            }
+          };
+          aggressivePlay();
+        });
+      }, 100);
     };
 
     const onError = (e: Event) => {
@@ -66,36 +77,83 @@ const IntroPage = () => {
         setVideoPlaying(true);
     }
     
-    // A warning if autoplay is prevented
-    video.addEventListener('pause', () => {
-        if (video.paused && !video.ended) {
-            console.warn("⚠️ Auto-play might have been prevented by the browser.");
-        }
-    });
+    // iOS Safari: Monitor for pause events and restart immediately
+    const onPauseMonitor = () => {
+      if (video.paused && !video.ended && video.readyState >= 2) {
+        console.warn("⚠️ Video paused unexpectedly, attempting to restart...");
+        setTimeout(() => {
+          video.play().catch(() => {
+            // If still paused, try even more aggressive restart
+            setTimeout(() => video.play(), 50);
+          });
+        }, 50);
+      }
+    };
 
     video.addEventListener("play", onPlay);
     video.addEventListener("playing", onPlaying);
     video.addEventListener("pause", onPause);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("error", onError);
+    video.addEventListener("pause", onPauseMonitor);
+    
+    // iOS Safari: Additional aggressive autoplay strategy
+    const aggressiveAutoplay = () => {
+      if (video.paused && video.readyState >= 2) {
+        console.log("🚀 Executing aggressive autoplay strategy for iOS Safari");
+        
+        // Try multiple play attempts with different delays
+        Promise.allSettled([
+          video.play(),
+          new Promise(resolve => setTimeout(() => video.play().catch(() => {}), 50)),
+          new Promise(resolve => setTimeout(() => video.play().catch(() => {}), 100)),
+          new Promise(resolve => setTimeout(() => video.play().catch(() => {}), 200))
+        ]).then(() => {
+          if (video.paused) {
+            console.log("🔄 Still paused, trying more aggressive approach...");
+            // Force play by simulating user interaction context
+            const events = ['touchstart', 'click', 'mousedown'];
+            events.forEach(eventType => {
+              const fakeEvent = new Event(eventType, { bubbles: true, cancelable: true });
+              video.dispatchEvent(fakeEvent);
+            });
+            video.play();
+          }
+        });
+      }
+    };
+    
+    // Monitor video state and force play if needed
+    const stateMonitor = setInterval(() => {
+      if (video.readyState >= 2 && video.paused && !video.ended) {
+        aggressiveAutoplay();
+      }
+    }, 500);
     
     // The `load` method is called to load the video resource.
     video.load();
+    
+    // Start monitoring immediately
+    setTimeout(aggressiveAutoplay, 100);
+    setTimeout(aggressiveAutoplay, 500);
+    setTimeout(aggressiveAutoplay, 1000);
 
     return () => {
       console.log("Cleaning up IntroPage.");
+      clearInterval(stateMonitor);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("error", onError);
+      video.removeEventListener("pause", onPauseMonitor);
     };
   }, []);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black" onClick={handleContainerClick}>
       
-      {/* Video Element with autoPlay */}
+      {/* Video Element with maximum iOS Safari compatibility */}
       <video
         ref={videoRef}
         loop
@@ -103,14 +161,24 @@ const IntroPage = () => {
         playsInline
         autoPlay
         webkit-playsinline="true"
+        webkit-playsinline
         x5-playsinline="true"
         x5-video-player-type="h5"
         x5-video-player-fullscreen="true"
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
-        style={{ backgroundColor: "#000" }}
+        style={{ 
+          backgroundColor: "#000",
+          WebkitTransform: "translateZ(0)", // Hardware acceleration
+          transform: "translateZ(0)",
+          WebkitBackfaceVisibility: "hidden",
+          backfaceVisibility: "hidden"
+        }}
         data-wf-ignore="true"
         playsinline="true"
+        disablePictureInPicture
+        disableRemotePlayback
+        controls={false}
       />
 
       {/* UI Content - Always on top */}
