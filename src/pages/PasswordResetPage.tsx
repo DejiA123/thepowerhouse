@@ -22,15 +22,11 @@ const PasswordResetPage = () => {
     // If there's an access token, set the session
     if (accessToken) {
       const refreshToken = searchParams.get('refresh_token') || '';
-      const expiresIn = searchParams.get('expires_in') || '3600';
-      const tokenType = searchParams.get('token_type') || 'bearer';
       
       // Set the session with the provided token
       supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
-        expires_in: parseInt(expiresIn),
-        token_type: tokenType,
       });
     } else {
       // If no token is provided, check if user is authenticated

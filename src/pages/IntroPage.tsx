@@ -160,11 +160,6 @@ const IntroPage = () => {
         muted
         playsInline
         autoPlay
-        webkit-playsinline="true"
-        webkit-playsinline
-        x5-playsinline="true"
-        x5-video-player-type="h5"
-        x5-video-player-fullscreen="true"
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover z-10"
         style={{ 
@@ -175,7 +170,6 @@ const IntroPage = () => {
           backfaceVisibility: "hidden"
         }}
         data-wf-ignore="true"
-        playsinline="true"
         disablePictureInPicture
         disableRemotePlayback
         controls={false}
