@@ -523,8 +523,24 @@ export const useGroupChat = (groupName: string) => {
         }
       }
       
-      setMembers(data || []);
-      setMemberCount((data || []).length);
+      let memberList = data || [];
+      const missingIds = memberList.filter((m: any) => !m.profiles).map((m: any) => m.user_id);
+      if (missingIds.length > 0) {
+        const { data: extraProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', missingIds);
+        const extraMap = (extraProfiles || []).reduce((acc: Record<string, any>, p: any) => {
+          acc[p.id] = p;
+          return acc;
+        }, {} as Record<string, any>);
+        memberList = memberList.map((m: any) => ({
+          ...m,
+          profiles: m.profiles || extraMap[m.user_id] || null
+        }));
+      }
+      setMembers(memberList);
+      setMemberCount(memberList.length);
       if (user) {
         setIsMember((data || []).some((m: any) => m.user_id === user.id));
       } else {

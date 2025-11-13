@@ -27,8 +27,7 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
       return emailName;
     }
     
-    // If no profile data, show User ID (last resort)
-    return `User ${message.user_id.slice(-8)}`;
+    return 'Member';
   }, [message.profiles, message.user_id, message.id]);
 
   const isOwnMessage = user?.id === message.user_id;

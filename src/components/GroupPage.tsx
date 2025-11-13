@@ -56,9 +56,9 @@ const GroupPage = ({ departmentName, onBack }: GroupPageProps) => {
               members.map((member, index) => (
                 <div key={member.user_id || index} className="flex items-center space-x-2 p-2 bg-muted/50 rounded">
                   <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm">
-                    {member.profiles?.full_name?.charAt(0) || member.user_id?.charAt(0) || '?'}
+                    {member.profiles?.full_name?.charAt(0) || member.profiles?.email?.charAt(0) || '?'}
                   </div>
-                  <span className="text-sm">{member.profiles?.full_name || `User ${member.user_id?.substring(0, 8)}`}</span>
+                  <span className="text-sm">{member.profiles?.full_name || (member.profiles?.email ? member.profiles.email.split('@')[0] : 'Member')}</span>
                 </div>
               ))
             )}
