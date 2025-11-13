@@ -100,22 +100,23 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Enhanced Bible Translation Selector */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Book className="w-5 h-5" />
-            Bible Translation
-          </h2>
-          
-          <EnhancedBibleVersionSelector 
-            selectedVersion={preferences.preferredTranslation}
-            onVersionChange={handleTranslationChange}
-          />
-          
-          <div className="text-sm text-gray-600">
-            Choose from over 100 available English Bible translations for reading and study.
+        {false && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Book className="w-5 h-5" />
+              Bible Translation
+            </h2>
+            
+            <EnhancedBibleVersionSelector 
+              selectedVersion={preferences.preferredTranslation}
+              onVersionChange={handleTranslationChange}
+            />
+            
+            <div className="text-sm text-gray-600">
+              Choose from over 100 available English Bible translations for reading and study.
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Reading Settings */}
         <div className="space-y-4">
@@ -223,62 +224,65 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
               />
             </div>
 
-            {/* Audio Pitch */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Audio Pitch</span>
-                <span className="text-sm text-muted-foreground">{preferences.pitch.toFixed(2)}</span>
+            {false && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">Audio Pitch</span>
+                  <span className="text-sm text-muted-foreground">{preferences.pitch.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[preferences.pitch]}
+                  onValueChange={handlePitchChange}
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  className="w-full"
+                />
               </div>
-              <Slider
-                value={[preferences.pitch]}
-                onValueChange={handlePitchChange}
-                min={0.5}
-                max={2.0}
-                step={0.1}
-                className="w-full"
-              />
-            </div>
+            )}
 
-            {/* Audio Rate */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Audio Speed</span>
-                <span className="text-sm text-muted-foreground">{preferences.rate.toFixed(2)}x</span>
+            {false && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">Audio Speed</span>
+                  <span className="text-sm text-muted-foreground">{preferences.rate.toFixed(2)}x</span>
+                </div>
+                <Slider
+                  value={[preferences.rate]}
+                  onValueChange={handleRateChange}
+                  min={0.25}
+                  max={2.0}
+                  step={0.25}
+                  className="w-full"
+                />
               </div>
-              <Slider
-                value={[preferences.rate]}
-                onValueChange={handleRateChange}
-                min={0.25}
-                max={2.0}
-                step={0.25}
-                className="w-full"
-              />
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Current Preferences Status */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Current Settings
-          </h2>
-          
-          <div className="space-y-2 p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong>Translation:</strong> {versions.find(v => v.abbreviation === preferences.preferredTranslation)?.name || preferences.preferredTranslation.toUpperCase()}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <strong>Book:</strong> {preferences.preferredBook}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <strong>Chapter:</strong> {preferences.preferredChapter}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <strong>Font Size:</strong> {preferences.fontSize}px
-            </p>
+        {false && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Current Settings
+            </h2>
+            
+            <div className="space-y-2 p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <strong>Translation:</strong> {versions.find(v => v.abbreviation === preferences.preferredTranslation)?.name || preferences.preferredTranslation.toUpperCase()}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Book:</strong> {preferences.preferredBook}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Chapter:</strong> {preferences.preferredChapter}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Font Size:</strong> {preferences.fontSize}px
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Reset Button */}
         <div className="pt-4">
