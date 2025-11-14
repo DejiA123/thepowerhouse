@@ -32,10 +32,10 @@ const DepartmentsHub = () => {
   return (
     <div className="space-y-6">
       <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            <span>Departments & Ministry Teams</span>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+            <span className="text-base sm:text-lg md:text-xl leading-tight">Departments & Ministry Teams</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
