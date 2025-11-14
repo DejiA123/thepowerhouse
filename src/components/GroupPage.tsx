@@ -30,7 +30,6 @@ const GroupPage = ({ departmentName, onBack }: GroupPageProps) => {
           Back
         </Button>
         <h1 className="text-2xl font-bold gradient-text">{departmentName} Group</h1>
-        <Badge variant="secondary">{memberCount} Member{memberCount === 1 ? '' : 's'}</Badge>
         {user && (
           isMember ? (
             <Button variant="destructive" size="sm" onClick={leaveGroup}>Leave</Button>
