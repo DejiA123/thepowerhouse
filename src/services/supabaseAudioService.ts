@@ -280,7 +280,7 @@ export const supabaseAudioService = {
       }
 
       // Use archive.org base URL
-      const archiveBaseUrl = 'https://archive.org/download/a-19-119-psalms-engkjvo-1-da_20251002';
+      const archiveBaseUrl = 'https://archive.org/download/a-19-119-psalms-engkjvo-1-da_20251003';
       const url = `${archiveBaseUrl}/${fileName}`;
       
       console.log(`🎵 Audio URL for ${book} ${chapter}:`, url);
