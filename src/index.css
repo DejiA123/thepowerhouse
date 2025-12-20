@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,6 +9,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -19,30 +20,44 @@
   animation: fade-in 0.8s ease-out;
 }
 
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-lg;
+  }
+
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-lg border border-white/10 shadow-lg;
+  }
+
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 7%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 222 47% 11%;
     --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 7%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 90%;
-    --input: 0 0% 96%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
-  
+
   .light {
     --background: 0 0% 100%;
     --foreground: 0 0% 0%;
@@ -65,7 +80,7 @@
     --ring: 217 91% 60%;
     --radius: 0.75rem;
   }
-  
+
   .dark {
     --background: 0 0% 8%;
     --foreground: 0 0% 95%;
@@ -376,16 +391,20 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground font-['Inter',sans-serif] font-normal;
+    @apply bg-background text-foreground font-sans font-normal;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
-  
+
   /* Ensure selected text is readable in dark mode */
   ::selection {
-    background: rgba(250, 204, 21, 0.5); /* yellow-400 at ~50% */
-    color: #111827; /* gray-900 */
+    background: rgba(250, 204, 21, 0.5);
+    /* yellow-400 at ~50% */
+    color: #111827;
+    /* gray-900 */
   }
+
   .dark ::selection {
     background: rgba(250, 204, 21, 0.6);
     color: #111827;
@@ -393,131 +412,132 @@
 
   /* Ensure highlighted Bible verses are readable in dark mode */
   .verse-highlight {
-    color: #111827 !important; /* gray-900 */
+    color: #111827 !important;
+    /* gray-900 */
   }
-  
+
   /* Ensure theme changes affect all major containers */
   .min-h-screen {
     @apply bg-background;
     transition: background-color 0.3s ease;
   }
-  
+
   /* Force background updates for theme changes */
   .light .min-h-screen {
     background-color: hsl(0 0% 100%);
   }
-  
+
   .dark .min-h-screen {
     background-color: hsl(0 0% 8%);
   }
-  
+
   /* Ensure all major containers follow theme */
   .bg-background {
     transition: background-color 0.3s ease;
   }
-  
+
   .light .bg-background {
     background-color: hsl(0 0% 100%) !important;
   }
-  
+
   .dark .bg-background {
     background-color: hsl(0 0% 8%) !important;
   }
-  
+
   /* Force body background on theme change */
   .light body {
     background-color: #ffffff !important;
     color: #000000 !important;
   }
-  
+
   .dark body {
     background-color: #0a0a0a !important;
     color: #ffffff !important;
   }
-  
+
   /* Force html background on theme change */
   .light html {
     background-color: #ffffff !important;
     color: #000000 !important;
   }
-  
+
   .dark html {
     background-color: #0a0a0a !important;
     color: #ffffff !important;
   }
-  
+
   /* Ensure all major containers get dark background */
   .dark .min-h-screen {
     background-color: #0a0a0a !important;
   }
-  
+
   .dark .bg-background {
     background-color: #0a0a0a !important;
   }
-  
+
   .dark .bg-card {
     background-color: #1a1a1a !important;
   }
-  
+
   /* Ensure cards and other containers follow theme */
   .light .bg-card {
     background-color: hsl(0 0% 100%) !important;
   }
-  
+
   .dark .bg-card {
     background-color: hsl(0 0% 12%) !important;
   }
-  
+
   /* Additional dark theme overrides for better coverage */
   .dark * {
     border-color: hsl(0 0% 25%) !important;
   }
-  
+
   .dark .border-border {
     border-color: hsl(0 0% 25%) !important;
   }
-  
+
   .dark .text-foreground {
     color: hsl(0 0% 95%) !important;
   }
-  
+
   .dark .text-muted-foreground {
     color: hsl(0 0% 75%) !important;
   }
-  
+
   /* Force status bar background to be properly themed */
   .status-bar-bg {
     background-color: #ffffff !important;
     transition: background-color 0.3s ease;
   }
-  
+
   .dark .status-bar-bg {
     background-color: #0a0a0a !important;
   }
-  
+
   /* Additional status bar styling for better coverage */
   html .status-bar-bg {
     background-color: #ffffff !important;
   }
-  
+
   html.dark .status-bar-bg {
     background-color: #0a0a0a !important;
   }
-  
+
   html.light .status-bar-bg {
     background-color: #ffffff !important;
   }
-  
+
   /* Ensure status bar background matches body background */
   body .status-bar-bg {
     background-color: inherit !important;
   }
-  
+
   /* Force status bar background on theme change */
   .light .status-bar-bg {
     background-color: #ffffff !important;
   }
-  
+
   .dark .status-bar-bg {
     background-color: #0a0a0a !important;
   }
@@ -622,7 +642,7 @@
     padding-top: env(safe-area-inset-top, 0);
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  
+
   .pt-safe {
     padding-top: max(1rem, env(safe-area-inset-top, 0));
   }
@@ -691,7 +711,8 @@
 /* Bible book selection styles */
 .bible-book-selection {
   @apply bg-white dark:bg-background flex flex-col overflow-hidden;
-  height: 100dvh; /* iOS Safari dynamic viewport to prevent bounce */
+  height: 100dvh;
+  /* iOS Safari dynamic viewport to prevent bounce */
 }
 
 .bible-book-header {
@@ -722,9 +743,12 @@
   /* Ensure content clears bottom nav and iOS safe area */
   /* Extra bottom space to clear BottomNavigation + sorting bar */
   padding-bottom: calc(12rem + env(safe-area-inset-bottom));
-  min-height: 0; /* allow flex child to shrink and scroll */
-  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
-  overscroll-behavior-y: contain; /* prevent outer scroll from hijacking */
+  min-height: 0;
+  /* allow flex child to shrink and scroll */
+  -webkit-overflow-scrolling: touch;
+  /* iOS momentum scrolling */
+  overscroll-behavior-y: contain;
+  /* prevent outer scroll from hijacking */
   /* Ensure scroll position starts at top */
   scroll-snap-type: none;
   /* Remove any scroll snapping that might interfere */
@@ -816,7 +840,8 @@
 /* Bible chapter selection styles */
 .bible-chapter-selection {
   @apply bg-white dark:bg-background flex flex-col;
-  height: 100dvh; /* iOS Safari dynamic viewport */
+  height: 100dvh;
+  /* iOS Safari dynamic viewport */
 }
 
 .bible-chapter-header {
@@ -1186,7 +1211,8 @@
 /* Force black text for highlighted verses in dark mode (including nested spans) */
 .dark .verse-highlight,
 .dark .verse-highlight * {
-  color: #111827 !important; /* gray-900 */
+  color: #111827 !important;
+  /* gray-900 */
 }
 
 /* Custom scrollbar styles for better cross-browser compatibility */
@@ -1252,6 +1278,7 @@
   from {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
   }
+
   to {
     box-shadow: 0 0 30px rgba(59, 130, 246, 0.7), 0 0 60px rgba(59, 130, 246, 0.4);
   }
@@ -1269,20 +1296,26 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
   }
 }
 
 /* PWA Keyboard Fixes */
-input, textarea, select {
+input,
+textarea,
+select {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  font-size: 16px !important; /* Prevents zoom on iOS */
+  font-size: 16px !important;
+  /* Prevents zoom on iOS */
   touch-action: manipulation;
   -webkit-touch-callout: none;
   -webkit-user-select: text;
@@ -1293,7 +1326,9 @@ input, textarea, select {
 }
 
 /* Ensure inputs are properly focusable in PWA */
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
   border-color: hsl(var(--primary));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
@@ -1301,21 +1336,28 @@ input:focus, textarea:focus, select:focus {
 
 /* Fix for iOS Safari input zoom */
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
-  input, textarea, select {
+
+  input,
+  textarea,
+  select {
     font-size: 16px !important;
   }
 }
 
 /* PWA specific input handling */
 @media (display-mode: standalone) {
-  input, textarea, select {
+
+  input,
+  textarea,
+  select {
     font-size: 16px !important;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
-  
+
   /* Force keyboard to appear */
-  input:focus, textarea:focus {
+  input:focus,
+  textarea:focus {
     -webkit-user-select: text;
     user-select: text;
   }
@@ -1371,6 +1413,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* Force hide Lovable Badge */
-#lovable-badge, [data-lovable-badge] {
+#lovable-badge,
+[data-lovable-badge] {
   display: none !important;
 }

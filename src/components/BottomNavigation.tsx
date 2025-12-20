@@ -23,9 +23,9 @@ const BottomNavigation = () => {
   });
 
   return (
-    <nav 
-      style={navStyle()} 
-      className="bg-card backdrop-blur-md border-t border-border/30 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)]"
+    <nav
+      style={navStyle()}
+      className="glass border-t-0 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)] fixed bottom-0 left-0 right-0 z-50 rounded-t-[2rem]"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
@@ -34,7 +34,7 @@ const BottomNavigation = () => {
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
-          
+
           return (
             <Link
               key={item.path}
@@ -42,15 +42,13 @@ const BottomNavigation = () => {
               className="flex flex-col items-center justify-center py-3 px-4 min-w-0 flex-1 touch-none"
               draggable="false"
             >
-              <Icon 
-                className={`w-6 h-6 mb-1 ${
-                  isActive ? "text-primary" : "text-muted-foreground"
-                }`} 
+              <Icon
+                className={`w-6 h-6 mb-1 ${isActive ? "text-primary" : "text-muted-foreground"
+                  }`}
               />
-              <span 
-                className={`text-xs ${
-                  isActive ? "text-primary font-medium" : "text-muted-foreground"
-                }`}
+              <span
+                className={`text-xs ${isActive ? "text-primary font-medium" : "text-muted-foreground"
+                  }`}
                 draggable="false"
               >
                 {item.name}

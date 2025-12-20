@@ -45,7 +45,7 @@ const HomePage = () => {
       fallbackColor: "bg-gradient-to-br from-blue-500 to-blue-700"
     },
     {
-      title: "Serve", 
+      title: "Serve",
       onClick: handleServeClick,
       image: "url('/lovable-uploads/next.jpg')",
       fallbackColor: "bg-gradient-to-br from-green-500 to-green-700"
@@ -69,27 +69,27 @@ const HomePage = () => {
     sections?: string[];
     onClick: () => void;
   }> = [
-    {
-      title: "Website",
-      onClick: handleWebsiteClick,
-    },
-    {
-      title: "Social Media",
-      onClick: () => navigate("/social-media"),
-    },
-    {
-      title: "Past Teachings",
-      onClick: () => window.open("https://www.youtube.com/@thepowerhouseintl/videos", "_blank"),
-    },
-    {
-      title: "Beginning The Journey",
-      onClick: () => navigate("/resources"),
-    }
-  ];
+      {
+        title: "Website",
+        onClick: handleWebsiteClick,
+      },
+      {
+        title: "Social Media",
+        onClick: () => navigate("/social-media"),
+      },
+      {
+        title: "Past Teachings",
+        onClick: () => window.open("https://www.youtube.com/@thepowerhouseintl/videos", "_blank"),
+      },
+      {
+        title: "Beginning The Journey",
+        onClick: () => navigate("/resources"),
+      }
+    ];
 
   const campusFellowships = [
     "Believers Connect UoG",
-    "Believers Connect ATU", 
+    "Believers Connect ATU",
     "Believers Connect Athlone",
     "Believers Connect UCD",
     "Believers Connect Maynooth",
@@ -100,13 +100,13 @@ const HomePage = () => {
     <div className="bg-background min-h-screen pb-20 lg:pb-4">
       {/* Tab Navigation */}
       <div className="tab-navigation">
-        <div 
+        <div
           className={`tab-item ${activeTab === "welcome" ? "active" : ""}`}
           onClick={() => setActiveTab("welcome")}
         >
           Welcome
         </div>
-        <div 
+        <div
           className={`tab-item ${activeTab === "services" ? "active" : ""}`}
           onClick={() => {
             setActiveTab("services");
@@ -118,65 +118,67 @@ const HomePage = () => {
       </div>
 
       {/* Main Feature Cards */}
-      <div className="space-y-0">
+      <div className="space-y-4 px-4 pt-4">
         {mainCards.map((card, index) => (
-          <div 
-            key={index} 
-            className={`relative overflow-hidden h-48 flex items-end cursor-pointer hover:opacity-90 transition-opacity ${card.fallbackColor} min-h-[192px]`}
-                         style={{ 
-               backgroundImage: card.image,
-               backgroundSize: index === 2 ? '110%' : index === 3 ? '110%' : index === 1 ? '120%' : 'cover',
-               backgroundPosition: index === 0 ? 'center 10%' : index === 1 ? 'center 5%' : index === 2 ? '0% 20%' : index === 3 ? 'center 8%' : 'center',
-               backgroundRepeat: 'no-repeat',
-               WebkitTransform: 'translateZ(0)',
-               transform: 'translateZ(0)',
-               WebkitBackfaceVisibility: 'hidden',
-               willChange: 'transform, background-image'
-             }}
+          <div
+            key={index}
+            className={`relative overflow-hidden h-48 flex items-end cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl rounded-2xl ${card.fallbackColor} min-h-[192px] group`}
+            style={{
+              backgroundImage: card.image,
+              backgroundSize: index === 2 ? '110%' : index === 3 ? '110%' : index === 1 ? '120%' : 'cover',
+              backgroundPosition: index === 0 ? 'center 10%' : index === 1 ? 'center 5%' : index === 2 ? '0% 20%' : index === 3 ? 'center 8%' : 'center',
+              backgroundRepeat: 'no-repeat',
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)',
+              WebkitBackfaceVisibility: 'hidden',
+              willChange: 'transform, background-image'
+            }}
             onClick={card.onClick}
           >
             {/* Dark gradient overlay for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity group-hover:via-black/50"></div>
+
             <div className="relative z-10 p-6 text-white w-full">
-              <div className="h-1 w-16 bg-primary rounded-none mb-3"></div>
-              <h2 className="text-3xl font-bold mb-2 text-white">{card.title}</h2>
+              <div className="h-1 w-12 bg-primary rounded-full mb-3 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+              <h2 className="text-3xl font-bold mb-1 text-white tracking-tight">{card.title}</h2>
             </div>
           </div>
         ))}
       </div>
 
       {/* Give Online Section */}
-      <div 
-        className="relative overflow-hidden h-64 flex items-end cursor-pointer hover:opacity-90 transition-opacity bg-gradient-to-br from-red-500 to-red-700" 
-                                                                                                                                                        style={{ 
-              backgroundImage: "url('/lovable-uploads/UpdatedPic.jpg')",
-              backgroundSize: 'cover',
-              backgroundPosition: '20% 10%',
-              backgroundRepeat: 'no-repeat',
-              display: 'block',
-              visibility: 'visible',
-              opacity: 1
-            }}
-        onClick={handleGiveClick}
-      >
-        {/* Dark gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-        
-        <div className="relative z-10 p-6 text-white w-full text-center">
-          <div className="h-1 w-16 bg-primary rounded-none mb-3 mx-auto"></div>
-          <h2 className="text-4xl font-bold mb-4 text-white">Give Online</h2>
-          <Button className="bg-white text-black hover:bg-gray-100 font-bold px-8 py-3 text-lg rounded-full">
-            Give Now
-          </Button>
+      <div className="px-4 mb-6 mt-6">
+        <div
+          className="relative overflow-hidden h-64 flex items-end cursor-pointer transition-transform duration-300 hover:scale-[1.01] hover:shadow-2xl rounded-3xl bg-gradient-to-br from-red-500 to-red-700 shadow-lg group"
+          style={{
+            backgroundImage: "url('/lovable-uploads/UpdatedPic.jpg')",
+            backgroundSize: 'cover',
+            backgroundPosition: '20% 10%',
+            backgroundRepeat: 'no-repeat',
+            display: 'block',
+            visibility: 'visible',
+            opacity: 1
+          }}
+          onClick={handleGiveClick}
+        >
+          {/* Dark gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity group-hover:via-black/60"></div>
+
+          <div className="relative z-10 p-8 text-white w-full text-center">
+            <div className="h-1 w-16 bg-primary rounded-full mb-4 mx-auto shadow-[0_0_15px_rgba(59,130,246,0.6)]"></div>
+            <h2 className="text-4xl font-bold mb-6 text-white tracking-tight text-shadow">Give Online</h2>
+            <Button className="bg-white text-black hover:bg-gray-100 font-bold px-10 py-6 text-lg rounded-full shadow-xl transition-transform group-hover:scale-105">
+              Give Now
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Quick Action Cards */}
       <div className="p-4 space-y-4">
         {quickActions.map((action, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className="bg-card rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/20 hover:border-primary/50"
             onClick={action.onClick}
           >
@@ -198,8 +200,8 @@ const HomePage = () => {
           <h3 className="text-xl font-bold text-foreground mb-4">Campus Fellowships</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {campusFellowships.map((fellowship, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="bg-accent rounded-lg p-3 text-center cursor-pointer hover:bg-accent/80 transition-colors"
                 onClick={() => navigate("/campus-fellowships")}
               >
@@ -225,8 +227,8 @@ const HomePage = () => {
             {/* Authentication required features */}
             {user ? (
               <>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex-col space-y-2 border-border hover:bg-accent hover:border-primary"
                   onClick={() => navigate("/prayer")}
                 >

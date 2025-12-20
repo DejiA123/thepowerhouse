@@ -39,16 +39,15 @@ const Header = () => {
   };
 
   return (
-    <header className={`bg-card border-b border-border/30 sticky z-[60] transition-all duration-300 ease-in-out ${
-      isBiblePage && isScrolled ? 'transform -translate-y-full opacity-0' : 'transform translate-y-0 opacity-100'
-    }`} style={{ top: 'env(safe-area-inset-top)' }}>
+    <header className={`glass sticky top-0 z-[60] transition-all duration-300 ease-in-out ${isBiblePage && isScrolled ? 'transform -translate-y-full opacity-0' : 'transform translate-y-0 opacity-100'
+      }`} style={{ top: 'env(safe-area-inset-top)' }}>
       <div className="px-4 py-4">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-1">
             <div className="w-20 h-20 flex items-center justify-center">
-              <img 
-                src="/lovable-uploads/5c77f128-2db6-4b67-bfe2-b9a79664a7f1.png" 
-                alt="The Power House Logo" 
+              <img
+                src="/lovable-uploads/5c77f128-2db6-4b67-bfe2-b9a79664a7f1.png"
+                alt="The Power House Logo"
                 className="w-20 h-20 object-contain"
               />
             </div>
@@ -56,14 +55,14 @@ const Header = () => {
               The Power House
             </h1>
           </Link>
-          
+
           <div className="flex items-center space-x-2">
             <MenuDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
-            
+
             <SearchDialog searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
-            
-            <Button 
-              variant="ghost" 
+
+            <Button
+              variant="ghost"
               size="sm"
               onClick={handleUserIconClick}
               className="text-muted-foreground hover:text-foreground p-2"
