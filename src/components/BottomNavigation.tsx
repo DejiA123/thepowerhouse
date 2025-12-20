@@ -12,19 +12,8 @@ const BottomNavigation = () => {
     { name: "Resources", path: "/resources", icon: Info },
   ];
 
-  // Detect if the app is running as a standalone PWA and is on iOS
-  const isPWAOnIOS = () => {
-    return ((window.navigator as any).standalone || (window.matchMedia('(display-mode: standalone)').matches)) && /iPad|iPhone|iPod/.test(navigator.userAgent);
-  };
-
-  const navStyle = () => ({
-    marginBottom: isPWAOnIOS() ? '0.5rem' : undefined,
-    marginTop: isPWAOnIOS() ? '-0.5rem' : undefined,
-  });
-
   return (
     <nav
-      style={navStyle()}
       className="glass border-t-0 h-[72px] w-full shrink-0 pb-[env(safe-area-inset-bottom)] fixed bottom-0 left-0 right-0 z-50 rounded-t-[2rem]"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
