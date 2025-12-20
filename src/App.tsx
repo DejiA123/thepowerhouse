@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import ScrollToTop from "@/components/ScrollToTop";
+
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -323,6 +325,7 @@ const App = () => {
         <AuthProvider>
           <GlobalAudioProvider>
             <Router>
+              <ScrollToTop />
               <TooltipProvider>
                 <NotificationProvider>
                   <AppRoutes />

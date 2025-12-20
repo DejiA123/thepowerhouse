@@ -18,12 +18,12 @@ const Layout = ({ children }: LayoutProps) => {
     const savedColorTheme = localStorage.getItem('colorTheme') || 'default';
     const root = document.documentElement;
     const body = document.body;
-    
+
     const applyTheme = (theme: string, colorTheme: string) => {
       // Remove existing theme classes from both html and body
       root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
       body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
-      
+
       // Apply custom theme colors if selected
       if (colorTheme === 'custom') {
         applyCustomTheme();
@@ -32,7 +32,7 @@ const Layout = ({ children }: LayoutProps) => {
         root.classList.add(colorThemeClass);
         body.classList.add(colorThemeClass);
       }
-      
+
       // Apply light/dark theme
       if (theme === 'system') {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -43,22 +43,22 @@ const Layout = ({ children }: LayoutProps) => {
         root.classList.add(theme);
         body.classList.add(theme);
       }
-      
+
       // Apply background color based on selected theme
       const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      
+
       // Get the computed styles for the current theme combination
       const computedStyles = getComputedStyle(root);
       const backgroundColor = computedStyles.getPropertyValue('--background');
       const foregroundColor = computedStyles.getPropertyValue('--foreground');
-      
+
       if (backgroundColor && foregroundColor) {
         body.style.backgroundColor = `hsl(${backgroundColor})`;
         body.style.color = `hsl(${foregroundColor})`;
         root.style.backgroundColor = `hsl(${backgroundColor})`;
         root.style.color = `hsl(${foregroundColor})`;
       }
-      
+
       // Dynamically update iOS status bar style for PWA
       try {
         const statusBarMeta = document.querySelector(
@@ -67,7 +67,7 @@ const Layout = ({ children }: LayoutProps) => {
         if (statusBarMeta) {
           statusBarMeta.setAttribute('content', isDark ? 'black' : 'default');
         }
-        
+
         // Also update theme-color meta tag for Android
         const themeColorMeta = document.querySelector(
           'meta[name="theme-color"]'
@@ -78,31 +78,31 @@ const Layout = ({ children }: LayoutProps) => {
       } catch (e) {
         console.warn('Failed to update status bar meta tags:', e);
       }
-      
+
       console.log('🎨 Layout: Theme applied:', theme, 'Color:', colorTheme, 'Body classes:', body.className);
     };
 
     const applyCustomTheme = () => {
       const customPrimaryColor = localStorage.getItem('customPrimaryColor') || '#3b82f6';
       const customBackgroundColor = localStorage.getItem('customBackgroundColor') || '#ffffff';
-      
+
       // Convert hex to HSL for CSS variables
       const primaryHSL = hexToHSL(customPrimaryColor);
       const backgroundHSL = hexToHSL(customBackgroundColor);
-      
+
       // Apply custom CSS variables
       root.style.setProperty('--primary', primaryHSL);
       root.style.setProperty('--background', backgroundHSL);
       root.style.setProperty('--card', backgroundHSL);
       root.style.setProperty('--popover', backgroundHSL);
-      
+
       // Calculate contrasting foreground color
       const isDarkBackground = isColorDark(customBackgroundColor);
       const foregroundHSL = isDarkBackground ? '0 0% 95%' : '0 0% 5%';
       root.style.setProperty('--foreground', foregroundHSL);
       root.style.setProperty('--card-foreground', foregroundHSL);
       root.style.setProperty('--popover-foreground', foregroundHSL);
-      
+
       root.classList.add('theme-custom');
     };
 
@@ -136,23 +136,23 @@ const Layout = ({ children }: LayoutProps) => {
       const brightness = (r * 299 + g * 587 + b * 114) / 1000;
       return brightness < 128;
     };
-    
+
     // Apply initial theme
     applyTheme(savedTheme, savedColorTheme);
-    
+
     // Listen for theme changes
     const handleThemeChange = () => {
       const currentTheme = localStorage.getItem('theme') || 'system';
       const currentColorTheme = localStorage.getItem('colorTheme') || 'default';
       applyTheme(currentTheme, currentColorTheme);
     };
-    
+
     // Listen for storage changes (when theme is changed from another tab/window)
     window.addEventListener('storage', handleThemeChange);
-    
+
     // Listen for custom theme change events
     window.addEventListener('themechange', handleThemeChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleThemeChange);
       window.removeEventListener('themechange', handleThemeChange);
@@ -162,19 +162,19 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex flex-col h-dvh text-foreground bg-background overscroll-none">
       {/* Status bar background for PWA fullscreen mode (theme-aware) */}
-      <div 
-        className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg" 
+      <div
+        className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg"
         style={{
           height: 'env(safe-area-inset-top)',
         }}
       />
-      
+
       {showChrome && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+      <main id="main-content" className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
         <div className={showChrome ? "lg:pb-4" : ""}>
-            {children}
+          {children}
         </div>
       </main>
 

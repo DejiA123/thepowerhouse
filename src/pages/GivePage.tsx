@@ -30,7 +30,7 @@ const GivePage = () => {
   };
 
   return (
-    <div className="p-4 space-y-6 max-w-4xl mx-auto">
+    <div className="p-4 pb-32 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Give</h1>
