@@ -41,7 +41,7 @@ const registerServiceWorker = async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('🎵 Service Worker registered successfully:', registration);
-      
+
       // Listen for messages from service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data.type === 'AUDIO_CONTROL') {
@@ -50,7 +50,7 @@ const registerServiceWorker = async () => {
           // This will be handled by the GlobalAudioContext
         }
       });
-      
+
     } catch (error) {
       console.error('🎵 Service Worker registration failed:', error);
     }
@@ -82,18 +82,18 @@ const LoadingSpinner = () => (
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  
+
   try {
     console.log('ProtectedRoute: user=', !!user, 'loading=', loading);
-    
+
     if (loading) {
       return <LoadingSpinner />;
     }
-    
+
     if (!user) {
       return <Navigate to="/auth" replace />;
     }
-    
+
     return <>{children}</>;
   } catch (error) {
     console.error('Error in ProtectedRoute:', error);
@@ -103,18 +103,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  
+
   try {
     console.log('PublicRoute: user=', !!user, 'loading=', loading);
-    
+
     if (loading) {
       return <LoadingSpinner />;
     }
-    
+
     if (user) {
       return <Navigate to="/" replace />;
     }
-    
+
     return <>{children}</>;
   } catch (error) {
     console.error('Error in PublicRoute:', error);
@@ -125,7 +125,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => {
   const { user, loading } = useAuth();
   console.log('AppRoutes: Rendering routes...');
-  
+
   try {
     return (
       <AudioProvider onAudioEnd={() => {
@@ -139,88 +139,88 @@ const AppRoutes = () => {
             <Route path="/" element={loading ? <LoadingSpinner /> : (user ? <HomePage /> : <Navigate to="/intro" replace />)} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
-            <Route 
-              path="/bible" 
-              element={<BiblePage />} 
+            <Route
+              path="/bible"
+              element={<BiblePage />}
             />
-            <Route 
-              path="/bible-notes" 
+            <Route
+              path="/bible-notes"
               element={
                 <ProtectedRoute>
                   <BibleNotesPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/news" 
+            <Route
+              path="/news"
               element={
                 <ProtectedRoute>
                   <NewsPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/groups" 
+            <Route
+              path="/groups"
               element={
                 <ProtectedRoute>
                   <GroupsPage />
                 </ProtectedRoute>
-              } 
+              }
             />
             <Route path="/give" element={<GivePage />} />
-            <Route 
-              path="/resources" 
+            <Route
+              path="/resources"
               element={
                 <ProtectedRoute>
                   <ResourcesPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/bible-reading-plans" 
+            <Route
+              path="/bible-reading-plans"
               element={
                 <ProtectedRoute>
                   <BibleReadingPlansPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/settings" 
+            <Route
+              path="/settings"
               element={
                 <ProtectedRoute>
                   <UserSettingsPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/auth" 
+            <Route
+              path="/auth"
               element={
                 <PublicRoute>
                   <AuthPage />
                 </PublicRoute>
-              } 
+              }
             />
             <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
             <Route path="/reset-password" element={<PasswordResetPage />} />
             <Route path="/debug-email" element={<EmailConfirmationDebug />} />
-            <Route 
-              path="/prayer" 
+            <Route
+              path="/prayer"
               element={
                 <ProtectedRoute>
                   <PrayerWallPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/social-media" 
+            <Route
+              path="/social-media"
               element={
                 <ProtectedRoute>
                   <SocialMediaPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/fellowship-group/:groupId" 
+            <Route
+              path="/fellowship-group/:groupId"
               element={
                 <ProtectedRoute>
                   <GroupPageWrapper />
@@ -300,94 +300,22 @@ const GroupPageWrapper = () => {
 
 const App = () => {
   console.log('App: Main component rendering...');
-  
+
   useEffect(() => {
     applyTheme();
     window.addEventListener('storage', applyTheme);
     window.addEventListener('themechange', applyTheme); // Listen for custom event
-    
+
     // Register service worker for background audio support
     registerServiceWorker();
-    
+
     return () => {
       window.removeEventListener('storage', applyTheme);
       window.removeEventListener('themechange', applyTheme);
     };
   }, []);
 
-  // Remove Lovable branding elements
-  useEffect(() => {
-    const removeLovableBranding = () => {
-      // Remove elements by various selectors
-      const selectors = [
-        '[data-lovable-edit]',
-        'iframe[src*="lovable"]',
-        'iframe[src*="Lovable"]',
-        'button[title*="Edit with Lovable"]',
-        'button[aria-label*="Edit with Lovable"]',
-        'a[href*="lovable"][target="_blank"]',
-        'a[href*="Lovable"][target="_blank"]'
-      ];
 
-      selectors.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(element => {
-          element.remove();
-        });
-      });
-
-      // Remove elements by text content - more specific
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        null
-      );
-
-      const textNodes: Text[] = [];
-      let node;
-      while ((node = walker.nextNode())) {
-        if (node.textContent?.includes('Edit with Lovable')) {
-          textNodes.push(node as Text);
-        }
-      }
-
-      textNodes.forEach(textNode => {
-        const parent = textNode.parentElement;
-        if (parent && parent.textContent?.includes('Edit with Lovable')) {
-          parent.remove();
-        }
-      });
-
-      // Remove fixed positioned elements at bottom that contain specific Lovable text
-      const allElements = document.querySelectorAll('*');
-      allElements.forEach(element => {
-        const style = window.getComputedStyle(element);
-        if (style.position === 'fixed' && 
-            (style.bottom === '0px' || style.bottom === '0') &&
-            element.textContent?.includes('Edit with Lovable')) {
-          element.remove();
-        }
-      });
-    };
-
-    // Run immediately
-    removeLovableBranding();
-
-    // Set up observer to catch dynamically added elements
-    const observer = new MutationObserver(removeLovableBranding);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-
-    // Also run periodically to catch any missed elements
-    const interval = setInterval(removeLovableBranding, 1000);
-
-    return () => {
-      observer.disconnect();
-      clearInterval(interval);
-    };
-  }, []);
 
   try {
     return (
