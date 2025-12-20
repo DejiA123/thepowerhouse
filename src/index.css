@@ -1369,3 +1369,8 @@ input:focus, textarea:focus, select:focus {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Force hide Lovable Badge */
+#lovable-badge, [data-lovable-badge] {
+  display: none !important;
+}
