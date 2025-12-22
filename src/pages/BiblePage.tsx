@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import type { BibleChapter } from "@/types/bible";
 import { useToast } from "@/hooks/use-toast";
@@ -220,9 +221,20 @@ const BiblePage = () => {
     }
   }, [isLoaded, preferences.autoPlayNext]);
 
-  // Set selectedBook and selectedChapter from preferences on initial load (always use last location if present)
+  const location = useLocation();
+
+  // Set selectedBook and selectedChapter from location state (priority) or preferences on initial load
   useEffect(() => {
-    if (isLoaded && preferences.preferredBook && preferences.preferredChapter) {
+    if (location.state && location.state.book && location.state.chapter) {
+      console.log(`🎯 Loading from navigation state: ${location.state.book} chapter ${location.state.chapter}`);
+      const normalizedBook = normalizeBookApiName(location.state.book);
+      setSelectedBook(normalizedBook);
+      setSelectedChapter(location.state.chapter);
+      setPreferredBook(normalizedBook);
+      setPreferredChapter(location.state.chapter);
+      loadChapter(normalizedBook, location.state.chapter);
+      // Clear state to prevent reload on refresh? (React router handles this, usually state persists on refresh, which is fine, or we can replace history)
+    } else if (isLoaded && preferences.preferredBook && preferences.preferredChapter) {
       console.log(`🎯 Loading preferred: ${preferences.preferredBook} chapter ${preferences.preferredChapter}`);
       setSelectedBook(normalizeBookApiName(preferences.preferredBook));
       setSelectedChapter(preferences.preferredChapter);

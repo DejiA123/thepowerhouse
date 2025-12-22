@@ -159,14 +159,14 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
     <div className="bible-book-selection overscroll-contain">
       {/* Header Bar */}
       <div className="bible-book-header">
-        <button 
+        <button
           className="bible-book-cancel"
           onClick={onCancel}
         >
           Cancel
         </button>
         <h1 className="bible-book-title">Books</h1>
-        <button 
+        <button
           className="bible-book-history"
           onClick={onHistory}
         >
@@ -175,28 +175,24 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
       </div>
 
       {/* Book List - Vertical Layout */}
-      <div 
-        className="bible-book-list overflow-y-auto overscroll-contain" 
+      <div
+        className="bible-book-list overflow-y-auto overscroll-contain"
         ref={setScrollContainerRef}
         key={`book-list-${sortType}-${isMounted}`}
       >
-                 {sortedBooks.map((book, index) => {
-           const isGenesis = book.name === 'Genesis';
+        {sortedBooks.map((book, index) => {
+          const isGenesis = book.name === 'Genesis';
           return (
-                         <button
-               key={book.name}
-               className={`bible-book-item ${isGenesis ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 shadow-sm' : ''}`}
-               onClick={() => onBookSelect(book.apiName)}
-               data-book={book.apiName}
-               style={isGenesis ? { marginTop: '5px', paddingTop: '15px' } : {}}
-             >
-                             <span className={`bible-book-name ${isGenesis ? 'font-bold text-blue-700 dark:text-blue-300' : ''}`}>
-                 {book.name}
-               </span>
-              <div className="bible-book-icons">
-                <Volume2 className="bible-book-icon" />
-                <ChevronDown className="bible-book-icon" />
-              </div>
+            <button
+              key={book.name}
+              className="bible-book-item"
+              onClick={() => onBookSelect(book.apiName)}
+              data-book={book.apiName}
+            >
+              <span className="bible-book-name">
+                {book.name}
+              </span>
+
             </button>
           );
         })}

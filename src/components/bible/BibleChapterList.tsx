@@ -10,26 +10,26 @@ interface BibleChapterListProps {
   onBackToBooks: () => void;
 }
 
-export const BibleChapterList = ({ 
-  selectedBook, 
-  onChapterSelect, 
-  onBackToBooks 
+export const BibleChapterList = ({
+  selectedBook,
+  onChapterSelect,
+  onBackToBooks
 }: BibleChapterListProps) => {
   console.log('BibleChapterList: Rendering with selectedBook:', selectedBook);
-  
+
   const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
   console.log('BibleChapterList: allBooks loaded:', allBooks.length, 'books');
-  
+
   const normalized = normalizeBookApiName(selectedBook);
   const book = allBooks.find(b => b.apiName === normalized);
   console.log('BibleChapterList: Found book:', book);
-  
+
   if (!book) {
     console.error('BibleChapterList: No book found for selectedBook:', selectedBook);
     return (
       <div className="bible-chapter-selection">
         <div className="bible-chapter-header">
-          <button 
+          <button
             className="bible-chapter-back"
             onClick={onBackToBooks}
           >
@@ -54,7 +54,7 @@ export const BibleChapterList = ({
     <div className="bible-chapter-selection overscroll-contain">
       {/* Header Bar */}
       <div className="bible-chapter-header">
-        <button 
+        <button
           className="bible-chapter-back"
           onClick={onBackToBooks}
         >
@@ -73,9 +73,7 @@ export const BibleChapterList = ({
             onClick={() => onChapterSelect(chapter)}
           >
             <span className="bible-chapter-number">Chapter {chapter}</span>
-            <div className="bible-chapter-icons">
-              <span className="bible-chapter-arrow">→</span>
-            </div>
+
           </button>
         ))}
         {/* Bottom spacer so last chapter clears bottom nav */}
