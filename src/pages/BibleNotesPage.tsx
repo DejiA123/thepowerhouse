@@ -564,9 +564,25 @@ const BibleNotesPage = () => {
                                     editNote(selectedNote);
                                 }}
                             >
-                                {/* Date */}
-                                <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                    {formatDateTime(selectedNote.created_at)}
+                                {/* Date with Close Button */}
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex-1"></div>
+                                    <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                                        {formatDateTime(selectedNote.created_at)}
+                                    </div>
+                                    <div className="flex-1 flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowNoteDialog(false);
+                                            }}
+                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            aria-label="Close"
+                                        >
+                                            <X className="w-6 h-6 text-gray-900 dark:text-gray-100" />
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 {/* Title */}
