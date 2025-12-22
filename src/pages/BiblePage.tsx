@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import type { BibleChapter } from "@/types/bible";
 import { useToast } from "@/hooks/use-toast";
@@ -222,9 +222,27 @@ const BiblePage = () => {
   }, [isLoaded, preferences.autoPlayNext]);
 
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
-  // Set selectedBook and selectedChapter from location state (priority) or preferences on initial load
+  // Set selectedBook and selectedChapter from URL query params (highest priority), location state, or preferences
   useEffect(() => {
+    // Priority 1: URL query parameters (e.g., ?book=Psalm&chapter=1)
+    const queryBook = searchParams.get('book');
+    const queryChapter = searchParams.get('chapter');
+
+    if (queryBook && queryChapter) {
+      console.log(`🎯 Loading from URL query params: ${queryBook} chapter ${queryChapter}`);
+      const normalizedBook = normalizeBookApiName(queryBook.toLowerCase().replace(/\s+/g, '-'));
+      const chapterNum = parseInt(queryChapter);
+      setSelectedBook(normalizedBook);
+      setSelectedChapter(chapterNum);
+      setPreferredBook(normalizedBook);
+      setPreferredChapter(chapterNum);
+      loadChapter(normalizedBook, chapterNum);
+      return;
+    }
+
+    // Priority 2: Navigation state
     if (location.state && location.state.book && location.state.chapter) {
       console.log(`🎯 Loading from navigation state: ${location.state.book} chapter ${location.state.chapter}`);
       const normalizedBook = normalizeBookApiName(location.state.book);
@@ -233,23 +251,34 @@ const BiblePage = () => {
       setPreferredBook(normalizedBook);
       setPreferredChapter(location.state.chapter);
       loadChapter(normalizedBook, location.state.chapter);
-      // Clear state to prevent reload on refresh? (React router handles this, usually state persists on refresh, which is fine, or we can replace history)
-    } else if (isLoaded && preferences.preferredBook && preferences.preferredChapter) {
+      return;
+    }
+
+    // Priority 3: User preferences (only on initial load when isLoaded becomes true)
+    if (isLoaded && preferences.preferredBook && preferences.preferredChapter) {
       console.log(`🎯 Loading preferred: ${preferences.preferredBook} chapter ${preferences.preferredChapter}`);
       setSelectedBook(normalizeBookApiName(preferences.preferredBook));
       setSelectedChapter(preferences.preferredChapter);
-      // Load chapter without auto-play
       loadChapter(normalizeBookApiName(preferences.preferredBook), preferences.preferredChapter);
-    } else if (isLoaded) {
-      // If no preferences are set, set some defaults
+      return;
+    }
+
+    // Priority 4: Defaults (only on initial load when isLoaded becomes true)
+    if (isLoaded) {
       console.log(`🎯 Loading defaults: Genesis chapter 1`);
       setSelectedBook('genesis');
       setSelectedChapter(1);
       loadChapter('genesis', 1);
     }
-    // Only run this effect on initial load
-    // eslint-disable-next-line
-  }, [isLoaded]);
+  }, [searchParams, location.state, isLoaded]);
+
+  // Reload chapter when selected version changes
+  useEffect(() => {
+    if (selectedBook && selectedChapter && isLoaded) {
+      console.log(`🔄 BiblePage: Translation changed to ${selectedVersion}, reloading ${selectedBook} ${selectedChapter}`);
+      loadChapter(selectedBook, selectedChapter);
+    }
+  }, [selectedVersion]);
 
   const handleVerseHighlight = (verseNumber: number) => {
     console.log(`BiblePage: handleVerseHighlight called with verse ${verseNumber}, previous currentVerse: ${currentVerse}`);

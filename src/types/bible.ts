@@ -5,7 +5,7 @@ export interface BibleVersion {
   name: string;
   abbreviation: string;
   language: string; // Simplified to string for consistency
-  source?: 'bible-brain' | 'fallback' | 'api-bible' | 'esv';
+  source?: 'bible-brain' | 'fallback' | 'api-bible' | 'esv' | 'bolls-life';
 }
 
 export interface BibleVerse {

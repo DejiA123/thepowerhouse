@@ -214,6 +214,13 @@ const BibleReadingPlans = () => {
     }
   };
 
+  // Helper to get the first reading reference for a plan day
+  const getFirstReadingForDay = (planId: string): string | null => {
+    const currentDay = getCurrentDay(planId);
+    const todaysReading = readingPlanService.getTodaysReading(planId, currentDay);
+    return todaysReading?.readings[0] || null;
+  };
+
   // --- Render Helpers ---
 
   const PlanCard = ({ plan, enrolled }: { plan: ReadingPlan, enrolled?: boolean }) => {
@@ -222,9 +229,15 @@ const BibleReadingPlans = () => {
     const progress = planProgress[plan.id];
     const percent = progress ? ((progress.completed_days?.length || 0) / plan.totalDays) * 100 : 0;
 
+    const firstReading = enrolled ? getFirstReadingForDay(plan.id) : null;
+
     return (
       <div
-        onClick={() => enrolled ? startReading(plan.id) : setSelectedPlanId(plan.id)}
+        onClick={(e) => {
+          // Only trigger if not clicking a button
+          if ((e.target as HTMLElement).closest('button')) return;
+          enrolled ? startReading(plan.id) : setSelectedPlanId(plan.id);
+        }}
         className="flex-shrink-0 w-[260px] cursor-pointer group relative overflow-hidden rounded-2xl border bg-white dark:bg-gray-900 shadow-sm transition-all hover:shadow-md hover:border-primary/20"
       >
         <div className={`h-32 w-full bg-gradient-to-br ${gradient} p-4 flex flex-col justify-between relative`}>
@@ -249,9 +262,31 @@ const BibleReadingPlans = () => {
                 <span>{Math.round(percent)}%</span>
               </div>
               <Progress value={percent} className="h-2 bg-gray-100 dark:bg-gray-800" />
-              <Button className="w-full mt-3 h-9 text-xs font-semibold rounded-xl bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900" size="sm">
-                Continue <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (firstReading) {
+                      handleOpenScripture(firstReading);
+                    }
+                  }}
+                  variant="outline"
+                  className="flex-1 h-9 text-xs font-semibold rounded-xl"
+                  size="sm"
+                >
+                  Read Now
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startReading(plan.id);
+                  }}
+                  className="flex-1 h-9 text-xs font-semibold rounded-xl bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900"
+                  size="sm"
+                >
+                  Continue <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
