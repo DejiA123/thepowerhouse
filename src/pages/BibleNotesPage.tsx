@@ -642,13 +642,23 @@ const BibleNotesPage = () => {
                                 })}
                             </div>
 
-                            {/* Title */}
-                            <Input
-                                placeholder="Title"
-                                value={newNote.title}
-                                onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                className="text-2xl font-semibold border-none bg-transparent focus:ring-0 px-0 placeholder:text-gray-400 text-gray-900 dark:text-gray-100 mb-4"
-                            />
+                            {/* Title with Close Button */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <Input
+                                    placeholder="Title"
+                                    value={newNote.title}
+                                    onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                    className="text-2xl font-semibold border-none bg-transparent focus:ring-0 px-0 placeholder:text-gray-400 text-gray-900 dark:text-gray-100 flex-1"
+                                />
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setShowNewNoteDialog(false)}
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                    aria-label="Close"
+                                >
+                                    <X className="w-6 h-6 text-gray-900 dark:text-gray-100" />
+                                </Button>
+                            </div>
 
                             {/* Rich Text Editor with serif font */}
                             <div className="font-serif text-[17px]">
