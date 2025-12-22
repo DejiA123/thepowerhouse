@@ -1283,8 +1283,8 @@ export const BibleChapterContent = ({
       }
 
       {/* Bible Navigation Controls */}
-      <div className="bible-navigation-controls fixed bottom-24 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex items-center justify-center space-x-6 pointer-events-auto">
+      <div className="fixed bottom-24 left-0 right-0 z-40 pointer-events-none">
+        <div className="flex items-center justify-between px-8 pointer-events-auto">
           <button
             onClick={handlePreviousChapter}
             disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
