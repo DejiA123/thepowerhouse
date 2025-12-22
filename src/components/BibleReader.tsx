@@ -31,7 +31,7 @@ const BibleReader = () => {
     setPreferredChapter,
     setAutoPlayNext,
   } = useBiblePreferences();
-  
+
   const [currentChapter, setCurrentChapter] = useState<BibleChapter | null>(null);
   const [activeTab, setActiveTab] = useState("read");
   const [versions, setVersions] = useState([]);
@@ -50,7 +50,7 @@ const BibleReader = () => {
     const loadVersions = async () => {
       // Test the API to understand its structure
       await testBibleBrainApi();
-      
+
       const bibleVersions = await enhancedApiBibleService.getVersions();
       setVersions(bibleVersions);
     };
@@ -109,11 +109,6 @@ const BibleReader = () => {
   const handleVersionChange = (version: string) => {
     console.log('BibleReader: Setting preferred translation to:', version);
     setPreferredTranslation(version);
-    const selectedVersion = versions.find(v => v.abbreviation === version);
-    toast({
-      title: "Translation Changed",
-      description: `Switched to ${selectedVersion?.name || version.toUpperCase()} translation`,
-    });
   };
 
   const handleNextChapter = () => {
@@ -165,7 +160,7 @@ const BibleReader = () => {
   return (
     <div>
       <div className="flex flex-col lg:flex-row gap-4">
-        <EnhancedBibleVersionSelector 
+        <EnhancedBibleVersionSelector
           selectedVersion={selectedVersion}
           onVersionChange={handleVersionChange}
         />
@@ -212,7 +207,7 @@ const BibleReader = () => {
               chapter={selectedChapter}
               selectedVersion={selectedVersion}
             />
-            
+
             <BibleChapterContent
               selectedBook={selectedBook}
               selectedChapter={selectedChapter}

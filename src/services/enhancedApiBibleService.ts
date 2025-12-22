@@ -376,14 +376,16 @@ export const enhancedApiBibleService = {
       }
 
       // Map Bolls.life response to BibleVerse[]
-      const verses: BibleVerse[] = versesData.map((v: any) => ({
-        book,
-        chapter,
-        verse: v.verse.toString(),
-        text: v.text.replace(/<[^>]*>?/gm, '').trim(), // Remove HTML tags
-        reference: `${book} ${chapter}:${v.verse}`,
-        version: version
-      }));
+      const verses: BibleVerse[] = versesData
+        .filter((v: any) => v.verse !== 0) // Filter out verse 0 (often titles)
+        .map((v: any) => ({
+          book,
+          chapter,
+          verse: v.verse.toString(),
+          text: this.cleanBollsText(v.text, version),
+          reference: `${book} ${chapter}:${v.verse}`,
+          version: version
+        }));
 
       console.log(`✅ Bolls.life: Successfully loaded ${verses.length} verses for ${version}`);
 
@@ -399,6 +401,47 @@ export const enhancedApiBibleService = {
       console.error('❌ Bolls.life Service error:', error);
       return null;
     }
+  },
+
+
+
+  // Helper to clean Bolls.life text (removing headings, titles, etc.)
+  cleanBollsText(html: string, version: string = ''): string {
+    if (!html) return '';
+    let text = html;
+
+    // 1. Remove headings elements (h1-h6) and their content
+    text = text.replace(/<h\d[^>]*>[\s\S]*?<\/h\d>/gi, '');
+
+    // 2. Remove title tags
+    text = text.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
+
+    // 3. Remove text before initial <br> (This handles "Jesus Teaches Nicodemus<br>Now...")
+    // We only remove if it's at the very start of the string (maybe preceded by tags we removed)
+    // ULTRA-SAFE FIX: Skip for NLT to prevent data loss.
+    if (version !== 'NLT') {
+      text = text.replace(/^[^<]*<br\s*\/?>/i, '');
+    }
+
+    // 4. Remove remaining HTML tags but keep content
+    text = text.replace(/<[^>]+>/g, ' ');
+
+    // 5. Decode entities
+    text = text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&rsquo;/g, "'");
+
+    // 6. Clean whitespace
+    text = text.replace(/\s+/g, ' ').trim();
+
+
+
+    return text;
   },
 
   // Parse chapter content into verses
