@@ -22,6 +22,7 @@ import { Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { FileText, Volume2, Smartphone } from "lucide-react";
 
 const BiblePage = () => {
@@ -504,22 +505,24 @@ const BiblePage = () => {
       <div className="min-h-screen bg-background pb-[72px]">
         {renderContent()}
 
-        {/* Version Selector Dialog */}
-        <Dialog open={showVersionSelector} onOpenChange={setShowVersionSelector}>
-          <DialogContent className="max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Bible Translations</DialogTitle>
-              <DialogDescription>
+        {/* Version Selector Drawer */}
+        <Drawer open={showVersionSelector} onOpenChange={setShowVersionSelector}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader>
+              <DrawerTitle>Bible Translations</DrawerTitle>
+              <DrawerDescription>
                 Choose from different Bible translations to customize your reading experience.
-              </DialogDescription>
-            </DialogHeader>
-            <BibleVersionSelector
-              versions={versions}
-              selectedVersion={selectedVersion}
-              onVersionChange={handleVersionChange}
-            />
-          </DialogContent>
-        </Dialog>
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 overflow-y-auto">
+              <BibleVersionSelector
+                versions={versions}
+                selectedVersion={selectedVersion}
+                onVersionChange={handleVersionChange}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
 
         {/* Bible Search Dialog */}
         <BibleSearch

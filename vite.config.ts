@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
 
@@ -11,7 +12,31 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-
+    VitePWA({
+      registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: 'The Power House App',
+        short_name: 'PowerHouse',
+        description: 'The Power House International Church App',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    })
   ].filter(Boolean),
   resolve: {
     alias: {

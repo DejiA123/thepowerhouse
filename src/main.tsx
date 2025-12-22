@@ -3,16 +3,17 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// Register service worker for background audio support
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' })
-    .then((registration) => {
-      console.log('🎵 Service Worker registered for background audio:', registration);
-    })
-    .catch((error) => {
-      console.warn('🎵 Service Worker registration failed:', error);
-    });
-}
+// Register service worker for PWA and background support
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    console.log('🔄 New content available, please refresh.');
+  },
+  onOfflineReady() {
+    console.log('📶 App is ready for offline use.');
+  },
+});
 
 // Ensure React is available globally for debugging
 (window as any).React = React;
@@ -40,7 +41,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 try {
   console.log('main.tsx: Creating React root...');
   const root = ReactDOM.createRoot(rootElement);
-  
+
   console.log('main.tsx: Rendering app...');
   root.render(
     <React.StrictMode>
