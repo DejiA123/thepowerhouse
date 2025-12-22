@@ -14,7 +14,7 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass border-t-0 w-full shrink-0 pb-[env(safe-area-inset-bottom)] fixed bottom-0 left-0 right-0 z-50 rounded-t-xl"
+      className="glass border-t-0 w-full shrink-0 pb-[env(safe-area-inset-bottom)] fixed bottom-0 left-0 right-0 z-50 rounded-none border-t border-white/10"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
@@ -32,7 +32,7 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-6 h-6 mb-1 ${isActive ? "text-primary" : "text-muted-foreground"
+                className={`w-6 h-6 ${isActive ? "text-primary" : "text-muted-foreground"
                   }`}
               />
               <span
