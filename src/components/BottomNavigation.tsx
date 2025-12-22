@@ -14,12 +14,12 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass border-t-0 w-full shrink-0 pb-[env(safe-area-inset-bottom)] pt-1 fixed bottom-0 left-0 right-0 z-50 rounded-t-[2rem]"
+      className="glass border-t-0 w-full shrink-0 pb-[env(safe-area-inset-bottom)] fixed bottom-0 left-0 right-0 z-50 rounded-t-[2rem]"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="flex justify-around py-2 touch-none select-none">
+      <div className="flex justify-around py-1 touch-none select-none">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -28,7 +28,7 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-3 px-4 min-w-0 flex-1 touch-none"
+              className="flex flex-col items-center justify-center py-2 px-4 min-w-0 flex-1 touch-none"
               draggable="false"
             >
               <Icon
