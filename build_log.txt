@@ -1,0 +1,33 @@
+
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+
+/patterns/circuit.svg referenced in /patterns/circuit.svg didn't resolve at build time, it will remain unchanged to be resolved at runtime
+[32m✓[39m 1965 modules transformed.
+rendering chunks...
+[2mdist/[22m[32mmanifest.webmanifest                        [39m[1m[2m    0.45 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                                  [39m[1m[2m    7.53 kB[22m[1m[22m
+[2mdist/[22m[35massets/main-CCw5lZWi.css                    [39m[1m[2m  227.86 kB[22m[1m[22m
+[2mdist/[22m[36massets/workbox-window.prod.es5-BJ8mGsQ1.js  [39m[1m[2m    8.17 kB[22m[1m[22m[2m │ map:    14.02 kB[22m
+[2mdist/[22m[36massets/react-core-BiOyjeq7.js               [39m[1m[2m  213.72 kB[22m[1m[22m[2m │ map:   331.70 kB[22m
+[2mdist/[22m[36massets/vendor-CcfR23aJ.js                   [39m[1m[2m  420.82 kB[22m[1m[22m[2m │ map:   756.90 kB[22m
+[2mdist/[22m[36massets/main-BnJqTFbg.js                     [39m[1m[33m2,605.84 kB[39m[22m[2m │ map: 4,466.94 kB[22m
+[32m✓ built in 36.71s[39m
+[31merror during build:
+Error: 
+  Configure "workbox.maximumFileSizeToCacheInBytes" to change the limit: the default value is 2 MiB.
+  Check https://vite-pwa-org.netlify.app/guide/faq.html#missing-assets-from-sw-precache-manifest for more information.
+  Assets exceeding the limit:
+  - assets/main-BnJqTFbg.js is 2.61 MB, and won't be precached.
+
+    at logWorkboxResult (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite-plugin-pwa/dist/chunk-G4TAN34B.js:44:13)
+    at generateServiceWorker (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite-plugin-pwa/dist/index.js:209:3)
+    at async _generateSW (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite-plugin-pwa/dist/index.js:234:5)
+    at async Object.handler (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite-plugin-pwa/dist/index.js:425:13)
+    at async PluginDriver.hookParallel (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/rollup/dist/es/shared/node-entry.js:22173:17)
+    at async Object.close (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/rollup/dist/es/shared/node-entry.js:23187:13)
+    at async build (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:65716:17)
+    at async CAC.<anonymous> (file:///C:/Users/dejia/Desktop/App%20Development/2025%20APP%20CHURCH%20APP/thepowerhouse/node_modules/vite/dist/node/cli.js:829:5)[39m
