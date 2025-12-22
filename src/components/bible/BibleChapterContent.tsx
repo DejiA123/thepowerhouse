@@ -1283,20 +1283,20 @@ export const BibleChapterContent = ({
       }
 
       {/* Bible Navigation Controls */}
-      <div className="bible-navigation-controls">
-        <div className="flex items-center justify-center space-x-4">
+      <div className="bible-navigation-controls fixed bottom-24 left-0 right-0 z-40 pointer-events-none">
+        <div className="flex items-center justify-center space-x-6 pointer-events-auto">
           <button
             onClick={handlePreviousChapter}
             disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
-            className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg border border-gray-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
+            <ChevronLeft className="w-6 h-6 text-black" />
           </button>
 
           <button
             onClick={handlePlayPause}
             disabled={globalAudio?.audioState.isLoading || false}
-            className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
+            className="w-16 h-16 flex items-center justify-center bg-white text-black rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
             title={
               globalAudio?.audioState.isLoading
                 ? "Loading audio..."
@@ -1308,22 +1308,22 @@ export const BibleChapterContent = ({
             }
           >
             {globalAudio?.audioState.isLoading ? (
-              <Volume2 className="w-5 h-5 opacity-50" />
+              <Volume2 className="w-8 h-8 opacity-50" />
             ) : (globalAudio?.audioState.isPlaying &&
               globalAudio?.audioState.currentBook === selectedBook &&
               globalAudio?.audioState.currentChapter === selectedChapter) ? (
-              <Pause className="w-5 h-5" />
+              <Pause className="w-8 h-8 fill-current" />
             ) : (
-              <Play className="w-5 h-5 ml-0.5" />
+              <Play className="w-8 h-8 ml-1 fill-current" />
             )}
           </button>
 
           <button
             onClick={handleNextChapter}
             disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
-            className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg border border-gray-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
-            <ChevronRight className="w-5 h-5 text-foreground" />
+            <ChevronRight className="w-6 h-6 text-black" />
           </button>
         </div>
 
