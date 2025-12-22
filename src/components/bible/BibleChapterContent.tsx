@@ -842,14 +842,14 @@ export const BibleChapterContent = ({
             onClick={onBackToChapters}
             className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
           >
-            <span className="text-sm font-semibold text-gray-900">{getBookDisplayName()} {selectedChapter}</span>
+            <span className="text-sm font-semibold text-gray-900 font-sans">{getBookDisplayName()} {selectedChapter}</span>
           </button>
 
           <button
             onClick={() => onVersionSelectorOpen?.()}
             className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
           >
-            <span className="text-sm font-bold text-gray-900">{getVersionDisplayName(selectedVersion)}</span>
+            <span className="text-sm font-bold text-gray-900 font-sans">{getVersionDisplayName(selectedVersion)}</span>
           </button>
         </div>
 
