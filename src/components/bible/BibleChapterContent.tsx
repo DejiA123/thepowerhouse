@@ -953,7 +953,7 @@ export const BibleChapterContent = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           </div>
         ) : chapterContent ? (
-          <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="max-w-4xl mx-auto px-4 pt-2 pb-32">
             {/* Multi-select controls - REMOVED FROM TOP */}
             {/* Bible Text */}
             <div className="space-y-4" key={settingsKey}>
