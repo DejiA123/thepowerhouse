@@ -547,8 +547,9 @@ const BibleNotesPage = () => {
                                 variant="ghost"
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                                 onClick={() => setShowNoteDialog(false)}
+                                aria-label="Close"
                             >
-                                <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                                <X className="w-7 h-7 text-gray-900 dark:text-gray-100 stroke-[2.5]" />
                             </Button>
                         </div>
                     </div>
