@@ -78,20 +78,20 @@ export const BibleChapterContent = ({
 
   // Use live preferences so font-size updates apply immediately without navigating
   const { preferences, isLoaded } = useBiblePreferences();
-  
+
   // Don't use preferences.fontSize for font size management - it's handled independently
   // const effectiveFontSize = isLoaded ? preferences.fontSize : fontSize;
-  
+
   console.log('🔍 BibleChapterContent: Font size source of truth:', {
-      preferencesFontSize: preferences?.fontSize,
-      propFontSize: fontSize,
-      isLoaded: isLoaded
+    preferencesFontSize: preferences?.fontSize,
+    propFontSize: fontSize,
+    isLoaded: isLoaded
   });
 
   // Debug: Log font size initialization and changes
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
+
   console.log('🔍 BibleChapterContent: Font size state:', {
     preferencesFontSize: preferences?.fontSize,
     propFontSize: fontSize,
@@ -109,6 +109,10 @@ export const BibleChapterContent = ({
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+
+  // Scroll header state
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
   // Use currentFontSize as the single source of truth for font size
   const [currentFontSize, setCurrentFontSize] = useState(() => {
@@ -172,14 +176,14 @@ export const BibleChapterContent = ({
         selectedBook: selectedBook,
         selectedChapter: selectedChapter
       });
-      
+
       // Update current font size immediately
       console.log('🔍 BibleChapterContent: Setting currentFontSize to:', newFontSize);
       setCurrentFontSize(newFontSize);
-      
+
       // Force a re-render to apply the new font size immediately
       setForceUpdate(prev => prev + 1);
-      
+
       // Also try to reload preferences from localStorage to ensure they're up to date
       try {
         const savedPrefs = JSON.parse(localStorage.getItem('bible-preferences') || '{}');
@@ -190,11 +194,11 @@ export const BibleChapterContent = ({
       } catch (error) {
         console.warn('🔍 BibleChapterContent: Failed to reload preferences from localStorage:', error);
       }
-      
+
       // Also update CSS property immediately
       document.documentElement.style.setProperty('--bible-font-size', `${newFontSize}px`);
       console.log('🔍 BibleChapterContent: Set CSS custom property to:', `${newFontSize}px`);
-      
+
       // Force multiple re-renders to ensure the change is applied
       setTimeout(() => {
         setForceUpdate(prev => prev + 1);
@@ -210,7 +214,7 @@ export const BibleChapterContent = ({
     // Listen for custom events
     window.addEventListener('fontSizeChanged', handleFontSizeChange as EventListener);
     console.log('🔍 BibleChapterContent: Added fontSizeChanged event listener');
-    
+
     // Listen for preference changes from other components
     const handlePreferenceChange = (event: CustomEvent) => {
       const newPreferences = event.detail.preferences;
@@ -221,7 +225,7 @@ export const BibleChapterContent = ({
         setForceUpdate(prev => prev + 1);
       }
     };
-    
+
     window.addEventListener('biblePreferencesChanged', handlePreferenceChange as EventListener);
     console.log('🔍 BibleChapterContent: Added biblePreferencesChanged event listener');
 
@@ -232,19 +236,53 @@ export const BibleChapterContent = ({
     };
   }, [selectedBook, selectedChapter]);
 
+  // Handle scroll events for header and bottom nav transition
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
 
-  
+    let lastScrollTop = 0;
+    const body = document.body;
+
+    const handleScroll = () => {
+      const scrollTop = scrollContainer.scrollTop;
+
+      // Header transition logic
+      setIsScrolled(scrollTop > 20);
+
+      // Bottom Navigation visibility logic
+      // Hide bottom nav when scrolling down and past 50px
+      // Show when scrolling up
+      if (scrollTop > lastScrollTop && scrollTop > 50) {
+        body.classList.add('bible-reading-mode');
+      } else {
+        body.classList.remove('bible-reading-mode');
+      }
+
+      lastScrollTop = scrollTop;
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      // Cleanup class on unmount
+      body.classList.remove('bible-reading-mode');
+    };
+  }, []);
+
+
+
   // Create a key that changes when any setting changes to force re-render
   const settingsKey = `fontSize-${currentFontSize}-pitch-${pitch}-rate-${rate}-redLetters-${redLetters}-menu${menuSettingsVersion}-force${forceUpdate}`;
-  
+
   // Global audio context for persistent audio across pages
   const globalAudio = useGlobalAudio();
-  
+
   // MP3 Audio state
   const [isLoading, setIsLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
-  
+
   // Use GlobalAudioContext state for playing status
   const isPlaying = globalAudio?.audioState.isPlaying || false;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -254,7 +292,7 @@ export const BibleChapterContent = ({
     if ('mediaSession' in navigator && audioRef.current) {
       const bookName = getBookDisplayName();
       const versionName = getVersionDisplayName(selectedVersion);
-      
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: `${bookName} ${selectedChapter}`,
         artist: `Bible Audio - ${versionName}`,
@@ -307,7 +345,7 @@ export const BibleChapterContent = ({
         if (audioRef.current) {
           const skipTime = details.seekOffset || 10;
           audioRef.current.currentTime = Math.min(
-            audioRef.current.duration, 
+            audioRef.current.duration,
             audioRef.current.currentTime + skipTime
           );
         }
@@ -315,7 +353,7 @@ export const BibleChapterContent = ({
 
       // Update playback state
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-      
+
       console.log('🎵 Media Session updated:', {
         title: `${bookName} ${selectedChapter}`,
         artist: `Bible Audio - ${versionName}`,
@@ -351,7 +389,7 @@ export const BibleChapterContent = ({
       const handleMessage = (event: MessageEvent) => {
         if (event.data && event.data.type === 'AUDIO_CONTROL') {
           console.log('🎵 Received audio control from service worker:', event.data.action);
-          
+
           switch (event.data.action) {
             case 'play':
               if (audioRef.current && audioRef.current.paused) {
@@ -374,7 +412,7 @@ export const BibleChapterContent = ({
       };
 
       navigator.serviceWorker.addEventListener('message', handleMessage);
-      
+
       return () => {
         navigator.serviceWorker.removeEventListener('message', handleMessage);
       };
@@ -384,7 +422,7 @@ export const BibleChapterContent = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   // Set up callbacks for global audio context
   useEffect(() => {
     if (globalAudio) {
@@ -392,14 +430,14 @@ export const BibleChapterContent = ({
         console.log('🎵 Global audio: Chapter change callback triggered', { chapter, isAutoPlay });
         onChapterChange?.(chapter, isAutoPlay);
       });
-      
+
       globalAudio.setBookChangeCallback((book: string, chapter: number, isAutoPlay: boolean) => {
         console.log('🎵 Global audio: Book change callback triggered', { book, chapter, isAutoPlay });
         onBookChange?.(book, chapter, isAutoPlay);
       });
     }
   }, [globalAudio, onChapterChange, onBookChange]);
-  
+
   // Highlights state
   const [highlights, setHighlights] = useState<any[]>([]);
 
@@ -413,25 +451,25 @@ export const BibleChapterContent = ({
 
   // Auto-play MP3 audio when audio URL is loaded and shouldAutoPlay is true
   useEffect(() => {
-    console.log('🔍 Audio auto-play effect triggered:', { 
-      shouldAutoPlay, 
-      hasAudioUrl: !!audioUrl, 
+    console.log('🔍 Audio auto-play effect triggered:', {
+      shouldAutoPlay,
+      hasAudioUrl: !!audioUrl,
       hasGlobalAudio: !!globalAudio,
       isLoading,
       isPlaying,
-      audioError: !!audioError 
+      audioError: !!audioError
     });
-    
+
     if (shouldAutoPlay && audioUrl && globalAudio && !isLoading && !audioError && !isPlaying) {
       console.log('🎵 BibleChapterContent: Auto-playing MP3 audio for next chapter via GlobalAudioContext');
-      
+
       // Use GlobalAudioContext to play the audio with auto-play next enabled
       const playAudio = async () => {
         try {
           await globalAudio.playBibleChapterMP3(
-            selectedBook, 
-            selectedChapter, 
-            selectedVersion, 
+            selectedBook,
+            selectedChapter,
+            selectedVersion,
             autoPlayNext, // Enable auto-play next chapter
             false // loopChapter
           );
@@ -444,10 +482,10 @@ export const BibleChapterContent = ({
           onAutoPlayTriggered?.();
         }
       };
-      
+
       // Wait a small amount to ensure everything is ready
       const playTimeout = setTimeout(playAudio, 100);
-      
+
       return () => clearTimeout(playTimeout);
     }
   }, [shouldAutoPlay, audioUrl, globalAudio, isLoading, audioError, isPlaying, onAutoPlayTriggered, selectedBook, selectedChapter, selectedVersion, autoPlayNext]);
@@ -484,32 +522,32 @@ export const BibleChapterContent = ({
         console.log('🔍 No selectedVersion available');
         return;
       }
-      
+
       console.log('🔍 Loading MP3 audio with params:', {
         selectedBook,
         selectedChapter,
         selectedVersion
       });
-      
+
       setIsLoading(true);
       setAudioError(null);
-      
+
       try {
         // Generate the expected filename
         const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated filename:', fileName);
-        
+
         // Directly get the audio URL - much faster than full bucket listing
         console.log('🔍 Getting audio URL directly...');
-        
+
         const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
         console.log('🔍 Generated URL:', url);
-        
+
         if (url) {
           setAudioUrl(url);
           console.log(`🎵 MP3 audio loaded: ${url}`);
           console.log(`🔍 Audio URL set, shouldAutoPlay: ${shouldAutoPlay}, isLoading: ${isLoading}`);
-          
+
           // Test if the URL actually works
           try {
             const response = await fetch(url, { method: 'HEAD' });
@@ -550,16 +588,16 @@ export const BibleChapterContent = ({
     }
 
     // Check if we're currently playing the same chapter in global context
-    const isCurrentChapterPlaying = globalAudio.audioState.isPlaying && 
-      globalAudio.audioState.currentBook === selectedBook && 
+    const isCurrentChapterPlaying = globalAudio.audioState.isPlaying &&
+      globalAudio.audioState.currentBook === selectedBook &&
       globalAudio.audioState.currentChapter === selectedChapter;
 
     if (isCurrentChapterPlaying) {
       // Pause the current audio
       globalAudio.pause();
-    } else if (globalAudio.audioState.isPaused && 
-               globalAudio.audioState.currentBook === selectedBook && 
-               globalAudio.audioState.currentChapter === selectedChapter) {
+    } else if (globalAudio.audioState.isPaused &&
+      globalAudio.audioState.currentBook === selectedBook &&
+      globalAudio.audioState.currentChapter === selectedChapter) {
       // Resume the paused audio
       globalAudio.resume();
     } else {
@@ -575,10 +613,10 @@ export const BibleChapterContent = ({
 
       try {
         await globalAudio.playBibleChapterMP3(
-          selectedBook, 
-          selectedChapter, 
-          selectedVersion, 
-          autoPlayNext, 
+          selectedBook,
+          selectedChapter,
+          selectedVersion,
+          autoPlayNext,
           false // loopChapter
         );
       } catch (error) {
@@ -596,7 +634,7 @@ export const BibleChapterContent = ({
   // Get the book display name (e.g., "2 Peter" instead of "2pe")
   const getBookDisplayName = () => {
     if (book) return book.name;
-    
+
     // Fallback: try to convert API abbreviation to proper name
     const abbreviationMap: Record<string, string> = {
       '1sa': '1 Samuel', '2sa': '2 Samuel', '1ki': '1 Kings', '2ki': '2 Kings',
@@ -605,12 +643,12 @@ export const BibleChapterContent = ({
       '1pe': '1 Peter', '2pe': '2 Peter', '1jn': '1 John', '2jn': '2 John', '3jn': '3 John',
       'song': 'Song of Solomon', 'sos': 'Song of Solomon', 'eccl': 'Ecclesiastes'
     };
-    
+
     const normalizedBook = selectedBook.toLowerCase();
     if (abbreviationMap[normalizedBook]) {
       return abbreviationMap[normalizedBook];
     }
-    
+
     // Last resort: replace underscores and capitalize
     return selectedBook.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -618,24 +656,24 @@ export const BibleChapterContent = ({
   // Get the version display name from the versions array (same as modals)
   const getVersionDisplayName = (selectedVersion?: string) => {
     if (!selectedVersion) return "KJV";
-    
+
     // Find the version object in the versions array (same approach as modals)
     const currentVersion = versions.find(v => (v.id || v.abbreviation) === selectedVersion);
-    
+
     // Always use abbreviation if available, otherwise fall back to custom mapping
     if (currentVersion && currentVersion.abbreviation) {
       // Special handling: convert "ENGKJV" to "KJV" for display
       const displayName = currentVersion.abbreviation.toUpperCase();
       return displayName === 'ENGKJV' ? 'KJV' : displayName;
     }
-    
+
     // Fallback to the enhanced API service if not found in versions array
     return enhancedApiBibleService.getVersionDisplayName(selectedVersion);
   };
   // Clean common artifacts like inline references (e.g., 6:1 or 6.1) and footnote letters (a)
   const cleanVerseArtifacts = (input: string): string => {
     let cleaned = input;
-    
+
     // First, aggressively remove numbers before brackets
     cleaned = cleaned
       // Remove verse numbers that appear before bracketed numbers (multiple patterns)
@@ -650,7 +688,7 @@ export const BibleChapterContent = ({
       // Even more aggressive: remove any number that appears before text that contains brackets
       .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove verse numbers at start if text contains brackets
       .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' '); // Remove standalone numbers if text contains brackets
-    
+
     // Add consistent line breaks before verse numbers for better readability
     // Use a more direct approach to ensure ALL verse numbers get the same spacing
     cleaned = cleaned
@@ -662,7 +700,7 @@ export const BibleChapterContent = ({
       .replace(/\n{3,}/g, '\n\n')
       // Ensure the first verse number doesn't have line breaks at the start
       .replace(/^\n+(\d+)/g, '$1');
-    
+
     // Then apply other cleaning rules
     cleaned = cleaned
       // Remove verse numbers at the beginning of text (e.g., "1 In the beginning...")
@@ -684,7 +722,7 @@ export const BibleChapterContent = ({
       // Normalize leftover spacing
       .replace(/\s{2,}/g, ' ')
       .trim();
-    
+
     return cleaned;
   };
 
@@ -693,7 +731,7 @@ export const BibleChapterContent = ({
 
   const handlePreviousChapter = () => {
     const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
-    
+
     if (selectedChapter <= 1) {
       if (currentBookIndex > 0 && onBookChange) {
         const previousBook = allBooks[currentBookIndex - 1];
@@ -706,7 +744,7 @@ export const BibleChapterContent = ({
 
   const handleNextChapter = () => {
     const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
-    
+
     if (selectedChapter >= (book?.chapters || 0)) {
       if (currentBookIndex < allBooks.length - 1 && onBookChange) {
         const nextBook = allBooks[currentBookIndex + 1];
@@ -745,13 +783,13 @@ export const BibleChapterContent = ({
                 onBookChange(nextBook.apiName, 1, true); // true indicates this is auto-play
                 // Ensure playback starts and Media Session API is updated
                 setTimeout(() => {
-                if (audioRef.current) {
-                  audioRef.current.play();
-                  if ('mediaSession' in navigator) {
-                    navigator.mediaSession.playbackState = 'playing';
+                  if (audioRef.current) {
+                    audioRef.current.play();
+                    if ('mediaSession' in navigator) {
+                      navigator.mediaSession.playbackState = 'playing';
+                    }
                   }
-                }
-              }, 250);
+                }, 250);
               } else {
                 console.log(`🎵 Reached end of Bible - no more books to auto-play`);
               }
@@ -767,18 +805,18 @@ export const BibleChapterContent = ({
                   }
                 }
               }, 250);
-              }
-            };
-            // Use requestIdleCallback for better background compatibility
-            if (window.requestIdleCallback) {
-              window.requestIdleCallback(() => {
-                triggerNextChapter();
-              }, { timeout: 1000 });
-            } else {
-              // Fallback to setTimeout with longer delay for background
-              setTimeout(triggerNextChapter, document.hidden ? 500 : 100);
             }
+          };
+          // Use requestIdleCallback for better background compatibility
+          if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => {
+              triggerNextChapter();
+            }, { timeout: 1000 });
+          } else {
+            // Fallback to setTimeout with longer delay for background
+            setTimeout(triggerNextChapter, document.hidden ? 500 : 100);
           }
+        }
         }
         onPause={() => {
           // Update media session when paused
@@ -797,108 +835,92 @@ export const BibleChapterContent = ({
         playsInline={true}
       />
       {/* Header Bar */}
-      <div className="bible-header-full">
-        <div className="bible-header-buttons-full">
-          <button 
-            className="bible-book-button-full"
+      <div className="flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-100/50">
+        {/* Left Side: Book/Chapter and Version Pills */}
+        <div className="flex items-center gap-2">
+          <button
             onClick={onBackToChapters}
+            className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
           >
-            {getBookDisplayName()} {selectedChapter}
+            <span className="text-sm font-semibold text-gray-900">{getBookDisplayName()} {selectedChapter}</span>
           </button>
-          <button 
-            className="bible-version-button-full"
-            onClick={() => {
-              onVersionSelectorOpen?.();
-            }}
+
+          <button
+            onClick={() => onVersionSelectorOpen?.()}
+            className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
           >
-            {getVersionDisplayName(selectedVersion)}
+            <span className="text-sm font-bold text-gray-900">{getVersionDisplayName(selectedVersion)}</span>
           </button>
         </div>
-            
-        <div className="bible-header-icons-full">
-          <button 
-            className="bible-header-icon-full"
+
+        {/* Right Side: Action Icons */}
+        <div className="flex items-center gap-1">
+          <button
+            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
             onClick={handlePlayPause}
             disabled={globalAudio?.audioState.isLoading || false}
-            title={
-              globalAudio?.audioState.isLoading 
-                ? "Loading audio..." 
-                : (globalAudio?.audioState.isPlaying && 
-                   globalAudio?.audioState.currentBook === selectedBook && 
-                   globalAudio?.audioState.currentChapter === selectedChapter)
-                  ? "Pause audio" 
-                  : "Play audio"
-            }
           >
             {globalAudio?.audioState.isLoading ? (
-              <Volume2 className="w-4 h-4 opacity-50" />
-            ) : (globalAudio?.audioState.isPlaying && 
-                 globalAudio?.audioState.currentBook === selectedBook && 
-                 globalAudio?.audioState.currentChapter === selectedChapter) ? (
-              <Pause className="w-4 h-4" />
+              <Volume2 className="w-5 h-5 opacity-50" />
+            ) : (globalAudio?.audioState.isPlaying &&
+              globalAudio?.audioState.currentBook === selectedBook &&
+              globalAudio?.audioState.currentChapter === selectedChapter) ? (
+              <Pause className="w-5 h-5" />
             ) : (
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className="w-5 h-5" />
             )}
           </button>
-          <button 
-            className="bible-header-icon-full"
+
+          <button
+            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
             onClick={() => navigate('/bible-notes')}
-            title="Go to Bible Notes Hub"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-5 h-5" />
           </button>
-          <button 
-            className="bible-header-icon-full"
-            onClick={() => setShowHighlightsList(true)}
-            title="View your highlights"
+
+          <button
+            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
+            onClick={() => onSearchOpen?.()}
           >
-            <Pencil className="w-4 h-4" />
+            <Search className="w-5 h-5" />
           </button>
-          <button 
-            className="bible-header-icon-full"
-            onClick={() => {
-              onSearchOpen?.();
-            }}
+
+          <button
+            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
+            onClick={() => onMenuOpen?.()}
           >
-            <Search className="w-4 h-4" />
-          </button>
-          <button 
-            className="bible-header-icon-full"
-            onClick={() => {
-              onMenuOpen?.();
-            }}
-          >
-            <MoreVertical className="w-4 h-4" />
+            <MoreVertical className="w-5 h-5" />
           </button>
         </div>
       </div>
-              
+
       {/* Main Content Area */}
-      <div 
+
+      <div
         className="bible-main-content-full overscroll-none"
         onTouchStart={(e) => {
           // Only handle swipes if not on an interactive element
           if ((e.target as HTMLElement).closest('button, input, a, [role="button"]')) {
             return;
           }
-          
+
           const touch = e.touches[0];
           const startX = touch.clientX;
           const startY = touch.clientY;
           const startTime = Date.now();
           let isSwiping = false;
-          
+
           const handleTouchMove = (moveEvent: TouchEvent) => {
             const moveTouch = moveEvent.touches[0];
             const deltaX = moveTouch.clientX - startX;
-            
+
             // If horizontal movement is significant, mark as swiping and prevent scrolling
             if (Math.abs(deltaX) > 30) {
               isSwiping = true;
               moveEvent.preventDefault();
             }
           };
-          
+
           const handleTouchEnd = (endEvent: TouchEvent) => {
             const endTouch = endEvent.changedTouches[0];
             const endX = endTouch.clientX;
@@ -906,7 +928,7 @@ export const BibleChapterContent = ({
             const deltaX = endX - startX;
             const deltaY = Math.abs(endY - startY);
             const deltaTime = Date.now() - startTime;
-            
+
             // Check if it's a valid swipe (minimum distance and speed, more horizontal than vertical)
             if (Math.abs(deltaX) > 70 && deltaTime < 400 && Math.abs(deltaX) > deltaY * 2) {
               if (deltaX > 0) {
@@ -917,512 +939,514 @@ export const BibleChapterContent = ({
                 handleNextChapter();
               }
             }
-            
+
             document.removeEventListener('touchmove', handleTouchMove);
             document.removeEventListener('touchend', handleTouchEnd);
           };
-          
+
           document.addEventListener('touchmove', handleTouchMove, { passive: false });
           document.addEventListener('touchend', handleTouchEnd);
         }}
       >
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : chapterContent ? (
-            <div className="max-w-4xl mx-auto px-4 py-6">
-              {/* Multi-select controls - REMOVED FROM TOP */}
-                             {/* Bible Text */}
-               <div className="space-y-4" key={settingsKey}>
-                {(chapterContent.verses || []).filter((v, i, arr) => {
-                  const vn = Number(v.verse) || i + 1;
-                  return arr.findIndex(u => (Number(u.verse) || 0) === vn && (u.text || '').trim() === (v.text || '').trim()) === i;
-                }).map((verse, index) => {
-                   // Ensure we get the correct verse number - prefer verse.verse if it's a valid number
-                   let verseNumber: number;
-                   if (verse.verse && !isNaN(Number(verse.verse))) {
-                     verseNumber = Number(verse.verse);
-                   } else {
-                     verseNumber = index + 1;
-                   }
-                   
-                   // Debug: Log verse data to help identify duplication issues
-                   if (index < 5) { // Log first 5 verses to see more examples
-                     const hasBracketedNumbers = /\[\d+\]/.test(verse.text || '');
-                     const cleanedText = cleanVerseArtifacts(verse.text || '');
-                     const bracketMatches = (verse.text || '').match(/\[\d+\]/g) || [];
-                     console.log(`🔍 Verse ${index + 1}:`, {
-                       verseProperty: verse.verse,
-                       calculatedNumber: verseNumber,
-                       originalText: verse.text,
-                       cleanedText: cleanedText,
-                       bracketMatches: bracketMatches,
-                       textPreview: verse.text?.substring(0, 150) + '...',
-                       textStartsWithNumber: /^\d+/.test(verse.text || ''),
-                       hasBracketedNumbers: hasBracketedNumbers,
-                       hasNumbersBeforeBrackets: /\d+\s*\[\d+\]/.test(verse.text || ''),
-                       willShowUIVerseNumber: !hasBracketedNumbers,
-                       hasLineBreaks: cleanedText.includes('\n'),
-                       lineBreakCount: (cleanedText.match(/\n/g) || []).length
-                     });
-                   }
-                   
-                   const highlight = getHighlightForVerse(verseNumber);
-                   
-                   // Handle click: copy verse text to clipboard and select the verse
-                   const handleVerseClick = async () => {
-                     if (isMultiSelectMode) {
-                       // Toggle verse selection in multi-select mode
-                       setSelectedVerses(prev => {
-                         if (prev.includes(verseNumber)) {
-                           return prev.filter(v => v !== verseNumber);
-                         } else {
-                           return [...prev, verseNumber].sort((a, b) => a - b);
-                         }
-                       });
-                       return;
-                     }
-                     
-                     // Add this verse to selected verses and show the Select Verses button
-                     setSelectedVerses(prev => {
-                       if (prev.includes(verseNumber)) {
-                         return prev; // Already selected, keep as is
-                       } else {
-                         return [...prev, verseNumber].sort((a, b) => a - b);
-                       }
-                     });
-                     
-                     try {
-                       const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNumber}`;
-                       const cleanText = (verse.text || '').replace(/\s+/g, ' ').trim();
-                       const copyText = `${reference} - ${cleanText}`;
-                       if (navigator.clipboard && navigator.clipboard.writeText) {
-                         await navigator.clipboard.writeText(copyText);
-                       } else {
-                         const ta = document.createElement('textarea');
-                         ta.value = copyText;
-                         ta.style.position = 'fixed';
-                         ta.style.left = '-9999px';
-                         document.body.appendChild(ta);
-                         ta.select();
-                         try { document.execCommand('copy'); } catch {}
-                         document.body.removeChild(ta);
-                       }
-                       // Silent copy - no toast notification
-                     } catch (e) {
-                       console.error('Copy to clipboard failed:', e);
-                       // Silent error - no toast notification for copy failures
-                     }
-                     setSelectedVerse(verseNumber);
-                   };
+          </div>
+        ) : chapterContent ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            {/* Multi-select controls - REMOVED FROM TOP */}
+            {/* Bible Text */}
+            <div className="space-y-4" key={settingsKey}>
+              {(chapterContent.verses || []).filter((v, i, arr) => {
+                const vn = Number(v.verse) || i + 1;
+                return arr.findIndex(u => (Number(u.verse) || 0) === vn && (u.text || '').trim() === (v.text || '').trim()) === i;
+              }).map((verse, index) => {
+                // Ensure we get the correct verse number - prefer verse.verse if it's a valid number
+                let verseNumber: number;
+                if (verse.verse && !isNaN(Number(verse.verse))) {
+                  verseNumber = Number(verse.verse);
+                } else {
+                  verseNumber = index + 1;
+                }
 
-                   // Format text with Jesus' words in red for Gospels
-                   const formatText = (text: string) => {
-                     // The text is now clean from the wldeh/bible-api - no HTML cleaning needed
-                     let cleanText = cleanVerseArtifacts(text);
-                     
-                     // Convert line breaks to HTML breaks for proper rendering
-                     cleanText = cleanText.replace(/\n/g, '<br>');
-                     
-                     // Only fix any remaining truncated "LORD" text if present
-                     if (cleanText.includes('D ')) {
-                       cleanText = cleanText
-                         .replace(/\bD\b/g, 'LORD') // Replace standalone "D" with "LORD"
-                         .replace(/\bD\s+/g, 'LORD ') // Replace "D " with "LORD "
-                         .replace(/\s+D\b/g, ' LORD') // Replace " D" with " LORD"
-                         .replace(/\s+D\s+/g, ' LORD '); // Replace " D " with " LORD "
-                     }
-                     
-                     // DIRECT FIX: Ensure question marks are preserved
-                     // This is a safety net to ensure punctuation is not lost
-                     if (text.includes('?') && !cleanText.includes('?')) {
-                       console.warn(`⚠️ Question mark lost in processing for verse ${verseNumber}:`, {
-                         original: text,
-                         processed: cleanText
-                       });
-                       // Try to restore the question mark
-                       cleanText = cleanText.replace(/([^.!?])(\s*<br>\s*$)/, '$1?$2');
-                     }
-                     
-                     const gospels = ['Matthew', 'Mark', 'Luke', 'John'];
-                     const bookName = getBookDisplayName();
-                     
-                      if (redLetters && gospels.includes(bookName)) {
-                        // Wrap quoted speech (Jesus' words) in red
-                        // Supports straight quotes "..." and curly quotes " … "
-                        const formattedText = cleanText
-                          .replace(/([""])([^"""]+)([""])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
-                        return { 
-                          __html: DOMPurify.sanitize(formattedText, {
-                            ALLOWED_TAGS: ['span', 'br'],
-                            ALLOWED_ATTR: ['class']
-                          })
-                        };
+                // Debug: Log verse data to help identify duplication issues
+                if (index < 5) { // Log first 5 verses to see more examples
+                  const hasBracketedNumbers = /\[\d+\]/.test(verse.text || '');
+                  const cleanedText = cleanVerseArtifacts(verse.text || '');
+                  const bracketMatches = (verse.text || '').match(/\[\d+\]/g) || [];
+                  console.log(`🔍 Verse ${index + 1}:`, {
+                    verseProperty: verse.verse,
+                    calculatedNumber: verseNumber,
+                    originalText: verse.text,
+                    cleanedText: cleanedText,
+                    bracketMatches: bracketMatches,
+                    textPreview: verse.text?.substring(0, 150) + '...',
+                    textStartsWithNumber: /^\d+/.test(verse.text || ''),
+                    hasBracketedNumbers: hasBracketedNumbers,
+                    hasNumbersBeforeBrackets: /\d+\s*\[\d+\]/.test(verse.text || ''),
+                    willShowUIVerseNumber: !hasBracketedNumbers,
+                    hasLineBreaks: cleanedText.includes('\n'),
+                    lineBreakCount: (cleanedText.match(/\n/g) || []).length
+                  });
+                }
+
+                const highlight = getHighlightForVerse(verseNumber);
+
+                // Handle click: copy verse text to clipboard and select the verse
+                const handleVerseClick = async () => {
+                  if (isMultiSelectMode) {
+                    // Toggle verse selection in multi-select mode
+                    setSelectedVerses(prev => {
+                      if (prev.includes(verseNumber)) {
+                        return prev.filter(v => v !== verseNumber);
+                      } else {
+                        return [...prev, verseNumber].sort((a, b) => a - b);
                       }
-                      return { 
-                        __html: DOMPurify.sanitize(cleanText, {
-                          ALLOWED_TAGS: ['br'],
-                          ALLOWED_ATTR: []
-                        })
-                      };
-                   };
-                   
-                   const verseStyle = {
-                     fontSize: `${displayFontSize}px`, 
-                     lineHeight: '1.6',
-                     '--font-size': `${displayFontSize}px`,
-                     '--bible-font-size': `${displayFontSize}px`
-                   } as React.CSSProperties;
-                   console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${displayFontSize}px, style:`, verseStyle);
-                   console.log(`🔍 Current font size state: currentFontSize=${currentFontSize}, displayFontSize=${displayFontSize}, preferences.fontSize=${preferences.fontSize}`);
-                   
-                   // Apply highlight background if verse is highlighted
-                   // Force readable text color in dark mode when highlighted
-                   const highlightClass = highlight 
-                     ? `bg-${highlight.highlight_color}-200 rounded px-1 verse-highlight`
-                     : '';
-                   
-                    // Always show verse numbers beside each verse
-                    const shouldShowUIVerseNumber = true;
-                    
-                   // Debug: Log verse processing for problematic verses
-                   if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3 || verseNumber === 16) {
-                     const originalText = verse.text || '';
-                     const cleanedText = cleanVerseArtifacts(originalText);
-                     const formattedText = formatText(originalText);
-                     
-                     console.log(`🔍 Verse ${verseNumber} processing:`, {
-                       originalText: originalText,
-                       shouldShowUIVerseNumber: shouldShowUIVerseNumber,
-                       cleanedText: cleanedText,
-                       formattedText: formattedText,
-                       hasQuestionMark: originalText.includes('?'),
-                       cleanedHasQuestionMark: cleanedText.includes('?'),
-                       formattedHasQuestionMark: formattedText.__html?.includes('?')
-                     });
+                    });
+                    return;
+                  }
 
-                     // Special debug for John 3:16 to identify character before "For"
-                     if (verseNumber === 16 && originalText.includes('For')) {
-                       const forPosition = originalText.indexOf('For');
-                       const charBeforeFor = originalText.charAt(forPosition - 1);
-                       const charCodeBeforeFor = originalText.charCodeAt(forPosition - 1);
-                       
-                       console.log(`🔍 John 3:16 character analysis:`, {
-                         originalText: originalText,
-                         forPosition: forPosition,
-                         charBeforeFor: charBeforeFor,
-                         charCodeBeforeFor: charCodeBeforeFor,
-                         beforeFor: originalText.substring(0, forPosition),
-                         afterFor: originalText.substring(forPosition, forPosition + 20)
-                       });
-                     }
-                   }
-                   
-                    const isSelected = isMultiSelectMode && selectedVerses.includes(verseNumber);
-                    
-                    return (
-                    <p 
-                      key={`${settingsKey}-${index}`} 
-                      className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none ${isSelected ? 'bg-primary/20 rounded-md px-2 py-1 ring-1 ring-primary' : ''}`}
-                      style={verseStyle}
-                      onClick={handleVerseClick}
-                    >
-                        {/* Always show verse numbers beside each verse */}
-                        {shouldShowUIVerseNumber && (
+                  // Add this verse to selected verses and show the Select Verses button
+                  setSelectedVerses(prev => {
+                    if (prev.includes(verseNumber)) {
+                      return prev; // Already selected, keep as is
+                    } else {
+                      return [...prev, verseNumber].sort((a, b) => a - b);
+                    }
+                  });
+
+                  try {
+                    const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNumber}`;
+                    const cleanText = (verse.text || '').replace(/\s+/g, ' ').trim();
+                    const copyText = `${reference} - ${cleanText}`;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      await navigator.clipboard.writeText(copyText);
+                    } else {
+                      const ta = document.createElement('textarea');
+                      ta.value = copyText;
+                      ta.style.position = 'fixed';
+                      ta.style.left = '-9999px';
+                      document.body.appendChild(ta);
+                      ta.select();
+                      try { document.execCommand('copy'); } catch { }
+                      document.body.removeChild(ta);
+                    }
+                    // Silent copy - no toast notification
+                  } catch (e) {
+                    console.error('Copy to clipboard failed:', e);
+                    // Silent error - no toast notification for copy failures
+                  }
+                  setSelectedVerse(verseNumber);
+                };
+
+                // Format text with Jesus' words in red for Gospels
+                const formatText = (text: string) => {
+                  // The text is now clean from the wldeh/bible-api - no HTML cleaning needed
+                  let cleanText = cleanVerseArtifacts(text);
+
+                  // Convert line breaks to HTML breaks for proper rendering
+                  cleanText = cleanText.replace(/\n/g, '<br>');
+
+                  // Only fix any remaining truncated "LORD" text if present
+                  if (cleanText.includes('D ')) {
+                    cleanText = cleanText
+                      .replace(/\bD\b/g, 'LORD') // Replace standalone "D" with "LORD"
+                      .replace(/\bD\s+/g, 'LORD ') // Replace "D " with "LORD "
+                      .replace(/\s+D\b/g, ' LORD') // Replace " D" with " LORD"
+                      .replace(/\s+D\s+/g, ' LORD '); // Replace " D " with " LORD "
+                  }
+
+                  // DIRECT FIX: Ensure question marks are preserved
+                  // This is a safety net to ensure punctuation is not lost
+                  if (text.includes('?') && !cleanText.includes('?')) {
+                    console.warn(`⚠️ Question mark lost in processing for verse ${verseNumber}:`, {
+                      original: text,
+                      processed: cleanText
+                    });
+                    // Try to restore the question mark
+                    cleanText = cleanText.replace(/([^.!?])(\s*<br>\s*$)/, '$1?$2');
+                  }
+
+                  const gospels = ['Matthew', 'Mark', 'Luke', 'John'];
+                  const bookName = getBookDisplayName();
+
+                  if (redLetters && gospels.includes(bookName)) {
+                    // Wrap quoted speech (Jesus' words) in red
+                    // Supports straight quotes "..." and curly quotes " … "
+                    const formattedText = cleanText
+                      .replace(/([""])([^"""]+)([""])/g, '$1<span class="text-red-600 dark:text-red-400">$2</span>$3');
+                    return {
+                      __html: DOMPurify.sanitize(formattedText, {
+                        ALLOWED_TAGS: ['span', 'br'],
+                        ALLOWED_ATTR: ['class']
+                      })
+                    };
+                  }
+                  return {
+                    __html: DOMPurify.sanitize(cleanText, {
+                      ALLOWED_TAGS: ['br'],
+                      ALLOWED_ATTR: []
+                    })
+                  };
+                };
+
+                const verseStyle = {
+                  fontSize: `${displayFontSize}px`,
+                  lineHeight: '1.6',
+                  '--font-size': `${displayFontSize}px`,
+                  '--bible-font-size': `${displayFontSize}px`
+                } as React.CSSProperties;
+                console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${displayFontSize}px, style:`, verseStyle);
+                console.log(`🔍 Current font size state: currentFontSize=${currentFontSize}, displayFontSize=${displayFontSize}, preferences.fontSize=${preferences.fontSize}`);
+
+                // Apply highlight background if verse is highlighted
+                // Force readable text color in dark mode when highlighted
+                const highlightClass = highlight
+                  ? `bg-${highlight.highlight_color}-200 rounded px-1 verse-highlight`
+                  : '';
+
+                // Always show verse numbers beside each verse
+                const shouldShowUIVerseNumber = true;
+
+                // Debug: Log verse processing for problematic verses
+                if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3 || verseNumber === 16) {
+                  const originalText = verse.text || '';
+                  const cleanedText = cleanVerseArtifacts(originalText);
+                  const formattedText = formatText(originalText);
+
+                  console.log(`🔍 Verse ${verseNumber} processing:`, {
+                    originalText: originalText,
+                    shouldShowUIVerseNumber: shouldShowUIVerseNumber,
+                    cleanedText: cleanedText,
+                    formattedText: formattedText,
+                    hasQuestionMark: originalText.includes('?'),
+                    cleanedHasQuestionMark: cleanedText.includes('?'),
+                    formattedHasQuestionMark: formattedText.__html?.includes('?')
+                  });
+
+                  // Special debug for John 3:16 to identify character before "For"
+                  if (verseNumber === 16 && originalText.includes('For')) {
+                    const forPosition = originalText.indexOf('For');
+                    const charBeforeFor = originalText.charAt(forPosition - 1);
+                    const charCodeBeforeFor = originalText.charCodeAt(forPosition - 1);
+
+                    console.log(`🔍 John 3:16 character analysis:`, {
+                      originalText: originalText,
+                      forPosition: forPosition,
+                      charBeforeFor: charBeforeFor,
+                      charCodeBeforeFor: charCodeBeforeFor,
+                      beforeFor: originalText.substring(0, forPosition),
+                      afterFor: originalText.substring(forPosition, forPosition + 20)
+                    });
+                  }
+                }
+
+                const isSelected = isMultiSelectMode && selectedVerses.includes(verseNumber);
+
+                return (
+                  <p
+                    key={`${settingsKey}-${index}`}
+                    className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none ${isSelected ? 'bg-primary/20 rounded-md px-2 py-1 ring-1 ring-primary' : ''}`}
+                    style={verseStyle}
+                    onClick={handleVerseClick}
+                  >
+                    {/* Always show verse numbers beside each verse */}
+                    {shouldShowUIVerseNumber && (
                       <sup className="text-sm font-medium text-muted-foreground mr-2 relative top-0.5">
                         {verseNumber}
                       </sup>
-                        )}
-                      <span dangerouslySetInnerHTML={formatText(verse.text)} />
-                      </p>
-                    );
-                 })}
-              </div>
+                    )}
+                    <span dangerouslySetInnerHTML={formatText(verse.text)} />
+                  </p>
+                );
+              })}
             </div>
-          ) : (
-            <div className="flex items-center justify-center py-8">
-              <p className="text-gray-500">Unable to load chapter content.</p>
-            </div>
-          )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-gray-500">Unable to load chapter content.</p>
+          </div>
+        )}
       </div>
 
-                    {/* Floating Action Bar for Verse Selection */}
-                    {(selectedVerses.length > 0 || isMultiSelectMode) && (
-                      <div className="fixed top-1/2 right-4 transform -translate-y-1/2 flex flex-col gap-2 z-[9999] bg-background rounded-lg p-4 border-2 border-primary shadow-2xl">
-                        {/* Close Button */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedVerses([]);
-                            setIsMultiSelectMode(false);
-                          }}
-                          className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                          title="Close"
-                        >
-                          ✕
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
-                          className="text-xs font-semibold border-2"
-                        >
-                          {isMultiSelectMode ? 'Exit Select' : 'Select Verses'}
-                        </Button>
-                        
-                        {selectedVerses.length > 0 && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => setShowHighlightDialog(true)}
-                              className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white font-bold border-2 border-yellow-600 shadow-lg"
-                            >
-                              ✨ Highlight {selectedVerses.length > 1 && `(${selectedVerses.length})`}
-                            </Button>
-                            
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  const highlightsToRemove = selectedVerses
-                                    .map(verseNum => getHighlightForVerse(verseNum))
-                                    .filter(Boolean);
-                                  
-                                  if (highlightsToRemove.length > 0) {
-                                    const { error } = await supabase
-                                      .from('bible_highlights')
-                                      .delete()
-                                      .in('id', highlightsToRemove.map(h => h!.id));
-                                      
-                                    if (!error) {
-                                      await refetchHighlights();
-                                      toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
-                                    }
-                                  }
-                                } catch (error) {
-                                  console.error('Error removing highlights:', error);
-                                }
-                                setSelectedVerses([]);
-                              }}
-                              className="text-xs font-semibold border-2 border-red-500 text-red-600 hover:bg-red-50"
-                            >
-                              🗑️ Remove Highlight{selectedVerses.length > 1 && 's'}
-                            </Button>
-                            
-                            {isMultiSelectMode && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    const versesText = selectedVerses.map(verseNum => {
-                                      const verse = chapterContent?.verses?.find(v => {
-                                        const vNum = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0;
-                                        return vNum === verseNum;
-                                      });
-                                      const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNum}`;
-                                      const cleanText = (verse?.text || '').replace(/\s+/g, ' ').trim();
-                                      return `${reference} - ${cleanText}`;
-                                    }).join('\n\n');
-                                    
-                                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                                      await navigator.clipboard.writeText(versesText);
-                                    } else {
-                                      const ta = document.createElement('textarea');
-                                      ta.value = versesText;
-                                      ta.style.position = 'fixed';
-                                      ta.style.left = '-9999px';
-                                      document.body.appendChild(ta);
-                                      ta.select();
-                                      try { document.execCommand('copy'); } catch {}
-                                      document.body.removeChild(ta);
-                                    }
-                                    toast({ title: `Copied ${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''}` });
-                                  } catch (e) {
-                                    console.error('Copy to clipboard failed:', e);
-                                    toast({ title: 'Copy failed', variant: 'destructive' });
-                                  }
-                                }}
-                                className="text-xs font-semibold border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-                              >
-                                📋 Copy
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
+      {/* Floating Action Bar for Verse Selection */}
+      {
+        (selectedVerses.length > 0 || isMultiSelectMode) && (
+          <div className="fixed top-1/2 right-4 transform -translate-y-1/2 flex flex-col gap-2 z-[9999] bg-background rounded-lg p-4 border-2 border-primary shadow-2xl">
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedVerses([]);
+                setIsMultiSelectMode(false);
+              }}
+              className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+              title="Close"
+            >
+              ✕
+            </Button>
 
-                    {/* Bible Navigation Controls */}
-       <div className="bible-navigation-controls">
-         <div className="flex items-center justify-center space-x-4">
-           <button 
-             onClick={handlePreviousChapter}
-             disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
-              className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
-           >
-             <ChevronLeft className="w-5 h-5 text-foreground" />
-           </button>
-           
-           <button 
-             onClick={handlePlayPause}
-             disabled={globalAudio?.audioState.isLoading || false}
-             className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
-             title={
-               globalAudio?.audioState.isLoading 
-                 ? "Loading audio..." 
-                 : (globalAudio?.audioState.isPlaying && 
-                    globalAudio?.audioState.currentBook === selectedBook && 
-                    globalAudio?.audioState.currentChapter === selectedChapter)
-                   ? "Pause audio" 
-                   : "Play audio"
-             }
-           >
-             {globalAudio?.audioState.isLoading ? (
-               <Volume2 className="w-5 h-5 opacity-50" />
-             ) : (globalAudio?.audioState.isPlaying && 
-                   globalAudio?.audioState.currentBook === selectedBook && 
-                   globalAudio?.audioState.currentChapter === selectedChapter) ? (
-               <Pause className="w-5 h-5" />
-             ) : (
-               <Play className="w-5 h-5 ml-0.5" />
-             )}
-           </button>
-           
-           <button 
-             onClick={handleNextChapter}
-             disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
-             className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
-           >
-             <ChevronRight className="w-5 h-5 text-foreground" />
-           </button>
-         </div>
-         
-       </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+              className="text-xs font-semibold border-2"
+            >
+              {isMultiSelectMode ? 'Exit Select' : 'Select Verses'}
+            </Button>
 
-        {/* Bible Notes Dialog */}
-        <BibleNotesDialog
-          open={showNotesDialog}
-          onOpenChange={setShowNotesDialog}
-          book={selectedBook}
-          chapter={selectedChapter}
-        />
-
-        {/* All Highlights Dialog */}
-        <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Pencil className="w-5 h-5" />
-                Your Highlights
-              </DialogTitle>
-              <DialogDescription>
-                Select any verse to navigate to it
-              </DialogDescription>
-            </DialogHeader>
-            <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
-              setShowHighlightsList(false);
-              // Prefer parent callbacks if present
-              if (onBookChange && normalizeBookApiName(bookApi) !== normalizeBookApiName(selectedBook)) {
-                onBookChange(bookApi, chapterNum, false);
-              } else if (onChapterChange) {
-                onChapterChange(chapterNum, false);
-              }
-            }} />
-          </DialogContent>
-        </Dialog>
-
-        {/* Highlight Color Dialog */}
-        <Dialog open={showHighlightDialog} onOpenChange={setShowHighlightDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Palette className="w-5 h-5" />
-                Highlight {selectedVerses.length > 1 ? `${selectedVerses.length} Verses` : `Verse ${selectedVerse}`}
-              </DialogTitle>
-              <DialogDescription>
-                Choose a highlight color for {selectedVerses.length > 1 ? `these ${selectedVerses.length} verses` : 'this Bible verse'} to help with your study and reference.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid grid-cols-3 gap-3 py-4">
-              {[
-                { name: 'Yellow', value: 'yellow', class: 'bg-yellow-200' },
-                { name: 'Green', value: 'green', class: 'bg-green-200' },
-                { name: 'Blue', value: 'blue', class: 'bg-blue-200' },
-                { name: 'Pink', value: 'pink', class: 'bg-pink-200' },
-                { name: 'Purple', value: 'purple', class: 'bg-purple-200' },
-                { name: 'Remove', value: 'remove', class: 'bg-gray-200' },
-              ].map((color) => (
+            {selectedVerses.length > 0 && (
+              <>
                 <Button
-                  key={color.value}
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowHighlightDialog(true)}
+                  className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white font-bold border-2 border-yellow-600 shadow-lg"
+                >
+                  ✨ Highlight {selectedVerses.length > 1 && `(${selectedVerses.length})`}
+                </Button>
+
+                <Button
                   variant="outline"
-                  className={`h-12 ${color.class} hover:opacity-80`}
+                  size="sm"
                   onClick={async () => {
-                    if (color.value === 'remove') {
-                      // Remove highlights from all selected verses
-                      try {
-                        const highlightsToRemove = selectedVerses
-                          .map(verseNum => getHighlightForVerse(verseNum))
-                          .filter(Boolean);
-                        
-                        if (highlightsToRemove.length > 0) {
-                          const { error } = await supabase
-                            .from('bible_highlights')
-                            .delete()
-                            .in('id', highlightsToRemove.map(h => h!.id));
-                          
-                          if (!error) {
-                            await refetchHighlights();
-                            toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
-                          }
-                        }
-                      } catch (error) {
-                        console.error('Error removing highlights:', error);
-                      }
-                    } else {
-                      // Add/update highlights for all selected verses
-                      try {
-                        const highlightsData = selectedVerses.map(verseNum => ({
-                          user_id: user?.id,
-                          book: selectedBook,
-                          chapter: selectedChapter,
-                          verse: verseNum,
-                          highlight_color: color.value,
-                        }));
-                        
+                    try {
+                      const highlightsToRemove = selectedVerses
+                        .map(verseNum => getHighlightForVerse(verseNum))
+                        .filter(Boolean);
+
+                      if (highlightsToRemove.length > 0) {
                         const { error } = await supabase
                           .from('bible_highlights')
-                          .upsert(highlightsData);
-                        
+                          .delete()
+                          .in('id', highlightsToRemove.map(h => h!.id));
+
                         if (!error) {
                           await refetchHighlights();
-                          toast({ 
-                            title: `Verse${selectedVerses.length > 1 ? 's' : ''} Highlighted`, 
-                            description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} highlighted in ${color.name}` 
-                          });
+                          toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
                         }
-                      } catch (error) {
-                        console.error('Error adding highlights:', error);
                       }
+                    } catch (error) {
+                      console.error('Error removing highlights:', error);
                     }
-                    setShowHighlightDialog(false);
                     setSelectedVerses([]);
                   }}
+                  className="text-xs font-semibold border-2 border-red-500 text-red-600 hover:bg-red-50"
                 >
-                  {color.name}
+                  🗑️ Remove Highlight{selectedVerses.length > 1 && 's'}
                 </Button>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
 
+                {isMultiSelectMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const versesText = selectedVerses.map(verseNum => {
+                          const verse = chapterContent?.verses?.find(v => {
+                            const vNum = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0;
+                            return vNum === verseNum;
+                          });
+                          const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNum}`;
+                          const cleanText = (verse?.text || '').replace(/\s+/g, ' ').trim();
+                          return `${reference} - ${cleanText}`;
+                        }).join('\n\n');
+
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(versesText);
+                        } else {
+                          const ta = document.createElement('textarea');
+                          ta.value = versesText;
+                          ta.style.position = 'fixed';
+                          ta.style.left = '-9999px';
+                          document.body.appendChild(ta);
+                          ta.select();
+                          try { document.execCommand('copy'); } catch { }
+                          document.body.removeChild(ta);
+                        }
+                        toast({ title: `Copied ${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''}` });
+                      } catch (e) {
+                        console.error('Copy to clipboard failed:', e);
+                        toast({ title: 'Copy failed', variant: 'destructive' });
+                      }
+                    }}
+                    className="text-xs font-semibold border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                  >
+                    📋 Copy
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )
+      }
+
+      {/* Bible Navigation Controls */}
+      <div className="bible-navigation-controls">
+        <div className="flex items-center justify-center space-x-4">
+          <button
+            onClick={handlePreviousChapter}
+            disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
+            className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
+          >
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </button>
+
+          <button
+            onClick={handlePlayPause}
+            disabled={globalAudio?.audioState.isLoading || false}
+            className="p-3 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 disabled:opacity-50"
+            title={
+              globalAudio?.audioState.isLoading
+                ? "Loading audio..."
+                : (globalAudio?.audioState.isPlaying &&
+                  globalAudio?.audioState.currentBook === selectedBook &&
+                  globalAudio?.audioState.currentChapter === selectedChapter)
+                  ? "Pause audio"
+                  : "Play audio"
+            }
+          >
+            {globalAudio?.audioState.isLoading ? (
+              <Volume2 className="w-5 h-5 opacity-50" />
+            ) : (globalAudio?.audioState.isPlaying &&
+              globalAudio?.audioState.currentBook === selectedBook &&
+              globalAudio?.audioState.currentChapter === selectedChapter) ? (
+              <Pause className="w-5 h-5" />
+            ) : (
+              <Play className="w-5 h-5 ml-0.5" />
+            )}
+          </button>
+
+          <button
+            onClick={handleNextChapter}
+            disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
+            className="p-2 rounded-lg bg-background border border-border hover:bg-accent disabled:opacity-50"
+          >
+            <ChevronRight className="w-5 h-5 text-foreground" />
+          </button>
+        </div>
 
       </div>
-    );
+
+      {/* Bible Notes Dialog */}
+      <BibleNotesDialog
+        open={showNotesDialog}
+        onOpenChange={setShowNotesDialog}
+        book={selectedBook}
+        chapter={selectedChapter}
+      />
+
+      {/* All Highlights Dialog */}
+      <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              Your Highlights
+            </DialogTitle>
+            <DialogDescription>
+              Select any verse to navigate to it
+            </DialogDescription>
+          </DialogHeader>
+          <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
+            setShowHighlightsList(false);
+            // Prefer parent callbacks if present
+            if (onBookChange && normalizeBookApiName(bookApi) !== normalizeBookApiName(selectedBook)) {
+              onBookChange(bookApi, chapterNum, false);
+            } else if (onChapterChange) {
+              onChapterChange(chapterNum, false);
+            }
+          }} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Highlight Color Dialog */}
+      <Dialog open={showHighlightDialog} onOpenChange={setShowHighlightDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Palette className="w-5 h-5" />
+              Highlight {selectedVerses.length > 1 ? `${selectedVerses.length} Verses` : `Verse ${selectedVerse}`}
+            </DialogTitle>
+            <DialogDescription>
+              Choose a highlight color for {selectedVerses.length > 1 ? `these ${selectedVerses.length} verses` : 'this Bible verse'} to help with your study and reference.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-3 gap-3 py-4">
+            {[
+              { name: 'Yellow', value: 'yellow', class: 'bg-yellow-200' },
+              { name: 'Green', value: 'green', class: 'bg-green-200' },
+              { name: 'Blue', value: 'blue', class: 'bg-blue-200' },
+              { name: 'Pink', value: 'pink', class: 'bg-pink-200' },
+              { name: 'Purple', value: 'purple', class: 'bg-purple-200' },
+              { name: 'Remove', value: 'remove', class: 'bg-gray-200' },
+            ].map((color) => (
+              <Button
+                key={color.value}
+                variant="outline"
+                className={`h-12 ${color.class} hover:opacity-80`}
+                onClick={async () => {
+                  if (color.value === 'remove') {
+                    // Remove highlights from all selected verses
+                    try {
+                      const highlightsToRemove = selectedVerses
+                        .map(verseNum => getHighlightForVerse(verseNum))
+                        .filter(Boolean);
+
+                      if (highlightsToRemove.length > 0) {
+                        const { error } = await supabase
+                          .from('bible_highlights')
+                          .delete()
+                          .in('id', highlightsToRemove.map(h => h!.id));
+
+                        if (!error) {
+                          await refetchHighlights();
+                          toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error removing highlights:', error);
+                    }
+                  } else {
+                    // Add/update highlights for all selected verses
+                    try {
+                      const highlightsData = selectedVerses.map(verseNum => ({
+                        user_id: user?.id,
+                        book: selectedBook,
+                        chapter: selectedChapter,
+                        verse: verseNum,
+                        highlight_color: color.value,
+                      }));
+
+                      const { error } = await supabase
+                        .from('bible_highlights')
+                        .upsert(highlightsData);
+
+                      if (!error) {
+                        await refetchHighlights();
+                        toast({
+                          title: `Verse${selectedVerses.length > 1 ? 's' : ''} Highlighted`,
+                          description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} highlighted in ${color.name}`
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error adding highlights:', error);
+                    }
+                  }
+                  setShowHighlightDialog(false);
+                  setSelectedVerses([]);
+                }}
+              >
+                {color.name}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+    </div >
+  );
 };

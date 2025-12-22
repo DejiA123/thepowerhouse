@@ -169,7 +169,7 @@ const Layout = ({ children }: LayoutProps) => {
         }}
       />
 
-      {showChrome && <Header />}
+      {showChrome && location.pathname !== '/bible' && <Header />}
 
       {/* Main Content with safe area top padding */}
       <main id="main-content" className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>

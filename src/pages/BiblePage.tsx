@@ -15,6 +15,8 @@ import { BibleSearch } from "@/components/bible/BibleSearch";
 import { BibleHistory, addToBibleHistory } from "@/components/bible/BibleHistory";
 import { BibleMenuDialog } from "@/components/bible/BibleMenuDialog";
 import BibleNotes from "@/components/bible/BibleNotes";
+import AllHighlightsList from "@/components/bible/AllHighlightsList";
+import { Pencil } from "lucide-react";
 
 
 import { Button } from "@/components/ui/button";
@@ -23,20 +25,20 @@ import { FileText, Volume2, Smartphone } from "lucide-react";
 
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
-  
+
   // Add styles to prevent page scrolling - only allow content scrolling
   useEffect(() => {
     // Apply fixed height and overflow hidden to body when on Bible page
     document.body.style.height = '100vh';
     document.body.style.overflow = 'hidden';
-    
+
     // Cleanup function to restore normal scrolling when leaving the page
     return () => {
       document.body.style.height = '';
       document.body.style.overflow = '';
     };
   }, []);
-  
+
   const {
     preferences,
     isLoaded,
@@ -60,6 +62,7 @@ const BiblePage = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
   const [menuSettingsVersion, setMenuSettingsVersion] = useState(0);
   const [currentVerse, setCurrentVerse] = useState<number>(0);
@@ -82,7 +85,7 @@ const BiblePage = () => {
   useEffect(() => {
     const loadVersions = async () => {
       const bibleVersions = await enhancedApiBibleService.getVersions();
-      const validVersions = bibleVersions.filter(version => 
+      const validVersions = bibleVersions.filter(version =>
         version && version.abbreviation && version.name
       );
       setVersions(validVersions);
@@ -95,12 +98,12 @@ const BiblePage = () => {
     setLoading(true);
     setCurrentVerse(0);
     setLoadError(null);
-    
+
     try {
       const normalizedBook = normalizeBookApiName(bookApiName);
       const chapter = await enhancedApiBibleService.getChapter(selectedVersion, normalizedBook, chapterNum);
       console.log(`📖 BiblePage: Received chapter data:`, chapter);
-      
+
       if (chapter && chapter.verses && chapter.verses.length > 0) {
         setChapterContent(chapter);
         console.log(`✅ BiblePage: Successfully loaded ${chapter.verses.length} verses`);
@@ -264,7 +267,7 @@ const BiblePage = () => {
       title: "Translation Changed",
       description: `Switched to ${selectedVersion?.name || selectedVersion?.abbreviation?.toUpperCase() || versionId} translation`,
     });
-    
+
     // If we're currently viewing a chapter, reload it with the new version
     if (selectedBook && selectedChapter) {
       loadChapter(selectedBook, selectedChapter);
@@ -281,7 +284,7 @@ const BiblePage = () => {
     setShowSearch(false);
     // Add to reading history
     addToBibleHistory(book, chapter);
-    
+
     if (verse) {
       // Highlight the specific verse
       setTimeout(() => {
@@ -325,7 +328,7 @@ const BiblePage = () => {
       </div>
     );
   }
-  
+
   console.log('🔍 BiblePage: Preferences loaded, rendering content');
 
 
@@ -338,7 +341,7 @@ const BiblePage = () => {
       selectedChapter,
       selectedBook
     });
-    
+
     if (loadError) {
       return (
         <div className="flex flex-col items-center justify-center py-12 space-y-3">
@@ -433,8 +436,8 @@ const BiblePage = () => {
     }
 
     return (
-      <BibleBookList 
-        onBookSelect={handleBookSelect} 
+      <BibleBookList
+        onBookSelect={handleBookSelect}
         onCancel={() => {
           console.log('Cancel book selection - returning to current chapter');
           // If user has a preferred book and chapter, return to that
@@ -442,12 +445,12 @@ const BiblePage = () => {
             setSelectedBook(preferences.preferredBook);
             setSelectedChapter(preferences.preferredChapter);
             loadChapter(preferences.preferredBook, preferences.preferredChapter);
-                  } else {
-          // Fallback to default if no preferences
-          setSelectedBook('genesis');
-          setSelectedChapter(1);
-          loadChapter('genesis', 1);
-        }
+          } else {
+            // Fallback to default if no preferences
+            setSelectedBook('genesis');
+            setSelectedChapter(1);
+            loadChapter('genesis', 1);
+          }
         }}
         onHistory={() => setShowHistory(true)}
       />
@@ -462,7 +465,7 @@ const BiblePage = () => {
     return (
       <div className="min-h-screen bg-background pb-[72px]">
         {renderContent()}
-        
+
         {/* Version Selector Dialog */}
         <Dialog open={showVersionSelector} onOpenChange={setShowVersionSelector}>
           <DialogContent className="max-h-[80vh] overflow-y-auto">
@@ -515,7 +518,32 @@ const BiblePage = () => {
             resetToReasonableDefaults();
             setShowMenu(false);
           }}
+          onViewHighlights={() => setShowHighlightsList(true)}
+          onViewNotes={() => {
+            setShowNotes(true);
+          }}
         />
+
+        {/* Highlights List Dialog (Lifted from BibleChapterContent) */}
+        <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="w-5 h-5" />
+                Your Highlights
+              </DialogTitle>
+              <DialogDescription>
+                Select any verse to navigate to it
+              </DialogDescription>
+            </DialogHeader>
+            <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
+              setShowHighlightsList(false);
+              if (bookApi && chapterNum) {
+                handleBookChange(bookApi, chapterNum, false);
+              }
+            }} />
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -524,7 +552,7 @@ const BiblePage = () => {
   return (
     <div className="h-screen  bg-background overscroll-contain">
       {renderContent()}
-      
+
       {/* Bible History Dialog */}
       <BibleHistory
         isOpen={showHistory}

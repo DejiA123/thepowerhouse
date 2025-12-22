@@ -12,11 +12,20 @@ interface BibleMenuDialogProps {
   onClose: () => void;
   onSettingsChange?: () => void;
   onResetToGenesis?: () => void;
+  onViewHighlights?: () => void;
+  onViewNotes?: () => void;
 }
 
-export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGenesis }: BibleMenuDialogProps) => {
+export const BibleMenuDialog = ({
+  isOpen,
+  onClose,
+  onSettingsChange,
+  onResetToGenesis,
+  onViewHighlights,
+  onViewNotes
+}: BibleMenuDialogProps) => {
   const { preferences, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
-  
+
   // Local state for font size slider to allow changes before saving
   const [localFontSize, setLocalFontSize] = useState(() => {
     // Initialize with saved font size from separate localStorage key
@@ -27,7 +36,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
       return 15;
     }
   });
-  
+
   // Update local font size when modal opens (but not when preferences change to avoid resetting slider)
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +51,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
     }
   }, [isOpen]); // Only when modal opens, not when preferences change
 
-  
+
   console.log('🔍 BibleMenuDialog: Component initialized with:', {
     preferencesFontSize: preferences.fontSize,
     localFontSize: localFontSize,
@@ -52,28 +61,65 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
   // Check if device is mobile
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
+
   // Debug: Log mobile detection
   console.log('BibleMenuDialog: Mobile detection:', { isMobile, isIOS, userAgent: navigator.userAgent });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`w-full max-w-md overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 ${
-        isMobile 
-          ? 'max-h-[95vh] mx-2 my-2' 
+      <DialogContent className={`w-full max-w-md overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 ${isMobile
+          ? 'max-h-[95vh] mx-2 my-2'
           : 'max-h-[80vh] mx-auto'
-      }`}>
+        }`}>
         <DialogHeader className="flex-shrink-0 pb-2 border-b border-slate-200 dark:border-slate-700">
           <DialogTitle className="flex items-center gap-2 text-lg text-slate-800 dark:text-slate-100">
             <Settings className="w-5 h-5 text-primary" />
-            Reading Options
+            Bible Menu
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400">
-            Customize your Bible reading experience
+            Tools and settings
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4 overflow-y-auto flex-1 px-3 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+
+          {/* Tools Section */}
+          <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Tools</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="flex items-center justify-start gap-2 h-auto py-3"
+                onClick={() => {
+                  onClose();
+                  onViewNotes?.();
+                }}
+              >
+                <span className="text-xl">📝</span>
+                <div className="flex flex-col items-start">
+                  <span className="font-medium">Bible Notes</span>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex items-center justify-start gap-2 h-auto py-3"
+                onClick={() => {
+                  onClose();
+                  onViewHighlights?.();
+                }}
+              >
+                <span className="text-xl">🖍️</span>
+                <div className="flex flex-col items-start">
+                  <span className="font-medium">Highlights</span>
+                </div>
+              </Button>
+            </div>
+          </div>
+
+          {/* Settings Header */}
+          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 px-1">Settings</h3>
+
           {/* Font Size */}
           <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-2">
@@ -89,14 +135,14 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                 console.log('🔍 BibleMenuDialog: Slider changed to:', value[0], 'previous localFontSize:', localFontSize);
                 console.log('🔍 BibleMenuDialog: About to save font size:', value[0]);
                 setLocalFontSize(value[0]);
-                
+
                 // Save font size to separate localStorage key (don't use setFontSize from hook)
                 console.log('🔍 BibleMenuDialog: Saving font size to separate localStorage key:', value[0]);
-                
+
                 try {
                   localStorage.setItem('bible-font-size', value[0].toString());
                   console.log('🔍 BibleMenuDialog: Saved to separate localStorage key:', value[0]);
-                  
+
                   // Dispatch a custom event to notify all components about the font size change
                   const fontSizeChangeEvent = new CustomEvent('fontSizeChanged', {
                     detail: { fontSize: value[0] }
@@ -106,24 +152,24 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
                 } catch (error) {
                   console.warn('🔍 BibleMenuDialog: Failed to save to localStorage:', error);
                 }
-                
+
                 // No need to override hook changes since we're using separate localStorage key
-                
+
                 // Apply font size immediately for preview
                 document.documentElement.style.setProperty('--bible-font-size', `${value[0]}px`);
                 console.log('🔍 BibleMenuDialog: CSS custom property set to:', `${value[0]}px`);
-                
+
                 // Dispatch event for immediate preview
                 const event = new CustomEvent('fontSizeChanged', {
                   detail: { fontSize: value[0] }
                 });
                 window.dispatchEvent(event);
                 console.log('🔍 BibleMenuDialog: fontSizeChanged event dispatched with:', value[0]);
-                
+
                 // Test if event is being dispatched correctly
                 console.log('🔍 BibleMenuDialog: Event object:', event);
                 console.log('🔍 BibleMenuDialog: Event detail:', event.detail);
-                
+
                 // Call onSettingsChange to trigger re-render
                 onSettingsChange?.();
                 console.log('🔍 BibleMenuDialog: onSettingsChange called');
@@ -132,7 +178,7 @@ export const BibleMenuDialog = ({ isOpen, onClose, onSettingsChange, onResetToGe
               min={12}
               step={1}
               className={`w-full mb-2 ${isMobile ? 'touch-manipulation' : ''}`}
-              style={isMobile ? { 
+              style={isMobile ? {
                 touchAction: 'pan-x',
                 WebkitTouchCallout: 'none',
                 WebkitUserSelect: 'none'

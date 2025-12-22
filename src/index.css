@@ -3,6 +3,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
 /* Custom animations for email confirmation page */
 @keyframes fade-in {
   from {
@@ -599,6 +612,8 @@
   top: env(safe-area-inset-top, 0);
   /* Ensure proper positioning in PWA mode */
 }
+
+
 
 /* PWA specific adjustments for Bible header */
 @media (display-mode: standalone) {
