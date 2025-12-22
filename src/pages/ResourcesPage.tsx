@@ -3,7 +3,18 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Book, Download, FileText, Video, Headphones, Users, Calendar, Heart } from "lucide-react";
+import {
+  Book,
+  Download,
+  FileText,
+  Video,
+  Headphones,
+  Users,
+  Calendar,
+  Heart,
+  ChevronRight,
+  PlayCircle
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +27,7 @@ const ResourcesPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showReadingPlans, setShowReadingPlans] = useState(false);
   const [showPrayerRequest, setShowPrayerRequest] = useState(false);
@@ -25,40 +37,38 @@ const ResourcesPage = () => {
   const handleDownload = async (itemName: string, category: string) => {
     try {
       // Record the download in the database
-      const success = await ResourceService.recordDownload(
+      await ResourceService.recordDownload(
         itemName,
         category,
         ResourceService.getClientIP(),
         ResourceService.getUserAgent()
       );
 
-      if (success) {
-        // Update the download count in the UI
-        setResourceCategories(prevCategories => 
-          prevCategories.map(cat => 
-            cat.title === category 
-              ? {
-                  ...cat,
-                  items: cat.items.map(item => 
-                    item.name === itemName 
-                      ? { ...item, downloads: item.downloads + 1 }
-                      : item
-                  )
-                }
-              : cat
-          )
-        );
-      }
+      // Update local state to reflect increment
+      setResourceCategories(prevCategories =>
+        prevCategories.map(cat =>
+          cat.title === category
+            ? {
+              ...cat,
+              items: cat.items.map(item =>
+                item.name === itemName
+                  ? { ...item, downloads: item.downloads + 1 }
+                  : item
+              )
+            }
+            : cat
+        )
+      );
 
       // Create a dummy file download
       const element = document.createElement("a");
-      const file = new Blob([`${category}: ${itemName} - This is a sample document from The Power House International Church.`], {type: 'text/plain'});
+      const file = new Blob([`${category}: ${itemName} - This is a sample document from The Power House International Church.`], { type: 'text/plain' });
       element.href = URL.createObjectURL(file);
       element.download = `${itemName.replace(/\s+/g, '_')}.txt`;
       document.body.appendChild(element);
       element.click();
       document.body.removeChild(element);
-      
+
       toast({
         title: "Download Started",
         description: `${itemName} is being downloaded.`,
@@ -78,71 +88,71 @@ const ResourcesPage = () => {
     const initializeResources = async () => {
       try {
         setLoading(true);
-        
+
         // Get download counts from database
         const downloadCounts = await ResourceService.getResourceDownloadCounts();
-        
+
         const initialCategories: ResourceCategory[] = [
           {
             title: "Sermon Series",
-            icon: <Video className="w-6 h-6" />,
+            icon: <Video className="w-5 h-5" />,
             items: [
-              { 
-                name: "Faith Foundations", 
-                description: "Building strong faith fundamentals", 
-                downloads: downloadCounts["Sermon Series"]?.["Faith Foundations"] || 0 
+              {
+                name: "Faith Foundations",
+                description: "Building strong faith fundamentals",
+                downloads: downloadCounts["Sermon Series"]?.["Faith Foundations"] || 0
               },
-              { 
-                name: "Walking in Purpose", 
-                description: "Discovering God's calling", 
-                downloads: downloadCounts["Sermon Series"]?.["Walking in Purpose"] || 0 
+              {
+                name: "Walking in Purpose",
+                description: "Discovering God's calling",
+                downloads: downloadCounts["Sermon Series"]?.["Walking in Purpose"] || 0
               },
-              { 
-                name: "Kingdom Living", 
-                description: "Living as citizens of heaven", 
-                downloads: downloadCounts["Sermon Series"]?.["Kingdom Living"] || 0 
+              {
+                name: "Kingdom Living",
+                description: "Living as citizens of heaven",
+                downloads: downloadCounts["Sermon Series"]?.["Kingdom Living"] || 0
               }
             ]
           },
           {
             title: "Study Guides",
-            icon: <FileText className="w-6 h-6" />,
+            icon: <FileText className="w-5 h-5" />,
             items: [
-              { 
-                name: "New Testament Survey", 
-                description: "Comprehensive NT overview", 
-                downloads: downloadCounts["Study Guides"]?.["New Testament Survey"] || 0 
+              {
+                name: "New Testament Survey",
+                description: "Comprehensive NT overview",
+                downloads: downloadCounts["Study Guides"]?.["New Testament Survey"] || 0
               },
-              { 
-                name: "Prayer & Fasting Guide", 
-                description: "Spiritual discipline handbook", 
-                downloads: downloadCounts["Study Guides"]?.["Prayer & Fasting Guide"] || 0 
+              {
+                name: "Prayer & Fasting Guide",
+                description: "Spiritual discipline handbook",
+                downloads: downloadCounts["Study Guides"]?.["Prayer & Fasting Guide"] || 0
               },
-              { 
-                name: "Financial Stewardship", 
-                description: "Biblical money management", 
-                downloads: downloadCounts["Study Guides"]?.["Financial Stewardship"] || 0 
+              {
+                name: "Financial Stewardship",
+                description: "Biblical money management",
+                downloads: downloadCounts["Study Guides"]?.["Financial Stewardship"] || 0
               }
             ]
           },
           {
             title: "Audio Resources",
-            icon: <Headphones className="w-6 h-6" />,
+            icon: <Headphones className="w-5 h-5" />,
             items: [
-              { 
-                name: "Daily Devotionals", 
-                description: "Morning inspiration podcasts", 
-                downloads: downloadCounts["Audio Resources"]?.["Daily Devotionals"] || 0 
+              {
+                name: "Daily Devotionals",
+                description: "Morning inspiration podcasts",
+                downloads: downloadCounts["Audio Resources"]?.["Daily Devotionals"] || 0
               },
-              { 
-                name: "Worship Playlists", 
-                description: "Curated praise & worship", 
-                downloads: downloadCounts["Audio Resources"]?.["Worship Playlists"] || 0 
+              {
+                name: "Worship Playlists",
+                description: "Curated praise & worship",
+                downloads: downloadCounts["Audio Resources"]?.["Worship Playlists"] || 0
               },
-              { 
-                name: "Teaching Archives", 
-                description: "Past sermon recordings", 
-                downloads: downloadCounts["Audio Resources"]?.["Teaching Archives"] || 0 
+              {
+                name: "Teaching Archives",
+                description: "Past sermon recordings",
+                downloads: downloadCounts["Audio Resources"]?.["Teaching Archives"] || 0
               }
             ]
           }
@@ -151,36 +161,8 @@ const ResourcesPage = () => {
         setResourceCategories(initialCategories);
       } catch (error) {
         console.error('Error initializing resources:', error);
-        // Fallback to default categories with 0 downloads
-        setResourceCategories([
-          {
-            title: "Sermon Series",
-            icon: <Video className="w-6 h-6" />,
-            items: [
-              { name: "Faith Foundations", description: "Building strong faith fundamentals", downloads: 0 },
-              { name: "Walking in Purpose", description: "Discovering God's calling", downloads: 0 },
-              { name: "Kingdom Living", description: "Living as citizens of heaven", downloads: 0 }
-            ]
-          },
-          {
-            title: "Study Guides",
-            icon: <FileText className="w-6 h-6" />,
-            items: [
-              { name: "New Testament Survey", description: "Comprehensive NT overview", downloads: 0 },
-              { name: "Prayer & Fasting Guide", description: "Spiritual discipline handbook", downloads: 0 },
-              { name: "Financial Stewardship", description: "Biblical money management", downloads: 0 }
-            ]
-          },
-          {
-            title: "Audio Resources",
-            icon: <Headphones className="w-6 h-6" />,
-            items: [
-              { name: "Daily Devotionals", description: "Morning inspiration podcasts", downloads: 0 },
-              { name: "Worship Playlists", description: "Curated praise & worship", downloads: 0 },
-              { name: "Teaching Archives", description: "Past sermon recordings", downloads: 0 }
-            ]
-          }
-        ]);
+        // Fallback to default categories
+        setResourceCategories([]);
       } finally {
         setLoading(false);
       }
@@ -189,147 +171,155 @@ const ResourcesPage = () => {
     initializeResources();
   }, []);
 
-  const handleJoinLifeGroup = () => {
-    navigate("/groups");
-  };
-
-  const handlePrayerRequest = () => {
-    setShowPrayerRequest(true);
-  };
-
-  const handleEventCalendar = () => {
-    navigate("/news");
-  };
-
-
   const quickActions = [
-    { 
-      title: "Join Life Group", 
-      icon: <Users className="w-6 h-6" />, 
-      description: "Connect with community", 
-      color: "bg-blue-500",
-      onClick: handleJoinLifeGroup
+    {
+      title: "Join Life Group",
+      icon: Users,
+      color: "from-blue-500 to-cyan-500",
+      shadow: "shadow-blue-500/20",
+      onClick: () => navigate("/groups")
     },
-    { 
-      title: "Prayer Request", 
-      icon: <Heart className="w-6 h-6" />, 
-      description: "Submit prayer needs", 
-      color: "bg-purple-500",
-      onClick: handlePrayerRequest
+    {
+      title: "Prayer Request",
+      icon: Heart,
+      color: "from-purple-500 to-pink-500",
+      shadow: "shadow-purple-500/20",
+      onClick: () => setShowPrayerRequest(true)
     },
-    { 
-      title: "Event Calendar", 
-      icon: <Calendar className="w-6 h-6" />, 
-      description: "Upcoming events", 
-      color: "bg-green-500",
-      onClick: handleEventCalendar
+    {
+      title: "Events",
+      icon: Calendar,
+      color: "from-green-500 to-emerald-500",
+      shadow: "shadow-green-500/20",
+      onClick: () => navigate("/news")
     },
-    { 
-      title: "Bible Reading Plans", 
-      icon: <Book className="w-6 h-6" />, 
-      description: "Structured reading", 
-      color: "bg-orange-500",
+    {
+      title: "Bible Plans",
+      icon: Book,
+      color: "from-orange-500 to-amber-500",
+      shadow: "shadow-orange-500/20",
       onClick: () => navigate("/bible-reading-plans")
     }
   ];
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Resources</h1>
-        <p className="text-muted-foreground">Grow in faith with our spiritual resources</p>
-      </div>
+    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-32">
+      {/* Hero Section */}
+      <div className="relative bg-primary pt-12 pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-purple-600 to-blue-600 opacity-90" />
+        <div className="absolute inset-0 bg-[url('/patterns/circuit.svg')] opacity-10" />
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {quickActions.map((action, index) => (
-          <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={action.onClick}>
-            <CardContent className="p-4 text-center">
-              <div className={`${action.color} w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white`}>
-                {action.icon}
-              </div>
-              <h3 className="font-semibold text-sm mb-1">{action.title}</h3>
-              <p className="text-xs text-foreground dark:text-white">{action.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Location Selector */}
-      <div className="mb-8">
-        <LocationSelector />
-      </div>
-
-      {/* Resource Categories */}
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading resources...</p>
+        <div className="relative z-10 text-center text-white max-w-lg mx-auto">
+          <h1 className="text-3xl font-bold mb-2 tracking-tight">Resources</h1>
+          <p className="text-blue-100/90 text-sm font-medium">Equipping you for your spiritual journey</p>
         </div>
-      ) : (
-        resourceCategories.map((category, index) => (
-        <Card key={index} className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              {category.icon}
-              <span>{category.title}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {category.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="flex items-center justify-between p-4 bg-accent rounded-lg hover:bg-accent/80 transition-colors">
-                  <div className="flex-1">
-                                          <h4 className="font-semibold text-foreground dark:text-white">{item.name}</h4>
-                    <p className="text-sm text-foreground dark:text-white">{item.description}</p>
-                    <p className="text-xs text-muted-foreground dark:text-white mt-1">{item.downloads} downloads</p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="ml-4"
-                    onClick={() => handleDownload(item.name, category.title)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 text-center">
-              <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
-                View All {category.title}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))
-      )}
+      </div>
 
-      {/* Featured Resource */}
-      <Card className="border-0 shadow-lg bg-primary text-primary-foreground">
-        <CardContent className="p-6 text-center">
-          <h3 className="text-xl font-bold mb-2">Featured: 40 Days of Prayer</h3>
-          <p className="mb-4 opacity-90">Join our church-wide prayer and fasting journey</p>
-          <Button 
-            variant="secondary" 
-            className="bg-white text-primary hover:bg-gray-100"
-            onClick={() => handleDownload("40 Days of Prayer", "Featured Resource")}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Get Prayer Guide
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="px-4 -mt-12 relative z-20 space-y-6 max-w-4xl mx-auto">
+        {/* Location Selector */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-1.5 ring-1 ring-black/5">
+          <LocationSelector />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          {quickActions.map((action, index) => (
+            <button
+              key={index}
+              onClick={action.onClick}
+              className="group relative overflow-hidden bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 text-left border border-gray-100 dark:border-gray-700/50"
+            >
+              <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${action.color} opacity-10 rounded-bl-[4rem] group-hover:scale-110 transition-transform duration-500`} />
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white mb-3 shadow-lg ${action.shadow}`}>
+                <action.icon className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{action.title}</h3>
+            </button>
+          ))}
+        </div>
+
+        {/* Featured Resource */}
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-32 blur-3xl"></div>
+          <div className="relative z-10">
+            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
+              Featured
+            </div>
+            <h3 className="text-xl font-bold mb-1">40 Days of Prayer</h3>
+            <p className="text-gray-400 text-sm mb-4 max-w-[80%]">Join our church-wide prayer and fasting journey.</p>
+            <Button
+              onClick={() => handleDownload("40 Days of Prayer", "Featured Resource")}
+              className="bg-white text-gray-900 hover:bg-gray-100 border-0 rounded-xl font-semibold shadow-lg shadow-white/10 w-full sm:w-auto transition-transform active:scale-95"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Guide
+            </Button>
+          </div>
+        </div>
+
+        {/* Categories */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {resourceCategories.map((category, idx) => (
+              <div key={idx} className="space-y-3">
+                <div className="flex items-center space-x-2 px-1">
+                  <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                    {category.icon}
+                  </div>
+                  <h2 className="font-bold text-gray-900 dark:text-white text-lg">{category.title}</h2>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/50">
+                  {category.items.map((item, itemIdx) => (
+                    <div
+                      key={itemIdx}
+                      className="group flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                      onClick={() => handleDownload(item.name, category.title)}
+                    >
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm truncate">{item.name}</h4>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 line-clamp-1">{item.description}</p>
+                        <div className="flex items-center mt-1.5 space-x-3">
+                          <span className="text-[10px] items-center flex font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">
+                            <Download className="w-3 h-3 mr-1" />
+                            {item.downloads}
+                          </span>
+                          {category.title === "Sermon Series" && (
+                            <span className="text-[10px] items-center flex font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">
+                              <PlayCircle className="w-3 h-3 mr-1" />
+                              Watch
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                        <Download className="w-4 h-4" />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
+                    <Button variant="ghost" size="sm" className="text-primary text-xs font-semibold hover:text-primary/80 hover:bg-transparent">
+                      View All {category.title}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Bible Reading Plans Dialog */}
       <Dialog open={showReadingPlans} onOpenChange={setShowReadingPlans}>
-        <DialogContent className="max-w-4xl max-h-[80vh] mt-24 sm:mt-16 md:mt-20 lg:mt-24">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[80vh] mt-24 sm:mt-16 md:mt-20 lg:mt-24 p-0 bg-white/95 backdrop-blur-xl border-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-4 border-b border-gray-100">
             <DialogTitle>Bible Reading Plans</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto pr-2">
+          <div className="max-h-[70vh] overflow-y-auto p-4">
             <BibleReadingPlans />
           </div>
         </DialogContent>
@@ -337,11 +327,13 @@ const ResourcesPage = () => {
 
       {/* Prayer Request Dialog */}
       <Dialog open={showPrayerRequest} onOpenChange={setShowPrayerRequest}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0 bg-white dark:bg-gray-900 border-0 rounded-2xl">
+          <DialogHeader className="p-6 pb-0">
             <DialogTitle>Submit Prayer Request</DialogTitle>
           </DialogHeader>
-          <PrayerRequestForm />
+          <div className="p-6 pt-2">
+            <PrayerRequestForm />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
