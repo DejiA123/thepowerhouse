@@ -28,7 +28,7 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-1 px-4 min-w-0 flex-1 touch-none"
+              className="flex flex-col items-center justify-center py-0.5 px-4 min-w-0 flex-1 touch-none"
               draggable="false"
             >
               <Icon
