@@ -543,6 +543,13 @@ const BibleNotesPage = () => {
                             >
                                 <Edit3 className="w-5 h-5 text-amber-500" />
                             </Button>
+                            <Button
+                                variant="ghost"
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => setShowNoteDialog(false)}
+                            >
+                                <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                            </Button>
                         </div>
                     </div>
 
