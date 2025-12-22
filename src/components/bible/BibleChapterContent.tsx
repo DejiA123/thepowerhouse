@@ -1283,7 +1283,7 @@ export const BibleChapterContent = ({
       }
 
       {/* Bible Navigation Controls */}
-      <div className="fixed bottom-24 left-0 right-0 z-40 pointer-events-none">
+      <div className="fixed bottom-32 left-0 right-0 z-40 pointer-events-none">
         <div className="flex items-center justify-between px-8 pointer-events-auto">
           <button
             onClick={handlePreviousChapter}
