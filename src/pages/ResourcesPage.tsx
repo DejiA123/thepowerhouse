@@ -199,6 +199,13 @@ const ResourcesPage = () => {
       color: "from-orange-500 to-amber-500",
       shadow: "shadow-orange-500/20",
       onClick: () => navigate("/bible-reading-plans")
+    },
+    {
+      title: "Follow Up",
+      icon: ChevronRight,
+      color: "from-teal-500 to-green-500",
+      shadow: "shadow-teal-500/20",
+      onClick: () => navigate("/follow-up")
     }
   ];
 
