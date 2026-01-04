@@ -232,14 +232,7 @@ const AppRoutes = () => {
             />
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-            <Route
-              path="/follow-up"
-              element={
-                <ProtectedRoute>
-                  <FollowUpPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/follow-up" element={<FollowUpPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

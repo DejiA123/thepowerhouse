@@ -27,7 +27,6 @@ export class FeedbackService {
                     'service_s2gc7be', // EmailJS Service ID
                     'template_aal7nr7', // EmailJS Template ID
                     {
-                        to_email: 'youths.powerhouse@gmail.com',
                         enjoyed_most: data.enjoyed_most || 'N/A',
                         want_more_of: data.want_more_of || 'N/A',
                         didnt_work_well: data.didnt_work_well || 'N/A',
