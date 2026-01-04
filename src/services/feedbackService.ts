@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import emailjs from '@emailjs/browser';
 
 export interface FeedbackData {
     enjoyed_most: string;
@@ -20,16 +21,23 @@ export class FeedbackService {
                 return { error: dbError };
             }
 
-            // Send email notification
+            // Send email notification using EmailJS
             try {
-                const { error: emailError } = await supabase.functions.invoke('send-feedback-email', {
-                    body: data
-                });
+                await emailjs.send(
+                    'service_s2gc7be', // EmailJS Service ID
+                    'template_aal7nr7', // EmailJS Template ID
+                    {
+                        to_email: 'youths.powerhouse@gmail.com',
+                        enjoyed_most: data.enjoyed_most || 'N/A',
+                        want_more_of: data.want_more_of || 'N/A',
+                        didnt_work_well: data.didnt_work_well || 'N/A',
+                        suggestions: data.suggestions || 'N/A',
+                        concerns: data.concerns || 'N/A',
+                    },
+                    '0G20ssYtW-cYDF4xt' // EmailJS Public Key
+                );
 
-                if (emailError) {
-                    console.error('Failed to send email notification:', emailError);
-                    // Don't fail the whole operation if email fails
-                }
+                console.log('Email sent successfully!');
             } catch (emailError) {
                 console.error('Error sending email:', emailError);
                 // Don't fail the whole operation if email fails
