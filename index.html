@@ -1,181 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <!-- PWA Optimized Viewport for Keyboard Support -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
-    <title>The Power House App</title>
-    <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
-    <meta name="author" content="PowerHouse International" />
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    <!-- Preload hero/card images to avoid Safari background-image blanks -->
-    <!-- Removed eager preloads to avoid console warnings and wasted bandwidth -->
-    
-    <!-- PWA Meta Tags -->
-    <!-- Match Safari status bar to app background to avoid blue bar -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- Force a solid iOS status bar to avoid content showing through -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Powerhouse Connect">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="msapplication-TileColor" content="#000000">
-    <meta name="msapplication-tap-highlight" content="no">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="apple-touch-fullscreen" content="yes">
-    <meta name="apple-mobile-web-app-orientations" content="portrait">
-    
-    <!-- Background Audio Support -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="PowerHouse Connect">
-    
-    <!-- Audio Session Configuration -->
-    <meta name="apple-mobile-web-app-audio-session" content="playback">
-    <meta name="apple-mobile-web-app-audio-category" content="playback">
-    <meta name="apple-mobile-web-app-audio-mode" content="default">
-    
-    <!-- Runtime app config for platforms without env vars (e.g., Lovable free tier) -->
-    <script>
-      window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
-      // Set your Supabase public storage base URL for audio MP3s here
-      // Example: https://<project-ref>.supabase.co/storage/v1/object/public/audio-bible
-      window.__APP_CONFIG__.audioCdnBase = "https://swjzhzmhqyvwfwevijja.storage.supabase.co/storage/v1/object/public/audio-bible";
-      window.__APP_CONFIG__.mp3Only = true;
-    </script>
-    
-    <!-- Audio Session Meta Tags for Background Audio (deduplicated) -->
-    <!-- iOS/Android capability already declared above; keeping status bar translucent for iOS PWA -->
 
-    <meta property="og:title" content="PowerHouse Connect" />
-    <meta property="og:description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/favicon.png" />
+<head>
+  <meta charset="UTF-8" />
+  <!-- PWA Optimized Viewport for Keyboard Support -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+  <title>The Power House App</title>
+  <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
+  <meta name="author" content="PowerHouse International" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@powerhouse_intl" />
-    <meta name="twitter:image" content="/favicon.png" />
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
-  </head>
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  <!-- Preload hero/card images to avoid Safari background-image blanks -->
+  <!-- Removed eager preloads to avoid console warnings and wasted bandwidth -->
 
-  <body>
-    <div id="root"></div>
-    <style>
-      /* Prevent blue rubber-band background bleed behind the notch/status area on iOS Safari */
-      html, body {
-        background-color: #ffffff;
-        transition: background-color 0.3s ease;
+  <!-- PWA Meta Tags -->
+  <!-- Match Safari status bar to app background to avoid blue bar -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- Force a solid iOS status bar to avoid content showing through -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="The Power House">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="msapplication-TileColor" content="#000000">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="apple-mobile-web-app-orientations" content="portrait">
+
+  <!-- Background Audio Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="The Power House">
+
+  <!-- Audio Session Configuration -->
+  <meta name="apple-mobile-web-app-audio-session" content="playback">
+  <meta name="apple-mobile-web-app-audio-category" content="playback">
+  <meta name="apple-mobile-web-app-audio-mode" content="default">
+
+  <!-- Runtime app config for platforms without env vars (e.g., Lovable free tier) -->
+  <script>
+    window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
+    // Set your Supabase public storage base URL for audio MP3s here
+    // Example: https://<project-ref>.supabase.co/storage/v1/object/public/audio-bible
+    window.__APP_CONFIG__.audioCdnBase = "https://swjzhzmhqyvwfwevijja.storage.supabase.co/storage/v1/object/public/audio-bible";
+    window.__APP_CONFIG__.mp3Only = true;
+  </script>
+
+  <!-- Audio Session Meta Tags for Background Audio (deduplicated) -->
+  <!-- iOS/Android capability already declared above; keeping status bar translucent for iOS PWA -->
+
+  <meta property="og:title" content="The Power House" />
+  <meta property="og:description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@powerhouse_intl" />
+  <meta name="twitter:image" content="/favicon.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <style>
+    /* Prevent blue rubber-band background bleed behind the notch/status area on iOS Safari */
+    html,
+    body {
+      background-color: #ffffff;
+      transition: background-color 0.3s ease;
+    }
+
+    @media (prefers-color-scheme: dark) {
+
+      html,
+      body {
+        background-color: #0a0a0a;
       }
-      
-      @media (prefers-color-scheme: dark) {
-        html, body {
-          background-color: #0a0a0a;
-        }
+    }
+
+    /* Force dark theme when dark class is applied */
+    html.dark,
+    html.dark body {
+      background-color: #0a0a0a !important;
+    }
+
+    /* Force light theme when light class is applied */
+    html.light,
+    html.light body {
+      background-color: #ffffff !important;
+    }
+
+    /* Ensure body spans full viewport height so status bar overlays same color */
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #root {
+      min-height: 100%;
+      background-color: inherit;
+    }
+
+    /* Status bar background styling */
+    .status-bar-bg {
+      background-color: #ffffff;
+      transition: background-color 0.3s ease;
+    }
+
+    html.dark .status-bar-bg {
+      background-color: #0a0a0a !important;
+    }
+
+    html.light .status-bar-bg {
+      background-color: #ffffff !important;
+    }
+
+    /* PWA Mobile Keyboard Optimizations */
+    input,
+    textarea,
+    select {
+      -webkit-appearance: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: text;
+      touch-action: manipulation;
+    }
+
+    /* Ensure inputs are properly sized for mobile keyboards */
+    @media screen and (max-width: 768px) {
+
+      input,
+      textarea {
+        font-size: 16px !important;
+        /* Prevents zoom on iOS */
+        transform: translateZ(0);
+        /* Force hardware acceleration */
       }
-      
-      /* Force dark theme when dark class is applied */
-      html.dark, html.dark body {
-        background-color: #0a0a0a !important;
+    }
+
+    /* Prevent zoom on input focus for iOS */
+    @supports (-webkit-touch-callout: none) {
+
+      input,
+      textarea,
+      select {
+        font-size: 16px !important;
       }
-      
-      /* Force light theme when light class is applied */
-      html.light, html.light body {
-        background-color: #ffffff !important;
-      }
-      
-      /* Ensure body spans full viewport height so status bar overlays same color */
-      html, body { 
-        height: 100%; 
-        margin: 0;
-        padding: 0;
-      }
-      
-      #root { 
-        min-height: 100%; 
-        background-color: inherit; 
-      }
-      
-      /* Status bar background styling */
-      .status-bar-bg {
-        background-color: #ffffff;
-        transition: background-color 0.3s ease;
-      }
-      
-      html.dark .status-bar-bg {
-        background-color: #0a0a0a !important;
-      }
-      
-      html.light .status-bar-bg {
-        background-color: #ffffff !important;
-      }
-      
-      /* PWA Mobile Keyboard Optimizations */
-      input, textarea, select {
-        -webkit-appearance: none;
-        -webkit-touch-callout: none;
-        -webkit-user-select: text;
-        touch-action: manipulation;
-      }
-      
-      /* Ensure inputs are properly sized for mobile keyboards */
-      @media screen and (max-width: 768px) {
-        input, textarea {
-          font-size: 16px !important; /* Prevents zoom on iOS */
-          transform: translateZ(0); /* Force hardware acceleration */
-        }
-      }
-      
-      /* Prevent zoom on input focus for iOS */
-      @supports (-webkit-touch-callout: none) {
-        input, textarea, select {
-          font-size: 16px !important;
-        }
-      }
-      
-      /* Background Audio Optimizations */
-      audio {
-        -webkit-media-controls: none;
-        -webkit-media-controls-panel: none;
-        -webkit-media-controls-play-button: none;
-        -webkit-media-controls-timeline: none;
-        -webkit-media-controls-current-time-display: none;
-        -webkit-media-controls-time-remaining-display: none;
-        -webkit-media-controls-mute-button: none;
-        -webkit-media-controls-volume-slider: none;
-        -webkit-media-controls-fullscreen-button: none;
-        -webkit-media-controls-overlay-play-button: none;
-        -webkit-media-controls-overlay-enclosure: none;
-      }
-      
-      /* Ensure audio element is hidden but functional */
-      audio[hidden] {
-        display: none !important;
-      }
-    </style>
-    <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Service Worker Registration (skip in development) -->
-    <script>
-      if ('serviceWorker' in navigator && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('🎵 Service Worker registered:', registration);
-            })
-            .catch((error) => {
-              console.log('❌ Service Worker registration failed:', error);
-            });
-        });
-      } else {
-        console.log('🔧 Development mode: Skipping service worker registration');
-      }
-    </script>
-  </body>
+    }
+
+    /* Background Audio Optimizations */
+    audio {
+      -webkit-media-controls: none;
+      -webkit-media-controls-panel: none;
+      -webkit-media-controls-play-button: none;
+      -webkit-media-controls-timeline: none;
+      -webkit-media-controls-current-time-display: none;
+      -webkit-media-controls-time-remaining-display: none;
+      -webkit-media-controls-mute-button: none;
+      -webkit-media-controls-volume-slider: none;
+      -webkit-media-controls-fullscreen-button: none;
+      -webkit-media-controls-overlay-play-button: none;
+      -webkit-media-controls-overlay-enclosure: none;
+    }
+
+    /* Ensure audio element is hidden but functional */
+    audio[hidden] {
+      display: none !important;
+    }
+  </style>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Service Worker Registration (skip in development) -->
+  <script>
+    if ('serviceWorker' in navigator && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('🎵 Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.log('❌ Service Worker registration failed:', error);
+          });
+      });
+    } else {
+      console.log('🔧 Development mode: Skipping service worker registration');
+    }
+  </script>
+</body>
+
 </html>
