@@ -1,0 +1,38 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Run at 00:00 on Monday, Thursday, and Saturday
+    - cron: '0 0 * * 1,4,6'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  ping_supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "Error: Secrets SUPABASE_URL and SUPABASE_ANON_KEY must be set in repository settings."
+            exit 1
+          fi
+          
+          echo "Pinging Supabase to keep project active..."
+          # Query the public schema to generate database activity
+          # We'll just try to fetch 1 record from a common table (e.g. posts or profiles)
+          # If fetch fails, it might be due to RLS, but the request itself counts as activity.
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+            "$SUPABASE_URL/rest/v1/posts?select=count&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+            
+          echo "Response status code: $response"
+          
+          if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+            echo "Success: Database successfully pinged."
+          else
+            echo "Warning: Request completed with status $response. This still likely counts as activity."
+          fi
