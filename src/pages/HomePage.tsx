@@ -35,7 +35,9 @@ const HomePage = () => {
         const scripture = getTodaysScripture();
         await pushNotificationService.forceShowNotification(
           "Today's Scripture",
-          `"${scripture.verse}" - ${scripture.reference}`
+          `"${scripture.verse}" - ${scripture.reference}`,
+          undefined,
+          false
         );
 
         // 4. Mark as shown

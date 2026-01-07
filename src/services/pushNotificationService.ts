@@ -482,7 +482,8 @@ class PushNotificationService {
   async forceShowNotification(
     title: string,
     message: string,
-    groupName?: string
+    groupName?: string,
+    showInApp: boolean = true
   ): Promise<void> {
     console.log('🧪 Force showing notification for testing...');
     
@@ -512,16 +513,18 @@ class PushNotificationService {
       }
     }
 
-    // Also show in-app notification
-    const event = new CustomEvent('showInAppNotification', {
-      detail: {
-        title,
-        message,
-        groupName
-      }
-    });
-    window.dispatchEvent(event);
-    console.log('✅ Force in-app notification dispatched');
+    if (showInApp) {
+      // Also show in-app notification
+      const event = new CustomEvent('showInAppNotification', {
+        detail: {
+          title,
+          message,
+          groupName
+        }
+      });
+      window.dispatchEvent(event);
+      console.log('✅ Force in-app notification dispatched');
+    }
   }
 }
 
