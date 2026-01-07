@@ -304,6 +304,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error fetching daily scripture video:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Check if we have cached data to return as fallback
     if (dailyVideoCache) {
@@ -311,7 +312,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           ...dailyVideoCache.data,
-          error: `Using cached data - ${error.message}`,
+          error: `Using cached data - ${errorMessage}`,
           isFallback: true
         }),
         {
@@ -339,7 +340,7 @@ serve(async (req) => {
         totalShortVideos: 1,
         success: true,
         isFallback: true,
-        error: `Using fallback video - ${error.message}. Please visit https://www.youtube.com/@thepowerhouseintl for the latest content.`,
+        error: `Using fallback video - ${errorMessage}. Please visit https://www.youtube.com/@thepowerhouseintl for the latest content.`,
         fallbackUrl: 'https://www.youtube.com/@thepowerhouseintl'
       }),
       {

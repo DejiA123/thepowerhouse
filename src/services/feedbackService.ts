@@ -12,9 +12,9 @@ export interface FeedbackData {
 export class FeedbackService {
     static async submitFeedback(data: FeedbackData): Promise<{ error: Error | null }> {
         try {
-            // Save to database
-            const { error: dbError } = await supabase
-                .from('service_feedback')
+            // Save to database - cast to 'any' to bypass type mismatch
+            const { error: dbError } = await (supabase
+                .from('service_feedback') as any)
                 .insert([data]);
 
             if (dbError) {

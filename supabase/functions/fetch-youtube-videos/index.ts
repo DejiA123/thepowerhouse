@@ -261,9 +261,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error fetching YouTube videos:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Log error to database
-    await logApiUsage('fetch-youtube-videos', 0, 0, false, error.message, false);
+    await logApiUsage('fetch-youtube-videos', 0, 0, false, errorMessage, false);
     
     // Return fallback videos when API fails
     const fallbackVideos = getFallbackVideos();
