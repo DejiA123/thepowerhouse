@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { BookOpen, Target, Heart, CheckCircle, ChevronRight, ChevronLeft, X, Loader2, ArrowRight, Share2, Users } from "lucide-react";
+import { BookOpen, Target, Heart, CheckCircle, ChevronRight, ChevronLeft, X, Loader2, ArrowRight, Share2, Users, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";

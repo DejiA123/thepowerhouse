@@ -592,6 +592,39 @@ export type Database = {
         }
         Relationships: []
       }
+      service_feedback: {
+        Row: {
+          concerns: string | null
+          created_at: string
+          didnt_work_well: string | null
+          enjoyed_most: string | null
+          id: string
+          suggestions: string | null
+          user_id: string | null
+          want_more_of: string | null
+        }
+        Insert: {
+          concerns?: string | null
+          created_at?: string
+          didnt_work_well?: string | null
+          enjoyed_most?: string | null
+          id?: string
+          suggestions?: string | null
+          user_id?: string | null
+          want_more_of?: string | null
+        }
+        Update: {
+          concerns?: string | null
+          created_at?: string
+          didnt_work_well?: string | null
+          enjoyed_most?: string | null
+          id?: string
+          suggestions?: string | null
+          user_id?: string | null
+          want_more_of?: string | null
+        }
+        Relationships: []
+      }
       study_guides: {
         Row: {
           created_at: string | null
