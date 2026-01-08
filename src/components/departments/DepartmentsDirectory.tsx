@@ -4,12 +4,14 @@ import { Music, Mic, Heart, Camera, Book, Handshake, Users, ChevronRight } from 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface DepartmentsDirectoryProps {
   onJoinDepartment: (departmentName: string) => void;
 }
 
 const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) => {
+  const navigate = useNavigate();
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -105,7 +107,13 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
           <div
             key={dept.id}
             className="flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
-            onClick={() => onJoinDepartment(dept.name)}
+            onClick={() => {
+              if (dept.name === "Choir") {
+                navigate("/groups/choir");
+              } else {
+                onJoinDepartment(dept.name);
+              }
+            }}
           >
             {/* Avatar */}
             <div className={`w-12 h-12 rounded-full ${dept.color || 'bg-blue-500'} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform`}>
