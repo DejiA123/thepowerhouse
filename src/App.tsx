@@ -300,9 +300,9 @@ const GroupPageWrapper = () => {
   const groupNames: Record<string, string> = {
     uog: "Believers Connect UoG",
     atu: "Believers Connect ATU",
-    athlone: "Believers Connect Athlone",
-    ucd: "Believers Connect UCD",
-    maynooth: "Believers Connect Maynooth"
+    tus: "Believers Connect TUS",
+    maynooth: "Believers Connect Maynooth",
+    south: "Believers Connect South"
   };
   const departmentName = groupNames[groupId || ""] || groupId || "Fellowship";
   return <GroupPage departmentName={departmentName} onBack={() => navigate(-1)} />;

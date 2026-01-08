@@ -278,146 +278,9 @@ export const BibleChapterContent = ({
   // Global audio context for persistent audio across pages
   const globalAudio = useGlobalAudio();
 
-  // MP3 Audio state
-  const [isLoading, setIsLoading] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioError, setAudioError] = useState<string | null>(null);
-
   // Use GlobalAudioContext state for playing status
   const isPlaying = globalAudio?.audioState.isPlaying || false;
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Media Session API for background audio playback
-  const updateMediaSession = () => {
-    if ('mediaSession' in navigator && audioRef.current) {
-      const bookName = getBookDisplayName();
-      const versionName = getVersionDisplayName(selectedVersion);
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: `${bookName} ${selectedChapter}`,
-        artist: `Bible Audio - ${versionName}`,
-        album: 'PowerHouse Connect',
-        artwork: [
-          { src: '/bible-icon.svg', sizes: '96x96', type: 'image/svg+xml' },
-          { src: '/bible-icon.svg', sizes: '128x128', type: 'image/svg+xml' },
-          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/bible-icon.svg', sizes: '256x256', type: 'image/svg+xml' },
-          { src: '/bible-icon.svg', sizes: '384x384', type: 'image/svg+xml' },
-          { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' }
-        ]
-      });
-
-      // Set up media session action handlers
-      navigator.mediaSession.setActionHandler('play', () => {
-        console.log('🎵 Media Session: Play action triggered');
-        if (audioRef.current && audioRef.current.paused) {
-          audioRef.current.play();
-        }
-      });
-
-      navigator.mediaSession.setActionHandler('pause', () => {
-        console.log('🎵 Media Session: Pause action triggered');
-        if (audioRef.current && !audioRef.current.paused) {
-          audioRef.current.pause();
-        }
-      });
-
-      navigator.mediaSession.setActionHandler('previoustrack', () => {
-        console.log('🎵 Media Session: Previous track action triggered');
-        handlePreviousChapter();
-      });
-
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
-        console.log('🎵 Media Session: Next track action triggered');
-        handleNextChapter();
-      });
-
-      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        console.log('🎵 Media Session: Seek backward action triggered', details);
-        if (audioRef.current) {
-          const skipTime = details.seekOffset || 10;
-          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skipTime);
-        }
-      });
-
-      navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        console.log('🎵 Media Session: Seek forward action triggered', details);
-        if (audioRef.current) {
-          const skipTime = details.seekOffset || 10;
-          audioRef.current.currentTime = Math.min(
-            audioRef.current.duration,
-            audioRef.current.currentTime + skipTime
-          );
-        }
-      });
-
-      // Update playback state
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-
-      console.log('🎵 Media Session updated:', {
-        title: `${bookName} ${selectedChapter}`,
-        artist: `Bible Audio - ${versionName}`,
-        isPlaying: isPlaying
-      });
-    }
-  };
-
-  // Update media session when audio state changes
-  useEffect(() => {
-    updateMediaSession();
-  }, [isPlaying, selectedBook, selectedChapter, selectedVersion]);
-
-  // Service Worker communication for background audio
-  useEffect(() => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // Send audio state to service worker
-      navigator.serviceWorker.controller.postMessage({
-        type: 'AUDIO_STATE_UPDATE',
-        autoPlayNext: autoPlayNext,
-        loopChapter: false, // We don't have loop chapter in this component
-        book: selectedBook,
-        chapter: selectedChapter,
-        isPlaying: isPlaying,
-        timestamp: Date.now()
-      });
-    }
-  }, [isPlaying, selectedBook, selectedChapter, autoPlayNext]);
-
-  // Listen for service worker messages
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data && event.data.type === 'AUDIO_CONTROL') {
-          console.log('🎵 Received audio control from service worker:', event.data.action);
-
-          switch (event.data.action) {
-            case 'play':
-              if (audioRef.current && audioRef.current.paused) {
-                audioRef.current.play();
-              }
-              break;
-            case 'pause':
-              if (audioRef.current && !audioRef.current.paused) {
-                audioRef.current.pause();
-              }
-              break;
-            case 'next':
-              handleNextChapter();
-              break;
-            case 'previous':
-              handlePreviousChapter();
-              break;
-          }
-        }
-      };
-
-      navigator.serviceWorker.addEventListener('message', handleMessage);
-
-      return () => {
-        navigator.serviceWorker.removeEventListener('message', handleMessage);
-      };
-    }
-  }, []);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -449,46 +312,31 @@ export const BibleChapterContent = ({
     }
   }, [user, selectedBook, selectedChapter]);
 
-  // Auto-play MP3 audio when audio URL is loaded and shouldAutoPlay is true
+  // Auto-play MP3 audio when shouldAutoPlay is true
   useEffect(() => {
-    console.log('🔍 Audio auto-play effect triggered:', {
-      shouldAutoPlay,
-      hasAudioUrl: !!audioUrl,
-      hasGlobalAudio: !!globalAudio,
-      isLoading,
-      isPlaying,
-      audioError: !!audioError
-    });
+    if (shouldAutoPlay && globalAudio && !globalAudio.audioState.isLoading && !globalAudio.audioState.isPlaying) {
+      console.log('🎵 BibleChapterContent: Auto-playing MP3 audio via GlobalAudioContext');
 
-    if (shouldAutoPlay && audioUrl && globalAudio && !isLoading && !audioError && !isPlaying) {
-      console.log('🎵 BibleChapterContent: Auto-playing MP3 audio for next chapter via GlobalAudioContext');
-
-      // Use GlobalAudioContext to play the audio with auto-play next enabled
       const playAudio = async () => {
         try {
           await globalAudio.playBibleChapterMP3(
             selectedBook,
             selectedChapter,
-            selectedVersion,
-            autoPlayNext, // Enable auto-play next chapter
-            false // loopChapter
+            selectedVersion!,
+            autoPlayNext,
+            false
           );
-          console.log('✅ Auto-play successful via GlobalAudioContext');
-          // Reset shouldAutoPlay flag after successfully starting playback
           onAutoPlayTriggered?.();
         } catch (error) {
-          console.error('❌ Error auto-playing audio via GlobalAudioContext:', error);
-          // Still reset the flag even if auto-play fails
+          console.error('❌ Error auto-playing:', error);
           onAutoPlayTriggered?.();
         }
       };
 
-      // Wait a small amount to ensure everything is ready
       const playTimeout = setTimeout(playAudio, 100);
-
       return () => clearTimeout(playTimeout);
     }
-  }, [shouldAutoPlay, audioUrl, globalAudio, isLoading, audioError, isPlaying, onAutoPlayTriggered, selectedBook, selectedChapter, selectedVersion, autoPlayNext]);
+  }, [shouldAutoPlay, globalAudio, onAutoPlayTriggered, selectedBook, selectedChapter, selectedVersion, autoPlayNext]);
 
   const fetchHighlights = async () => {
     try {
@@ -515,70 +363,6 @@ export const BibleChapterContent = ({
   const normalizedSelectedBook = normalizeBookApiName(selectedBook);
   const book = allBooks.find(b => b.apiName === normalizedSelectedBook);
 
-  // Load MP3 audio when book, chapter, or version changes
-  useEffect(() => {
-    const loadAudio = async () => {
-      if (!selectedVersion) {
-        console.log('🔍 No selectedVersion available');
-        return;
-      }
-
-      console.log('🔍 Loading MP3 audio with params:', {
-        selectedBook,
-        selectedChapter,
-        selectedVersion
-      });
-
-      setIsLoading(true);
-      setAudioError(null);
-
-      try {
-        // Generate the expected filename
-        const fileName = supabaseAudioService.generateFileName(selectedBook, selectedChapter, selectedVersion);
-        console.log('🔍 Generated filename:', fileName);
-
-        // Directly get the audio URL - much faster than full bucket listing
-        console.log('🔍 Getting audio URL directly...');
-
-        const url = await supabaseAudioService.getAudioUrl(selectedBook, selectedChapter, selectedVersion);
-        console.log('🔍 Generated URL:', url);
-
-        if (url) {
-          setAudioUrl(url);
-          console.log(`🎵 MP3 audio loaded: ${url}`);
-          console.log(`🔍 Audio URL set, shouldAutoPlay: ${shouldAutoPlay}, isLoading: ${isLoading}`);
-
-          // Test if the URL actually works
-          try {
-            const response = await fetch(url, { method: 'HEAD' });
-            console.log('🔍 URL test response status:', response.status);
-            if (!response.ok) {
-              console.error('❌ URL is not accessible:', response.status, response.statusText);
-              setAudioError(`Audio file not accessible (${response.status})`);
-              setAudioUrl(null);
-            } else {
-              console.log('✅ URL is accessible! Audio should work.');
-            }
-          } catch (fetchError) {
-            console.error('❌ Error testing URL:', fetchError);
-            setAudioError('Audio file URL test failed');
-            setAudioUrl(null);
-          }
-        } else {
-          const errorMsg = `No MP3 audio available for ${selectedBook} ${selectedChapter} (${selectedVersion})`;
-          console.log('❌', errorMsg);
-          setAudioError(errorMsg);
-        }
-      } catch (error) {
-        console.error('❌ Error loading MP3 audio:', error);
-        setAudioError('Failed to load MP3 audio');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadAudio();
-  }, [selectedBook, selectedChapter, selectedVersion]);
 
   // Handle MP3 audio playback using global audio context
   const handlePlayPause = async () => {
@@ -763,77 +547,6 @@ export const BibleChapterContent = ({
 
   return (
     <div className="bible-page-full">
-      {/* Hidden audio element for MP3 playback with background support */}
-      <audio
-        ref={audioRef}
-        src={audioUrl || undefined}
-        onEnded={() => {
-          console.log(`🎵 Audio ended for ${selectedBook} ${selectedChapter}`);
-          // Always auto-play next chapter regardless of preference setting
-          // This ensures consistent auto-play behavior as requested
-          console.log(`🎵 Auto-playing next chapter from ${selectedBook} ${selectedChapter}`);
-          const triggerNextChapter = () => {
-            const currentBookIndex = allBooks.findIndex(b => b.apiName === selectedBook);
-            const nextChapter = selectedChapter + 1;
-            // Check if we need to move to the next book
-            if (nextChapter > (book?.chapters || 0)) {
-              if (currentBookIndex < allBooks.length - 1 && onBookChange) {
-                const nextBook = allBooks[currentBookIndex + 1];
-                console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
-                onBookChange(nextBook.apiName, 1, true); // true indicates this is auto-play
-                // Ensure playback starts and Media Session API is updated
-                setTimeout(() => {
-                  if (audioRef.current) {
-                    audioRef.current.play();
-                    if ('mediaSession' in navigator) {
-                      navigator.mediaSession.playbackState = 'playing';
-                    }
-                  }
-                }, 250);
-              } else {
-                console.log(`🎵 Reached end of Bible - no more books to auto-play`);
-              }
-            } else if (onChapterChange) {
-              console.log(`🎵 Triggering chapter change to ${selectedBook} ${nextChapter}`);
-              onChapterChange(nextChapter, true); // true indicates this is auto-play
-              // Ensure playback starts and Media Session API is updated
-              setTimeout(() => {
-                if (audioRef.current) {
-                  audioRef.current.play();
-                  if ('mediaSession' in navigator) {
-                    navigator.mediaSession.playbackState = 'playing';
-                  }
-                }
-              }, 250);
-            }
-          };
-          // Use requestIdleCallback for better background compatibility
-          if (window.requestIdleCallback) {
-            window.requestIdleCallback(() => {
-              triggerNextChapter();
-            }, { timeout: 1000 });
-          } else {
-            // Fallback to setTimeout with longer delay for background
-            setTimeout(triggerNextChapter, document.hidden ? 500 : 100);
-          }
-        }
-        }
-        onPause={() => {
-          // Update media session when paused
-          updateMediaSession();
-        }}
-        onPlay={() => {
-          // Update media session when playing
-          updateMediaSession();
-        }}
-        onError={() => {
-          setAudioError('Failed to play audio file');
-        }}
-        preload="metadata"
-        // Background audio attributes
-        crossOrigin="anonymous"
-        playsInline={true}
-      />
       {/* Header Bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-100/50">
         {/* Left Side: Book/Chapter and Version Pills */}

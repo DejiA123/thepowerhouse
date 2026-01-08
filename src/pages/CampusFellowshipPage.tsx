@@ -56,31 +56,17 @@ const CampusFellowshipPage = () => {
       ]
     },
     {
-      id: "athlone",
-      name: "Believers Connect Athlone",
-      location: "Athlone Institute of Technology",
+      id: "tus",
+      name: "Believers Connect TUS",
+      location: "Technological University of the Shannon (TUS)",
       meetingTime: "Monday 6:00 PM",
-      description: "Our Athlone fellowship is dedicated to supporting students in their spiritual journey while pursuing academic excellence.",
+      description: "Our TUS fellowship is dedicated to supporting students in their spiritual journey while pursuing academic excellence.",
       image: "photo-1524178232363-1fb2b075b655",
       activities: [
         "Bible Study",
         "Prayer Groups",
         "Mentorship Program",
         "Social Gatherings"
-      ]
-    },
-    {
-      id: "ucd",
-      name: "Believers Connect UCD",
-      location: "University College Dublin",
-      meetingTime: "Monday 6:00 PM",
-      description: "Join our dynamic community at UCD where we explore faith, build lasting friendships, and serve our campus.",
-      image: "photo-1523050854058-8df90110c9f1",
-      activities: [
-        "Weekly Worship",
-        "Study Groups",
-        "Outreach Events",
-        "Leadership Development"
       ]
     },
     {
@@ -98,11 +84,11 @@ const CampusFellowshipPage = () => {
       ]
     },
     {
-      id: "cork",
-      name: "Believers Connect Cork",
-      location: "University College Cork",
+      id: "south",
+      name: "Believers Connect South",
+      location: "Southern Region",
       meetingTime: "Monday 6:00 PM",
-      description: "Connect with a vibrant community of believers in Cork. We gather weekly to worship, study the Word, pray, and build lasting friendships.",
+      description: "Connect with a vibrant community of believers in the South. We gather weekly to worship, study the Word, pray, and build lasting friendships.",
       image: "photo-1590012314607-cda9d9b699ae",
       activities: [
         "Weekly Bible Study",
@@ -301,8 +287,8 @@ const CampusFellowshipPage = () => {
             >
               <Card
                 className={`h-full border-0 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${selectedCampus === campus.id
-                    ? 'ring-2 ring-primary ring-offset-2'
-                    : 'bg-card/50 backdrop-blur-sm shadow-lg'
+                  ? 'ring-2 ring-primary ring-offset-2'
+                  : 'bg-card/50 backdrop-blur-sm shadow-lg'
                   }`}
                 onClick={() => setSelectedCampus(campus.id === selectedCampus ? null : campus.id)}
               >

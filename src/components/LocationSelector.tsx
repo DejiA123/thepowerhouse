@@ -12,40 +12,56 @@ const LocationSelector = () => {
 
   const locations = [
     {
+      id: "dublin",
+      name: "Dublin",
+      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "8 PM",
+        prayer: "8 PM"
+      },
+      phone: "089 252 7008",
+      email: "contact.thepowerhouse@gmail.com",
+      coordinates: { lat: 53.353, lng: -6.263 }
+    },
+    {
       id: "galway",
       name: "Galway",
-      address: "The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit Heights, Galway, H91 958A",
-      serviceTime: "Sunday 10:00 AM",
+      address: "The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit, Galway, H91 958A",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
       phone: "089 953 4714",
       email: "contact.thepowerhouse@gmail.com",
-      coordinates: { lat: 53.295, lng: -8.997 } // Approximate for Ballybrit Heights
+      coordinates: { lat: 53.295, lng: -8.997 }
     },
     {
       id: "kildare",
       name: "Kildare",
-      address: "Eyre St, Greatconnell, Newbridge, Co. Kildare",
-      serviceTime: "Sunday 10:00 AM",
+      address: "The Power House International, O'Cola House Lower Eyre Street, Newbridge, W12TK37",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
       phone: "089 953 5663",
       email: "contact.thepowerhouse@gmail.com",
-      coordinates: { lat: 53.179, lng: -6.800 } // Approximate for Newbridge
+      coordinates: { lat: 53.179, lng: -6.800 }
     },
     {
       id: "athlone",
       name: "Athlone",
       address: "Unit 22 Athlone Shopping Centre, Sean Costello Street, Athlone, Co. Westmeath, N37 V2Y2",
-      serviceTime: "Sunday 10:00 AM",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
       phone: "089 982 2556",
       email: "contact.thepowerhouse@gmail.com",
-      coordinates: { lat: 53.4239, lng: -7.9407 } // Athlone Shopping Centre
-    },
-    {
-      id: "dublin",
-      name: "Dublin",
-      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
-      serviceTime: "Sunday 10:00 AM",
-      phone: "089 252 7008",
-      email: "contact.thepowerhouse@gmail.com",
-      coordinates: { lat: 53.353, lng: -6.263 } // Approximate for O'Connell Street Upper
+      coordinates: { lat: 53.4239, lng: -7.9407 }
     }
   ];
 
@@ -72,7 +88,7 @@ const LocationSelector = () => {
         (position) => {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
-          
+
           let nearestLocation = locations[0];
           let shortestDistance = calculateDistance(userLat, userLng, nearestLocation.coordinates.lat, nearestLocation.coordinates.lng);
 
@@ -105,8 +121,8 @@ const LocationSelector = () => {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
@@ -149,9 +165,19 @@ const LocationSelector = () => {
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">{currentLocation.address}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{currentLocation.serviceTime}</span>
+                <div className="space-y-1 pl-6">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-3 h-3 text-primary/70" />
+                    <span className="text-muted-foreground">Sunday Service: {currentLocation.times.sunday}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-3 h-3 text-primary/70" />
+                    <span className="text-muted-foreground">Bible Study: {currentLocation.times.bibleStudy}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-3 h-3 text-primary/70" />
+                    <span className="text-muted-foreground">Prayer Meeting: {currentLocation.times.prayer}</span>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-muted-foreground" />
@@ -162,8 +188,8 @@ const LocationSelector = () => {
                   <span className="text-muted-foreground">{currentLocation.email}</span>
                 </div>
               </div>
-              <Button 
-                className="w-full mt-4" 
+              <Button
+                className="w-full mt-4"
                 onClick={() => handleGetDirections(currentLocation)}
               >
                 <Navigation className="w-4 h-4 mr-2" />

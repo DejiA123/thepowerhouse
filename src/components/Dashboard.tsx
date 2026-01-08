@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Calendar, 
-  Bell, 
-  Heart, 
-  Book, 
-  Users, 
+import {
+  Calendar,
+  Bell,
+  Heart,
+  Book,
+  Users,
   UserPlus,
   Search,
   Menu,
@@ -43,7 +43,7 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
   const getRoleColor = (role: string) => {
     const colors = {
       member: "bg-blue-100 text-blue-800",
-      worker: "bg-green-100 text-green-800", 
+      worker: "bg-green-100 text-green-800",
       pastor: "bg-purple-100 text-purple-800",
       admin: "bg-red-100 text-red-800"
     };
@@ -134,32 +134,32 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="h-20 flex-col space-y-2 border-blue-200 hover:bg-blue-50"
                       onClick={() => setActiveTab("giving")}
                     >
                       <Heart className="w-6 h-6 text-blue-600" />
                       <span>Give</span>
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="h-20 flex-col space-y-2 border-blue-200 hover:bg-blue-50"
                       onClick={() => setActiveTab("prayer")}
                     >
                       <MessageSquare className="w-6 h-6 text-blue-600" />
                       <span>Prayer Wall</span>
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="h-20 flex-col space-y-2 border-blue-200 hover:bg-blue-50"
                       onClick={() => setActiveTab("departments")}
                     >
                       <Users className="w-6 h-6 text-blue-600" />
                       <span>Join Ministry</span>
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="h-20 flex-col space-y-2 border-blue-200 hover:bg-blue-50"
                       onClick={handleBibleClick}
                     >
@@ -199,7 +199,7 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
               <CardContent>
                 <p className="text-muted-foreground mb-6">Connect with campus fellowships and outreach programs</p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {['UoG Fellowship', 'ATU Campus', 'Maynooth Connect', 'UCD Believers', 'Athlone Campus'].map((campus) => (
+                  {['UoG Fellowship', 'ATU Campus', 'Maynooth Connect', 'South Fellowship', 'TUS Campus'].map((campus) => (
                     <Card key={campus} className="border border-blue-100">
                       <CardContent className="p-4">
                         <div className="flex items-center space-x-3 mb-3">
@@ -246,7 +246,7 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
                     Submit Prayer Request
                   </Button>
                 </div>
-                
+
                 <div className="space-y-4">
                   {[
                     { id: 1, request: "Please pray for my upcoming job interview", author: "Anonymous", prayers: 23, date: "2 hours ago" },
@@ -287,28 +287,28 @@ const Dashboard = ({ userRole, onLogout }: DashboardProps) => {
       {/* Bottom Navigation */}
       <div className="fixed bottom-2 left-0 right-0 bg-white border-t border-border p-4 lg:hidden shadow-lg rounded-lg mx-2">
         <div className="flex justify-around">
-          <button 
+          <button
             className="text-center"
             onClick={() => setActiveTab("home")}
           >
             <Calendar className={`w-6 h-6 mx-auto mb-1 ${activeTab === "home" ? "text-blue-600" : "text-muted-foreground"}`} />
             <span className={`text-xs ${activeTab === "home" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>Home</span>
           </button>
-          <button 
+          <button
             className="text-center"
             onClick={handleBibleClick}
           >
             <Book className={`w-6 h-6 mx-auto mb-1 ${activeTab === "bible" ? "text-blue-600" : "text-muted-foreground"}`} />
             <span className={`text-xs ${activeTab === "bible" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>Bible</span>
           </button>
-          <button 
+          <button
             className="text-center"
             onClick={() => setActiveTab("announcements")}
           >
             <Bell className={`w-6 h-6 mx-auto mb-1 ${activeTab === "announcements" ? "text-blue-600" : "text-muted-foreground"}`} />
             <span className={`text-xs ${activeTab === "announcements" ? "text-blue-600 font-medium" : "text-muted-foreground"}`}>News</span>
           </button>
-          <button 
+          <button
             className="text-center"
             onClick={() => setActiveTab("departments")}
           >

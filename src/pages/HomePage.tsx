@@ -126,10 +126,9 @@ const HomePage = () => {
   const campusFellowships = [
     "Believers Connect UoG",
     "Believers Connect ATU",
-    "Believers Connect Athlone",
-    "Believers Connect UCD",
+    "Believers Connect TUS",
     "Believers Connect Maynooth",
-    "Believers Connect Cork"
+    "Believers Connect South"
   ];
 
   return (

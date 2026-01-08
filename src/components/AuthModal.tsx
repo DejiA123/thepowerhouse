@@ -23,7 +23,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       onLogin(email, password, role);
@@ -39,8 +39,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     "University of Galway (UoG)",
     "Atlantic Technological University (ATU)",
     "Maynooth University",
-    "University College Dublin (UCD)",
-    "Athlone Institute of Technology",
+    "Technological University of the Shannon (TUS)",
     "Other"
   ];
 
@@ -75,7 +74,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                       className="border-blue-200 focus:border-blue-500"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="password">Password</Label>
                     <Input
@@ -104,8 +103,8 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                     </Select>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={isLoading}
                   >
@@ -149,7 +148,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="signup-password">Password</Label>
                     <Input
@@ -192,8 +191,8 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                     </Select>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-amber-600 hover:bg-amber-700"
                     disabled={isLoading}
                   >
