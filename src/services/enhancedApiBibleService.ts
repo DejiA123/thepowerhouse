@@ -795,7 +795,13 @@ export const enhancedApiBibleService = {
       '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
       '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
       '65eec8e0b60e656b-01': 'NIV',
-      'bba9f40183526463-01': 'BIBLE', // New API.Bible ID
+      'bba9f40183526463-01': 'BIBLE',
+      '06125ad2a57b9d83-01': 'BSB',
+      '9827059441abc5d1-01': 'KJV',
+      'c3154776164c439c-01': 'KJV',
+      '01b305960cd5417b-01': 'ESV',
+      '41f6a19f6a4a4f8f-01': 'NLT',
+      '31f5a19f6a4a4f8f-01': 'NKJV',
 
       // Bible Brain IDs (legacy)
       'ENGKJV': 'KJV',
@@ -803,7 +809,7 @@ export const enhancedApiBibleService = {
       'ENGNIV': 'NIV',
       'ENGNLT': 'NLT',
       'ENGNKJ': 'NKJV',
-      'ENGNAB': 'NASB',
+      'ENGNAS': 'NASB',
       'ENGAMP': 'AMP',
       'ENGGNT': 'GNT',
       'ENGASV': 'ASV',
@@ -827,7 +833,6 @@ export const enhancedApiBibleService = {
       'ENGLSV2014': 'ESV',
       'ENGNIV2011': 'NIV',
       'ENGNLTP2014': 'NLT',
-      'ENGNAS': 'NASB',
       'ENGREV': 'RSV',
       'CGTCBT': 'CEB',
 
@@ -876,16 +881,16 @@ export const enhancedApiBibleService = {
 
     // If no mapping found, provide a clean fallback
     // For API.Bible IDs (long UUIDs with dashes), show a clean generic name
-    if (versionId.includes('-') && versionId.length > 20) {
-      return 'Bible Translation';
+    if (versionId.includes('-') && versionId.length > 15) {
+      return 'BIBLE';
     }
 
     // For shorter IDs that might be abbreviations, show them as-is
     if (versionId.length <= 10) {
-      return `${versionId.toUpperCase()} Translation`;
+      return versionId.toUpperCase();
     }
 
     // For other cases, show a clean generic name
-    return 'Bible Translation';
+    return 'BIBLE';
   }
 };
