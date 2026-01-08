@@ -87,7 +87,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
 
     const { error } = await supabase
       .from('bible_notes')
-      .update({ 
+      .update({
         note_text: editText.trim(),
         updated_at: new Date().toISOString()
       })
@@ -153,7 +153,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
           />
           <Button onClick={saveNote} className="w-full">
             <Save className="w-4 h-4 mr-2" />
-            Save Note
+            Save
           </Button>
         </div>
 

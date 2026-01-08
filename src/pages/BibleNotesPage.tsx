@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 import {
-    Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar
+    Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar, Trash2,
+    MoreVertical, Filter, Grid, List as ListIcon, TrendingUp, Hash, Layers, Heart
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import DOMPurify from 'dompurify';
@@ -68,6 +70,10 @@ const BibleNotesPage = () => {
     const [showNoteDialog, setShowNoteDialog] = useState(false);
     const [selectedNote, setSelectedNote] = useState<BibleNote | null>(null);
     const richTextEditorRef = useRef<RichTextEditorHandle | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [selectedNoteForDelete, setSelectedNoteForDelete] = useState<string | null>(null);
+    const [isInlineEditing, setIsInlineEditing] = useState(false);
+    const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
 
     const { user } = useAuth();
     const { toast } = useToast();
@@ -84,7 +90,24 @@ const BibleNotesPage = () => {
 
     useEffect(() => {
         filterAndSortNotes();
-    }, [notes, searchTerm, selectedCategory, sortBy, sortOrder]);
+    }, [notes, searchTerm, selectedCategory, sortBy, sortOrder, showOnlyFavourites]);
+
+    const openNewNote = () => {
+        setEditingNote(null);
+        setNewNote({
+            title: '',
+            note_text: '',
+            book: 'genesis',
+            chapter: '1',
+            verse: '',
+            category: 'insight',
+            tags: [],
+            is_favorite: false,
+            is_private: false,
+            is_pinned: false
+        });
+        setShowNewNoteDialog(true);
+    };
 
     const fetchNotes = async () => {
         if (!user) return;
@@ -118,8 +141,9 @@ const BibleNotesPage = () => {
                 (note.title && note.title.toLowerCase().includes(searchTerm.toLowerCase()));
 
             const matchesCategory = selectedCategory === 'all' || note.category === selectedCategory;
+            const matchesFavourites = !showOnlyFavourites || note.is_favorite;
 
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory && matchesFavourites;
         });
 
         filtered.sort((a, b) => {
@@ -195,8 +219,8 @@ const BibleNotesPage = () => {
             if (error) throw error;
 
             toast({
-                title: "Note Updated",
-                description: "Your note has been updated successfully",
+                title: "Note Updated ✨",
+                description: "Your insights have been preserved beautifully.",
             });
 
             setNewNote({
@@ -218,8 +242,8 @@ const BibleNotesPage = () => {
         } catch (error) {
             console.error('Error updating note:', error);
             toast({
-                title: "Error",
-                description: "Failed to update note",
+                title: "Oops!",
+                description: "Something went wrong while updating your note.",
                 variant: "destructive",
             });
         } finally {
@@ -227,8 +251,35 @@ const BibleNotesPage = () => {
         }
     };
 
+    const toggleFavoriteNote = async (note: BibleNote) => {
+        if (!user) return;
+
+        try {
+            const { error } = await supabase
+                .from('bible_notes')
+                .update({ is_favorite: !note.is_favorite })
+                .eq('id', note.id);
+
+            if (error) throw error;
+
+            toast({
+                title: !note.is_favorite ? "Added to Favourites ⭐" : "Removed from Favourites",
+                description: !note.is_favorite ? "We've marked this note for you." : "The note has been removed from your favourites.",
+            });
+
+            await fetchNotes();
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            toast({
+                title: "Oops!",
+                description: "Failed to update your preference.",
+                variant: "destructive",
+            });
+        }
+    };
+
     const deleteNote = async (noteId: string) => {
-        if (!user || !confirm('Are you sure you want to delete this note?')) return;
+        if (!user) return;
 
         setLoading(true);
         try {
@@ -242,15 +293,18 @@ const BibleNotesPage = () => {
 
             toast({
                 title: "Note Deleted",
-                description: "Your note has been deleted successfully",
+                description: "The note has been removed from your collection.",
             });
 
             await fetchNotes();
+            if (selectedNote?.id === noteId) {
+                setShowNoteDialog(false);
+            }
         } catch (error) {
             console.error('Error deleting note:', error);
             toast({
                 title: "Error",
-                description: "Failed to delete note",
+                description: "Failed to delete the note.",
                 variant: "destructive",
             });
         } finally {
@@ -283,8 +337,8 @@ const BibleNotesPage = () => {
             if (error) throw error;
 
             toast({
-                title: "Note Saved",
-                description: "Your note has been saved successfully",
+                title: "Insights Saved! 📖",
+                description: "Your divine inspiration is now safely stored.",
             });
 
             setNewNote({
@@ -306,11 +360,19 @@ const BibleNotesPage = () => {
             console.error('Error saving note:', error);
             toast({
                 title: "Error",
-                description: "Failed to save note",
+                description: "Failed to save your note. Please try again.",
                 variant: "destructive",
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSaveNote = () => {
+        if (editingNote) {
+            updateNote();
+        } else {
+            saveNote();
         }
     };
 
@@ -334,346 +396,509 @@ const BibleNotesPage = () => {
 
     const formatDateTime = (dateString: string) => {
         const date = new Date(dateString);
-        const day = date.getDate();
-        const month = date.toLocaleString([], { month: 'long' });
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day} ${month} ${year} at ${hours}:${minutes}`;
+        return date.toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     const getNotePreview = (html: string): string => {
         if (!html) return '';
         try {
-            let text = html
-                .replace(/<\s*br\s*\/?>/gi, '\n')
-                .replace(/<\s*\/p\s*>/gi, '\n\n')
-                .replace(/<\s*p\s*>/gi, '')
-                .replace(/<\s*li\s*>/gi, '• ')
-                .replace(/<\s*\/li\s*>/gi, '\n')
-                .replace(/<\s*\/ul\s*>/gi, '\n')
-                .replace(/<\s*\/ol\s*>/gi, '\n');
-
-            text = text.replace(/<[^>]*>/g, '');
-
-            text = text
-                .replace(/\s+\n/g, '\n')
-                .replace(/\n{3,}/g, '\n\n')
-                .trim();
-
-            return text;
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            const text = div.textContent || div.innerText || '';
+            return text.substring(0, 150).trim() + (text.length > 150 ? '...' : '');
         } catch {
-            return html.replace(/<[^>]*>/g, '').trim();
+            return html.replace(/<[^>]*>/g, '').substring(0, 150).trim();
         }
     };
 
+    const stats = {
+        total: notes.length,
+        favourites: notes.filter(n => n.is_favorite).length,
+        sermons: notes.filter(n => n.category === 'sermon').length,
+        insights: notes.filter(n => n.category === 'insight').length,
+    };
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            <div className="container mx-auto px-4 py-6 max-w-6xl">
-                {/* Clean Header */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-6">
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950">
+            {/* Stunning Hero Section */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pt-12 pb-24 px-4">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+                <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+
+                <div className="relative z-10 container mx-auto max-w-6xl">
+                    <div className="flex items-center justify-between mb-8">
                         <Button
                             variant="ghost"
                             onClick={() => navigate('/bible')}
-                            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md rounded-full px-4"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span>Bible</span>
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Return to Bible
                         </Button>
-                        <Button
-                            onClick={() => setShowNewNoteDialog(true)}
-                            className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Note
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={openNewNote}
+                                className="bg-white text-purple-600 hover:bg-white/90 font-bold px-6 rounded-full shadow-lg transition-transform hover:scale-105"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add New Note
+                            </Button>
+                        </div>
                     </div>
 
-                    <div>
-                        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    <div className="max-w-2xl">
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 drop-shadow-sm font-outfit">
                             Bible Notes
                         </h1>
-                        <p className="text-gray-500 dark:text-gray-400 text-base">
-                            Capture insights and reflections from your study
+                        <p className="text-white/80 text-lg md:text-xl font-medium leading-relaxed mb-10">
+                            Capture every moment of divine inspiration and build your personal library of biblical wisdom.
                         </p>
                     </div>
-                </div>
 
-                {/* Clean Search & Filters */}
-                <div className="mb-6">
-                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Search notes..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 h-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 rounded-lg"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                <SelectTrigger className="w-36 h-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-                                    <SelectValue placeholder="Category" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                                    <SelectItem value="all">All</SelectItem>
-                                    {NOTE_CATEGORIES.map((category) => (
-                                        <SelectItem key={category.id} value={category.id}>
-                                            <span className="flex items-center gap-2">
-                                                <span>{category.icon}</span>
-                                                {category.name}
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select value={sortBy} onValueChange={(value: 'date' | 'book' | 'title') => setSortBy(value)}>
-                                <SelectTrigger className="w-28 h-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                                    <SelectItem value="date">Date</SelectItem>
-                                    <SelectItem value="book">Book</SelectItem>
-                                    <SelectItem value="title">Title</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Notes Content */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-16">
-                            <div className="relative">
-                                <div className="w-12 h-12 border-3 border-gray-200 dark:border-gray-700 rounded-full animate-spin"></div>
-                                <div className="absolute top-0 left-0 w-12 h-12 border-3 border-transparent border-t-amber-500 rounded-full animate-spin"></div>
-                            </div>
-                            <p className="mt-4 text-gray-500 dark:text-gray-400 text-sm">Loading notes...</p>
-                        </div>
-                    ) : filteredNotes.length > 0 ? (
-                        <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {filteredNotes.map((note) => (
-                                <div
-                                    key={note.id}
-                                    className="group relative bg-white dark:bg-gray-800 rounded-lg p-5 cursor-pointer hover:shadow-md transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-600"
-                                    onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
-                                >
-                                    <div className="mb-3">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                                {getCategoryInfo(note.category || 'insight').name}
-                                            </span>
-                                            {note.is_favorite && (
-                                                <Star className="w-4 h-4 text-amber-500 fill-current" />
-                                            )}
-                                        </div>
-
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-                                            {note.title || 'Untitled Note'}
-                                        </h3>
-                                    </div>
-
-                                    <p className="font-serif text-gray-600 dark:text-gray-300 line-clamp-3 mb-3 leading-relaxed text-[15px]">
-                                        {getNotePreview(note.note_text)}
-                                    </p>
-
-                                    <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
-                                        <span>{formatDate(note.created_at)}</span>
-                                        {note.tags && note.tags.length > 0 && (
-                                            <span>{note.tags.length} {note.tags.length === 1 ? 'tag' : 'tags'}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 px-8">
-                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4">
-                                <BookOpen className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                {searchTerm ? 'No notes found' : 'No notes yet'}
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400 text-center max-w-sm text-sm mb-6">
-                                {searchTerm
-                                    ? 'Try adjusting your search or filters'
-                                    : 'Start capturing your thoughts and insights'
+                    {/* Stats Dashboard */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                        {[
+                            {
+                                label: 'Total Notes',
+                                value: stats.total,
+                                icon: BookOpen,
+                                color: 'bg-blue-500',
+                                onClick: () => {
+                                    setShowOnlyFavourites(false);
+                                    setSearchTerm('');
+                                    setSelectedCategory('all');
                                 }
-                            </p>
-                            {!searchTerm && (
-                                <Button
-                                    onClick={() => setShowNewNoteDialog(true)}
-                                    className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create Note
-                                </Button>
-                            )}
-                        </div>
-                    )}
+                            },
+                            {
+                                label: showOnlyFavourites ? 'Showing Favourites' : 'Favourites',
+                                value: stats.favourites,
+                                icon: Star,
+                                color: 'bg-amber-400',
+                                isActive: showOnlyFavourites,
+                                onClick: () => setShowOnlyFavourites(!showOnlyFavourites)
+                            },
+                        ].map((stat, i) => (
+                            <button
+                                key={i}
+                                onClick={stat.onClick}
+                                className={`group flex flex-col text-left transition-all duration-300 ${stat.isActive ? 'ring-2 ring-white scale-105' : 'hover:scale-105 active:scale-95'} bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-500`}
+                                style={{ animationDelay: `${i * 100}ms` }}
+                            >
+                                <div className="flex items-center justify-between mb-2 w-full">
+                                    <div className={`p-2 rounded-xl ${stat.color} bg-opacity-80 group-hover:scale-110 transition-transform`}>
+                                        <stat.icon className={`w-4 h-4 text-white ${stat.label.includes('Favourites') && showOnlyFavourites ? 'fill-white' : ''}`} />
+                                    </div>
+                                    <span className="text-2xl font-bold">{stat.value}</span>
+                                </div>
+                                <span className="text-xs font-semibold uppercase tracking-wider text-white/60">{stat.label}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            {/* Note View Dialog */}
-            <Dialog open={showNoteDialog} onOpenChange={setShowNoteDialog}>
-                <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0">
-                    {/* Header */}
-                    <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <Button
-                            variant="ghost"
-                            onClick={() => setShowNoteDialog(false)}
-                            className="text-amber-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-2"
-                        >
-                            <ArrowLeft className="w-5 h-5 mr-2" />
-                            <span className="text-base">Notes</span>
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="ghost"
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                onClick={() => {
-                                    if (selectedNote) {
-                                        setShowNoteDialog(false);
-                                        editNote(selectedNote);
-                                    }
-                                }}
-                            >
-                                <Edit3 className="w-5 h-5 text-amber-500" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                onClick={() => setShowNoteDialog(false)}
-                                aria-label="Close"
-                            >
-                                <X className="w-7 h-7 text-gray-900 dark:text-gray-100 stroke-[2.5]" />
-                            </Button>
+            {/* Content Area */}
+            <div className="container mx-auto max-w-6xl px-4 -mt-12 relative z-20 pb-20">
+                {/* Search & Filter Bar */}
+                <Card className="mb-8 p-3 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-3xl">
+                    <div className="flex flex-col lg:flex-row gap-4 items-center">
+                        <div className="relative flex-1 w-full">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Input
+                                placeholder="Search your notes"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-purple-500"
+                            />
                         </div>
-                    </div>
+                        <div className="flex gap-2 w-full lg:w-auto">
+                            {/* Category filter removed as requested */}
 
-                    {/* Note Content */}
-                    <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 px-4 pt-4 pb-6">
-                        {selectedNote && (
-                            <div
-                                className="max-w-3xl mx-auto cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-4 transition-colors duration-200"
-                                onClick={() => {
-                                    setShowNoteDialog(false);
-                                    editNote(selectedNote);
-                                }}
-                            >
-                                {/* Date with Close Button */}
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex-1"></div>
-                                    <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                                        {formatDateTime(selectedNote.created_at)}
-                                    </div>
-                                    <div className="flex-1 flex justify-end">
-                                        <Button
-                                            variant="ghost"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowNoteDialog(false);
-                                            }}
-                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                                            aria-label="Close"
-                                        >
-                                            <X className="w-6 h-6 text-gray-900 dark:text-gray-100" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Title */}
-                                <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
-                                    {selectedNote.title || 'Bible Note'}
-                                </div>
-
-                                {/* Content with serif font */}
-                                <div
-                                    className="font-serif prose prose-base max-w-none dark:prose-invert text-gray-900 dark:text-gray-100 leading-relaxed text-[17px]"
-                                    dangerouslySetInnerHTML={{
-                                        __html: DOMPurify.sanitize(selectedNote.note_text, {
-                                            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'],
-                                            ALLOWED_ATTR: ['class', 'style']
-                                        })
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Note Editor Dialog */}
-            <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
-                <DialogContent className="w-screen h-[100dvh] max-w-none bg-gray-50 dark:bg-gray-900 rounded-none m-0 flex flex-col p-0">
-                    {/* Header */}
-                    <div className="bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <Button
-                            variant="ghost"
-                            onClick={() => setShowNewNoteDialog(false)}
-                            className="text-amber-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-2"
-                        >
-                            <ArrowLeft className="w-5 h-5 mr-2" />
-                            <span className="text-base">Notes</span>
-                        </Button>
-                        <Button
-                            onClick={editingNote ? updateNote : saveNote}
-                            disabled={loading || !newNote.note_text.trim()}
-                            className="bg-amber-500 hover:bg-amber-600 text-white font-medium px-6 py-2 rounded-lg shadow-sm"
-                        >
-                            {editingNote ? 'Save' : 'Done'}
-                        </Button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 overflow-y-auto">
-                        <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-4 max-w-3xl mx-auto">
-                            {/* Date */}
-                            <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                {new Date().toLocaleDateString('en-US', {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </div>
-
-                            {/* Title with Close Button */}
-                            <div className="flex items-center gap-2 mb-4">
-                                <Input
-                                    placeholder="Title"
-                                    value={newNote.title}
-                                    onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                    className="text-2xl font-semibold border-none bg-transparent focus:ring-0 px-0 placeholder:text-gray-400 text-gray-900 dark:text-gray-100 flex-1"
-                                />
+                            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
                                 <Button
-                                    variant="ghost"
-                                    onClick={() => setShowNewNoteDialog(false)}
-                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                                    aria-label="Close"
+                                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    onClick={() => setViewMode('grid')}
+                                    className="rounded-xl h-12 w-12"
                                 >
-                                    <X className="w-6 h-6 text-gray-900 dark:text-gray-100" />
+                                    <Grid className="w-5 h-5" />
+                                </Button>
+                                <Button
+                                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    onClick={() => setViewMode('list')}
+                                    className="rounded-xl h-12 w-12"
+                                >
+                                    <ListIcon className="w-5 h-5" />
                                 </Button>
                             </div>
-
-                            {/* Rich Text Editor with serif font */}
-                            <div className="font-serif text-[17px]">
-                                <RichTextEditor
-                                    content={newNote.note_text}
-                                    onChange={(content) => setNewNote({ ...newNote, note_text: content })}
-                                    placeholder="Start writing..."
-                                    ref={richTextEditorRef}
-                                />
-                            </div>
                         </div>
                     </div>
+                </Card>
+
+                {/* Notes Grid */}
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-24">
+                        <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                        <p className="mt-6 text-gray-500 font-medium animate-pulse">Gathering your notes...</p>
+                    </div>
+                ) : filteredNotes.length > 0 ? (
+                    <div className={viewMode === 'grid'
+                        ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                        : "flex flex-col gap-4"
+                    }>
+                        {filteredNotes.map((note) => {
+                            const cat = getCategoryInfo(note.category || 'insight');
+                            return (
+                                <div
+                                    key={note.id}
+                                    className="group relative bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer"
+                                    onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
+                                >
+                                    {/* Category Accent Line - Partially visible by default for mobile parity */}
+                                    <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
+
+                                    <div className="p-7">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className={`h-8 w-8 rounded-full transition-all ${note.is_favorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
+                                                    onClick={(e) => { e.stopPropagation(); toggleFavoriteNote(note); }}
+                                                >
+                                                    <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
+                                                </Button>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-amber-500" onClick={(e) => { e.stopPropagation(); editNote(note); }}>
+                                                    <Edit3 className="w-4 h-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-red-500" onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}>
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                                            {note.title || 'Divine Insight'}
+                                        </h3>
+
+                                        <div className="relative min-h-[100px] max-h-[180px] overflow-hidden mb-6 group/editor">
+                                            <RichTextEditor
+                                                content={note.note_text}
+                                                readOnly={true}
+                                                compact={true}
+                                                onChange={() => { }}
+                                                className="pointer-events-auto"
+                                            />
+                                            {/* Gradient fade to indicate more content */}
+                                            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800">
+                                            <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                {formatDate(note.created_at)}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {note.is_favorite && (
+                                                    <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-full">
+                                                        <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                                    </div>
+                                                )}
+                                                {/* Book reference removed as requested */}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-16 text-center border-2 border-dashed border-gray-200 dark:border-gray-800">
+                        <div className="w-24 h-24 bg-purple-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce transition-all duration-1000">
+                            <BookOpen className="w-10 h-10 text-purple-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                            {searchTerm ? "No results found" : "Your spiritual journey awaits"}
+                        </h3>
+                        <p className="text-gray-500 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
+                            {searchTerm
+                                ? "Adjust your search to rediscover your saved insights."
+                                : "Start capturing your reflections, prayers, and insights to build your biblical library."
+                            }
+                        </p>
+                        {!searchTerm && (
+                            <Button
+                                onClick={() => setShowNewNoteDialog(true)}
+                                className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold h-14 px-10 rounded-full shadow-xl hover:shadow-purple-500/20 transition-all hover:scale-105"
+                            >
+                                <Plus className="w-5 h-5 mr-2" />
+                                Write My First Entry
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Premium Note View Dialog */}
+            {/* Premium Note View Dialog - Truly Full Screen */}
+            <Dialog open={showNoteDialog} onOpenChange={(open) => {
+                setShowNoteDialog(open);
+                if (!open) setIsInlineEditing(false);
+            }}>
+                <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col">
+                    {selectedNote && (
+                        <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+                            {/* Standard Header Bar - Clean Apple Notes Style */}
+                            <div className="flex items-center justify-between px-6 h-16 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        if (isInlineEditing) {
+                                            // Optional: Add "Confirm discard changes" if modified
+                                            setIsInlineEditing(false);
+                                        } else {
+                                            setShowNoteDialog(false);
+                                        }
+                                    }}
+                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    {isInlineEditing ? 'Cancel' : 'Back'}
+                                </Button>
+
+                                <div className="flex-1 flex justify-center overflow-hidden px-4">
+                                    {isInlineEditing ? (
+                                        <Input
+                                            value={newNote.title}
+                                            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                            placeholder="Note Title"
+                                            className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white max-w-lg"
+                                        />
+                                    ) : (
+                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white max-w-lg">
+                                            {selectedNote.title || 'Divine Insight'}
+                                        </h2>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {isInlineEditing ? (
+                                        <Button
+                                            onClick={async () => {
+                                                // Simplified inline save
+                                                setLoading(true);
+                                                try {
+                                                    const { error } = await supabase
+                                                        .from('bible_notes')
+                                                        .update({
+                                                            note_text: newNote.note_text,
+                                                            title: newNote.title
+                                                        })
+                                                        .eq('id', selectedNote.id);
+                                                    if (error) throw error;
+
+                                                    selectedNote.note_text = newNote.note_text;
+                                                    selectedNote.title = newNote.title;
+                                                    setIsInlineEditing(false);
+                                                    toast({ title: "Saved", description: "Your reflection has been updated." });
+                                                    fetchNotes();
+                                                } catch (err) {
+                                                    console.error(err);
+                                                    toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            }}
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold px-6 rounded-full"
+                                        >
+                                            Save
+                                        </Button>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    setEditingNote(selectedNote);
+                                                    setNewNote({
+                                                        title: selectedNote.title || '',
+                                                        note_text: selectedNote.note_text || '',
+                                                        book: selectedNote.book || 'genesis',
+                                                        chapter: selectedNote.chapter?.toString() || '1',
+                                                        verse: selectedNote.verse?.toString() || '',
+                                                        category: selectedNote.category || 'insight',
+                                                        tags: selectedNote.tags || [],
+                                                        is_favorite: selectedNote.is_favorite || false,
+                                                        is_private: selectedNote.is_private || false,
+                                                        is_pinned: selectedNote.is_pinned || false
+                                                    });
+                                                    setIsInlineEditing(true);
+                                                }}
+                                                className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10"
+                                            >
+                                                <Edit3 className="w-5 h-5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    setSelectedNoteForDelete(selectedNote.id);
+                                                    deleteNote(selectedNote.id);
+                                                }}
+                                                className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full h-10 w-10"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </Button>
+                                            <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-2"></div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setShowNoteDialog(false)}
+                                                className="text-gray-400 hover:text-gray-900 rounded-full h-10 w-10"
+                                            >
+                                                <X className="w-5 h-5" />
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Content Area - RichTextEditor handles internal scrolling */}
+                            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
+                                <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col min-h-0">
+                                    {isInlineEditing ? (
+                                        <div className="flex-1 flex flex-col min-h-0">
+                                            <RichTextEditor
+                                                content={newNote.note_text}
+                                                onChange={(content) => setNewNote({ ...newNote, note_text: content })}
+                                                placeholder="Speak your heart here..."
+                                                toolbarPosition="bottom"
+                                                className="flex-1"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="flex-1 flex flex-col min-h-0 cursor-text transition-all hover:bg-gray-50/50 dark:hover:bg-white/[0.02]"
+                                            onClick={() => {
+                                                setNewNote({
+                                                    title: selectedNote.title || '',
+                                                    note_text: selectedNote.note_text || '',
+                                                    book: selectedNote.book || 'genesis',
+                                                    chapter: selectedNote.chapter?.toString() || '1',
+                                                    verse: selectedNote.verse?.toString() || '',
+                                                    category: selectedNote.category || 'insight',
+                                                    tags: selectedNote.tags || [],
+                                                    is_favorite: selectedNote.is_favorite || false,
+                                                    is_private: selectedNote.is_private || false,
+                                                    is_pinned: selectedNote.is_pinned || false
+                                                });
+                                                setIsInlineEditing(true);
+                                            }}
+                                        >
+                                            <RichTextEditor
+                                                content={selectedNote.note_text}
+                                                readOnly={true}
+                                                onChange={async (content) => {
+                                                    // Allow direct saving from preview (e.g. table edits)
+                                                    try {
+                                                        const { error } = await supabase
+                                                            .from('bible_notes')
+                                                            .update({ note_text: content })
+                                                            .eq('id', selectedNote.id);
+                                                        if (error) throw error;
+                                                        selectedNote.note_text = content;
+                                                        fetchNotes();
+                                                    } catch (err) {
+                                                        console.error("Preview save error:", err);
+                                                    }
+                                                }}
+                                                className="max-w-none"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
-        </div>
+
+            {/* Premium Editor Dialog */}
+            <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
+                <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0">
+                    {/* Premium Navbar */}
+                    <div className="flex items-center justify-between w-full px-6 h-16 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setShowNewNoteDialog(false)}
+                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-4 rounded-full font-bold"
+                            >
+                                <ArrowLeft className="w-5 h-5 mr-2" />
+                                Back
+                            </Button>
+                            {/* Category selector removed as requested */}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <Button
+                                onClick={handleSaveNote}
+                                disabled={loading}
+                                className="bg-indigo-600 text-white hover:bg-indigo-700 font-black px-10 rounded-full shadow-lg h-10 transition-all active:scale-95"
+                            >
+                                {loading ? 'Saving...' : 'Save'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Editor Content */}
+                    < div className="flex-1 overflow-y-auto bg-gray-50/30 dark:bg-gray-950" >
+                        <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-[3rem] my-8 max-w-4xl mx-auto min-h-[calc(100vh-160px)] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
+                            {/* Editor Header Info */}
+                            <div className="p-10 pb-0 space-y-8">
+                                <div className="flex flex-wrap gap-4 items-center">
+                                    {/* Bible book/chapter selectors removed as requested */}
+
+                                    {/* Star favorite removed as requested */}
+                                    <div className="flex-1"></div>
+                                    {/* Creation Date removed as requested */}
+                                </div>
+
+                                <Input
+                                    placeholder="Enter a title for this note"
+                                    value={newNote.title}
+                                    onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                    className="text-2xl md:text-3xl font-bold border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-[1.5rem] px-6 h-20 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all placeholder:text-gray-200 dark:placeholder:text-gray-700 text-gray-900 dark:text-white shadow-sm"
+                                />
+                            </div>
+
+                            {/* Rich Text Editor - Now styled premium */}
+                            <div className="p-10 flex-1 flex flex-col group">
+                                <div className="flex-1 rounded-[2rem] border-2 border-transparent group-focus-within:border-purple-100 dark:group-focus-within:border-purple-900/20 transition-all overflow-hidden bg-gray-50/10 backdrop-blur-sm">
+                                    <RichTextEditor
+                                        content={newNote.note_text}
+                                        onChange={(content) => setNewNote({ ...newNote, note_text: content })}
+                                        placeholder=""
+                                        ref={richTextEditorRef}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div >
+                </DialogContent >
+            </Dialog >
+        </div >
     );
 };
 

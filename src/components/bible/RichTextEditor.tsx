@@ -1,4 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import BubbleMenuExtension from '@tiptap/extension-bubble-menu';
+import { cn } from '@/lib/utils';
 import StarterKit from '@tiptap/starter-kit';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
@@ -14,22 +17,29 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
-import { 
-  Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import {
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Link as LinkIcon, Image as ImageIcon, Table as TableIcon, 
-  Palette, Highlighter, Code, Quote, Undo, Redo, 
-  Heading1, Heading2, Heading3, Text, Subscript, Superscript, ChevronDown, ChevronUp
+  Link as LinkIcon, Image as ImageIcon, Table as TableIcon,
+  Palette, Highlighter, Code, Quote, Undo, Redo,
+  Heading1, Heading2, Heading3, Text, Subscript, Superscript, ChevronDown, ChevronUp,
+  CheckSquare, Plus, Trash2, Columns, Rows
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useState, forwardRef, useImperativeHandle } from 'react';
+import { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
+  toolbarPosition?: 'top' | 'bottom';
+  className?: string;
+  readOnly?: boolean;
+  compact?: boolean;
 }
 
 export interface RichTextEditorHandle {
@@ -40,11 +50,13 @@ interface MenuBarProps {
   editor: any;
   isToolbarVisible: boolean;
   onToggleToolbar: () => void;
+  position?: 'top' | 'bottom';
 }
 
-const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar }: MenuBarProps) => {
+const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }: MenuBarProps) => {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [showFormattingMenu, setShowFormattingMenu] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
@@ -70,316 +82,206 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar }: MenuBarProps) =>
     }
   };
 
-  const addTable = () => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-  };
+  const shadowClass = position === 'top' ? 'shadow-sm' : 'shadow-[0_-8px_30px_rgba(0,0,0,0.12)]';
+  const heightClass = position === 'top' ? 'h-12' : 'h-16 pb-safe';
 
-  const setTextColor = (color: string) => {
-    editor.chain().focus().setColor(color).run();
-  };
-
-  const setHighlightColor = (color: string) => {
-    editor.chain().focus().setHighlight({ color }).run();
-  };
+  const ToolbarButton = ({
+    isActive,
+    onClick,
+    children,
+    className = "",
+    activeColor = "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30"
+  }: {
+    isActive?: boolean,
+    onClick: () => void,
+    children: React.ReactNode,
+    className?: string,
+    activeColor?: string
+  }) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      className={cn(
+        "h-10 w-10 p-0 rounded-full transition-all duration-200",
+        isActive ? activeColor : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800",
+        className
+      )}
+    >
+      {children}
+    </Button>
+  );
 
   return (
-    <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-      <div className="flex items-center justify-between p-2 border-b border-gray-100">
-        <span className="text-sm font-medium text-gray-700">Formatting Tools</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleToolbar}
-          className="h-6 w-6 p-0 hover:bg-gray-100"
-        >
-          {isToolbarVisible ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
+    <>
+      {editor && (
+        <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('table')}>
+          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-xl">
+            {/* Columns Group */}
+            <div className="flex items-center gap-1 bg-gray-50/50 dark:bg-gray-900/50 p-1 rounded-lg">
+              <ToolbarButton onClick={() => editor.chain().focus().addColumnBefore().run()} className="relative" title="Add Column Before">
+                <Columns className="w-5 h-5 mr-0.5" />
+                <Plus className="w-3 h-3 absolute top-1 right-1 text-emerald-500 font-bold" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()} className="relative" title="Add Column After">
+                <Columns className="w-5 h-5 ml-0.5" />
+                <Plus className="w-3 h-3 absolute top-1 right-1 text-emerald-500 font-bold" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().deleteColumn().run()} className="relative text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete Column">
+                <Columns className="w-5 h-5" />
+                <Trash2 className="w-3 h-3 absolute top-1 right-1" />
+              </ToolbarButton>
+            </div>
+
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
+
+            {/* Rows Group */}
+            <div className="flex items-center gap-1 bg-gray-50/50 dark:bg-gray-900/50 p-1 rounded-lg">
+              <ToolbarButton onClick={() => editor.chain().focus().addRowBefore().run()} className="relative" title="Add Row Above">
+                <Rows className="w-5 h-5 mt-0.5" />
+                <Plus className="w-3 h-3 absolute top-1 right-1 text-emerald-500 font-bold" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()} className="relative" title="Add Row Below">
+                <Rows className="w-5 h-5 mb-0.5" />
+                <Plus className="w-3 h-3 absolute top-1 right-1 text-emerald-500 font-bold" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().deleteRow().run()} className="relative text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete Row">
+                <Rows className="w-5 h-5" />
+                <Trash2 className="w-3 h-3 absolute top-1 right-1" />
+              </ToolbarButton>
+            </div>
+
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
+
+            {/* Table Actions */}
+            <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30" title="Delete Table">
+              <Trash2 className="w-5 h-5" />
+            </ToolbarButton>
+          </div>
+        </BubbleMenu>
+      )}
+
+      <div className={cn(
+        "bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl sticky z-20 transition-all border-gray-100 dark:border-gray-800",
+        position === 'top' ? 'top-0 border-b' : 'bottom-0 border-t',
+        shadowClass
+      )}>
+        <div className="flex flex-col w-full">
+          {/* Secondary Formatting Menu (Apple Notes "Aa" Menu) */}
+          {showFormattingMenu && (
+            <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 dark:border-gray-800 animate-in slide-in-from-bottom-2 duration-200 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full">
+                <ToolbarButton isActive={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+                  <Bold className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+                  <Italic className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+                  <UnderlineIcon className="w-5 h-5" />
+                </ToolbarButton>
+              </div>
+
+              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1 shrink-0"></div>
+
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full shrink-0">
+                <ToolbarButton isActive={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+                  <span className="font-bold text-sm">H1</span>
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+                  <span className="font-bold text-sm">H2</span>
+                </ToolbarButton>
+              </div>
+
+              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1 shrink-0"></div>
+
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full shrink-0">
+                <ToolbarButton isActive={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+                  <AlignLeft className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+                  <AlignCenter className="w-5 h-5" />
+                </ToolbarButton>
+              </div>
+            </div>
           )}
-        </Button>
-      </div>
-      {isToolbarVisible && (
-        <div className="p-2">
-          <div className="flex flex-wrap gap-1 items-center">
-            {/* Text Formatting */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant={editor.isActive('bold') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className="h-8 w-8 p-0"
+
+          {/* Main Toolbar */}
+          <div className={cn("flex items-center justify-between px-6", heightClass)}>
+            <div className="flex items-center gap-4 md:gap-8">
+              <ToolbarButton
+                isActive={showFormattingMenu}
+                onClick={() => setShowFormattingMenu(!showFormattingMenu)}
+                activeColor="text-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50 dark:bg-indigo-900/30"
               >
-                <Bold className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('italic') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className="h-8 w-8 p-0"
+                <span className="text-xl font-serif font-bold italic">Aa</span>
+              </ToolbarButton>
+
+              <ToolbarButton
+                isActive={editor.isActive('taskList')}
+                onClick={() => editor.chain().focus().toggleTaskList().run()}
               >
-                <Italic className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('underline') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                className="h-8 w-8 p-0"
+                <CheckSquare className="w-6 h-6" />
+              </ToolbarButton>
+
+              <ToolbarButton
+                isActive={editor.isActive('table')}
+                onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
               >
-                <UnderlineIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('strike') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                className="h-8 w-8 p-0"
-              >
-                <Strikethrough className="w-4 h-4" />
-              </Button>
+                <TableIcon className="w-6 h-6" />
+              </ToolbarButton>
+
+              <ToolbarButton onClick={() => setShowImageDialog(true)}>
+                <ImageIcon className="w-6 h-6" />
+              </ToolbarButton>
             </div>
 
-            {/* Headings */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant={editor.isActive('heading', { level: 1 }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                className="h-8 w-8 p-0"
-              >
-                <Heading1 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('heading', { level: 2 }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                className="h-8 w-8 p-0"
-              >
-                <Heading2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('heading', { level: 3 }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                className="h-8 w-8 p-0"
-              >
-                <Heading3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('paragraph') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().setParagraph().run()}
-                className="h-8 w-8 p-0"
-              >
-                <Text className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Lists */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant={editor.isActive('bulletList') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                className="h-8 w-8 p-0"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('orderedList') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                className="h-8 w-8 p-0"
-              >
-                <ListOrdered className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Text Alignment */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant={editor.isActive({ textAlign: 'left' }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                className="h-8 w-8 p-0"
-              >
-                <AlignLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive({ textAlign: 'center' }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                className="h-8 w-8 p-0"
-              >
-                <AlignCenter className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive({ textAlign: 'right' }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                className="h-8 w-8 p-0"
-              >
-                <AlignRight className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive({ textAlign: 'justify' }) ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-                className="h-8 w-8 p-0"
-              >
-                <AlignJustify className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Special Formatting */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant={editor.isActive('blockquote') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                className="h-8 w-8 p-0"
-              >
-                <Quote className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={editor.isActive('codeBlock') ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                className="h-8 w-8 p-0"
-              >
-                <Code className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Links and Media */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowLinkDialog(true)}
-                className="h-8 w-8 p-0"
-              >
-                <LinkIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowImageDialog(true)}
-                className="h-8 w-8 p-0"
-              >
-                <ImageIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addTable}
-                className="h-8 w-8 p-0"
-              >
-                <TableIcon className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Colors */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTextColor('#000000')}
-                className="h-8 w-8 p-0"
-                title="Black"
-              >
-                <Palette className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHighlightColor('#fef3c7')}
-                className="h-8 w-8 p-0"
-                title="Highlight"
-              >
-                <Highlighter className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* History */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => editor.chain().focus().undo().run()}
-                disabled={!editor.can().undo()}
-                className="h-8 w-8 p-0"
-              >
-                <Undo className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => editor.chain().focus().redo().run()}
-                disabled={!editor.can().redo()}
-                className="h-8 w-8 p-0"
-              >
-                <Redo className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center gap-2">
+              <ToolbarButton onClick={() => editor.chain().focus().undo().run()}>
+                <Undo className="w-5 h-5" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
+                <Redo className="w-5 h-5" />
+              </ToolbarButton>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Link Dialog */}
+      {/* Dialogs */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Link</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Enter URL"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-            />
-            <div className="flex gap-2">
+          <DialogHeader><DialogTitle>Add Link</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Input placeholder="Enter URL" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Cancel</Button>
               <Button onClick={addLink}>Add Link</Button>
-              <Button variant="outline" onClick={() => setShowLinkDialog(false)}>
-                Cancel
-              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Image Dialog */}
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Image</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              placeholder="Image URL"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
-            <Input
-              placeholder="Alt text (optional)"
-              value={imageAlt}
-              onChange={(e) => setImageAlt(e.target.value)}
-            />
-            <div className="flex gap-2">
+          <DialogHeader><DialogTitle>Add Image</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Input placeholder="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+            <Input placeholder="Alt text (optional)" value={imageAlt} onChange={(e) => setImageAlt(e.target.value)} />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowImageDialog(false)}>Cancel</Button>
               <Button onClick={addImage}>Add Image</Button>
-              <Button variant="outline" onClick={() => setShowImageDialog(false)}>
-                Cancel
-              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
-const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ content, onChange, placeholder }, ref) => {
+const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ content, onChange, placeholder, toolbarPosition = 'top', className = '', readOnly = false, compact = false }, ref) => {
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
-  
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -405,17 +307,51 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       TableRow,
       TableHeader,
       TableCell,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      BubbleMenuExtension,
     ],
     content: content,
+    editable: true, // Always editable to allow BubbleMenu interaction
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[300px] p-4',
+        class: cn(
+          'prose mx-auto focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all',
+          compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-6 md:p-10',
+          'selection:bg-indigo-100 dark:selection:bg-indigo-900/30',
+          '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
+          '[&_table_td]:border [&_table_td]:border-gray-200 dark:[&_table_td]:border-gray-800 [&_table_td]:p-2 [&_table_td]:min-w-[100px]',
+          '[&_table_th]:border [&_table_th]:border-gray-200 dark:[&_table_th]:border-gray-800 [&_table_th]:p-2 [&_table_th]:bg-gray-50 dark:[&_table_th]:bg-gray-900 [&_table_th]:font-bold',
+          '[&_.taskList]:list-none [&_.taskList]:p-0 [&_.taskList]:my-4',
+          '[&_.taskList_li]:flex [&_.taskList_li]:gap-3 [&_.taskList_li]:items-start [&_.taskList_li]:mb-2',
+          '[&_.taskList_input]:mt-1.5 [&_.taskList_input]:h-5 [&_.taskList_input]:w-5 [&_.taskList_input]:rounded-full [&_.taskList_input]:border-gray-300 [&_.taskList_input]:text-indigo-600 [&_.taskList_input]:focus:ring-indigo-500',
+          !readOnly && !compact && 'min-h-[300px]',
+          readOnly && 'caret-transparent' // Hide caret in readOnly mode
+        ),
       },
+      handleKeyDown: (view, event) => {
+        // Prevent typing if readOnly is true, but allow commands (like table edits)
+        if (readOnly && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+          return true; // Return true to block the event
+        }
+        return false;
+      },
+      handleTextInput: () => readOnly, // Block text input if readOnly
     },
   });
+
+  // Sync content when content prop changes from outside (optional but good for parity)
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      // Small optimization: only update if it's truly different to avoid cursor jumps
+      editor.commands.setContent(content, false);
+    }
+  }, [editor, content]);
 
   useImperativeHandle(ref, () => ({
     insertImage: (url: string, alt?: string) => {
@@ -427,17 +363,30 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
   }), [editor]);
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
-      <MenuBar 
-        editor={editor} 
-        isToolbarVisible={isToolbarVisible}
-        onToggleToolbar={() => setIsToolbarVisible(!isToolbarVisible)}
-      />
-      <EditorContent editor={editor} />
-      {!content && (
-        <div className="text-gray-400 p-4 text-center">
-          {placeholder || 'Start writing your note...'}
-        </div>
+    <div className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 transition-colors", className)}>
+      {toolbarPosition === 'top' && !readOnly && (
+        <MenuBar
+          editor={editor}
+          isToolbarVisible={isToolbarVisible}
+          onToggleToolbar={() => setIsToolbarVisible(!isToolbarVisible)}
+          position="top"
+        />
+      )}
+      <div className="flex-1 relative overflow-y-auto min-h-0">
+        <EditorContent editor={editor} className="min-h-full" />
+        {!content && editor && editor.getText().length === 0 && !readOnly && (
+          <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium">
+            {placeholder || 'Begin your divine exploration...'}
+          </div>
+        )}
+      </div>
+      {toolbarPosition === 'bottom' && !readOnly && (
+        <MenuBar
+          editor={editor}
+          isToolbarVisible={isToolbarVisible}
+          onToggleToolbar={() => setIsToolbarVisible(!isToolbarVisible)}
+          position="bottom"
+        />
       )}
     </div>
   );
