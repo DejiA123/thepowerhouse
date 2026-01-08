@@ -50,15 +50,15 @@ const HomePage = () => {
   }, []);
 
   const handleNewHereClick = () => {
-    alert("Welcome to The Power House! We're excited to have you here. Please speak to one of our ushers or pastors after service.");
+    navigate("/new-here");
   };
 
   const handleServeClick = () => {
-    navigate("/groups");
+    navigate("/serve");
   };
 
   const handleBuildingCampaignClick = () => {
-    alert("Join our Building Campaign! We're raising funds for our new sanctuary. Every contribution helps build God's house.");
+    navigate("/building-campaign");
   };
 
   const handleLifeGroupsClick = () => {

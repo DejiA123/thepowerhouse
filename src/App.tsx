@@ -35,6 +35,9 @@ import IntroPage from "@/pages/IntroPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import FollowUpPage from "@/pages/FollowUpPage";
+import NewHerePage from "@/pages/NewHerePage";
+import ServePage from "@/pages/ServePage";
+import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
 
 console.log('App.tsx: Component loading...');
 
@@ -233,6 +236,9 @@ const AppRoutes = () => {
             <Route path="/terms-of-service" element={<TermsOfServicePage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/follow-up" element={<FollowUpPage />} />
+            <Route path="/new-here" element={<NewHerePage />} />
+            <Route path="/serve" element={<ServePage />} />
+            <Route path="/building-campaign" element={<BuildingCampaignPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
