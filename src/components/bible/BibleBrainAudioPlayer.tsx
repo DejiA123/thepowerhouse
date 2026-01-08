@@ -35,7 +35,7 @@ export const BibleBrainAudioPlayer = ({
   const [isMuted, setIsMuted] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const { preferences } = useBiblePreferences();
@@ -158,13 +158,13 @@ export const BibleBrainAudioPlayer = ({
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
-      
+
       // Auto play next chapter if enabled
       if (preferences.autoPlayNext) {
         const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
         const currentBookInfo = allBooks.find(b => b.apiName === book);
         const nextChapter = chapter + 1;
-        
+
         // Check if we need to move to the next book
         if (currentBookInfo && nextChapter > currentBookInfo.chapters) {
           const currentBookIndex = allBooks.findIndex(b => b.apiName === book);
@@ -205,7 +205,9 @@ export const BibleBrainAudioPlayer = ({
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('canplay', handleCanPlay);
     };
-  }, [chapter, onChapterChange, preferences.autoPlayNext]);
+    // Note: onChapterChange and onBookChange are now wrapped in useCallback in BiblePage.tsx 
+    // to ensure stable references, preventing unnecessary re-creation of event listeners
+  }, [book, chapter, onChapterChange, onBookChange, preferences.autoPlayNext]);
 
   const loadAudio = async () => {
     try {
@@ -215,9 +217,9 @@ export const BibleBrainAudioPlayer = ({
       setAudioUrl(null);
 
       console.log(`🎵 Loading Bible Brain audio for ${book} chapter ${chapter} (${version})`);
-      
+
       const url = await enhancedApiBibleService.getAudio(version, book, chapter);
-      
+
       if (url) {
         setAudioUrl(url);
         setHasAudio(true);
@@ -426,7 +428,7 @@ export const BibleBrainAudioPlayer = ({
               >
                 <SkipBack className="w-4 h-4" />
               </Button>
-              
+
               <Button
                 variant="default"
                 size="sm"
@@ -441,7 +443,7 @@ export const BibleBrainAudioPlayer = ({
                   <Play className="w-4 h-4" />
                 )}
               </Button>
-              
+
               <Button
                 variant="ghost"
                 size="sm"

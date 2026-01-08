@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import type { BibleChapter } from "@/types/bible";
@@ -95,7 +95,7 @@ const BiblePage = () => {
     loadVersions();
   }, []);
 
-  const loadChapter = async (bookApiName: string, chapterNum: number) => {
+  const loadChapter = useCallback(async (bookApiName: string, chapterNum: number) => {
     console.log(`📖 BiblePage: Loading ${bookApiName} chapter ${chapterNum}`);
     setLoading(true);
     setCurrentVerse(0);
@@ -131,7 +131,7 @@ const BiblePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedVersion, toast]);
 
   const handleBookSelect = (bookApiName: string) => {
     const normalized = normalizeBookApiName(bookApiName);
@@ -150,7 +150,7 @@ const BiblePage = () => {
     }
   };
 
-  const handleChapterChange = async (chapter: number, isAutoPlay = false) => {
+  const handleChapterChange = useCallback(async (chapter: number, isAutoPlay = false) => {
     console.log(`🔄 BiblePage: handleChapterChange called with chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
     console.log(`🔄 BiblePage: Current preferences.fontSize before change:`, preferences.fontSize);
     setSelectedChapter(chapter);
@@ -170,9 +170,9 @@ const BiblePage = () => {
     } else {
       console.error('❌ BiblePage: No selectedBook available for chapter change');
     }
-  };
+  }, [selectedBook, preferences.fontSize, setPreferredChapter, loadChapter]);
 
-  const handleBookChange = async (bookApiName: string, chapter: number, isAutoPlay = false) => {
+  const handleBookChange = useCallback(async (bookApiName: string, chapter: number, isAutoPlay = false) => {
     console.log(`📚 BiblePage: handleBookChange called with book=${bookApiName}, chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
     const normalized = normalizeBookApiName(bookApiName);
     setSelectedBook(normalized);
@@ -198,7 +198,7 @@ const BiblePage = () => {
     }
     // Use the new bookApiName parameter for book changes
     await loadChapter(normalized, chapter);
-  };
+  }, [setPreferredBook, setPreferredChapter, loadChapter, toast]);
 
   // Set up GlobalAudioContext callbacks for auto-advancement - moved after function definitions
   useEffect(() => {
