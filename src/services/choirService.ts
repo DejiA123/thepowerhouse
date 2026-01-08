@@ -15,6 +15,7 @@ export interface ChoirSong {
 export interface ChoirFolder {
     id: string;
     name: string;
+    parent_id?: string | null;
     created_at?: string;
     songs?: ChoirSong[];
 }
@@ -25,6 +26,17 @@ export interface WeeklySetSong {
     title: string;
     key: string;
     artist: string;
+    url?: string;
+    instrumental_url?: string;
+    instrumental_notes?: string;
+    library_song_id?: string;
+    created_at?: string;
+}
+
+export interface InstrumentalResource {
+    id: string;
+    title: string;
+    type: string;
     url?: string;
     created_at?: string;
 }
@@ -37,8 +49,51 @@ export interface SetlistInfo {
 }
 
 export const choirService = {
+    // --- Instrumental Resources ---
+    async getInstrumentalResources(): Promise<InstrumentalResource[]> {
+        const { data, error } = await supabase
+            .from('choir_instrumental_resources' as any)
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return (data || []) as unknown as InstrumentalResource[];
+    },
+
+    async addInstrumentalResource(resource: Omit<InstrumentalResource, 'id' | 'created_at'>): Promise<InstrumentalResource> {
+        const { data, error } = await supabase
+            .from('choir_instrumental_resources' as any)
+            .insert([resource])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as InstrumentalResource;
+    },
+
+    async updateInstrumentalResource(id: string, updates: Partial<InstrumentalResource>): Promise<InstrumentalResource> {
+        const { data, error } = await supabase
+            .from('choir_instrumental_resources' as any)
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as InstrumentalResource;
+    },
+
+    async deleteInstrumentalResource(id: string) {
+        const { error } = await supabase
+            .from('choir_instrumental_resources' as any)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
     // --- Folders ---
-    async getFolders() {
+    async getFolders(): Promise<ChoirFolder[]> {
         const { data: folders, error: foldersError } = await supabase
             .from('choir_folders' as any)
             .select('*')
@@ -55,20 +110,31 @@ export const choirService = {
         if (songsError) throw songsError;
 
         // Combine folders and songs
-        return folders.map((folder: any) => ({
+        const typedFolders = (folders || []) as any[];
+        const typedSongs = (songs || []) as any[];
+
+        return typedFolders.map((folder: any) => ({
             ...folder,
-            songs: songs.filter((song: any) => song.folder_id === folder.id)
+            songs: typedSongs.filter((song: any) => song.folder_id === folder.id)
         }));
     },
 
-    async createFolder(name: string) {
+    async createFolder(name: string, parent_id?: string | null): Promise<ChoirFolder> {
         const { data, error } = await supabase
             .from('choir_folders' as any)
-            .insert([{ name }])
+            .insert([{ name, parent_id }])
             .select()
             .single();
         if (error) throw error;
-        return { ...data, songs: [] };
+
+        const folderData = data as any;
+        return {
+            id: folderData.id,
+            name: folderData.name,
+            parent_id: folderData.parent_id,
+            created_at: folderData.created_at,
+            songs: []
+        };
     },
 
     async deleteFolder(id: string) {

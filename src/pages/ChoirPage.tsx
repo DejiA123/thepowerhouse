@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -31,7 +32,10 @@ import {
     Heart,
     Pencil,
     Edit3,
-    CalendarIcon
+    CalendarIcon,
+    Zap,
+    Waves,
+    PlusCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -41,7 +45,104 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { choirService, ChoirFolder, WeeklySetSong } from "@/services/choirService";
-import { toast } from "sonner"; // Assuming sonner is available based on App.tsx
+import { toast } from "sonner";
+
+// --- Sub-components ---
+const BandSongCard = ({ song, folders, onUpdate }: { song: WeeklySetSong, folders: ChoirFolder[], onUpdate: (id: string, updates: any) => void }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [notes, setNotes] = useState(song.instrumental_notes || "");
+    const [chartUrl, setChartUrl] = useState(song.instrumental_url || "");
+
+    // Sync state if props change (important for real-time updates)
+    useEffect(() => {
+        setNotes(song.instrumental_notes || "");
+        setChartUrl(song.instrumental_url || "");
+    }, [song.instrumental_notes, song.instrumental_url]);
+
+    // Find the original library song to get fallback notes
+    const librarySong = folders.flatMap(f => f.songs || []).find(s =>
+        (song.library_song_id && s.id === song.library_song_id) ||
+        (s.title.toLowerCase() === song.title.toLowerCase() && s.artist.toLowerCase() === song.artist.toLowerCase())
+    );
+
+    const displayNotes = song.instrumental_notes || (librarySong?.notes ? `[FROM LIBRARY] ${librarySong.notes}` : null);
+
+    const handleSave = () => {
+        onUpdate(song.id, { instrumental_notes: notes, instrumental_url: chartUrl });
+        setIsEditing(false);
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-all">
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-bold shrink-0 text-xs">
+                        {song.key}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{song.title}</h4>
+                        <p className="text-xs text-slate-500">{song.artist}</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    {song.instrumental_url && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1 border-blue-200 text-blue-600 hover:bg-blue-50"
+                            onClick={() => window.open(song.instrumental_url, '_blank')}
+                        >
+                            <FileMusic className="w-3 h-3" /> View Chart
+                        </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setIsEditing(!isEditing)}>
+                        <Pencil className="w-3 h-3 text-slate-400" />
+                    </Button>
+                </div>
+            </div>
+
+            {isEditing ? (
+                <div className="space-y-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <div>
+                        <Label className="text-[10px] uppercase text-slate-400 font-bold">Band Notes (Chords, Dynamics)</Label>
+                        <Textarea
+                            placeholder="e.g. Intro: G - C - D. Soft start, builds at bridge."
+                            className="text-sm mt-1 min-h-[80px]"
+                            value={notes}
+                            onChange={e => setNotes(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <Label className="text-[10px] uppercase text-slate-400 font-bold">Chart URL (Google Drive/PDF)</Label>
+                        <Input
+                            placeholder="https://drive.google.com/..."
+                            className="text-sm mt-1"
+                            value={chartUrl}
+                            onChange={e => setChartUrl(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>Save Details</Button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {displayNotes ? (
+                        <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
+                                <strong className="text-slate-400 uppercase text-[10px] block mb-1">Band Notes:</strong>
+                                {displayNotes}
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-[10px] text-slate-400 italic mt-2">No specific band instructions yet.</p>
+                    )}
+                </>
+            )}
+        </div>
+    );
+};
 
 const ChoirPage = () => {
     const navigate = useNavigate();
@@ -59,13 +160,8 @@ const ChoirPage = () => {
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
     const [isRosterOpen, setIsRosterOpen] = useState(false);
 
-    // Mock Data for Instrumentalists (Keep static or move to DB later)
-    const instrumentalResources = [
-        { title: "Advanced Piano Chords", type: "Tutorial", duration: "15 min", icon: Video },
-        { title: "Drum Fills Breakdown", type: "Technique", duration: "10 min", icon: Video },
-        { title: "Ambient Pad Sounds", type: "Resource", size: "250MB", icon: Download },
-        { title: "Bass Groove Patterns", type: "Workshop", duration: "45 min", icon: Video }
-    ];
+    // Dynamic Instrumental Resources from Supabase
+    const [instrResources, setInstrResources] = useState<any[]>([]);
 
     // Data from Supabase
     const [folders, setFolders] = useState<ChoirFolder[]>([]);
@@ -95,28 +191,54 @@ const ChoirPage = () => {
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
     const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | null>(null);
-    const [newSetSong, setNewSetSong] = useState({ title: "", key: "", artist: "", url: "" });
+    const [newSetSong, setNewSetSong] = useState({ title: "", key: "", artist: "", url: "", library_song_id: "" as string | undefined });
 
     // UI States for Edit Setlist Song
     const [isEditSetSongOpen, setIsEditSetSongOpen] = useState(false);
     const [editingSetSongId, setEditingSetSongId] = useState<string | null>(null);
-    const [editingSetlistSongData, setEditingSetlistSongData] = useState({ title: "", key: "", artist: "", url: "" });
+    const [editingSetlistSongData, setEditingSetlistSongData] = useState({
+        title: "",
+        key: "",
+        artist: "",
+        url: "",
+        instrumental_url: "",
+        instrumental_notes: ""
+    });
+
+    // Resource Preview Helper (extracts YT thumbnail)
+    const getYTThumbnail = (url?: string) => {
+        if (!url) return null;
+        let id = "";
+        if (url.includes("v=")) id = url.split("v=")[1].split("&")[0];
+        else if (url.includes("youtu.be/")) id = url.split("youtu.be/")[1];
+        if (id) return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+        return null;
+    };
+
+    // Instrumental Resource Management States
+    const [isAddInstrOpen, setIsAddInstrOpen] = useState(false);
+    const [isEditInstrOpen, setIsEditInstrOpen] = useState(false);
+    const [editingInstrId, setEditingInstrId] = useState<string | null>(null);
+    const [newInstr, setNewInstr] = useState({ title: "", type: "Tutorial", url: "" });
+    const [instrToEdit, setInstrToEdit] = useState({ title: "", type: "Tutorial", url: "" });
 
     // Initial Data Fetch
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo] = await Promise.all([
+                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo, fetchedInstr] = await Promise.all([
                     choirService.getFolders(),
                     choirService.getWeeklySetlist('praise'),
                     choirService.getWeeklySetlist('worship'),
-                    choirService.getAllSetlistInfo()
+                    choirService.getAllSetlistInfo(),
+                    choirService.getInstrumentalResources()
                 ]);
 
                 setFolders(fetchedFolders);
                 setPraiseSet(fetchedPraise);
                 setWorshipSet(fetchedWorship);
+                setInstrResources(fetchedInstr);
 
                 if (fetchedInfo['date']) setSetlistDate(new Date(fetchedInfo['date']));
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
@@ -176,11 +298,12 @@ const ChoirPage = () => {
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return;
         try {
-            const newFolder = await choirService.createFolder(newFolderName);
+            // If activeFolderId is set, this is a subfolder
+            const newFolder = await choirService.createFolder(newFolderName, activeFolderId);
             setFolders([...folders, newFolder]);
             setNewFolderName("");
             setIsNewFolderOpen(false);
-            toast.success("Folder created");
+            toast.success(activeFolderId ? "Subfolder created" : "Folder created");
         } catch (e) {
             console.error(e);
             toast.error("Failed to create folder");
@@ -303,7 +426,8 @@ const ChoirPage = () => {
                 title: newSetSong.title,
                 key: newSetSong.key,
                 artist: newSetSong.artist,
-                url: newSetSong.url
+                url: newSetSong.url,
+                library_song_id: newSetSong.library_song_id
             });
 
             if (activeSetType === 'praise') {
@@ -343,7 +467,9 @@ const ChoirPage = () => {
             title: song.title,
             key: song.key,
             artist: song.artist,
-            url: song.url || ""
+            url: song.url || "",
+            instrumental_url: song.instrumental_url || "",
+            instrumental_notes: song.instrumental_notes || ""
         });
         setIsEditSetSongOpen(true);
     };
@@ -356,7 +482,9 @@ const ChoirPage = () => {
                 title: editingSetlistSongData.title,
                 key: editingSetlistSongData.key,
                 artist: editingSetlistSongData.artist,
-                url: editingSetlistSongData.url
+                url: editingSetlistSongData.url,
+                instrumental_url: editingSetlistSongData.instrumental_url,
+                instrumental_notes: editingSetlistSongData.instrumental_notes
             });
 
             const updateList = (list: WeeklySetSong[]) => list.map(s =>
@@ -375,6 +503,66 @@ const ChoirPage = () => {
         } catch (e) {
             console.error(e);
             toast.error("Failed to update song");
+        }
+    };
+
+    // -- Handlers for Instrumental Resources --
+    const handleAddInstrResource = async () => {
+        if (!newInstr.title.trim()) return;
+        try {
+            const added = await choirService.addInstrumentalResource(newInstr);
+            setInstrResources([...instrResources, added]);
+            setNewInstr({ title: "", type: "Tutorial", url: "" });
+            setIsAddInstrOpen(false);
+            toast.success("Resource added");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to add resource");
+        }
+    };
+
+    const startEditInstrResource = (resource: any) => {
+        setEditingInstrId(resource.id);
+        setInstrToEdit({ title: resource.title, type: resource.type, url: resource.url || "" });
+        setIsEditInstrOpen(true);
+    };
+
+    const handleSaveEditInstrResource = async () => {
+        if (!editingInstrId || !instrToEdit.title.trim()) return;
+        try {
+            const updated = await choirService.updateInstrumentalResource(editingInstrId, instrToEdit);
+            setInstrResources(instrResources.map(r => r.id === editingInstrId ? updated : r));
+            setIsEditInstrOpen(false);
+            setEditingInstrId(null);
+            toast.success("Resource updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update resource");
+        }
+    };
+
+    const handleDeleteInstrResource = async (id: string) => {
+        try {
+            await choirService.deleteInstrumentalResource(id);
+            setInstrResources(instrResources.filter(r => r.id !== id));
+            toast.success("Resource deleted");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to delete resource");
+        }
+    };
+
+    const handleUpdateBandDetails = async (songId: string, updates: { instrumental_url?: string, instrumental_notes?: string }) => {
+        try {
+            await choirService.updateWeeklySong(songId, updates);
+            // Use functional updates to avoid stale closure bugs
+            const sync = (list: any[]) => list.map(s => s.id === songId ? { ...s, ...updates } : s);
+            setPraiseSet(prev => sync(prev));
+            setWorshipSet(prev => sync(prev));
+            toast.success("Band details updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update band details");
         }
     };
 
@@ -603,11 +791,41 @@ const ChoirPage = () => {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
+                            <Label>Select from Library (Optional)</Label>
+                            <Select onValueChange={(val) => {
+                                const song = folders.flatMap(f => f.songs || []).find(s => s.id === val);
+                                if (song) {
+                                    setNewSetSong({
+                                        title: song.title,
+                                        key: song.key || "",
+                                        artist: song.artist || "",
+                                        url: song.url || "",
+                                        library_song_id: song.id
+                                    });
+                                }
+                            }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Quick select a song..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {folders.flatMap(f => f.songs || []).map(s => (
+                                        <SelectItem key={s.id} value={s.id}>{s.title} ({s.artist})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="relative py-2">
+                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100 dark:border-slate-800"></span></div>
+                            <div className="relative flex justify-center text-[10px] uppercase font-bold"><span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Or enter manually</span></div>
+                        </div>
+
+                        <div className="space-y-2">
                             <Label>Song Title</Label>
                             <Input
                                 placeholder="e.g. Way Maker"
                                 value={newSetSong.title}
-                                onChange={(e) => setNewSetSong({ ...newSetSong, title: e.target.value })}
+                                onChange={(e) => setNewSetSong({ ...newSetSong, title: e.target.value, library_song_id: undefined })}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -1016,25 +1234,58 @@ const ChoirPage = () => {
                             <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col">
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
                                     <div className="flex items-center gap-2">
+                                        <FolderOpen className="w-5 h-5 text-purple-500" />
                                         {activeFolderId ? (
-                                            <>
-                                                <Button variant="ghost" size="sm" onClick={() => setActiveFolderId(null)} className="text-slate-500">
+                                            <div className="flex items-center gap-1 overflow-hidden">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setActiveFolderId(null)}
+                                                    className="text-slate-500 hover:text-purple-600 h-7 px-2 text-xs"
+                                                >
                                                     Library
                                                 </Button>
                                                 <span className="text-slate-300">/</span>
-                                                <span className="font-semibold text-purple-600">{activeFolder?.name}</span>
-                                            </>
+                                                <span className="font-semibold text-purple-600 truncate max-w-[150px]">{activeFolder?.name}</span>
+                                            </div>
                                         ) : (
-                                            <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">My Folders</span>
+                                            <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">Folders</span>
                                         )}
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        {activeFolderId ? (
+                                    <div className="flex gap-2 shrink-0">
+                                        <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                                    <Folder className="w-4 h-4 sm:mr-2" />
+                                                    <span className="hidden sm:inline">New Folder</span>
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
+                                                </DialogHeader>
+                                                <div className="py-4">
+                                                    <Label>Folder Name</Label>
+                                                    <Input
+                                                        placeholder="e.g. Wedding Set"
+                                                        className="mt-2"
+                                                        value={newFolderName}
+                                                        onChange={(e) => setNewFolderName(e.target.value)}
+                                                    />
+                                                </div>
+                                                <DialogFooter>
+                                                    <Button onClick={handleCreateFolder} className="bg-purple-600 text-white">Create</Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+
+                                        {activeFolderId && (
                                             <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
                                                 <DialogTrigger asChild>
                                                     <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white shadow-md">
-                                                        <Plus className="w-4 h-4 mr-2" /> Add Song
+                                                        <Plus className="w-4 h-4 sm:mr-2" />
+                                                        <span className="hidden sm:inline">Add Song</span>
                                                     </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
@@ -1090,40 +1341,15 @@ const ChoirPage = () => {
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
-                                        ) : (
-                                            <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-                                                        <Folder className="w-4 h-4 mr-2" /> New Folder
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Create New Folder</DialogTitle>
-                                                    </DialogHeader>
-                                                    <div className="py-4">
-                                                        <Label>Folder Name</Label>
-                                                        <Input
-                                                            placeholder="e.g. Wedding Set"
-                                                            className="mt-2"
-                                                            value={newFolderName}
-                                                            onChange={(e) => setNewFolderName(e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <Button onClick={handleCreateFolder} className="bg-purple-600 text-white">Create</Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
                                         )}
                                     </div>
                                 </div>
 
-                                <CardContent className="p-6 flex-1">
+                                <CardContent className="p-6 flex-1 overflow-y-auto">
                                     {!activeFolderId ? (
-                                        // Folder Grid View
+                                        // Folder Grid View (Root only)
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            {folders.map(folder => (
+                                            {folders.filter(f => !f.parent_id).map(folder => (
                                                 <div
                                                     key={folder.id}
                                                     onClick={() => setActiveFolderId(folder.id)}
@@ -1134,7 +1360,9 @@ const ChoirPage = () => {
                                                     </div>
                                                     <div>
                                                         <h3 className="font-semibold text-slate-800 dark:text-slate-100">{folder.name}</h3>
-                                                        <p className="text-xs text-slate-400">{folder.songs.length} songs</p>
+                                                        <p className="text-xs text-slate-400">
+                                                            {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
+                                                        </p>
                                                     </div>
 
                                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
@@ -1153,7 +1381,7 @@ const ChoirPage = () => {
                                                     </div>
                                                 </div>
                                             ))}
-                                            {folders.length === 0 && (
+                                            {folders.filter(f => !f.parent_id).length === 0 && (
                                                 <div className="col-span-full py-12 text-center text-slate-400">
                                                     <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
                                                     <p>No folders yet. Create one to organize your songs!</p>
@@ -1161,61 +1389,119 @@ const ChoirPage = () => {
                                             )}
                                         </div>
                                     ) : (
-                                        // Songs List View
-                                        <div className="space-y-4">
-                                            {activeFolder?.songs.length === 0 ? (
-                                                <div className="text-center py-12 text-slate-400">
-                                                    <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                                    <p>This folder is empty. Add your first song!</p>
-                                                </div>
-                                            ) : (
-                                                activeFolder?.songs.map((song, i) => (
-                                                    <div key={song.id} className="bg-white dark:bg-slate-700/30 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-all flex items-start justify-between group">
-                                                        <div className="flex items-start gap-4">
-                                                            <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-bold shrink-0 mt-1">
-                                                                {song.key}
+                                        // Active Folder View: Show Subfolders AND Songs
+                                        <div className="space-y-6">
+                                            {/* Subfolders if any */}
+                                            {folders.filter(f => f.parent_id === activeFolderId).length > 0 && (
+                                                <div className="space-y-3">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subfolders</h4>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {folders.filter(f => f.parent_id === activeFolderId).map(folder => (
+                                                            <div
+                                                                key={folder.id}
+                                                                onClick={() => setActiveFolderId(folder.id)}
+                                                                className="bg-purple-50/50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
+                                                            >
+                                                                <FolderOpen className="w-8 h-8 text-purple-400 group-hover:text-purple-600" />
+                                                                <div>
+                                                                    <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{folder.name}</h3>
+                                                                    <p className="text-[10px] text-slate-400">
+                                                                        {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
+                                                                    </p>
+                                                                </div>
+                                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button size="icon" variant="ghost" className="h-5 w-5">
+                                                                                <MoreVertical className="w-3 h-3 text-slate-400" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent>
+                                                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">{song.title}</h3>
-                                                                <div className="flex items-center gap-2 text-sm text-slate-500">
-                                                                    <span className="font-medium">{song.artist}</span>
-                                                                    {song.url && (
-                                                                        <Badge
-                                                                            variant="secondary"
-                                                                            className="bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer flex items-center gap-1 py-0 px-2 h-5"
-                                                                            onClick={() => playVideo(song.url!)}
-                                                                        >
-                                                                            <PlayCircle className="w-3 h-3" /> Play
-                                                                        </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Songs List */}
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Songs</h4>
+                                                </div>
+                                                {!activeFolder?.songs || activeFolder.songs.length === 0 ? (
+                                                    <div className="text-center py-12 text-slate-400">
+                                                        <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                                        <p>This folder is empty. Add your first song!</p>
+                                                    </div>
+                                                ) : (
+                                                    activeFolder.songs.map((song) => (
+                                                        <div key={song.id} className="bg-white dark:bg-slate-700/30 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:shadow-md transition-all flex items-start justify-between group">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-bold shrink-0 mt-1">
+                                                                    {song.key}
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">{song.title}</h3>
+                                                                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                                                                        <span className="font-medium">{song.artist}</span>
+                                                                        {song.url && (
+                                                                            <Badge
+                                                                                variant="secondary"
+                                                                                className="bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer flex items-center gap-1 py-0 px-2 h-5"
+                                                                                onClick={() => playVideo(song.url!)}
+                                                                            >
+                                                                                <PlayCircle className="w-3 h-3" /> Play
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+                                                                    {song.notes && (
+                                                                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 bg-yellow-50 dark:bg-yellow-900/10 p-2 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
+                                                                            📝 {song.notes}
+                                                                        </p>
                                                                     )}
                                                                 </div>
-                                                                {song.notes && (
-                                                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 bg-yellow-50 dark:bg-yellow-900/10 p-2 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
-                                                                        📝 {song.notes}
-                                                                    </p>
-                                                                )}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400">
+                                                                            <MoreVertical className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent>
+                                                                        <DropdownMenuItem onClick={() => {
+                                                                            setNewSetSong({
+                                                                                title: song.title,
+                                                                                key: song.key || "",
+                                                                                artist: song.artist || "",
+                                                                                url: song.url || "",
+                                                                                library_song_id: song.id
+                                                                            });
+                                                                            setIsAddToSetOpen(true);
+                                                                            setActiveSetType('praise'); // Default or let them choose
+                                                                        }}>
+                                                                            <PlusCircle className="w-4 h-4 mr-2" /> Add to Setlist
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => startEditSong(song)}>
+                                                                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteSong(song.id)}>
+                                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400">
-                                                                        <MoreVertical className="w-4 h-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent>
-                                                                    <DropdownMenuItem onClick={() => startEditSong(song)}>
-                                                                        <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteSong(song.id)}>
-                                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
+                                                    ))
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </CardContent>
@@ -1225,89 +1511,193 @@ const ChoirPage = () => {
                     </TabsContent>
 
                     <TabsContent value="instrumentalists" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {instrumentalResources.map((resource, idx) => (
-                                <Card key={idx} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 cursor-pointer overflow-hidden">
-                                    <div className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors">
-                                        <resource.icon className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                    </div>
-                                    <CardContent className="p-4">
-                                        <Badge variant="secondary" className="mb-2 text-xs font-normal">
-                                            {resource.type}
-                                        </Badge>
-                                        <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors">
-                                            {resource.title}
-                                        </h3>
-                                        <p className="text-xs text-slate-500">
-                                            {resource.duration || resource.size}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Tutorials & Resources</h2>
+                            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsAddInstrOpen(true)}>
+                                <Plus className="w-4 h-4 mr-2" /> Add Resource
+                            </Button>
                         </div>
 
-                        <div className="grid md:grid-cols-3 gap-6">
-                            <div className="md:col-span-2">
-                                <Card className="border-none shadow-lg bg-white/80 dark:bg-slate-800/80">
-                                    <CardHeader className="border-b border-slate-100 dark:border-slate-700">
-                                        <CardTitle className="flex items-center text-slate-800 dark:text-slate-100">
-                                            <FileMusic className="w-5 h-5 mr-2 text-blue-500" />
-                                            Chord Charts & Sheets
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-0">
-                                        {[
-                                            { name: "Goodness of God (Chart)", type: "PDF", added: "2 days ago" },
-                                            { name: "Flow Patterns - Worship Medley", type: "DOCX", added: "5 days ago" },
-                                            { name: "Synth Patches - Firm Foundation", type: "ZIP", added: "1 week ago" }
-                                        ].map((file, i) => (
-                                            <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b last:border-0 border-slate-100 dark:border-slate-700">
-                                                <div className="flex items-center">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mr-3 text-blue-600">
-                                                        <FileMusic className="w-5 h-5" />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-medium text-sm text-slate-700 dark:text-slate-200">{file.name}</h4>
-                                                        <span className="text-xs text-slate-400">{file.added}</span>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {instrResources.length === 0 ? (
+                                <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                    <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                    <p>No resources yet. Add tutorials for the band!</p>
+                                </div>
+                            ) : (
+                                instrResources.map((resource) => (
+                                    <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
+                                                        <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+
+                                        <div
+                                            className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
+                                            onClick={() => resource.url && playVideo(resource.url)}
+                                        >
+                                            {getYTThumbnail(resource.url) ? (
+                                                <div className="w-full h-full relative">
+                                                    <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-blue-600">
-                                                    <Download className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        ))}
+                                            ) : (
+                                                <Video className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                            )}
+                                        </div>
+                                        <CardContent className="p-4">
+                                            <Badge variant="secondary" className="mb-2 text-xs font-normal">
+                                                {resource.type}
+                                            </Badge>
+                                            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                                                {resource.title}
+                                            </h3>
+                                            <p className="text-xs text-slate-500">
+                                                {new Date(resource.created_at).toLocaleDateString()}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Band Weekly Setlist Section */}
+                        <div className="space-y-4">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                <ListMusic className="w-6 h-6 text-blue-500" />
+                                Band Setlist View
+                            </h2>
+                            <p className="text-slate-500 text-sm">Chord charts, dynamics, and band-specific instructions for this week.</p>
+
+                            <div className="grid lg:grid-cols-2 gap-6">
+                                {/* Praise Set for Band */}
+                                <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                    <div className="bg-orange-500 p-4 text-white">
+                                        <h3 className="font-bold flex items-center gap-2">
+                                            <Zap className="w-5 h-5 fill-current" /> Praise Set
+                                        </h3>
+                                    </div>
+                                    <CardContent className="p-4 space-y-4">
+                                        {praiseSet.length === 0 ? (
+                                            <p className="text-center py-8 text-slate-400">No songs in praise set</p>
+                                        ) : (
+                                            praiseSet.map((song) => (
+                                                <BandSongCard key={song.id} song={song} folders={folders} onUpdate={handleUpdateBandDetails} />
+                                            ))
+                                        )}
                                     </CardContent>
                                 </Card>
-                            </div>
 
-                            <div className="md:col-span-1">
-                                <Card className="border-none shadow-lg bg-blue-600 text-white h-full relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/50 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                                    <CardContent className="p-6 relative z-10 flex flex-col h-full justify-between">
-                                        <div>
-                                            <h3 className="text-xl font-bold mb-2">Musician's Corner</h3>
-                                            <p className="text-blue-100 text-sm mb-6">
-                                                "Excellence is not an act, but a habit. Keep practicing your craft for the glory of God."
-                                            </p>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <Button className="w-full bg-white/20 hover:bg-white/30 border-none text-white justify-start">
-                                                <Video className="w-4 h-4 mr-2" />
-                                                Watch Masterclass
-                                            </Button>
-                                            <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 border-none justify-start">
-                                                <ListMusic className="w-4 h-4 mr-2" />
-                                                View Tech Rider
-                                            </Button>
-                                        </div>
+                                {/* Worship Set for Band */}
+                                <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                    <div className="bg-indigo-600 p-4 text-white">
+                                        <h3 className="font-bold flex items-center gap-2">
+                                            <Waves className="w-5 h-5" /> Worship Set
+                                        </h3>
+                                    </div>
+                                    <CardContent className="p-4 space-y-4">
+                                        {worshipSet.length === 0 ? (
+                                            <p className="text-center py-8 text-slate-400">No songs in worship set</p>
+                                        ) : (
+                                            worshipSet.map((song) => (
+                                                <BandSongCard key={song.id} song={song} folders={folders} onUpdate={handleUpdateBandDetails} />
+                                            ))
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>
                         </div>
+
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Dialogs for Instrumental Resources */}
+            <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Add Instrumental Resource</DialogTitle>
+                        <DialogDescription>Add a tutorial or technical guide for the band.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Title</Label>
+                            <Input placeholder="e.g. Advanced Piano Chords" value={newInstr.title} onChange={e => setNewInstr({ ...newInstr, title: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select value={newInstr.type} onValueChange={v => setNewInstr({ ...newInstr, type: v })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Tutorial">Tutorial</SelectItem>
+                                    <SelectItem value="Technique">Technique</SelectItem>
+                                    <SelectItem value="Resource">Resource</SelectItem>
+                                    <SelectItem value="Workshop">Workshop</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>URL (YouTube/Link)</Label>
+                            <Input placeholder="https://..." value={newInstr.url} onChange={e => setNewInstr({ ...newInstr, url: e.target.value })} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleAddInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Add Resource</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditInstrOpen} onOpenChange={setIsEditInstrOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit Instrumental Resource</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Title</Label>
+                            <Input placeholder="e.g. Advanced Piano Chords" value={instrToEdit.title} onChange={e => setInstrToEdit({ ...instrToEdit, title: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select value={instrToEdit.type} onValueChange={v => setInstrToEdit({ ...instrToEdit, type: v })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Tutorial">Tutorial</SelectItem>
+                                    <SelectItem value="Technique">Technique</SelectItem>
+                                    <SelectItem value="Resource">Resource</SelectItem>
+                                    <SelectItem value="Workshop">Workshop</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>URL (YouTube/Link)</Label>
+                            <Input placeholder="https://..." value={instrToEdit.url} onChange={e => setInstrToEdit({ ...instrToEdit, url: e.target.value })} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleSaveEditInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Save Changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
