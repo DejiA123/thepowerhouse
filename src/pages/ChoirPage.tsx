@@ -261,6 +261,8 @@ const ChoirPage = () => {
                 setWorshipSet(fetchedWorship);
                 setInstrResources(fetchedInstr);
 
+                console.log("Choir Data Loaded:", { folders: fetchedFolders, songsTotal: fetchedFolders.reduce((acc, f) => acc + (f.songs?.length || 0), 0) });
+
                 if (fetchedInfo['date']) setSetlistDate(new Date(fetchedInfo['date']));
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
@@ -819,20 +821,19 @@ const ChoirPage = () => {
                                     });
                                 }
                             }}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Quick select a song..." />
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder={allLibrarySongs.length === 0 ? "Library is empty" : "Quick select a song..."} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {allLibrarySongs.map(s => (
                                         <SelectItem key={s.id} value={s.id}>
-                                            <div className="flex flex-col items-start">
-                                                <span className="font-medium">{s.title} ({s.artist})</span>
-                                                <span className="text-[10px] text-slate-400">Folder: {s.folderName}</span>
-                                            </div>
+                                            {s.title} ({s.artist}) — {s.folderName}
                                         </SelectItem>
                                     ))}
                                     {allLibrarySongs.length === 0 && (
-                                        <div className="p-2 text-xs text-slate-400 text-center">Library is empty</div>
+                                        <div className="p-4 text-center text-xs text-slate-400">
+                                            No songs found in library.
+                                        </div>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -1274,6 +1275,19 @@ const ChoirPage = () => {
                                     </div>
 
                                     <div className="flex gap-2 shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-9 px-3 text-slate-500 hover:text-purple-600"
+                                            onClick={async () => {
+                                                const f = await choirService.getFolders();
+                                                setFolders(f);
+                                                toast.success("Library refreshed");
+                                            }}
+                                        >
+                                            <Heart className={cn("w-4 h-4 mr-2", loading && "animate-pulse")} />
+                                            Refresh
+                                        </Button>
                                         <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
                                             <DialogTrigger asChild>
                                                 <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
