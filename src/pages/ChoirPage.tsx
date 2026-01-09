@@ -205,12 +205,27 @@ const ChoirPage = () => {
         instrumental_notes: ""
     });
 
+    // Unified YouTube ID extractor
+    const extractYoutubeId = (url?: string) => {
+        if (!url) return null;
+        const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+        const match = url.match(regExp);
+        const id = (match && match[7].length === 11) ? match[7] : null;
+
+        if (id) return id;
+
+        // Handle shorts
+        if (url.includes('/shorts/')) {
+            const parts = url.split('/shorts/');
+            return parts[1]?.split(/[?&]/)[0];
+        }
+
+        return null;
+    };
+
     // Resource Preview Helper (extracts YT thumbnail)
     const getYTThumbnail = (url?: string) => {
-        if (!url) return null;
-        let id = "";
-        if (url.includes("v=")) id = url.split("v=")[1].split("&")[0];
-        else if (url.includes("youtu.be/")) id = url.split("youtu.be/")[1];
+        const id = extractYoutubeId(url);
         if (id) return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
         return null;
     };
@@ -569,18 +584,9 @@ const ChoirPage = () => {
 
     const playVideo = (url: string) => {
         try {
-            let videoId = "";
-            if (url.includes("youtube.com") || url.includes("youtu.be")) {
-                if (url.includes("v=")) {
-                    videoId = url.split("v=")[1].split("&")[0];
-                } else if (url.includes("youtu.be/")) {
-                    videoId = url.split("youtu.be/")[1];
-                }
-                if (videoId) {
-                    setCurrentVideoUrl(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
-                } else {
-                    window.open(url, "_blank");
-                }
+            const videoId = extractYoutubeId(url);
+            if (videoId) {
+                setCurrentVideoUrl(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
             } else {
                 window.open(url, "_blank");
             }
