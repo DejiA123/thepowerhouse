@@ -985,9 +985,6 @@ const ChoirPage = () => {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"> {/* Mobile Responsive Layout */}
                         <div>
-                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-none mb-3 backdrop-blur-sm">
-                                Worship Ministry
-                            </Badge>
                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
                                 The Power House Choir
                             </h1>
