@@ -1302,19 +1302,6 @@ const ChoirPage = () => {
                                     </div>
 
                                     <div className="flex gap-2 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-9 px-3 text-slate-500 hover:text-purple-600"
-                                            onClick={async () => {
-                                                const f = await choirService.getFolders();
-                                                setFolders(f);
-                                                toast.success("Library refreshed");
-                                            }}
-                                        >
-                                            <Heart className={cn("w-4 h-4 mr-2", loading && "animate-pulse")} />
-                                            Refresh
-                                        </Button>
                                         <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
                                             <DialogTrigger asChild>
                                                 <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
