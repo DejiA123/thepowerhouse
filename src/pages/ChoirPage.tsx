@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -261,7 +261,11 @@ const ChoirPage = () => {
                 setWorshipSet(fetchedWorship);
                 setInstrResources(fetchedInstr);
 
-                console.log("Choir Data Loaded:", { folders: fetchedFolders, songsTotal: fetchedFolders.reduce((acc, f) => acc + (f.songs?.length || 0), 0) });
+                console.log("Choir Data Loaded:", {
+                    folders: fetchedFolders,
+                    songsTotal: fetchedFolders.reduce((acc, f) => acc + (f.songs?.length || 0), 0),
+                    folderDetails: fetchedFolders.map(f => ({ name: f.name, songCount: f.songs?.length || 0, songs: f.songs }))
+                });
 
                 if (fetchedInfo['date']) setSetlistDate(new Date(fetchedInfo['date']));
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
@@ -276,6 +280,21 @@ const ChoirPage = () => {
         };
         fetchData();
     }, []);
+
+    // Refresh library when adding to setlist to ensure dropdown is fresh
+    useEffect(() => {
+        if (isAddToSetOpen) {
+            const refreshLibrary = async () => {
+                try {
+                    const fetchedFolders = await choirService.getFolders();
+                    setFolders(fetchedFolders);
+                } catch (error) {
+                    console.error("Error refreshing folders:", error);
+                }
+            };
+            refreshLibrary();
+        }
+    }, [isAddToSetOpen]);
 
 
     // -- Handlers for Setlist Info --
@@ -606,7 +625,9 @@ const ChoirPage = () => {
     const activeFolder = folders.find(f => f.id === activeFolderId);
 
     // Flatten all songs from library for various lookups and selection
-    const allLibrarySongs = folders.flatMap(f => (f.songs || []).map(s => ({ ...s, folderName: f.name })));
+    const allLibrarySongs = useMemo(() => {
+        return folders.flatMap(f => (f.songs || []).map(s => ({ ...s, folderName: f.name })));
+    }, [folders]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-purple-900/10 dark:to-blue-900/10">
@@ -809,30 +830,36 @@ const ChoirPage = () => {
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Select from Library (Optional)</Label>
-                            <Select onValueChange={(val) => {
-                                const song = allLibrarySongs.find(s => s.id === val);
-                                if (song) {
-                                    setNewSetSong({
-                                        title: song.title,
-                                        key: song.key || "",
-                                        artist: song.artist || "",
-                                        url: song.url || "",
-                                        library_song_id: song.id
-                                    });
-                                }
-                            }}>
+                            {/* Debug: Check if we have songs */}
+                            {console.log('All Library Songs in render:', allLibrarySongs)}
+                            {console.log('Should show', allLibrarySongs.length, 'songs in dropdown')}
+                            <Select
+                                onValueChange={(val) => {
+                                    console.log('Selected value:', val);
+                                    const song = allLibrarySongs.find(s => s.id === val);
+                                    if (song) {
+                                        setNewSetSong({
+                                            title: song.title,
+                                            key: song.key || "",
+                                            artist: song.artist || "",
+                                            url: song.url || "",
+                                            library_song_id: song.id
+                                        });
+                                    }
+                                }}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder={allLibrarySongs.length === 0 ? "Library is empty" : "Quick select a song..."} />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {allLibrarySongs.map(s => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                            {s.title} ({s.artist}) — {s.folderName}
-                                        </SelectItem>
-                                    ))}
-                                    {allLibrarySongs.length === 0 && (
+                                <SelectContent position="popper" sideOffset={5} className="max-h-[300px] z-[9999]">
+                                    {allLibrarySongs.length > 0 ? (
+                                        allLibrarySongs.map(s => (
+                                            <SelectItem key={s.id} value={s.id}>
+                                                {s.title} ({s.artist}) — {s.folderName}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
                                         <div className="p-4 text-center text-xs text-slate-400">
-                                            No songs found in library.
+                                            No songs found in library. Add songs to folders in the Vocalist Library section below.
                                         </div>
                                     )}
                                 </SelectContent>
