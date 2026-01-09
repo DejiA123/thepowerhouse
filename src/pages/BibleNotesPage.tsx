@@ -7,7 +7,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import {
     Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar, Trash2,
-    MoreVertical, Filter, Grid, List as ListIcon, TrendingUp, Hash, Layers, Heart
+    MoreVertical, Filter, Grid, List as ListIcon, TrendingUp, Hash, Layers, Heart,
+    Folder, FolderOpen, FolderPlus, ChevronRight, ChevronDown, Menu
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import DOMPurify from 'dompurify';
@@ -17,9 +18,18 @@ import { bibleBooks } from "@/components/bible/BibleBookList";
 import { useNavigate } from "react-router-dom";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import RichTextEditor, { RichTextEditorHandle } from "@/components/bible/RichTextEditor";
+import { bibleNotesService, BibleNoteFolder } from "@/services/bibleNotesService";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 interface BibleNote {
     id: string;
+    user_id: string;
     book: string;
     chapter: number;
     verse?: number;
@@ -30,6 +40,7 @@ interface BibleNote {
     is_favorite?: boolean;
     is_private?: boolean;
     is_pinned?: boolean;
+    folder_id?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -48,6 +59,12 @@ const NOTE_CATEGORIES = [
 const BibleNotesPage = () => {
     const [notes, setNotes] = useState<BibleNote[]>([]);
     const [filteredNotes, setFilteredNotes] = useState<BibleNote[]>([]);
+    const [folders, setFolders] = useState<BibleNoteFolder[]>([]);
+    const [activeFolderId, setActiveFolderId] = useState<string | null | undefined>(undefined); // undefined = all notes
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+    const [editingFolder, setEditingFolder] = useState<BibleNoteFolder | null>(null);
     const [newNote, setNewNote] = useState({
         title: '',
         note_text: '',
@@ -58,10 +75,12 @@ const BibleNotesPage = () => {
         tags: [],
         is_favorite: false,
         is_private: false,
-        is_pinned: false
+        is_pinned: false,
+        folder_id: undefined as string | undefined
     });
     const [editingNote, setEditingNote] = useState<BibleNote | null>(null);
     const [loading, setLoading] = useState(false);
+    const [globalStats, setGlobalStats] = useState({ total: 0, favourites: 0, unfiledCount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [sortBy, setSortBy] = useState<'date' | 'book' | 'title'>('date');
@@ -84,9 +103,16 @@ const BibleNotesPage = () => {
     useEffect(() => {
         if (user) {
             fetchNotes();
+            fetchFolders();
         }
         window.scrollTo(0, 0);
     }, [user]);
+
+    useEffect(() => {
+        if (user && activeFolderId !== undefined) {
+            fetchNotes();
+        }
+    }, [activeFolderId, user]);
 
     useEffect(() => {
         filterAndSortNotes();
@@ -114,11 +140,20 @@ const BibleNotesPage = () => {
 
         try {
             setLoading(true);
-            const { data, error } = await supabase
+            let query = supabase
                 .from('bible_notes')
                 .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
+                .eq('user_id', user.id);
+
+            // Filter by active folder
+            if (activeFolderId === null) {
+                query = query.is('folder_id', null);
+            } else if (activeFolderId) {
+                query = query.eq('folder_id', activeFolderId);
+            }
+            // If activeFolderId is undefined, get all notes
+
+            const { data, error } = await query.order('created_at', { ascending: false });
 
             if (error) throw error;
             setNotes(data || []);
@@ -131,6 +166,69 @@ const BibleNotesPage = () => {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchFolders = async () => {
+        if (!user) return;
+
+        try {
+            const fetchedFolders = await bibleNotesService.getFolders(user.id);
+            setFolders(fetchedFolders);
+
+            // Also update global stats while we're at it
+            const stats = await bibleNotesService.getStats(user.id);
+            setGlobalStats({
+                total: stats.total,
+                favourites: stats.favourites,
+                unfiledCount: stats.byFolder['unfiled'] || 0
+            });
+        } catch (error) {
+            console.error('Error fetching folders/stats:', error);
+        }
+    };
+
+    const handleCreateFolder = async () => {
+        if (!user || !newFolderName.trim()) return;
+
+        try {
+            if (editingFolder) {
+                await bibleNotesService.updateFolder(editingFolder.id, { name: newFolderName.trim() });
+                toast({ title: "Folder Renamed", description: "Your folder has been renamed successfully." });
+            } else {
+                await bibleNotesService.createFolder(user.id, newFolderName.trim());
+                toast({ title: "Folder Created", description: "Your new folder is ready for your insights." });
+            }
+            setNewFolderName('');
+            setEditingFolder(null);
+            setShowNewFolderDialog(false);
+            await fetchFolders();
+        } catch (error) {
+            console.error('Error with folder operation:', error);
+            toast({
+                title: "Error",
+                description: "Failed to process folder operation",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDeleteFolder = async (folderId: string) => {
+        if (!confirm("Are you sure you want to delete this folder? Notes inside will be moved to 'All Notes'.")) return;
+
+        try {
+            await bibleNotesService.deleteFolder(folderId);
+            if (activeFolderId === folderId) setActiveFolderId(undefined);
+            toast({ title: "Folder Deleted", description: "The folder has been removed." });
+            await fetchFolders();
+            await fetchNotes(); // Refresh to see unfiled notes
+        } catch (error) {
+            console.error('Error deleting folder:', error);
+            toast({
+                title: "Error",
+                description: "Failed to delete folder",
+                variant: "destructive",
+            });
         }
     };
 
@@ -189,7 +287,8 @@ const BibleNotesPage = () => {
             tags: note.tags || [],
             is_favorite: note.is_favorite || false,
             is_private: note.is_private || false,
-            is_pinned: note.is_pinned || false
+            is_pinned: note.is_pinned || false,
+            folder_id: note.folder_id || undefined
         });
         setShowNewNoteDialog(true);
     };
@@ -208,7 +307,8 @@ const BibleNotesPage = () => {
                 category: newNote.category || null,
                 tags: newNote.tags.length > 0 ? newNote.tags : null,
                 is_favorite: newNote.is_favorite,
-                is_private: newNote.is_private
+                is_private: newNote.is_private,
+                folder_id: newNote.folder_id || null
             };
 
             const { error } = await supabase
@@ -268,6 +368,7 @@ const BibleNotesPage = () => {
             });
 
             await fetchNotes();
+            await fetchFolders(); // Correctly refresh global stats
         } catch (error) {
             console.error('Error toggling favorite:', error);
             toast({
@@ -297,6 +398,7 @@ const BibleNotesPage = () => {
             });
 
             await fetchNotes();
+            await fetchFolders(); // Correctly refresh global stats
             if (selectedNote?.id === noteId) {
                 setShowNoteDialog(false);
             }
@@ -327,7 +429,8 @@ const BibleNotesPage = () => {
                 category: newNote.category || null,
                 tags: newNote.tags.length > 0 ? newNote.tags : null,
                 is_favorite: newNote.is_favorite,
-                is_private: newNote.is_private
+                is_private: newNote.is_private,
+                folder_id: newNote.folder_id || null
             };
 
             const { error } = await supabase
@@ -356,6 +459,7 @@ const BibleNotesPage = () => {
 
             setShowNewNoteDialog(false);
             await fetchNotes();
+            await fetchFolders(); // Correctly refresh global stats
         } catch (error) {
             console.error('Error saving note:', error);
             toast({
@@ -418,8 +522,8 @@ const BibleNotesPage = () => {
     };
 
     const stats = {
-        total: notes.length,
-        favourites: notes.filter(n => n.is_favorite).length,
+        total: globalStats.total,
+        favourites: globalStats.favourites,
         sermons: notes.filter(n => n.category === 'sermon').length,
         insights: notes.filter(n => n.category === 'insight').length,
     };
@@ -506,148 +610,325 @@ const BibleNotesPage = () => {
             </div>
 
             {/* Content Area */}
-            <div className="container mx-auto max-w-6xl px-4 -mt-12 relative z-20 pb-20">
-                {/* Search & Filter Bar */}
-                <Card className="mb-8 p-3 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-3xl">
-                    <div className="flex flex-col lg:flex-row gap-4 items-center">
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                            <Input
-                                placeholder="Search your notes"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-purple-500"
-                            />
-                        </div>
-                        <div className="flex gap-2 w-full lg:w-auto">
-                            {/* Category filter removed as requested */}
-
-                            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
+            <div className="container mx-auto max-w-7xl px-4 -mt-12 relative z-20 pb-20">
+                <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Sidebar Folder Navigation */}
+                    <div className={cn(
+                        "lg:w-72 space-y-6 transition-all duration-300 shrink-0",
+                        !isSidebarOpen && "lg:w-0 lg:overflow-hidden lg:opacity-0"
+                    )}>
+                        {/* Folder List Card */}
+                        <Card className="p-4 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-[2.5rem] sticky top-24">
+                            <div className="flex items-center justify-between px-2 mb-6">
+                                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Layers className="w-5 h-5 text-indigo-500" />
+                                    Folders
+                                </h3>
                                 <Button
-                                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                                     size="icon"
-                                    onClick={() => setViewMode('grid')}
-                                    className="rounded-xl h-12 w-12"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setEditingFolder(null);
+                                        setNewFolderName('');
+                                        setShowNewFolderDialog(true);
+                                    }}
+                                    className="h-8 w-8 rounded-full text-indigo-600 hover:bg-indigo-50"
                                 >
-                                    <Grid className="w-5 h-5" />
-                                </Button>
-                                <Button
-                                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                                    size="icon"
-                                    onClick={() => setViewMode('list')}
-                                    className="rounded-xl h-12 w-12"
-                                >
-                                    <ListIcon className="w-5 h-5" />
+                                    <FolderPlus className="w-5 h-5" />
                                 </Button>
                             </div>
-                        </div>
-                    </div>
-                </Card>
 
-                {/* Notes Grid */}
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-24">
-                        <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
-                        <p className="mt-6 text-gray-500 font-medium animate-pulse">Gathering your notes...</p>
-                    </div>
-                ) : filteredNotes.length > 0 ? (
-                    <div className={viewMode === 'grid'
-                        ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-                        : "flex flex-col gap-4"
-                    }>
-                        {filteredNotes.map((note) => {
-                            const cat = getCategoryInfo(note.category || 'insight');
-                            return (
-                                <div
-                                    key={note.id}
-                                    className="group relative bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer"
-                                    onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setActiveFolderId(undefined)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm group",
+                                        activeFolderId === undefined
+                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                                            : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                    )}
                                 >
-                                    {/* Category Accent Line - Partially visible by default for mobile parity */}
-                                    <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
-
-                                    <div className="p-7">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className={`h-8 w-8 rounded-full transition-all ${note.is_favorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
-                                                    onClick={(e) => { e.stopPropagation(); toggleFavoriteNote(note); }}
-                                                >
-                                                    <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
-                                                </Button>
-                                            </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-amber-500" onClick={(e) => { e.stopPropagation(); editNote(note); }}>
-                                                    <Edit3 className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-red-500" onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}>
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                                            activeFolderId === undefined ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover:bg-white dark:group-hover:bg-gray-700"
+                                        )}>
+                                            <BookOpen className="w-4 h-4" />
                                         </div>
+                                        All Notes
+                                    </div>
+                                    <span className="text-xs opacity-60 font-bold">{stats.total}</span>
+                                </button>
 
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-purple-600 transition-colors">
-                                            {note.title || 'Divine Insight'}
-                                        </h3>
-
-                                        <div className="relative min-h-[100px] max-h-[180px] overflow-hidden mb-6 group/editor">
-                                            <RichTextEditor
-                                                content={note.note_text}
-                                                readOnly={true}
-                                                compact={true}
-                                                onChange={() => { }}
-                                                className="pointer-events-auto"
-                                            />
-                                            {/* Gradient fade to indicate more content */}
-                                            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
+                                <button
+                                    onClick={() => setActiveFolderId(null)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm group",
+                                        activeFolderId === null
+                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                                            : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                                            activeFolderId === null ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover:bg-white dark:group-hover:bg-gray-700"
+                                        )}>
+                                            <Folder className="w-4 h-4" />
                                         </div>
+                                        Unfiled
+                                    </div>
+                                    <span className="text-xs opacity-60 font-bold">
+                                        {globalStats.unfiledCount}
+                                    </span>
+                                </button>
 
-                                        <div className="flex items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800">
-                                            <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {formatDate(note.created_at)}
+                                <div className="py-2 px-4">
+                                    <div className="h-px bg-gray-100 dark:bg-gray-800 w-full" />
+                                </div>
+
+                                {folders.map((folder) => (
+                                    <div key={folder.id} className="relative group/folder">
+                                        <button
+                                            onClick={() => setActiveFolderId(folder.id)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm",
+                                                activeFolderId === folder.id
+                                                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                                                    : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <div className={cn(
+                                                    "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
+                                                    activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
+                                                )}>
+                                                    <FolderOpen className="w-4 h-4" />
+                                                </div>
+                                                <span className="truncate">{folder.name}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {note.is_favorite && (
-                                                    <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-full">
-                                                        <Star className="w-3 h-3 text-amber-500 fill-current" />
-                                                    </div>
-                                                )}
-                                                {/* Book reference removed as requested */}
+                                                <span className="text-xs opacity-60 font-bold">{folder.noteCount}</span>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className={cn(
+                                                                "h-6 w-6 rounded-full opacity-0 group-hover/folder:opacity-100 transition-opacity",
+                                                                activeFolderId === folder.id ? "text-white hover:bg-white/20" : "text-gray-400 hover:bg-gray-100"
+                                                            )}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <MoreVertical className="w-3 h-3" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => {
+                                                            setEditingFolder(folder);
+                                                            setNewFolderName(folder.name);
+                                                            setShowNewFolderDialog(true);
+                                                        }}>
+                                                            <Edit3 className="w-4 h-4 mr-2" />
+                                                            Rename
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-red-600"
+                                                            onClick={() => handleDeleteFolder(folder.id)}
+                                                        >
+                                                            <Trash2 className="w-4 h-4 mr-2" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
-                                        </div>
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {folders.length === 0 && (
+                                    <div className="p-8 text-center">
+                                        <p className="text-xs text-gray-400 font-medium">No folders yet</p>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 space-y-8">
+                        <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <div className="p-6">
+                                    <h3 className="text-lg font-bold mb-4">{editingFolder ? 'Rename Folder' : 'Create New Folder'}</h3>
+                                    <Input
+                                        placeholder="e.g. Sermon Reflections"
+                                        value={newFolderName}
+                                        onChange={(e) => setNewFolderName(e.target.value)}
+                                        className="h-12 rounded-xl mb-6"
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                                    />
+                                    <div className="flex justify-end gap-3">
+                                        <Button variant="ghost" onClick={() => setShowNewFolderDialog(false)}>Cancel</Button>
+                                        <Button
+                                            onClick={handleCreateFolder}
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-full px-6"
+                                        >
+                                            {editingFolder ? 'Save Changes' : 'Create Folder'}
+                                        </Button>
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-16 text-center border-2 border-dashed border-gray-200 dark:border-gray-800">
-                        <div className="w-24 h-24 bg-purple-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce transition-all duration-1000">
-                            <BookOpen className="w-10 h-10 text-purple-500" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-                            {searchTerm ? "No results found" : "Your spiritual journey awaits"}
-                        </h3>
-                        <p className="text-gray-500 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
-                            {searchTerm
-                                ? "Adjust your search to rediscover your saved insights."
-                                : "Start capturing your reflections, prayers, and insights to build your biblical library."
-                            }
-                        </p>
-                        {!searchTerm && (
-                            <Button
-                                onClick={() => setShowNewNoteDialog(true)}
-                                className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold h-14 px-10 rounded-full shadow-xl hover:shadow-purple-500/20 transition-all hover:scale-105"
-                            >
-                                <Plus className="w-5 h-5 mr-2" />
-                                Write My First Entry
-                            </Button>
+                            </DialogContent>
+                        </Dialog>
+                        {/* Search & Filter Bar */}
+                        <Card className="mb-8 p-3 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-3xl">
+                            <div className="flex flex-col lg:flex-row gap-4 items-center">
+                                <div className="relative flex-1 w-full">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                    <Input
+                                        placeholder="Search your notes"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div className="flex gap-2 w-full lg:w-auto">
+                                    {/* Category filter removed as requested */}
+
+                                    <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
+                                        <Button
+                                            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                                            size="icon"
+                                            onClick={() => setViewMode('grid')}
+                                            className="rounded-xl h-12 w-12"
+                                        >
+                                            <Grid className="w-5 h-5" />
+                                        </Button>
+                                        <Button
+                                            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                                            size="icon"
+                                            onClick={() => setViewMode('list')}
+                                            className="rounded-xl h-12 w-12"
+                                        >
+                                            <ListIcon className="w-5 h-5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* Notes Grid */}
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-24">
+                                <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                                <p className="mt-6 text-gray-500 font-medium animate-pulse">Gathering your notes...</p>
+                            </div>
+                        ) : filteredNotes.length > 0 ? (
+                            <div className={viewMode === 'grid'
+                                ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                                : "flex flex-col gap-4"
+                            }>
+                                {filteredNotes.map((note) => {
+                                    const cat = getCategoryInfo(note.category || 'insight');
+                                    return (
+                                        <div
+                                            key={note.id}
+                                            className="group relative bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer"
+                                            onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
+                                        >
+                                            {/* Category Accent Line - Partially visible by default for mobile parity */}
+                                            <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
+
+                                            <div className="p-7">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className={`h-8 w-8 rounded-full transition-all ${note.is_favorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
+                                                            onClick={(e) => { e.stopPropagation(); toggleFavoriteNote(note); }}
+                                                        >
+                                                            <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-amber-500" onClick={(e) => { e.stopPropagation(); editNote(note); }}>
+                                                            <Edit3 className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-red-500" onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}>
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                                                    {note.title || 'Divine Insight'}
+                                                </h3>
+
+                                                <div className="relative min-h-[100px] max-h-[180px] overflow-hidden mb-6 group/editor">
+                                                    <RichTextEditor
+                                                        content={note.note_text}
+                                                        readOnly={true}
+                                                        compact={true}
+                                                        onChange={() => { }}
+                                                        className="pointer-events-auto"
+                                                    />
+                                                    {/* Gradient fade to indicate more content */}
+                                                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800">
+                                                    <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        {formatDate(note.created_at)}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {note.is_favorite && (
+                                                            <div className="bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-full">
+                                                                <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-1.5 text-gray-400">
+                                                            <Folder className="w-3 h-3" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider">
+                                                                {folders.find(f => f.id === note.folder_id)?.name || 'All Notes'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-16 text-center border-2 border-dashed border-gray-200 dark:border-gray-800">
+                                <div className="w-24 h-24 bg-purple-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce transition-all duration-1000">
+                                    <BookOpen className="w-10 h-10 text-purple-500" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                                    {searchTerm ? "No results found" : "Your spiritual journey awaits"}
+                                </h3>
+                                <p className="text-gray-500 max-w-sm mx-auto mb-10 leading-relaxed font-medium">
+                                    {searchTerm
+                                        ? "Adjust your search to rediscover your saved insights."
+                                        : "Start capturing your reflections, prayers, and insights to build your biblical library."
+                                    }
+                                </p>
+                                {!searchTerm && (
+                                    <Button
+                                        onClick={() => setShowNewNoteDialog(true)}
+                                        className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold h-14 px-10 rounded-full shadow-xl hover:shadow-purple-500/20 transition-all hover:scale-105"
+                                    >
+                                        <Plus className="w-5 h-5 mr-2" />
+                                        Write My First Entry
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Premium Note View Dialog */}
@@ -703,16 +984,19 @@ const BibleNotesPage = () => {
                                                         .from('bible_notes')
                                                         .update({
                                                             note_text: newNote.note_text,
-                                                            title: newNote.title
+                                                            title: newNote.title,
+                                                            folder_id: newNote.folder_id || null
                                                         })
                                                         .eq('id', selectedNote.id);
                                                     if (error) throw error;
 
                                                     selectedNote.note_text = newNote.note_text;
                                                     selectedNote.title = newNote.title;
+                                                    selectedNote.folder_id = newNote.folder_id || null;
                                                     setIsInlineEditing(false);
                                                     toast({ title: "Saved", description: "Your reflection has been updated." });
                                                     fetchNotes();
+                                                    fetchFolders(); // Refresh stats
                                                 } catch (err) {
                                                     console.error(err);
                                                     toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
@@ -741,7 +1025,8 @@ const BibleNotesPage = () => {
                                                         tags: selectedNote.tags || [],
                                                         is_favorite: selectedNote.is_favorite || false,
                                                         is_private: selectedNote.is_private || false,
-                                                        is_pinned: selectedNote.is_pinned || false
+                                                        is_pinned: selectedNote.is_pinned || false,
+                                                        folder_id: selectedNote.folder_id || undefined
                                                     });
                                                     setIsInlineEditing(true);
                                                 }}
@@ -773,6 +1058,29 @@ const BibleNotesPage = () => {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Inline Editor Folder Strip */}
+                            {isInlineEditing && (
+                                <div className="px-6 py-2 bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4">
+                                    <Select
+                                        value={newNote.folder_id || 'unfiled'}
+                                        onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
+                                    >
+                                        <SelectTrigger className="w-[180px] h-8 rounded-full border-none bg-white dark:bg-gray-800 shadow-sm text-xs font-bold">
+                                            <div className="flex items-center gap-2">
+                                                <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                                                <SelectValue placeholder="Folder" />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unfiled">All Notes</SelectItem>
+                                            {folders.map(folder => (
+                                                <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
 
                             {/* Content Area - RichTextEditor handles internal scrolling */}
                             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
@@ -868,11 +1176,26 @@ const BibleNotesPage = () => {
                             {/* Editor Header Info */}
                             <div className="p-10 pb-0 space-y-8">
                                 <div className="flex flex-wrap gap-4 items-center">
-                                    {/* Bible book/chapter selectors removed as requested */}
-
-                                    {/* Star favorite removed as requested */}
+                                    <div className="w-full md:w-auto">
+                                        <Select
+                                            value={newNote.folder_id || 'unfiled'}
+                                            onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
+                                        >
+                                            <SelectTrigger className="w-[200px] h-11 rounded-2xl border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    <Folder className="w-4 h-4 text-purple-500" />
+                                                    <SelectValue placeholder="Add to Folder" />
+                                                </div>
+                                            </SelectTrigger>
+                                            <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                                                <SelectItem value="unfiled">All Notes</SelectItem>
+                                                {folders.map(folder => (
+                                                    <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                     <div className="flex-1"></div>
-                                    {/* Creation Date removed as requested */}
                                 </div>
 
                                 <Input
@@ -897,8 +1220,8 @@ const BibleNotesPage = () => {
                         </div>
                     </div >
                 </DialogContent >
-            </Dialog >
-        </div >
+            </Dialog>
+        </div>
     );
 };
 

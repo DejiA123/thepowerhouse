@@ -850,11 +850,18 @@ const ChoirPage = () => {
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder={allLibrarySongs.length === 0 ? "Library is empty" : "Quick select a song..."} />
                                 </SelectTrigger>
-                                <SelectContent position="popper" sideOffset={5} className="max-h-[300px] z-[9999]">
+                                <SelectContent position="popper" sideOffset={5} className="max-h-[300px] z-[9999] max-w-[calc(100vw-2rem)] md:max-w-md">
                                     {allLibrarySongs.length > 0 ? (
                                         allLibrarySongs.map(s => (
-                                            <SelectItem key={s.id} value={s.id}>
-                                                {s.title} ({s.artist}) — {s.folderName}
+                                            <SelectItem key={s.id} value={s.id} className="max-w-full">
+                                                <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                                                    <span className="truncate font-medium">
+                                                        {s.title} {s.artist && `(${s.artist})`}
+                                                    </span>
+                                                    <span className="truncate text-xs text-slate-500">
+                                                        {s.folderName}
+                                                    </span>
+                                                </div>
                                             </SelectItem>
                                         ))
                                     ) : (
