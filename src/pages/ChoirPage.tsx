@@ -48,7 +48,7 @@ import { choirService, ChoirFolder, WeeklySetSong } from "@/services/choirServic
 import { toast } from "sonner";
 
 // --- Sub-components ---
-const BandSongCard = ({ song, folders, onUpdate }: { song: WeeklySetSong, folders: ChoirFolder[], onUpdate: (id: string, updates: any) => void }) => {
+const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [notes, setNotes] = useState(song.instrumental_notes || "");
     const [chartUrl, setChartUrl] = useState(song.instrumental_url || "");
@@ -60,9 +60,9 @@ const BandSongCard = ({ song, folders, onUpdate }: { song: WeeklySetSong, folder
     }, [song.instrumental_notes, song.instrumental_url]);
 
     // Find the original library song to get fallback notes
-    const librarySong = folders.flatMap(f => f.songs || []).find(s =>
+    const librarySong = allLibrarySongs.find(s =>
         (song.library_song_id && s.id === song.library_song_id) ||
-        (s.title.toLowerCase() === song.title.toLowerCase() && s.artist.toLowerCase() === song.artist.toLowerCase())
+        (s.title.toLowerCase() === song.title.toLowerCase() && s.artist?.toLowerCase() === song.artist?.toLowerCase())
     );
 
     const displayNotes = song.instrumental_notes || (librarySong?.notes ? `[FROM LIBRARY] ${librarySong.notes}` : null);
@@ -191,7 +191,13 @@ const ChoirPage = () => {
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
     const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | null>(null);
-    const [newSetSong, setNewSetSong] = useState({ title: "", key: "", artist: "", url: "", library_song_id: "" as string | undefined });
+    const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, library_song_id?: string }>({
+        title: "",
+        key: "",
+        artist: "",
+        url: "",
+        library_song_id: undefined
+    });
 
     // UI States for Edit Setlist Song
     const [isEditSetSongOpen, setIsEditSetSongOpen] = useState(false);
@@ -597,6 +603,9 @@ const ChoirPage = () => {
 
     const activeFolder = folders.find(f => f.id === activeFolderId);
 
+    // Flatten all songs from library for various lookups and selection
+    const allLibrarySongs = folders.flatMap(f => (f.songs || []).map(s => ({ ...s, folderName: f.name })));
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-purple-900/10 dark:to-blue-900/10">
 
@@ -799,7 +808,7 @@ const ChoirPage = () => {
                         <div className="space-y-2">
                             <Label>Select from Library (Optional)</Label>
                             <Select onValueChange={(val) => {
-                                const song = folders.flatMap(f => f.songs || []).find(s => s.id === val);
+                                const song = allLibrarySongs.find(s => s.id === val);
                                 if (song) {
                                     setNewSetSong({
                                         title: song.title,
@@ -814,9 +823,17 @@ const ChoirPage = () => {
                                     <SelectValue placeholder="Quick select a song..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {folders.flatMap(f => f.songs || []).map(s => (
-                                        <SelectItem key={s.id} value={s.id}>{s.title} ({s.artist})</SelectItem>
+                                    {allLibrarySongs.map(s => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                            <div className="flex flex-col items-start">
+                                                <span className="font-medium">{s.title} ({s.artist})</span>
+                                                <span className="text-[10px] text-slate-400">Folder: {s.folderName}</span>
+                                            </div>
+                                        </SelectItem>
                                     ))}
+                                    {allLibrarySongs.length === 0 && (
+                                        <div className="p-2 text-xs text-slate-400 text-center">Library is empty</div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -1600,7 +1617,7 @@ const ChoirPage = () => {
                                             <p className="text-center py-8 text-slate-400">No songs in praise set</p>
                                         ) : (
                                             praiseSet.map((song) => (
-                                                <BandSongCard key={song.id} song={song} folders={folders} onUpdate={handleUpdateBandDetails} />
+                                                <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
                                             ))
                                         )}
                                     </CardContent>
@@ -1618,7 +1635,7 @@ const ChoirPage = () => {
                                             <p className="text-center py-8 text-slate-400">No songs in worship set</p>
                                         ) : (
                                             worshipSet.map((song) => (
-                                                <BandSongCard key={song.id} song={song} folders={folders} onUpdate={handleUpdateBandDetails} />
+                                                <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
                                             ))
                                         )}
                                     </CardContent>
