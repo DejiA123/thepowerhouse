@@ -35,7 +35,8 @@ import {
     CalendarIcon,
     Zap,
     Waves,
-    PlusCircle
+    PlusCircle,
+    Clock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -44,8 +45,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { choirService, ChoirFolder, WeeklySetSong } from "@/services/choirService";
+import { choirService, ChoirFolder, WeeklySetSong, ChoirCalendarEvent } from "@/services/choirService";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- Sub-components ---
 const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
@@ -146,6 +148,7 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
 
 const ChoirPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("vocalists");
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -154,7 +157,7 @@ const ChoirPage = () => {
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
     // State for Setlist Date
-    const [setlistDate, setSetlistDate] = useState<Date | undefined>(undefined);
+    const [setlistDate, setSetlistDate] = useState<Date | undefined>(new Date());
 
     // State for Header Modals
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
@@ -162,6 +165,17 @@ const ChoirPage = () => {
 
     // Dynamic Instrumental Resources from Supabase
     const [instrResources, setInstrResources] = useState<any[]>([]);
+
+    // Calendar Events State
+    const [calendarEvents, setCalendarEvents] = useState<ChoirCalendarEvent[]>([]);
+    const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+    const [newEvent, setNewEvent] = useState({
+        title: "",
+        description: "",
+        color: "purple"
+    });
+    const [editingEvent, setEditingEvent] = useState<ChoirCalendarEvent | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     // Data from Supabase
     const [folders, setFolders] = useState<ChoirFolder[]>([]);
@@ -211,6 +225,11 @@ const ChoirPage = () => {
         instrumental_notes: ""
     });
 
+    // UI States for Import Setlist
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [importText, setImportText] = useState("");
+    const [importSetType, setImportSetType] = useState<'praise' | 'worship' | null>(null);
+
     // Unified YouTube ID extractor
     const extractYoutubeId = (url?: string) => {
         if (!url) return null;
@@ -248,18 +267,20 @@ const ChoirPage = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo, fetchedInstr] = await Promise.all([
+                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(),
                     choirService.getWeeklySetlist('praise'),
                     choirService.getWeeklySetlist('worship'),
                     choirService.getAllSetlistInfo(),
-                    choirService.getInstrumentalResources()
+                    choirService.getInstrumentalResources(),
+                    choirService.getCalendarEvents()
                 ]);
 
-                setFolders(fetchedFolders);
-                setPraiseSet(fetchedPraise);
-                setWorshipSet(fetchedWorship);
+                setFolders(fetchedFolders as any);
+                setPraiseSet(fetchedPraise as any);
+                setWorshipSet(fetchedWorship as any);
                 setInstrResources(fetchedInstr);
+                setCalendarEvents(fetchedEvents);
 
                 console.log("Choir Data Loaded:", {
                     folders: fetchedFolders,
@@ -287,7 +308,7 @@ const ChoirPage = () => {
             const refreshLibrary = async () => {
                 try {
                     const fetchedFolders = await choirService.getFolders();
-                    setFolders(fetchedFolders);
+                    setFolders(fetchedFolders as any);
                 } catch (error) {
                     console.error("Error refreshing folders:", error);
                 }
@@ -369,7 +390,7 @@ const ChoirPage = () => {
                     return { ...f, songs: [...(f.songs || []), addedSong] };
                 }
                 return f;
-            }));
+            }) as any);
 
             setNewSong({ title: "", key: "", artist: "", url: "", notes: "" });
             setIsAddSongOpen(false);
@@ -425,7 +446,7 @@ const ChoirPage = () => {
                     };
                 }
                 return f;
-            }));
+            }) as any);
 
             setIsEditSongOpen(false);
             setEditingSongId(null);
@@ -473,9 +494,9 @@ const ChoirPage = () => {
             });
 
             if (activeSetType === 'praise') {
-                setPraiseSet([...praiseSet, addedSong]);
+                setPraiseSet([...praiseSet, addedSong] as any);
             } else {
-                setWorshipSet([...worshipSet, addedSong]);
+                setWorshipSet([...worshipSet, addedSong] as any);
             }
 
             setIsAddToSetOpen(false);
@@ -534,9 +555,9 @@ const ChoirPage = () => {
             );
 
             if (activeSetType === 'praise') {
-                setPraiseSet(updateList(praiseSet));
+                setPraiseSet(updateList(praiseSet) as any);
             } else {
-                setWorshipSet(updateList(worshipSet));
+                setWorshipSet(updateList(worshipSet) as any);
             }
 
             setIsEditSetSongOpen(false);
@@ -545,6 +566,55 @@ const ChoirPage = () => {
         } catch (e) {
             console.error(e);
             toast.error("Failed to update song");
+        }
+    };
+
+    const handleImportSetlist = async () => {
+        if (!importText.trim() || !importSetType) return;
+
+        const lines = importText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        let addedCount = 0;
+        let matchedCount = 0;
+
+        try {
+            const results = await Promise.all(lines.map(async (line) => {
+                // Try to match with library
+                const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+
+                const songData = match ? {
+                    set_type: importSetType,
+                    title: match.title,
+                    key: match.key,
+                    artist: match.artist || "",
+                    url: match.url || "",
+                    library_song_id: match.id
+                } : {
+                    set_type: importSetType,
+                    title: line,
+                    key: "??",
+                    artist: "",
+                    url: ""
+                };
+
+                if (match) matchedCount++;
+                return choirService.addWeeklySong(songData);
+            }));
+
+            const newSongs = results as WeeklySetSong[];
+            if (importSetType === 'praise') {
+                setPraiseSet(prev => [...prev, ...newSongs]);
+            } else {
+                setWorshipSet(prev => [...prev, ...newSongs]);
+            }
+
+            setIsImportOpen(false);
+            setImportText("");
+            toast.success(`Imported ${newSongs.length} songs (${matchedCount} matched from library)`);
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to import some songs");
         }
     };
 
@@ -608,6 +678,58 @@ const ChoirPage = () => {
         }
     };
 
+    // -- Handlers for Calendar Events --
+    const handleAddCalendarEvent = async () => {
+        if (!user || !newEvent.title.trim() || !setlistDate) return;
+        try {
+            const added = await choirService.addCalendarEvent({
+                user_id: user.id,
+                title: newEvent.title,
+                description: newEvent.description,
+                event_date: setlistDate.toISOString().split('T')[0],
+                color: newEvent.color
+            });
+            setCalendarEvents([...calendarEvents, added]);
+            setNewEvent({ title: "", description: "", color: "purple" });
+            setIsAddEventOpen(false);
+            toast.success("Event added to calendar");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to add event");
+        }
+    };
+
+    const handleUpdateCalendarEvent = async () => {
+        if (!editingEvent || !newEvent.title.trim()) return;
+        try {
+            const updated = await choirService.updateCalendarEvent(editingEvent.id, {
+                title: newEvent.title,
+                description: newEvent.description,
+                color: newEvent.color,
+                event_date: setlistDate?.toISOString().split('T')[0]
+            });
+            setCalendarEvents(calendarEvents.map(e => e.id === editingEvent.id ? updated : e));
+            setEditingEvent(null);
+            setNewEvent({ title: "", description: "", color: "purple" });
+            setIsAddEventOpen(false);
+            toast.success("Event updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update event");
+        }
+    };
+
+    const handleDeleteCalendarEvent = async (id: string) => {
+        try {
+            await choirService.deleteCalendarEvent(id);
+            setCalendarEvents(calendarEvents.filter(e => e.id !== id));
+            toast.success("Event deleted");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to delete event");
+        }
+    };
+
 
     const playVideo = (url: string) => {
         try {
@@ -654,63 +776,134 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Schedule Modal */}
+            {/* Choir Schedule Modal */}
             <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                            <Calendar className="w-6 h-6 text-purple-600" />
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+                            <CalendarIcon className="w-6 h-6 text-purple-600" />
                             Choir Schedule
                         </DialogTitle>
                     </DialogHeader>
+
                     <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
-                        <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-2xl border border-purple-100 dark:border-purple-800">
-                            <div className="flex items-center gap-4 mb-2">
-                                <div className="p-3 bg-purple-100 dark:bg-purple-800 rounded-full text-purple-600 dark:text-purple-300 font-bold text-xl w-14 h-14 flex items-center justify-center">
-                                    Thu
-                                </div>
-                                <div>
-                                    <h4 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h4>
-                                    <p className="text-purple-600 font-medium">6:00 PM</p>
-                                </div>
+                        {/* Thursday Card */}
+                        <div className="bg-purple-50/50 dark:bg-purple-900/10 p-5 rounded-3xl flex gap-4 items-start border border-purple-100/50 dark:border-purple-800/30">
+                            <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center shrink-0">
+                                <span className="text-purple-600 dark:text-purple-400 font-bold text-sm uppercase">Thu</span>
                             </div>
-                            <p className="text-slate-600 dark:text-slate-400 pl-[4.5rem]">
-                                Main weekly rehearsal. New songs are introduced here. Please verify keys and parts beforehand.
-                            </p>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h3>
+                                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">6:00 PM</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
+                                    Main weekly rehearsal. New songs are introduced here. Please verify keys and parts beforehand.
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-2xl border border-blue-100 dark:border-blue-800">
-                            <div className="flex items-center gap-4 mb-2">
-                                <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-300 font-bold text-xl w-14 h-14 flex items-center justify-center">
-                                    Fri
-                                </div>
-                                <div>
-                                    <h4 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h4>
-                                    <p className="text-blue-600 font-medium">5:40 PM</p>
-                                </div>
+                        {/* Friday Card */}
+                        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-3xl flex gap-4 items-start border border-blue-100/50 dark:border-blue-800/30">
+                            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                                <span className="text-blue-600 dark:text-blue-400 font-bold text-sm uppercase">Fri</span>
                             </div>
-                            <p className="text-slate-600 dark:text-slate-400 pl-[4.5rem]">
-                                Final run-through for Sunday service. Focused on transitions and flow.
-                            </p>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h3>
+                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">5:40 PM</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
+                                    Final run-through for Sunday service. Focused on transitions and flow.
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-2xl border border-orange-100 dark:border-orange-800">
-                            <div className="flex items-center gap-4 mb-2">
-                                <div className="p-3 bg-orange-100 dark:bg-orange-800 rounded-full text-orange-600 dark:text-orange-300 font-bold text-xl w-14 h-14 flex items-center justify-center">
-                                    Sun
-                                </div>
-                                <div>
-                                    <h4 className="text-xl font-bold text-slate-800 dark:text-slate-100">Soundcheck</h4>
-                                    <p className="text-orange-600 font-medium">9:30 AM</p>
-                                </div>
+                        {/* Sunday Card */}
+                        <div className="bg-orange-50/50 dark:bg-orange-900/10 p-5 rounded-3xl flex gap-4 items-start border border-orange-100/50 dark:border-orange-800/30">
+                            <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                                <span className="text-orange-600 dark:text-orange-400 font-bold text-sm uppercase">Sun</span>
                             </div>
-                            <p className="text-slate-600 dark:text-slate-400 pl-[4.5rem]">
-                                Mandatory soundcheck for all serving members. Please be on time.
-                            </p>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Soundcheck</h3>
+                                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">9:30 AM</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
+                                    Mandatory soundcheck for all serving members. Please be on time.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter className="md:justify-center pb-8">
-                        <Button size="lg" onClick={() => setIsScheduleOpen(false)} className="w-full md:w-auto px-12">Close Schedule</Button>
+
+                    <div className="p-8 md:px-20 max-w-4xl mx-auto w-full">
+                        <Button
+                            onClick={() => setIsScheduleOpen(false)}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 text-lg font-bold shadow-xl shadow-blue-500/20"
+                        >
+                            Close Schedule
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+
+
+            {/* Add / Edit Event Dialog */}
+            <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>{editingEvent ? 'Edit Note' : 'Add Calendar Note'}</DialogTitle>
+                        <DialogDescription>
+                            Organize your schedule for {setlistDate ? format(setlistDate, "MMM d, yyyy") : "selected day"}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input
+                                id="title"
+                                placeholder="e.g. Choir Practice"
+                                value={newEvent.title}
+                                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="description">Notes (Optional)</Label>
+                            <Textarea
+                                id="description"
+                                placeholder="Details about this event..."
+                                className="min-h-[100px]"
+                                value={newEvent.description}
+                                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Color Coordinator</Label>
+                            <div className="flex gap-2">
+                                {[
+                                    { name: 'purple', bg: 'bg-purple-500' },
+                                    { name: 'blue', bg: 'bg-blue-500' },
+                                    { name: 'green', bg: 'bg-green-500' },
+                                    { name: 'orange', bg: 'bg-orange-500' },
+                                    { name: 'red', bg: 'bg-red-500' },
+                                ].map((c) => (
+                                    <button
+                                        key={c.name}
+                                        type="button"
+                                        className={cn(
+                                            "w-8 h-8 rounded-full transition-all ring-offset-2",
+                                            c.bg,
+                                            newEvent.color === c.name ? "ring-2 ring-slate-400 scale-110" : "opacity-70 hover:opacity-100"
+                                        )}
+                                        onClick={() => setNewEvent({ ...newEvent, color: c.name })}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsAddEventOpen(false)}>Cancel</Button>
+                        <Button
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            onClick={editingEvent ? handleUpdateCalendarEvent : handleAddCalendarEvent}
+                        >
+                            {editingEvent ? 'Save Changes' : 'Add Note'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -819,10 +1012,10 @@ const ChoirPage = () => {
                         <Button onClick={saveSetInfo} className="bg-purple-600 text-white">Save</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Add Setlist Song Dialog */}
-            <Dialog open={isAddToSetOpen} onOpenChange={setIsAddToSetOpen}>
+            < Dialog open={isAddToSetOpen} onOpenChange={setIsAddToSetOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Add to {activeSetType === 'praise' ? 'Praise' : 'Worship'} Set</DialogTitle>
@@ -830,9 +1023,6 @@ const ChoirPage = () => {
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Select from Library (Optional)</Label>
-                            {/* Debug: Check if we have songs */}
-                            {console.log('All Library Songs in render:', allLibrarySongs)}
-                            {console.log('Should show', allLibrarySongs.length, 'songs in dropdown')}
                             <Select
                                 onValueChange={(val) => {
                                     console.log('Selected value:', val);
@@ -917,10 +1107,53 @@ const ChoirPage = () => {
                         <Button onClick={handleAddSetSong} className="bg-purple-600 text-white">Add to Set</Button>
                     </DialogFooter>
                 </DialogContent>
+            </Dialog >
+
+            {/* Import Setlist Dialog */}
+            <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+                            <Download className="w-6 h-6 text-purple-600" />
+                            Import from Notes
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                        <div className="space-y-4">
+                            <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                Paste a list of songs from your notes app (one song per line). We'll try to find matches in your library.
+                            </p>
+                            <Textarea
+                                placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
+                                className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
+                                value={importText}
+                                onChange={(e) => setImportText(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
+                            <Button
+                                onClick={handleImportSetlist}
+                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-purple-500/20"
+                                disabled={!importText.trim()}
+                            >
+                                Import {importText.split('\n').filter(l => l.trim()).length} Songs
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsImportOpen(false)}
+                                className="rounded-2xl py-8 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
             </Dialog>
 
             {/* Edit Setlist Song Dialog */}
-            <Dialog open={isEditSetSongOpen} onOpenChange={setIsEditSetSongOpen}>
+            < Dialog open={isEditSetSongOpen} onOpenChange={setIsEditSetSongOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Song</DialogTitle>
@@ -965,10 +1198,10 @@ const ChoirPage = () => {
                         <Button onClick={handleSaveEditSetSong} className="bg-purple-600 text-white">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Edit Library Song Dialog */}
-            <Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen}>
+            < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit Song Details</DialogTitle>
@@ -1021,11 +1254,11 @@ const ChoirPage = () => {
                         <Button onClick={handleSaveEditSong} className="bg-purple-600 text-white">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Hero Header */}
-            <div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0"> {/* Adjusted height/padding for mobile */}
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-90"></div>
+            < div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0" > {/* Adjusted height/padding for mobile */}
+                < div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-90" ></div >
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516280440614-6697288d5d38?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-black/20"></div>
 
@@ -1053,7 +1286,7 @@ const ChoirPage = () => {
 
                         <div className="flex flex-wrap gap-3"> {/* Buttons visible on all screens */}
                             <Button
-                                className="bg-white text-purple-600 hover:bg-purple-50 hover:text-purple-700 shadow-lg border-none flex-1 md:flex-none"
+                                className="bg-white text-purple-600 hover:bg-purple-50 hover:text-purple-700 shadow-lg border-none flex-1 md:flex-none font-bold"
                                 onClick={() => setIsScheduleOpen(true)}
                             >
                                 <Calendar className="w-4 h-4 mr-2" />
@@ -1069,11 +1302,11 @@ const ChoirPage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Main Content */}
-            <div className="container mx-auto px-4 py-8 -mt-6 relative z-10">
-                <Tabs defaultValue="vocalists" className="w-full" onValueChange={setActiveTab}>
+            < div id="main-content" className="container mx-auto px-4 py-8 -mt-6 relative z-10" >
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex justify-center mb-8">
                         <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full shadow-lg border border-purple-100 dark:border-purple-900/30 h-auto">
                             <TabsTrigger
@@ -1090,16 +1323,19 @@ const ChoirPage = () => {
                                 <Music className="w-4 h-4 mr-2" />
                                 Instrumentalists
                             </TabsTrigger>
+
                         </TabsList>
                     </div>
 
-                    <TabsContent value="vocalists" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+
 
                         {/* SPLIT SETLIST SECTION */}
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <ListMusic className="w-6 h-6 mr-3 text-purple-600" />
+                                <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                    <ListMusic className="w-8 h-8 mr-3 text-purple-600" />
                                     This Week's Setlist
                                 </h2>
 
@@ -1109,16 +1345,16 @@ const ChoirPage = () => {
                                         <Button
                                             variant="outline"
                                             className={cn(
-                                                "border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 pl-3 text-left font-normal",
+                                                "h-12 rounded-2xl border-purple-200 text-purple-600 bg-purple-50/50 hover:bg-purple-100 pl-4 text-left font-bold shadow-sm",
                                                 !setlistDate && "text-muted-foreground"
                                             )}
                                         >
                                             {setlistDate ? (
-                                                format(setlistDate, "MMM d, yyyy")
+                                                format(setlistDate, "MMMM d, yyyy")
                                             ) : (
-                                                <span>Pick a date</span>
+                                                <span>Select Service Date</span>
                                             )}
-                                            <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                                            <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0" align="end">
@@ -1148,9 +1384,17 @@ const ChoirPage = () => {
                                                 <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-all" />
                                             </div>
                                         </div>
-                                        <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
-                                            <Plus className="w-5 h-5" />
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
+                                                setImportSetType('praise');
+                                                setIsImportOpen(true);
+                                            }}>
+                                                <Download className="w-5 h-5" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
+                                                <Plus className="w-5 h-5" />
+                                            </Button>
+                                        </div>
                                     </CardHeader>
                                     <CardContent className="space-y-3 pt-4">
                                         {praiseSet.map((song, i) => (
@@ -1219,9 +1463,17 @@ const ChoirPage = () => {
                                                 <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all" />
                                             </div>
                                         </div>
-                                        <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
-                                            <Plus className="w-5 h-5" />
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
+                                                setImportSetType('worship');
+                                                setIsImportOpen(true);
+                                            }}>
+                                                <Download className="w-5 h-5" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
+                                                <Plus className="w-5 h-5" />
+                                            </Button>
+                                        </div>
                                     </CardHeader>
                                     <CardContent className="space-y-3 pt-4">
                                         {worshipSet.map((song, i) => (
@@ -1679,11 +1931,245 @@ const ChoirPage = () => {
                         </div>
 
                     </TabsContent>
+
                 </Tabs>
-            </div>
+
+                {/* SHARED STRATEGIC PLANNER SECTION */}
+                <div className="mt-20 pt-12 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    <section className="space-y-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                                <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center">
+                                    <Calendar className="w-8 h-8 mr-3 text-amber-500" />
+                                    Planner
+                                </h2>
+                                <p className="text-slate-500 font-medium">Strategic goals and daily coordination for the entire team.</p>
+                            </div>
+                            <Button
+                                onClick={() => {
+                                    setEditingEvent(null);
+                                    setNewEvent({ title: "", description: "", color: "purple" });
+                                    setIsAddEventOpen(true);
+                                }}
+                                className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl px-8 py-6 h-auto shadow-xl shadow-purple-500/20 font-bold"
+                            >
+                                <Plus className="w-5 h-5 mr-2" /> Add New Note
+                            </Button>
+                        </div>
+
+                        <Card className="border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-slate-800 rounded-[3rem]">
+                            <div className="grid md:grid-cols-12 gap-0 overflow-hidden">
+                                {/* Sidebar Calendar */}
+                                <div className="md:col-span-5 p-10 bg-slate-50/50 dark:bg-slate-800/40 border-r border-slate-100 dark:border-slate-800 flex flex-col items-center justify-start">
+                                    <CalendarComponent
+                                        mode="single"
+                                        selected={setlistDate}
+                                        onSelect={setSetlistDate}
+                                        className="rounded-3xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-6 mx-auto scale-110 origin-top"
+                                        modifiers={{
+                                            hasEvent: (date) => calendarEvents.some(e => e.event_date === format(date, "yyyy-MM-dd"))
+                                        }}
+                                        modifiersStyles={{
+                                            hasEvent: {
+                                                fontWeight: 'bold',
+                                                textDecoration: 'underline',
+                                                color: '#9333ea'
+                                            }
+                                        }}
+                                        components={{
+                                            DayContent: ({ date, ...props }) => {
+                                                const dayEvents = calendarEvents.filter(e => e.event_date === format(date, "yyyy-MM-dd"));
+                                                return (
+                                                    <div className="relative w-full h-full flex items-center justify-center">
+                                                        <span className="relative z-10">{date.getDate()}</span>
+                                                        {dayEvents.length > 0 && (
+                                                            <div className="absolute bottom-1 flex gap-0.5 justify-center w-full">
+                                                                {dayEvents.slice(0, 3).map((e, i) => (
+                                                                    <div
+                                                                        key={i}
+                                                                        className={cn(
+                                                                            "w-1 h-1 rounded-full",
+                                                                            e.color === 'purple' ? 'bg-purple-500' :
+                                                                                e.color === 'blue' ? 'bg-blue-500' :
+                                                                                    e.color === 'green' ? 'bg-green-500' :
+                                                                                        e.color === 'orange' ? 'bg-orange-500' :
+                                                                                            'bg-red-500'
+                                                                        )}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
+                                        }}
+                                    />
+
+                                    <div className="mt-12 space-y-6 w-full max-w-[280px]">
+                                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] ml-2">Event Categories</h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={() => setSelectedCategory(selectedCategory === 'purple' ? null : 'purple')}
+                                                className={cn(
+                                                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all",
+                                                    selectedCategory === 'purple'
+                                                        ? "bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/20 scale-105"
+                                                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-purple-300"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'purple' ? "bg-white" : "bg-purple-500")} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Practice</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedCategory(selectedCategory === 'blue' ? null : 'blue')}
+                                                className={cn(
+                                                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all",
+                                                    selectedCategory === 'blue'
+                                                        ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105"
+                                                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-300"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'blue' ? "bg-white" : "bg-blue-500")} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Event</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedCategory(selectedCategory === 'orange' ? null : 'orange')}
+                                                className={cn(
+                                                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all",
+                                                    selectedCategory === 'orange'
+                                                        ? "bg-orange-600 border-orange-600 text-white shadow-lg shadow-orange-500/20 scale-105"
+                                                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-orange-300"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'orange' ? "bg-white" : "bg-orange-500")} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Urgent</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedCategory(selectedCategory === 'green' ? null : 'green')}
+                                                className={cn(
+                                                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all",
+                                                    selectedCategory === 'green'
+                                                        ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-500/20 scale-105"
+                                                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-green-300"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'green' ? "bg-white" : "bg-green-500")} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Notes</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Events Feed */}
+                                <div className="md:col-span-7 p-10 flex flex-col h-full min-h-[600px] bg-white/40 dark:bg-slate-900/40">
+                                    <div className="mb-10 flex justify-between items-end">
+                                        <div>
+                                            <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+                                                {setlistDate ? format(setlistDate, "EEEE, MMMM do") : "Daily Schedule"}
+                                            </h3>
+                                            <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">
+                                                {calendarEvents.filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory)).length > 0
+                                                    ? `${calendarEvents.filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory)).length} Strategic Items`
+                                                    : "Strategic Focus Clear"}
+                                            </p>
+                                        </div>
+                                        <div className="text-right hidden sm:block">
+                                            <Badge variant="outline" className="text-[10px] font-black tracking-[0.2em] uppercase border-slate-200 text-slate-400 px-3 py-1 rounded-full">
+                                                Live TPH Planner
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-5 flex-1 overflow-y-auto pr-4 max-h-[500px] custom-scrollbar">
+                                        {calendarEvents
+                                            .filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory))
+                                            .map(event => (
+                                                <div
+                                                    key={event.id}
+                                                    className={cn(
+                                                        "p-6 rounded-[2rem] shadow-sm transition-all group relative border border-transparent hover:shadow-xl hover:scale-[1.02]",
+                                                        event.color === 'purple' ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-100 dark:border-purple-800/50' :
+                                                            event.color === 'blue' ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/50' :
+                                                                event.color === 'green' ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-800/50' :
+                                                                    event.color === 'orange' ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-800/50' :
+                                                                        'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/50'
+                                                    )}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex gap-5">
+                                                            <div className={cn(
+                                                                "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg",
+                                                                event.color === 'purple' ? 'bg-purple-600 text-white shadow-purple-500/30' :
+                                                                    event.color === 'blue' ? 'bg-blue-600 text-white shadow-blue-500/30' :
+                                                                        event.color === 'green' ? 'bg-green-600 text-white shadow-green-500/30' :
+                                                                            event.color === 'orange' ? 'bg-orange-600 text-white shadow-orange-500/30' :
+                                                                                'bg-red-600 text-white shadow-red-500/30'
+                                                            )}>
+                                                                <CalendarIcon className="w-7 h-7" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-black text-xl text-slate-800 dark:text-slate-100 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{event.title}</h4>
+                                                                {event.description && (
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-medium">
+                                                                        {event.description}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-2 items-end">
+                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:scale-110"
+                                                                    onClick={() => {
+                                                                        setEditingEvent(event);
+                                                                        setNewEvent({
+                                                                            title: event.title,
+                                                                            description: event.description || "",
+                                                                            color: event.color
+                                                                        });
+                                                                        setIsAddEventOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:bg-red-50 hover:text-red-500 hover:scale-110"
+                                                                    onClick={() => handleDeleteCalendarEvent(event.id)}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                            <span className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em] mt-2">
+                                                                TPH COMMAND
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                        {calendarEvents.filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory)).length === 0 && (
+                                            <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                                                <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center mb-8 rotate-12 group-hover:rotate-0 transition-transform">
+                                                    <Zap className="w-12 h-12 text-slate-300" />
+                                                </div>
+                                                <h4 className="text-slate-500 font-black uppercase tracking-[0.2em] text-xl">Operational Calm</h4>
+                                                <p className="text-sm text-slate-400 mt-3 max-w-[280px] font-bold">The day is strategically clear. Ready for spontaneous inspiration!</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </section>
+                </div>
+            </div >
 
             {/* Dialogs for Instrumental Resources */}
-            <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
+            < Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen} >
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Add Instrumental Resource</DialogTitle>
@@ -1717,7 +2203,7 @@ const ChoirPage = () => {
                         <Button onClick={handleAddInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Add Resource</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             <Dialog open={isEditInstrOpen} onOpenChange={setIsEditInstrOpen}>
                 <DialogContent className="sm:max-w-[425px]">
@@ -1753,7 +2239,7 @@ const ChoirPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 };
 

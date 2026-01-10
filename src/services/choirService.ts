@@ -48,6 +48,16 @@ export interface SetlistInfo {
     updated_at?: string;
 }
 
+export interface ChoirCalendarEvent {
+    id: string;
+    user_id: string;
+    title: string;
+    description?: string;
+    event_date: string;
+    color: string;
+    created_at?: string;
+}
+
 export const choirService = {
     // --- Instrumental Resources ---
     async getInstrumentalResources(): Promise<InstrumentalResource[]> {
@@ -251,5 +261,48 @@ export const choirService = {
             infoMap[item.info_type] = item.value;
         });
         return infoMap;
+    },
+
+    // --- Calendar Events ---
+    async getCalendarEvents(): Promise<ChoirCalendarEvent[]> {
+        const { data, error } = await supabase
+            .from('choir_calendar_events' as any)
+            .select('*')
+            .order('event_date', { ascending: true });
+
+        if (error) throw error;
+        return (data || []) as unknown as ChoirCalendarEvent[];
+    },
+
+    async addCalendarEvent(event: Omit<ChoirCalendarEvent, 'id' | 'created_at'>): Promise<ChoirCalendarEvent> {
+        const { data, error } = await supabase
+            .from('choir_calendar_events' as any)
+            .insert([event])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as ChoirCalendarEvent;
+    },
+
+    async updateCalendarEvent(id: string, updates: Partial<ChoirCalendarEvent>): Promise<ChoirCalendarEvent> {
+        const { data, error } = await supabase
+            .from('choir_calendar_events' as any)
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as ChoirCalendarEvent;
+    },
+
+    async deleteCalendarEvent(id: string) {
+        const { error } = await supabase
+            .from('choir_calendar_events' as any)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
     }
 };
