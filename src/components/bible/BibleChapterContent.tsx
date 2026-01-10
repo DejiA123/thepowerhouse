@@ -883,145 +883,155 @@ export const BibleChapterContent = ({
       </div>
 
       {/* Floating Action Bar for Verse Selection */}
-      {
-        (selectedVerses.length > 0 || isMultiSelectMode) && (
-          <div className="fixed top-1/2 right-4 transform -translate-y-1/2 flex flex-col gap-2 z-[9999] bg-background rounded-lg p-4 border-2 border-primary shadow-2xl">
-            {/* Close Button */}
-            <Button
-              variant="ghost"
-              size="sm"
+      <div
+        className={cn(
+          "fixed left-0 right-0 z-[100] px-4 transition-all duration-500 ease-out",
+          selectedVerses.length > 0 || isMultiSelectMode
+            ? "bottom-6 opacity-100 translate-y-0"
+            : "bottom-0 opacity-0 translate-y-20 pointer-events-none"
+        )}
+      >
+        <div className="max-w-xl mx-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 rounded-[2rem] shadow-2xl p-4 flex flex-col gap-4">
+          {/* Header Action Bar */}
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
+                {selectedVerses.length} {selectedVerses.length === 1 ? 'Verse' : 'Verses'} Selected
+              </div>
+              <button
+                onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+                className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                {isMultiSelectMode ? 'Exit Select' : 'Select More'}
+              </button>
+            </div>
+            <button
               onClick={() => {
                 setSelectedVerses([]);
                 setIsMultiSelectMode(false);
               }}
-              className="absolute -top-2 -right-2 w-6 h-6 p-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-              title="Close"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
             >
-              ✕
-            </Button>
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
-              className="text-xs font-semibold border-2"
-            >
-              {isMultiSelectMode ? 'Exit Select' : 'Select Verses'}
-            </Button>
-
-            {selectedVerses.length > 0 && (
-              <>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowHighlightDialog(true)}
-                  className="text-xs bg-yellow-500 hover:bg-yellow-600 text-white font-bold border-2 border-yellow-600 shadow-lg"
-                >
-                  ✨ Highlight {selectedVerses.length > 1 && `(${selectedVerses.length})`}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
+          {/* Color & Actions Row */}
+          <div className="flex items-center justify-between gap-4">
+            {/* Color Coordinator */}
+            <div className="flex items-center gap-2.5 p-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+              {[
+                { name: 'Yellow', value: 'yellow', class: 'bg-yellow-300' },
+                { name: 'Green', value: 'green', class: 'bg-green-300' },
+                { name: 'Blue', value: 'blue', class: 'bg-blue-300' },
+                { name: 'Pink', value: 'pink', class: 'bg-pink-300' },
+                { name: 'Purple', value: 'purple', class: 'bg-purple-300' },
+              ].map((color) => (
+                <button
+                  key={color.value}
                   onClick={async () => {
                     try {
-                      const highlightsToRemove = selectedVerses
-                        .map(verseNum => getHighlightForVerse(verseNum))
-                        .filter(Boolean);
-
-                      if (highlightsToRemove.length > 0) {
-                        const { error } = await supabase
-                          .from('bible_highlights')
-                          .delete()
-                          .in('id', highlightsToRemove.map(h => h!.id));
-
-                        if (!error) {
-                          await refetchHighlights();
-                          toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
-                        }
+                      const highlightsData = selectedVerses.map(verseNum => ({
+                        user_id: user?.id,
+                        book: selectedBook,
+                        chapter: selectedChapter,
+                        verse: verseNum,
+                        highlight_color: color.value,
+                      }));
+                      const { error } = await supabase.from('bible_highlights').upsert(highlightsData);
+                      if (!error) {
+                        await refetchHighlights();
+                        toast({ title: `Highlighted in ${color.name}` });
+                        setSelectedVerses([]);
+                        setIsMultiSelectMode(false);
                       }
                     } catch (error) {
-                      console.error('Error removing highlights:', error);
+                      console.error('Error adding highlights:', error);
                     }
-                    setSelectedVerses([]);
                   }}
-                  className="text-xs font-semibold border-2 border-red-500 text-red-600 hover:bg-red-50"
-                >
-                  🗑️ Remove Highlight{selectedVerses.length > 1 && 's'}
-                </Button>
-
-                {isMultiSelectMode && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const versesText = selectedVerses.map(verseNum => {
-                          const verse = chapterContent?.verses?.find(v => {
-                            const vNum = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0;
-                            return vNum === verseNum;
-                          });
-                          const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNum}`;
-                          const cleanText = (verse?.text || '').replace(/\s+/g, ' ').trim();
-                          return `${reference} - ${cleanText}`;
-                        }).join('\n\n');
-
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                          await navigator.clipboard.writeText(versesText);
-                        } else {
-                          const ta = document.createElement('textarea');
-                          ta.value = versesText;
-                          ta.style.position = 'fixed';
-                          ta.style.left = '-9999px';
-                          document.body.appendChild(ta);
-                          ta.select();
-                          try { document.execCommand('copy'); } catch { }
-                          document.body.removeChild(ta);
-                        }
-                        toast({ title: `Copied ${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''}` });
-                      } catch (e) {
-                        console.error('Copy to clipboard failed:', e);
-                        toast({ title: 'Copy failed', variant: 'destructive' });
+                  className={cn(
+                    "w-8 h-8 rounded-full transition-transform active:scale-90 border-2 border-white dark:border-slate-700 shadow-sm hover:scale-110",
+                    color.class
+                  )}
+                  title={color.name}
+                />
+              ))}
+              <button
+                onClick={async () => {
+                  try {
+                    const highlightsToRemove = selectedVerses.map(verseNum => getHighlightForVerse(verseNum)).filter(Boolean);
+                    if (highlightsToRemove.length > 0) {
+                      const { error } = await supabase.from('bible_highlights').delete().in('id', highlightsToRemove.map(h => h!.id));
+                      if (!error) {
+                        await refetchHighlights();
+                        toast({ title: "Highlights Removed" });
                       }
-                    }}
-                    className="text-xs font-semibold border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-                  >
-                    📋 Copy
-                  </Button>
-                )}
-              </>
-            )}
+                    }
+                  } catch (error) { console.error(error); }
+                  setSelectedVerses([]);
+                  setIsMultiSelectMode(false);
+                }}
+                className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-full border-2 border-slate-100 dark:border-slate-600 text-slate-400 hover:text-red-500 transition-all hover:scale-110"
+                title="Remove Highlights"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const versesText = selectedVerses.map(verseNum => {
+                      const verse = chapterContent?.verses?.find(v => (v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0) === verseNum);
+                      return `${getBookDisplayName()} ${selectedChapter}:${verseNum} - ${(verse?.text || '').trim()}`;
+                    }).join('\n\n');
+                    await navigator.clipboard.writeText(versesText);
+                    toast({ title: "Copied to clipboard" });
+                    setSelectedVerses([]);
+                  } catch (e) { console.error(e); }
+                }}
+                className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl hover:bg-blue-100 transition-colors active:scale-95"
+                title="Copy Verses"
+              >
+                <Copy className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowNotesDialog(true)}
+                className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl hover:bg-slate-100 transition-colors active:scale-95"
+                title="Add Notes"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        )
-      }
+        </div>
+      </div>
 
       {/* Bible Navigation Controls */}
-      <div className="fixed bottom-20 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex items-center justify-between px-8 pointer-events-auto">
+      <div
+        className={cn(
+          "fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out pointer-events-none",
+          selectedVerses.length > 0 || isMultiSelectMode ? "bottom-40" : "bottom-20"
+        )}
+      >
+        <div className="flex items-center justify-between px-8 pointer-events-auto max-w-lg mx-auto">
           <button
             onClick={handlePreviousChapter}
             disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg border border-gray-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 active:scale-95 transition-all disabled:opacity-30"
           >
-            <ChevronLeft className="w-6 h-6 text-black" />
+            <ChevronLeft className="w-6 h-6 text-slate-800 dark:text-slate-200" />
           </button>
 
           <button
             onClick={handlePlayPause}
             disabled={globalAudio?.audioState.isLoading || false}
-            className="w-16 h-16 flex items-center justify-center bg-white text-black rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
-            title={
-              globalAudio?.audioState.isLoading
-                ? "Loading audio..."
-                : (globalAudio?.audioState.isPlaying &&
-                  globalAudio?.audioState.currentBook === selectedBook &&
-                  globalAudio?.audioState.currentChapter === selectedChapter)
-                  ? "Pause audio"
-                  : "Play audio"
-            }
+            className="w-16 h-16 flex items-center justify-center bg-blue-600 text-white rounded-full shadow-2xl hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
           >
             {globalAudio?.audioState.isLoading ? (
-              <Volume2 className="w-8 h-8 opacity-50" />
+              <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (globalAudio?.audioState.isPlaying &&
               globalAudio?.audioState.currentBook === selectedBook &&
               globalAudio?.audioState.currentChapter === selectedChapter) ? (
@@ -1034,12 +1044,11 @@ export const BibleChapterContent = ({
           <button
             onClick={handleNextChapter}
             disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-lg border border-gray-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 active:scale-95 transition-all disabled:opacity-30"
           >
-            <ChevronRight className="w-6 h-6 text-black" />
+            <ChevronRight className="w-6 h-6 text-slate-800 dark:text-slate-200" />
           </button>
         </div>
-
       </div>
 
       {/* Bible Notes Dialog */}
