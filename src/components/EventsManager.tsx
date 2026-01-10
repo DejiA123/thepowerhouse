@@ -14,7 +14,11 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
 
-const EventsManager = () => {
+interface EventsManagerProps {
+  initialEditEventId?: string | null;
+}
+
+const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -33,7 +37,7 @@ const EventsManager = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  
+
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -58,6 +62,15 @@ const EventsManager = () => {
       checkAdminStatus();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (initialEditEventId && events.length > 0) {
+      const eventToEdit = events.find(e => e.id === initialEditEventId);
+      if (eventToEdit) {
+        setEditEvent(eventToEdit);
+      }
+    }
+  }, [initialEditEventId, events]);
 
   const checkAdminStatus = async () => {
     const { data } = await supabase
@@ -87,9 +100,9 @@ const EventsManager = () => {
 
   const createEvent = async () => {
     if (!user || !newEvent.title || !newEvent.event_date) return;
-    
+
     setLoading(true);
-    
+
     const { data, error } = await supabase
       .from('events')
       .insert({
@@ -123,7 +136,7 @@ const EventsManager = () => {
       console.error("Failed to create event:", error);
       toast({ title: "Error", description: `Failed to create event: ${error.message}`, variant: "destructive" });
     }
-    
+
     setLoading(false);
   };
 
@@ -171,7 +184,7 @@ const EventsManager = () => {
   };
 
   const getPriorityColor = (priority: string) => {
-    switch(priority) {
+    switch (priority) {
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'low': return 'bg-green-100 text-green-800 border-green-200';
@@ -180,7 +193,7 @@ const EventsManager = () => {
   };
 
   const getEventTypeColor = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'special': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'youth': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'evangelism': return 'bg-orange-100 text-orange-800 border-orange-200';

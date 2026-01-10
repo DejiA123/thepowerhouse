@@ -271,11 +271,16 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   };
 
   const getLocationText = () => {
-    const bookName = book.replace(/_/g, ' ');
+    // Replace hyphens/underscores and handle title casing (e.g., 1-john -> 1 John)
+    const formattedBook = book.replace(/[-_]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
     if (verse) {
-      return `${bookName} ${chapter}:${verse}`;
+      return `${formattedBook} ${chapter}:${verse}`;
     }
-    return `${bookName} ${chapter}`;
+    return `${formattedBook} ${chapter}`;
   };
 
   return (

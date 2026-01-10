@@ -720,10 +720,10 @@ export const BibleChapterContent = ({
                     return;
                   }
 
-                  // Add this verse to selected verses and show the Select Verses button
+                  // Toggle this verse selection
                   setSelectedVerses(prev => {
                     if (prev.includes(verseNumber)) {
-                      return prev; // Already selected, keep as is
+                      return prev.filter(v => v !== verseNumber);
                     } else {
                       return [...prev, verseNumber].sort((a, b) => a - b);
                     }
@@ -855,12 +855,12 @@ export const BibleChapterContent = ({
                   }
                 }
 
-                const isSelected = isMultiSelectMode && selectedVerses.includes(verseNumber);
+                const isSelected = selectedVerses.includes(verseNumber);
 
                 return (
                   <p
                     key={`${settingsKey}-${index}`}
-                    className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none ${isSelected ? 'bg-primary/20 rounded-md px-2 py-1 ring-1 ring-primary' : ''}`}
+                    className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none`}
                     style={verseStyle}
                     onClick={handleVerseClick}
                   >
@@ -870,7 +870,13 @@ export const BibleChapterContent = ({
                         {verseNumber}
                       </sup>
                     )}
-                    <span dangerouslySetInnerHTML={formatText(verse.text)} />
+                    <span
+                      className={cn(
+                        "transition-all duration-300",
+                        isSelected && "underline decoration-slate-950 dark:decoration-white underline-offset-[6px] decoration-2"
+                      )}
+                      dangerouslySetInnerHTML={formatText(verse.text)}
+                    />
                   </p>
                 );
               })}

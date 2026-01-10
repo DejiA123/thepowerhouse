@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,20 +76,20 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     if (apiBibleToApiName[bookId]) {
       return apiBibleToApiName[bookId];
     }
-    
+
     // Try case-insensitive mapping
     const upperBookId = bookId.toUpperCase();
     if (apiBibleToApiName[upperBookId]) {
       return apiBibleToApiName[upperBookId];
     }
-    
+
     // Try to find by partial match in our book list
     const normalizedId = bookId.toLowerCase().replace(/[^a-z0-9]/g, '');
     const found = allBooks.find(book => {
       const normalizedApiName = book.apiName.toLowerCase().replace(/[^a-z0-9]/g, '');
       return normalizedApiName === normalizedId;
     });
-    
+
     return found ? found.apiName : bookId.toLowerCase();
   };
 
@@ -97,7 +97,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
   const getBookDisplayName = (apiName: string): string => {
     // First try to find by apiName
     let book = allBooks.find(b => b.apiName === apiName);
-    
+
     // If not found, try to find by normalized name
     if (!book) {
       const normalizedApiName = apiName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -106,7 +106,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
         return normalizedBookName === normalizedApiName;
       });
     }
-    
+
     // If still not found, try common API abbreviations
     if (!book) {
       const abbreviationMap: Record<string, string> = {
@@ -126,13 +126,13 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
         'heb': 'Hebrews', 'jas': 'James', '1pe': '1 Peter', '2pe': '2 Peter',
         '1jn': '1 John', '2jn': '2 John', '3jn': '3 John', 'jud': 'Jude', 'rev': 'Revelation'
       };
-      
+
       const bookName = abbreviationMap[apiName.toLowerCase()];
       if (bookName) {
         return bookName;
       }
     }
-    
+
     return book ? book.name : apiName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
@@ -247,7 +247,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
       // Apply match type filtering
       console.log('🔍 BibleSearch: Applying match type filter:', matchType);
       const beforeMatchCount = filteredResults.length;
-      
+
       if (matchType === 'phrase') {
         const exactQuery = caseSensitive ? query : query.toLowerCase();
         filteredResults = filteredResults.filter(result => {
@@ -319,7 +319,7 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     if (!q) { setSearchResults([]); return; }
     const t = setTimeout(() => { handleSearch(); }, 450);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, scope, scopeBook, matchType, caseSensitive, sortCanonically, selectedVersion, isOpen]);
 
   const handleResultClick = (result: SearchResult) => {
@@ -331,182 +331,197 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-[100] bg-black/80" style={{ pointerEvents: 'none' }} />
-        <DialogContent className="w-full h-[calc(100vh-80px)] max-w-none max-h-none m-0 rounded-none flex flex-col z-[101] bg-background overflow-visible" style={{ zIndex: 101, pointerEvents: 'auto' }}>
-          <DialogHeader className="pb-4 pt-2">
-            <DialogTitle className="flex items-center space-x-2 text-lg">
-            <Search className="w-5 h-5" />
-              <span>Bible Search</span>
+      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none p-0 overflow-hidden">
+        <DialogHeader className="flex-shrink-0 pb-6 pt-10 px-8 border-b border-slate-200 dark:border-slate-700">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+            <Search className="w-6 h-6 text-primary" />
+            Bible Search
           </DialogTitle>
+          <DialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Search for verses, phrases, or topics
+          </DialogDescription>
         </DialogHeader>
-          
-          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="space-y-4">
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Search verses, phrases, or topics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
-              {isSearching ? (
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
 
-            {/* Advanced options toggle */}
-            <div className="border rounded-lg">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Filters</span>
-                </div>
-                {showAdvancedOptions ? (
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-              
-              {showAdvancedOptions && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t overflow-visible">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Settings2 className="w-3 h-3" /> Scope
-              </div>
-              <Select value={scope} onValueChange={(v: Scope) => {
-                console.log('Scope changed to:', v);
-                setScope(v);
-              }}>
-                <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
-                  <SelectValue placeholder="Select scope">
-                    {scope === 'all' && 'Whole Bible'}
-                    {scope === 'ot' && 'Old Testament'}
-                    {scope === 'nt' && 'New Testament'}
-                    {scope === 'book' && 'Specific Book'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="z-[102] max-h-[200px]">
-                  <SelectItem value="all">Whole Bible</SelectItem>
-                  <SelectItem value="ot">Old Testament</SelectItem>
-                  <SelectItem value="nt">New Testament</SelectItem>
-                  <SelectItem value="book">Specific Book</SelectItem>
-                </SelectContent>
-              </Select>
-              {scope === 'book' && (
-                <Select value={scopeBook} onValueChange={(v: string) => {
-                  console.log('Scope book changed to:', v);
-                  setScopeBook(v);
-                }}>
-                  <SelectTrigger className="w-full mt-2 hover:bg-muted/50 transition-colors cursor-pointer">
-                    <SelectValue placeholder="Select book">
-                      {allBooks.find(b => b.apiName === scopeBook)?.name || 'Select book'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="z-[102] max-h-[200px]">
-                    {allBooks.map(b => (
-                      <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                Match Type
-              </div>
-              <Select value={matchType} onValueChange={(v: MatchType) => {
-                console.log('Match type changed to:', v);
-                setMatchType(v);
-              }}>
-                <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
-                  <SelectValue placeholder="Select match type">
-                    {matchType === 'contains' && 'Contains'}
-                    {matchType === 'phrase' && 'Exact Phrase'}
-                    {matchType === 'all' && 'All Words'}
-                    {matchType === 'any' && 'Any Word'}
-                    {matchType === 'whole' && 'Whole Word'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="z-[102] max-h-[200px]">
-                  <SelectItem value="contains">Contains</SelectItem>
-                  <SelectItem value="phrase">Exact Phrase</SelectItem>
-                  <SelectItem value="all">All Words</SelectItem>
-                  <SelectItem value="any">Any Word</SelectItem>
-                  <SelectItem value="whole">Whole Word</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 mt-2">
-                <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
-                <label htmlFor="cs" className="text-xs text-muted-foreground">Case sensitive</label>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
-                <label htmlFor="sort" className="text-xs text-muted-foreground">Sort canonically</label>
-              </div>
-              <div className="mt-3">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    setScope('all');
-                    setScopeBook('genesis');
-                    setMatchType('contains');
-                    setCaseSensitive(false);
-                    setSortCanonically(true);
-                  }}
-                  className="w-full"
-                >
-                  Reset Filters
+        <div className="flex-1 flex flex-col p-8 overflow-hidden">
+          <div className="max-w-2xl mx-auto w-full flex flex-col h-full space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="space-y-4">
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="Search verses, phrases, or topics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                  className="flex-1"
+                />
+                <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
+                  {isSearching ? (
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
-            </div>
+
+              {/* Advanced options toggle */}
+              <div className="border rounded-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Filters</span>
+                  </div>
+                  {showAdvancedOptions ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+
+                {showAdvancedOptions && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 border-t">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Settings2 className="w-3 h-3" /> Scope
+                      </div>
+                      <Select value={scope} onValueChange={(v: Scope) => setScope(v)}>
+                        <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
+                          <SelectValue placeholder="Select scope">
+                            {scope === 'all' && 'Whole Bible'}
+                            {scope === 'ot' && 'Old Testament'}
+                            {scope === 'nt' && 'New Testament'}
+                            {scope === 'book' && 'Specific Book'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="z-[250] max-h-[200px]">
+                          <SelectItem value="all">Whole Bible</SelectItem>
+                          <SelectItem value="ot">Old Testament</SelectItem>
+                          <SelectItem value="nt">New Testament</SelectItem>
+                          <SelectItem value="book">Specific Book</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {scope === 'book' && (
+                        <Select value={scopeBook} onValueChange={(v: string) => setScopeBook(v)}>
+                          <SelectTrigger className="w-full mt-2 hover:bg-muted/50 transition-colors cursor-pointer">
+                            <SelectValue placeholder="Select book">
+                              {allBooks.find(b => b.apiName === scopeBook)?.name || 'Select book'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="z-[250] max-h-[200px]">
+                            {allBooks.map(b => (
+                              <SelectItem key={b.apiName} value={b.apiName}>{b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        Match Type
+                      </div>
+                      <Select value={matchType} onValueChange={(v: MatchType) => setMatchType(v)}>
+                        <SelectTrigger className="w-full hover:bg-muted/50 transition-colors cursor-pointer">
+                          <SelectValue placeholder="Select match type">
+                            {matchType === 'contains' && 'Contains'}
+                            {matchType === 'phrase' && 'Exact Phrase'}
+                            {matchType === 'all' && 'All Words'}
+                            {matchType === 'any' && 'Any Word'}
+                            {matchType === 'whole' && 'Whole Word'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="z-[250] max-h-[200px]">
+                          <SelectItem value="contains">Contains</SelectItem>
+                          <SelectItem value="phrase">Exact Phrase</SelectItem>
+                          <SelectItem value="all">All Words</SelectItem>
+                          <SelectItem value="any">Any Word</SelectItem>
+                          <SelectItem value="whole">Whole Word</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="cs" checked={caseSensitive} onCheckedChange={(v) => setCaseSensitive(!!v)} />
+                          <label htmlFor="cs" className="text-xs text-muted-foreground cursor-pointer">Case sensitive</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="sort" checked={sortCanonically} onCheckedChange={(v) => setSortCanonically(!!v)} />
+                          <label htmlFor="sort" className="text-xs text-muted-foreground cursor-pointer">Sort canonically</label>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setScope('all');
+                            setScopeBook('genesis');
+                            setMatchType('contains');
+                            setCaseSensitive(false);
+                            setSortCanonically(true);
+                          }}
+                          className="w-full h-8 text-xs"
+                        >
+                          Reset Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </form>
+
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {searchResults.length > 0 && (
+                <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 px-1">
+                  Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
                 </div>
               )}
-          </div>
-        </form>
 
-        {searchResults.length > 0 && (
-          <div className="text-sm text-muted-foreground mt-2">
-              <span>Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
-          </div>
-        )}
-
-          <ScrollArea className="flex-1 mt-2">
-          <div className="space-y-2">
-            {searchResults.map((result, index) => (
-              <div
-                key={`${result.book}-${result.chapter}-${result.verse}-${index}`}
-                onClick={() => handleResultClick(result)}
-                  className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center space-x-2 mb-1">
-                  <BookOpen className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium text-primary">
-                    {result.bookName} {result.chapter}:{result.verse}
-                  </span>
+              <ScrollArea className="flex-1 -mx-2 px-2 pr-4">
+                <div className="space-y-3 pb-8">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={`${result.book}-${result.chapter}-${result.verse}-${index}`}
+                      onClick={() => handleResultClick(result)}
+                      className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            {result.bookName} {result.chapter}:{result.verse}
+                          </span>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-primary">Read Now →</span>
+                        </div>
+                      </div>
+                      <p
+                        className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: highlight(result.text, searchQuery) }}
+                      />
+                    </div>
+                  ))}
+                  {isSearching && (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-slate-500 animate-pulse">Searching the scriptures...</p>
+                    </div>
+                  )}
+                  {!isSearching && searchQuery && searchResults.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-slate-500">No verses found matching "{searchQuery}"</p>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: highlight(result.text, searchQuery) }} />
-              </div>
-            ))}
-            {isSearching && (
-              <div className="text-xs text-muted-foreground p-2">Searching...</div>
-            )}
+              </ScrollArea>
+            </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
-      </DialogPortal>
     </Dialog>
   );
 };
