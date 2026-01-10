@@ -845,14 +845,17 @@ const ChoirPage = () => {
 
             {/* Add / Edit Event Dialog */}
             <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>{editingEvent ? 'Edit Note' : 'Add Calendar Note'}</DialogTitle>
-                        <DialogDescription>
-                            Organize your schedule for {setlistDate ? format(setlistDate, "MMM d, yyyy") : "selected day"}.
-                        </DialogDescription>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+                            <CalendarIcon className="w-6 h-6 text-purple-600" />
+                            {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
+                        </DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
+                    <div className="flex-1 overflow-y-auto py-4 space-y-4 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                            Organize your schedule for {setlistDate ? format(setlistDate, "do MMM yyyy") : "selected day"}.
+                        </p>
                         <div className="grid gap-2">
                             <Label htmlFor="title">Title</Label>
                             <Input
@@ -873,38 +876,51 @@ const ChoirPage = () => {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Color Coordinator</Label>
-                            <div className="flex gap-2">
+                            <Label className="text-xs">Color Coordinator</Label>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                                 {[
-                                    { name: 'purple', bg: 'bg-purple-500' },
-                                    { name: 'blue', bg: 'bg-blue-500' },
-                                    { name: 'green', bg: 'bg-green-500' },
-                                    { name: 'orange', bg: 'bg-orange-500' },
-                                    { name: 'red', bg: 'bg-red-500' },
+                                    { name: 'purple', bg: 'bg-purple-500', label: 'Practice' },
+                                    { name: 'blue', bg: 'bg-blue-500', label: 'Event' },
+                                    { name: 'orange', bg: 'bg-orange-500', label: 'Urgent' },
+                                    { name: 'green', bg: 'bg-green-500', label: 'Notes' },
+                                    { name: 'red', bg: 'bg-red-500', label: 'Other' },
                                 ].map((c) => (
                                     <button
                                         key={c.name}
                                         type="button"
                                         className={cn(
-                                            "w-8 h-8 rounded-full transition-all ring-offset-2",
-                                            c.bg,
-                                            newEvent.color === c.name ? "ring-2 ring-slate-400 scale-110" : "opacity-70 hover:opacity-100"
+                                            "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all",
+                                            newEvent.color === c.name
+                                                ? "bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700 ring-1 ring-purple-500/20 shadow-sm"
+                                                : "border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                         )}
                                         onClick={() => setNewEvent({ ...newEvent, color: c.name })}
-                                    />
+                                    >
+                                        <div className={cn("w-3 h-3 rounded-full shrink-0", c.bg)} />
+                                        <span className={cn(
+                                            "text-xs font-semibold",
+                                            newEvent.color === c.name ? "text-slate-900 dark:text-white" : "text-slate-500"
+                                        )}>{c.label}</span>
+                                    </button>
                                 ))}
                             </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsAddEventOpen(false)}>Cancel</Button>
+                    <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-10">
                         <Button
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
                             onClick={editingEvent ? handleUpdateCalendarEvent : handleAddCalendarEvent}
+                            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-4 text-sm font-bold shadow-lg shadow-purple-500/20"
                         >
                             {editingEvent ? 'Save Changes' : 'Add Note'}
                         </Button>
-                    </DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsAddEventOpen(false)}
+                            className="rounded-xl py-4 text-sm font-bold border-slate-200 dark:border-slate-700 h-auto"
+                        >
+                            Cancel
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -1334,8 +1350,8 @@ const ChoirPage = () => {
                         {/* SPLIT SETLIST SECTION */}
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <ListMusic className="w-8 h-8 mr-3 text-purple-600" />
+                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                    <ListMusic className="w-6 h-6 mr-3 text-purple-600" />
                                     This Week's Setlist
                                 </h2>
 
@@ -1350,7 +1366,7 @@ const ChoirPage = () => {
                                             )}
                                         >
                                             {setlistDate ? (
-                                                format(setlistDate, "MMMM d, yyyy")
+                                                format(setlistDate, "do MMM yyyy")
                                             ) : (
                                                 <span>Select Service Date</span>
                                             )}
@@ -1972,8 +1988,7 @@ const ChoirPage = () => {
                                         modifiersStyles={{
                                             hasEvent: {
                                                 fontWeight: 'bold',
-                                                textDecoration: 'underline',
-                                                color: '#9333ea'
+                                                textDecoration: 'underline'
                                             }
                                         }}
                                         components={{
@@ -2006,8 +2021,8 @@ const ChoirPage = () => {
                                     />
 
                                     <div className="mt-12 space-y-6 w-full max-w-[280px]">
-                                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] ml-2">Event Categories</h4>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <h4 className="text-xs font-black uppercase text-slate-600 dark:text-slate-300 tracking-[0.2em] text-center">Categories</h4>
+                                        <div className="flex flex-wrap gap-3 justify-center">
                                             <button
                                                 onClick={() => setSelectedCategory(selectedCategory === 'purple' ? null : 'purple')}
                                                 className={cn(
@@ -2056,6 +2071,18 @@ const ChoirPage = () => {
                                                 <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'green' ? "bg-white" : "bg-green-500")} />
                                                 <span className="text-[10px] font-bold uppercase tracking-wider">Notes</span>
                                             </button>
+                                            <button
+                                                onClick={() => setSelectedCategory(selectedCategory === 'red' ? null : 'red')}
+                                                className={cn(
+                                                    "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all",
+                                                    selectedCategory === 'red'
+                                                        ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-500/20 scale-105"
+                                                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-red-300"
+                                                )}
+                                            >
+                                                <div className={cn("w-2 h-2 rounded-full", selectedCategory === 'red' ? "bg-white" : "bg-red-500")} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Other</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2064,10 +2091,10 @@ const ChoirPage = () => {
                                 <div className="md:col-span-7 p-10 flex flex-col h-full min-h-[600px] bg-white/40 dark:bg-slate-900/40">
                                     <div className="mb-10 flex justify-between items-end">
                                         <div>
-                                            <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-                                                {setlistDate ? format(setlistDate, "EEEE, MMMM do") : "Daily Schedule"}
+                                            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+                                                {setlistDate ? format(setlistDate, "EEEE, MMMM do yyyy") : "Daily Schedule"}
                                             </h3>
-                                            <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">
+                                            <p className="text-slate-400 font-bold text-[10px] mt-1 uppercase tracking-widest">
                                                 {calendarEvents.filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory)).length > 0
                                                     ? `${calendarEvents.filter(e => setlistDate && e.event_date === format(setlistDate, "yyyy-MM-dd") && (!selectedCategory || e.color === selectedCategory)).length} Strategic Items`
                                                     : "Strategic Focus Clear"}
@@ -2108,9 +2135,9 @@ const ChoirPage = () => {
                                                                 <CalendarIcon className="w-7 h-7" />
                                                             </div>
                                                             <div>
-                                                                <h4 className="font-black text-xl text-slate-800 dark:text-slate-100 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{event.title}</h4>
+                                                                <h4 className="font-black text-lg text-slate-800 dark:text-slate-100 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{event.title}</h4>
                                                                 {event.description && (
-                                                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-medium">
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-medium">
                                                                         {event.description}
                                                                     </p>
                                                                 )}
@@ -2156,7 +2183,7 @@ const ChoirPage = () => {
                                                 <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center mb-8 rotate-12 group-hover:rotate-0 transition-transform">
                                                     <Zap className="w-12 h-12 text-slate-300" />
                                                 </div>
-                                                <h4 className="text-slate-500 font-black uppercase tracking-[0.2em] text-xl">Operational Calm</h4>
+                                                <h4 className="text-slate-500 font-black uppercase tracking-[0.2em] text-lg">Operational Calm</h4>
                                                 <p className="text-sm text-slate-400 mt-3 max-w-[280px] font-bold">The day is strategically clear. Ready for spontaneous inspiration!</p>
                                             </div>
                                         )}
