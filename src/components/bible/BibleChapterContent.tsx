@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X } from "lucide-react";
+import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -895,12 +896,12 @@ export const BibleChapterContent = ({
           {/* Header Action Bar */}
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
+              <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full font-sans not-italic">
                 {selectedVerses.length} {selectedVerses.length === 1 ? 'Verse' : 'Verses'} Selected
               </div>
               <button
                 onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
-                className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors"
+                className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors font-sans not-italic"
               >
                 {isMultiSelectMode ? 'Exit Select' : 'Select More'}
               </button>
@@ -1028,10 +1029,10 @@ export const BibleChapterContent = ({
           <button
             onClick={handlePlayPause}
             disabled={globalAudio?.audioState.isLoading || false}
-            className="w-16 h-16 flex items-center justify-center bg-blue-600 text-white rounded-full shadow-2xl hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
+            className="w-16 h-16 flex items-center justify-center bg-white dark:bg-slate-800 text-black dark:text-white rounded-full shadow-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
           >
             {globalAudio?.audioState.isLoading ? (
-              <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-8 h-8 border-3 border-black/10 dark:border-white/10 border-t-black dark:border-t-white rounded-full animate-spin" />
             ) : (globalAudio?.audioState.isPlaying &&
               globalAudio?.audioState.currentBook === selectedBook &&
               globalAudio?.audioState.currentChapter === selectedChapter) ? (
