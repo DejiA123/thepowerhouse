@@ -172,7 +172,7 @@ const GivePage = () => {
                 {[
                   { icon: <CheckCircle className="w-4 h-4" />, text: "Use official details above" },
                   { icon: <Users className="w-4 h-4" />, text: "Include name in reference" },
-                  { icon: <div className="w-4 h-4 flex items-center justify-center text-[10px] font-bold border border-white/50 rounded-full italic">i</div>, text: "Specify donation type (Tithe, etc.)" },
+                  { icon: <div className="w-4 h-4 flex items-center justify-center text-[10px] font-bold border border-white/50 rounded-full italic">i</div>, text: "Specify giving type (Tithe, etc.)" },
                 ].map((item, id) => (
                   <li key={id} className="flex items-start gap-3 text-blue-50/80 text-sm font-medium">
                     <span className="mt-0.5 text-blue-200">{item.icon}</span>
@@ -180,11 +180,7 @@ const GivePage = () => {
                   </li>
                 ))}
               </ul>
-              <div className="pt-4 border-t border-white/10">
-                <p className="text-xs text-blue-100/60 leading-relaxed italic">
-                  Keep your transfer receipt for your personal records and tax documentation.
-                </p>
-              </div>
+              <div className="pt-4 border-t border-white/10" />
             </div>
 
             {/* Biblical Inspiration */}
