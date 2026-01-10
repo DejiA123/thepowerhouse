@@ -896,7 +896,7 @@ export const BibleChapterContent = ({
           {/* Header Action Bar */}
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full font-sans not-italic">
+              <div className="bg-blue-600 text-white text-xs font-black px-2 py-1 rounded-full font-sans not-italic">
                 {selectedVerses.length} {selectedVerses.length === 1 ? 'Verse' : 'Verses'} Selected
               </div>
               <button
@@ -1058,6 +1058,7 @@ export const BibleChapterContent = ({
         onOpenChange={setShowNotesDialog}
         book={selectedBook}
         chapter={selectedChapter}
+        verse={selectedVerses.length > 0 ? selectedVerses[0] : undefined}
       />
 
       {/* All Highlights Dialog */}

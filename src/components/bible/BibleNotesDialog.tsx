@@ -46,7 +46,7 @@ const NOTE_CATEGORIES = [
 ];
 
 const DEFAULT_TAGS = [
-  'Important', 'Key Verse', 'Promise', 'Command', 'Warning', 'Comfort', 
+  'Important', 'Key Verse', 'Promise', 'Command', 'Warning', 'Comfort',
   'Prophecy', 'Miracle', 'Parable', 'Prayer', 'Worship', 'Faith', 'Love',
   'Forgiveness', 'Salvation', 'Grace', 'Mercy', 'Justice', 'Wisdom'
 ];
@@ -56,7 +56,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   const [newNote, setNewNote] = useState({
     title: '',
     note_text: '',
-    category: '',
+    category: 'none',
     tags: [] as string[],
     is_favorite: false,
     is_private: false
@@ -115,7 +115,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
         verse,
         note_text: newNote.note_text.trim(),
         title: newNote.title.trim() || null,
-        category: newNote.category || null,
+        category: (newNote.category && newNote.category !== 'none') ? newNote.category : null,
         tags: newNote.tags.length > 0 ? newNote.tags : null,
         is_favorite: newNote.is_favorite,
         is_private: newNote.is_private,
@@ -136,12 +136,12 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
       setNewNote({
         title: '',
         note_text: '',
-        category: '',
+        category: 'none',
         tags: [],
         is_favorite: false,
         is_private: false
       });
-      
+
       await fetchNotes();
     } catch (error) {
       console.error('Error saving note:', error);
@@ -165,7 +165,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
         .update({
           note_text: editingNote.note_text.trim(),
           title: editingNote.title || null,
-          category: editingNote.category || null,
+          category: (editingNote.category && editingNote.category !== 'none') ? editingNote.category : null,
           tags: editingNote.tags || null,
           is_favorite: editingNote.is_favorite,
           is_private: editingNote.is_private,
@@ -261,9 +261,9 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString([], { 
-      year: 'numeric', 
-      month: 'short', 
+    return new Date(dateString).toLocaleDateString([], {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -295,7 +295,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
           {/* Add New Note */}
           <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
             <h3 className="text-lg font-semibold">Add New Note</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Title (Optional)</label>
@@ -305,7 +305,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                   placeholder="Give your note a title..."
                 />
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium">Category</label>
                 <Select value={newNote.category} onValueChange={(value) => setNewNote(prev => ({ ...prev, category: value }))}>
@@ -313,7 +313,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Category</SelectItem>
+                    <SelectItem value="none">No Category</SelectItem>
                     {NOTE_CATEGORIES.map(category => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.icon} {category.name}
@@ -362,7 +362,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                     Add
                   </Button>
                 </div>
-                
+
                 {showTagSuggestions && (
                   <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
                     <div className="text-xs text-muted-foreground mb-2">Suggestions:</div>
@@ -382,7 +382,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                     </div>
                   </div>
                 )}
-                
+
                 {newNote.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {newNote.tags.map((tag) => (
@@ -410,7 +410,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                 />
                 <span className="text-sm">Mark as favorite</span>
               </label>
-              
+
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -422,8 +422,8 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
               </label>
             </div>
 
-            <Button 
-              onClick={saveNote} 
+            <Button
+              onClick={saveNote}
               disabled={!newNote.note_text.trim() || loading}
               className="w-full"
             >
@@ -456,18 +456,18 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                                 placeholder="Note title..."
                               />
                             </div>
-                            
+
                             <div>
                               <label className="text-sm font-medium">Category</label>
-                              <Select 
-                                value={editingNote.category || ''} 
+                              <Select
+                                value={editingNote.category || 'none'}
                                 onValueChange={(value) => setEditingNote(prev => prev ? { ...prev, category: value } : null)}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">No Category</SelectItem>
+                                  <SelectItem value="none">No Category</SelectItem>
                                   {NOTE_CATEGORIES.map(category => (
                                     <SelectItem key={category.id} value={category.id}>
                                       {category.icon} {category.name}
@@ -497,7 +497,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                               />
                               <span className="text-sm">Mark as favorite</span>
                             </label>
-                            
+
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -562,7 +562,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                               </Button>
                             </div>
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2">
                             {note.category && (
                               <Badge variant="secondary" className={getCategoryInfo(note.category).color}>
@@ -575,7 +575,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                               </Badge>
                             ))}
                           </div>
-                          
+
                           <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t">
                             <div className="flex items-center gap-2">
                               {note.verse && (
