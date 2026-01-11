@@ -1700,7 +1700,7 @@ const ManagementTeamPage = () => {
                                                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{phase.description}</p>
                                                     </div>
                                                     <span className="text-xs font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                                                        {phase.startDate.toLocaleDateString(undefined, { month: 'short' })} - {phase.endDate.toLocaleDateString(undefined, { month: 'short' })}
+                                                        {phase.startDate.toLocaleDateString(undefined, { month: 'short' })} - {phase.endDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                                                     </span>
                                                 </div>
                                             </div>
