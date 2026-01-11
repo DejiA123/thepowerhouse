@@ -19,7 +19,7 @@ const BottomNavigation = () => {
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="max-w-4xl mx-auto px-4 pt-1 flex justify-around touch-none select-none">
+      <div className="w-full pt-1 flex justify-around touch-none select-none">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
