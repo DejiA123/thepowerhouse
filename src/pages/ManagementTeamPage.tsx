@@ -1373,9 +1373,9 @@ const ManagementTeamPage = () => {
 
 
     return (
-        <div className="container mx-auto pb-24 md:pb-12 px-4 pt-6 space-y-8 animate-in fade-in duration-500">
+        <div className="container mx-auto pb-24 md:pb-12 px-4 pt-6 space-y-4 animate-in fade-in duration-500">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
                     <Badge variant="outline" className="mb-2 border-amber-500 text-amber-600 dark:text-amber-400">
                         <Clock className="w-3 h-3 mr-1" />
@@ -1469,7 +1469,7 @@ const ManagementTeamPage = () => {
 
             {/* Main Content Tabs - Redesigned with Sticky & Scroll Cues */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <div className="sticky top-0 z-40 -mx-4 px-4 py-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 mb-8 transition-all duration-300">
+                <div className="sticky top-0 z-40 -mx-4 px-4 py-2 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 mb-4 transition-all duration-300">
                     <div className="relative group max-w-5xl mx-auto">
                         {/* Scroll Cues: Fades & Arrows */}
                         <div className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none transition-opacity duration-300 bg-gradient-to-r from-slate-50 dark:from-slate-900 to-transparent ${showLeftFade ? 'opacity-100' : 'opacity-0'}`} />
@@ -1492,7 +1492,7 @@ const ManagementTeamPage = () => {
                         <TabsList
                             ref={tabsListRef}
                             onScroll={checkScroll}
-                            className="flex flex-nowrap overflow-x-auto pb-1 justify-start gap-1 bg-slate-200/50 dark:bg-slate-800/50 p-1 w-full no-scrollbar rounded-2xl h-auto border border-white/40 dark:border-slate-700/40"
+                            className="flex flex-nowrap overflow-x-auto pb-1 justify-start md:justify-center gap-1 bg-slate-200/50 dark:bg-slate-800/50 p-1 w-full no-scrollbar rounded-2xl h-auto border border-white/40 dark:border-slate-700/40"
                         >
                             <TabsTrigger
                                 value="dashboard"
