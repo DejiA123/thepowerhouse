@@ -39,6 +39,9 @@ import NewHerePage from "@/pages/NewHerePage";
 import ServePage from "@/pages/ServePage";
 import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
 import ChoirPage from "@/pages/ChoirPage";
+import ManagementTeamPage from "@/pages/ManagementTeamPage";
+import UsheringPage from "@/pages/UsheringPage";
+import EvangelismPage from "@/pages/EvangelismPage";
 
 console.log('App.tsx: Component loading...');
 
@@ -241,6 +244,9 @@ const AppRoutes = () => {
             <Route path="/serve" element={<ServePage />} />
             <Route path="/building-campaign" element={<BuildingCampaignPage />} />
             <Route path="/groups/choir" element={<ChoirPage />} />
+            <Route path="/groups/management" element={<ManagementTeamPage />} />
+            <Route path="/groups/ushering" element={<UsheringPage />} />
+            <Route path="/groups/evangelism" element={<EvangelismPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

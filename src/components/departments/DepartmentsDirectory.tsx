@@ -1,6 +1,6 @@
 
 import { Department } from "./DepartmentCard";
-import { Music, Mic, Heart, Camera, Book, Handshake, Users, ChevronRight } from "lucide-react";
+import { Music, Mic, Heart, Camera, Book, Handshake, Users, ChevronRight, ClipboardList } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,17 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
       leader: "Min Rekky Chigozie",
       requirements: "A heart of worship",
       color: "bg-pink-500"
+    },
+    {
+      id: "management",
+      name: "Management Team",
+      icon: <ClipboardList className="w-5 h-5 text-white" />,
+      description: "Convention Planning & Coordination",
+      members: memberCounts["Management Team"] || 10,
+      meetings: "As required",
+      leader: "NOC",
+      requirements: "Appointment only",
+      color: "bg-slate-800"
     },
     {
       id: "ushering",
@@ -97,7 +108,8 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
       leader: "YP Sodiq Omoyayi",
       requirements: "Heart for young people",
       color: "bg-green-500"
-    }
+    },
+
   ];
 
   return (
@@ -110,6 +122,12 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
             onClick={() => {
               if (dept.name === "Choir") {
                 navigate("/groups/choir");
+              } else if (dept.name === "Management Team") {
+                navigate("/groups/management");
+              } else if (dept.name === "Ushering") {
+                navigate("/groups/ushering");
+              } else if (dept.name === "Evangelism") {
+                navigate("/groups/evangelism");
               } else {
                 onJoinDepartment(dept.name);
               }
