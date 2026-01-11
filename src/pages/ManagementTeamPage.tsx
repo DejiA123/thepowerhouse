@@ -1373,7 +1373,7 @@ const ManagementTeamPage = () => {
 
 
     return (
-        <div className="container mx-auto pb-24 md:pb-12 px-4 pt-6 space-y-4 animate-in fade-in duration-500">
+        <div className="container mx-auto pb-24 md:pb-12 px-4 pt-6 space-y-4">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
@@ -1484,7 +1484,7 @@ const ManagementTeamPage = () => {
 
                         {/* Right Arrow (Desktop) */}
                         {showRightFade && (
-                            <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 text-slate-400 animate-pulse">
+                            <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 text-slate-400">
                                 <ChevronRight className="w-4 h-4" />
                             </div>
                         )}
@@ -1563,7 +1563,7 @@ const ManagementTeamPage = () => {
                                         <div className="text-4xl font-bold">{overallProgress}%</div>
                                     )}
                                 </div>
-                                <Progress value={overallProgress} className="h-2 bg-white/20" />
+                                <Progress value={overallProgress} className="h-2 bg-white/20 [&>div]:transition-none" />
                                 <p className="text-xs mt-2 opacity-75">
                                     {isManualProgress ? "Manually set by admin" : "Auto-calculated from task completion"}
                                 </p>
