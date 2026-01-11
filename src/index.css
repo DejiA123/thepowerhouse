@@ -609,7 +609,7 @@
 
 .bible-header-full {
   @apply flex items-center justify-between px-4 py-3 border-b border-border bg-background sticky z-[70] shadow-sm;
-  top: env(safe-area-inset-top, 0);
+  top: 0;
   /* Ensure proper positioning in PWA mode */
 }
 
@@ -618,7 +618,7 @@
 /* PWA specific adjustments for Bible header */
 @media (display-mode: standalone) {
   .bible-header-full {
-    top: env(safe-area-inset-top, 0);
+    top: 0;
     position: -webkit-sticky;
     position: sticky;
     /* Ensure visibility in PWA mode on iOS */
@@ -680,10 +680,9 @@
   padding-top: 1rem;
 }
 
-/* PWA specific adjustments for Bible main content */
 @media (display-mode: standalone) {
   .bible-main-content-full {
-    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+    padding-top: 1rem;
   }
 }
 
