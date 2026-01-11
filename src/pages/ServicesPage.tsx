@@ -1,12 +1,14 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, MapPin, Users, Volume2, Eye } from "lucide-react";
+import { Clock, Calendar, MapPin, Users, Volume2, Eye, ArrowLeft, Phone, Mail, MessageCircle } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
 import { supabase } from "@/integrations/supabase/client";
 import PowerHouseVideos from "@/components/PowerHouseVideos";
+
 
 interface LiveService {
   id: string;
@@ -19,6 +21,7 @@ interface LiveService {
 }
 
 const ServicesPage = () => {
+  const navigate = useNavigate();
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [isLiveStreamActive, setIsLiveStreamActive] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,17 +31,17 @@ const ServicesPage = () => {
   // Fetch live services from database and check for live streams
   useEffect(() => {
     fetchLiveServices();
-    
+
     const checkLiveStatus = () => {
       // Simulate live status - in production, this would check YouTube API
       const now = new Date();
       const currentHour = now.getHours();
       const currentDay = now.getDay();
-      
+
       // Sunday 10 AM or Wednesday 7 PM
       const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 12;
       const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
-      
+
       setIsLiveStreamActive(isSundayService || isWednesdayService);
     };
 
@@ -58,62 +61,58 @@ const ServicesPage = () => {
     }
   };
 
-  const services = [
+  const branchServices = [
     {
-      id: "sunday",
-      name: "Sunday Service",
-      time: "10:00 AM",
-      day: "Sunday",
-      description: "Join us for worship, fellowship, and powerful teaching from God's Word.",
-      isLive: isLiveStreamActive && new Date().getDay() === 0,
-      streamUrl: "https://www.youtube.com/@thepowerhouseintl/streams",
-      image: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 400\"%3E%3Crect fill=\"%234F46E5\" width=\"800\" height=\"400\"/%3E%3C/svg%3E')"
+      name: "Galway",
+      address: "The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit, Galway, H91 958A",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
+      phone: "089 953 4714",
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/GalwayGroup"
     },
     {
-      id: "bible-study",
-      name: "Bible Study Service",
-      time: "7:00 PM",
-      day: "Wednesday", 
-      description: "Deep dive into Scripture with interactive Bible study and discussion.",
-      isLive: isLiveStreamActive && new Date().getDay() === 3,
-      streamUrl: "https://www.youtube.com/@thepowerhouseintl/streams",
-      image: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 400\"%3E%3Crect fill=\"%2310B981\" width=\"800\" height=\"400\"/%3E%3C/svg%3E')"
+      name: "Kildare",
+      address: "The Power House International, O'Cola House Lower Eyre Street, Newbridge, W12TK37",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
+      phone: "089 953 5663",
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/KildareGroup"
     },
     {
-      id: "prayer-meeting",
-      name: "Prayer Meeting",
-      time: "7:00 PM",
-      day: "Friday",
-      description: "Come together in corporate prayer and intercession for our community.",
-      isLive: false,
-      streamUrl: "https://www.youtube.com/@thepowerhouseintl/streams",
-      image: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 400\"%3E%3Crect fill=\"%23F59E0B\" width=\"800\" height=\"400\"/%3E%3C/svg%3E')"
+      name: "Athlone",
+      address: "Unit 22 Athlone Shopping Centre, Sean Costello Street, Athlone, Co. Westmeath, N37 V2Y2",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "7 PM",
+        prayer: "7 PM"
+      },
+      phone: "089 982 2556",
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/AthloneGroup"
+    },
+    {
+      name: "Dublin",
+      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "8 PM",
+        prayer: "8 PM"
+      },
+      phone: "089 252 7008",
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/DublinGroup"
     }
   ];
 
-  const previousServices = [
-    {
-      title: "Faith Over Fear - Sunday Service",
-      date: "January 7, 2024",
-      duration: "1:25:30",
-      views: "234",
-      thumbnail: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 320 180\"%3E%3Crect fill=\"%236366F1\" width=\"320\" height=\"180\"/%3E%3C/svg%3E')"
-    },
-    {
-      title: "The Power of Prayer - Bible Study",
-      date: "January 3, 2024",
-      duration: "45:20",
-      views: "156",
-      thumbnail: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 320 180\"%3E%3Crect fill=\"%2310B981\" width=\"320\" height=\"180\"/%3E%3C/svg%3E')"
-    },
-    {
-      title: "New Year Prayer Meeting",
-      date: "December 29, 2023",
-      duration: "1:15:45",
-      views: "89",
-      thumbnail: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 320 180\"%3E%3Crect fill=\"%23F59E0B\" width=\"320\" height=\"180\"/%3E%3C/svg%3E')"
-    }
-  ];
+
 
   const handleWatchLive = (service: any) => {
     if (service.isLive) {
@@ -140,57 +139,104 @@ const ServicesPage = () => {
 
   return (
     <div className="p-4 space-y-6">
+
       {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Services</h1>
-        <p className="text-muted-foreground">Join us for worship, learning, and fellowship</p>
+      {/* Header */}
+      <div className="relative mb-8 pt-4 pb-2 px-2 flex flex-col items-center justify-center">
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute left-0 top-4 h-10 w-10 rounded-full bg-background/50 backdrop-blur-md border-border/50 shadow-sm hover:bg-background/80 hover:shadow-md transition-all duration-300"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft className="w-5 h-5 text-foreground/80" />
+        </Button>
+
+        <div className="text-center space-y-2 max-w-2xl mx-auto rounded-3xl p-6 transition-all duration-300">
+          <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-2xl mb-2 backdrop-blur-sm">
+            <Calendar className="w-6 h-6 text-primary" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600 animate-in fade-in zoom-in duration-500">
+            Services
+          </h1>
+          <p className="text-lg text-muted-foreground font-medium max-w-md mx-auto leading-relaxed">
+            Join us for worship, learning, and fellowship
+          </p>
+        </div>
       </div>
 
-      {/* Live Services */}
+      {/* Branch Services */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-foreground">Our Services</h2>
-        <div className="grid gap-4">
-          {services.map((service) => (
-            <Card key={service.id} className="overflow-hidden">
-              <div 
-                className="h-48 bg-cover bg-center relative"
-                style={{ backgroundImage: service.image }}
-              >
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <h3 className="text-2xl font-bold mb-2">{service.name}</h3>
-                    <div className="flex items-center justify-center space-x-4 text-sm">
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>{service.day}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>{service.time}</span>
-                      </div>
-                    </div>
-                    {service.isLive && (
-                      <Badge className="mt-2 bg-red-500 text-white animate-pulse">
-                        🔴 LIVE NOW
-                      </Badge>
-                    )}
+        <div className="grid md:grid-cols-2 gap-6">
+          {branchServices.map((branch, index) => (
+            <Card key={index} className="overflow-hidden border border-border bg-card/50 hover:bg-card hover:shadow-lg transition-all">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-primary flex items-center justify-between">
+                  {branch.name}
+                  <Badge variant="outline" className="ml-2 font-normal text-xs">
+                    In-Person
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                {/* Address */}
+                <div className="flex items-start space-x-2 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                  <span>{branch.address}</span>
+                </div>
+
+                {/* Service Times */}
+                <div className="space-y-2 bg-muted/30 p-3 rounded-lg border border-border/50">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">Sunday Service</span>
+                    <span className="text-primary font-bold">{branch.times.sunday}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">Bible Study</span>
+                    <span className="text-primary font-bold">{branch.times.bibleStudy}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-foreground">Prayer Meeting</span>
+                    <span className="text-primary font-bold">{branch.times.prayer}</span>
                   </div>
                 </div>
-              </div>
-              <CardContent className="p-6">
-                <p className="text-foreground mb-4">{service.description}</p>
-                <div className="flex space-x-3">
-                  <Button 
-                    onClick={() => handleWatchLive(service)}
-                    className="flex-1"
-                    variant={service.isLive ? "default" : "outline"}
+
+                {/* Contact Info */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-foreground/90">{branch.phone}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-foreground/90 truncate">{branch.email}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={() => window.open(branch.whatsappGroup, '_blank')}
                   >
-                    {service.isLive ? "Watch Live" : "Join Next Service"}
+                    <MessageCircle className="w-3 h-3 mr-1.5 text-green-600" />
+                    WhatsApp Group
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Locations
-                  </Button>
+                  {branch.name !== "Dublin" && (
+                    <Button
+                      variant="default"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(branch.address)}`;
+                        window.open(url, '_blank');
+                      }}
+                    >
+                      <MapPin className="w-3 h-3 mr-1.5" />
+                      Get Directions
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -243,65 +289,17 @@ const ServicesPage = () => {
         </div>
       )}
 
-      {/* Previous Services */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Previous Services</h2>
-        <div className="space-y-4">
-          {previousServices.map((video, index) => (
-            <Card key={index} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex space-x-4">
-                   <div 
-                    className="w-32 h-20 bg-cover bg-center rounded-lg flex items-center justify-center cursor-pointer"
-                    style={{ backgroundImage: video.thumbnail }}
-                    onClick={() => handleWatchPrevious(video)}
-                  >
-                    <div className="w-8 h-8 text-white">▶</div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">{video.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">{video.date}</p>
-                    <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{video.duration}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-3 h-3" />
-                        <span>{video.views} views</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleWatchPrevious(video)}
-                  >
-                    ▶
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        <div className="text-center">
-          <Button 
-            variant="outline" 
-            onClick={() => window.open("https://www.youtube.com/@thepowerhouseintl/videos", '_blank')}
-          >
-            View All Previous Services
-          </Button>
-        </div>
-      </div>
+
+
+
 
       {/* Quick Info */}
       <Card className="bg-primary text-primary-foreground">
         <CardContent className="p-6 text-center">
           <h3 className="text-xl font-bold mb-2">Can't Make It In Person?</h3>
           <p className="mb-4 opacity-90">Join us online for all our services via live stream</p>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => window.open("https://www.youtube.com/@thepowerhouseintl/streams", '_blank')}
           >
             <Volume2 className="w-4 h-4 mr-2" />

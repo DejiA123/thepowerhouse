@@ -169,16 +169,16 @@ const Layout = ({ children }: LayoutProps) => {
         }}
       />
 
-      {showChrome && location.pathname !== '/bible' && <Header />}
+      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
 
       {/* Main Content with safe area top padding */}
-      <main id="main-content" className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
-        <div className={showChrome ? "lg:pb-4" : ""}>
+      <main id="main-content" className="flex-1 overflow-y-auto" style={showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' ? { paddingTop: 'env(safe-area-inset-top)' } : {}}>
+        <div className={showChrome && location.pathname !== '/group-chats' ? "lg:pb-4" : "h-full"}>
           {children}
         </div>
       </main>
 
-      {showChrome && <BottomNavigation />}
+      {showChrome && location.pathname !== '/group-chats' && <BottomNavigation />}
     </div>
   );
 };

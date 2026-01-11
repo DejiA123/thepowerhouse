@@ -144,12 +144,6 @@ export class GroupChatService {
      * Delete a group chat (admin only)
      */
     static async deleteGroup(chatId: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            throw new Error('User must be authenticated');
-        }
-
         const { error } = await supabase
             .from('group_chats')
             .update({ is_active: false })
@@ -159,6 +153,26 @@ export class GroupChatService {
             console.error('Error deleting group:', error);
             throw error;
         }
+    }
+
+    /**
+     * Search for users by name or email
+     */
+    static async searchUsers(query: string): Promise<{ id: string; email: string; full_name: string; avatar_url: string }[]> {
+        if (!query.trim()) return [];
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url')
+            .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+            .limit(10);
+
+        if (error) {
+            console.error('Error searching users:', error);
+            throw error;
+        }
+
+        return data || [];
     }
 
     /**
@@ -342,12 +356,13 @@ export class GroupChatService {
 
         if (!user) return 0;
 
+        // Try to get participant record from cache-like object or fetch
         const { data: participant } = await supabase
             .from('chat_participants')
             .select('last_read_at')
             .eq('chat_id', chatId)
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
 
         if (!participant) return 0;
 
@@ -355,7 +370,7 @@ export class GroupChatService {
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('chat_id', chatId)
-            .gt('created_at', participant.last_read_at)
+            .gt('created_at', participant.last_read_at || '1970-01-01')
             .neq('user_id', user.id);
 
         if (error) {
@@ -364,6 +379,38 @@ export class GroupChatService {
         }
 
         return count || 0;
+    }
+
+    /**
+     * Get all unread counts for a user in one go (more efficient)
+     */
+    static async getAllUnreadCounts(): Promise<Record<string, number>> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return {};
+
+        const { data: participants, error: pError } = await supabase
+            .from('chat_participants')
+            .select('chat_id, last_read_at')
+            .eq('user_id', user.id);
+
+        if (pError || !participants) return {};
+
+        const counts: Record<string, number> = {};
+
+        // Use Promise.all to fetch counts in parallel for now.
+        // A truly optimized version would use an RPC call or a single join query.
+        await Promise.all(participants.map(async (p) => {
+            const { count } = await supabase
+                .from('chat_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('chat_id', p.chat_id)
+                .gt('created_at', p.last_read_at || '1970-01-01')
+                .neq('user_id', user.id);
+
+            counts[p.chat_id] = count || 0;
+        }));
+
+        return counts;
     }
 
     /**

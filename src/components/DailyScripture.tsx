@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Book, ExternalLink, RefreshCw } from "lucide-react";
+import { Book, ExternalLink, RefreshCw, Play } from "lucide-react";
 import { getTodaysScripture } from "@/utils/dailyScriptureUtils";
 
 const DailyScripture = () => {
@@ -33,66 +34,80 @@ const DailyScripture = () => {
   const playlistUrl = `https://www.youtube.com/embed/${videoId}`;
 
   return (
-    <Card className="glass border-0 overflow-hidden relative group">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-indigo-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-primary">
-            <Book className="w-5 h-5" />
-            <span className="font-bold tracking-tight">Today's Scripture</span>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-6">
-          <p className="text-xl md:text-2xl font-serif italic text-foreground/90 leading-relaxed mb-3">
-            "{todaysScripture.verse}"
-          </p>
-          <p className="text-primary font-medium text-right">— {todaysScripture.reference}</p>
-        </div>
+    <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">
+      {/* Animated border gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 opacity-30 animate-pulse"></div>
 
-        <div className="mt-4 bg-muted/50 rounded-2xl p-4 border border-white/5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Shorts</p>
+      <Card className="relative border-0 shadow-none bg-white/80 backdrop-blur-xl text-gray-800 overflow-hidden rounded-[22px]">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-100 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-purple-100 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+
+        <CardHeader className="relative z-10 pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                <Book className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 leading-tight">Today's Scripture</h3>
+                <p className="text-xs text-indigo-500 font-medium">Daily Inspiration</p>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={refreshVideo}
-              className="h-8 px-2 text-xs hover:bg-white/50 hover:text-primary transition-colors rounded-full"
+              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-full h-8 text-xs font-semibold px-3"
             >
               <RefreshCw className="w-3 h-3 mr-1.5" />
-              Next Video
+              New Video
             </Button>
           </div>
+        </CardHeader>
 
-          <div className="flex justify-center mb-2">
-            <div className="aspect-[9/16] w-full max-w-[280px] bg-black/5 rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-1 ring-black/5">
-              <iframe
-                className="w-full h-full"
-                src={playlistUrl}
-                title="Daily Christian Inspiration"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              ></iframe>
+        <CardContent className="relative z-10 space-y-8">
+          {/* Scripture Section */}
+          <div className="text-center px-4">
+            <h4 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600 mb-3 leading-relaxed">
+              "{todaysScripture.verse}"
+            </h4>
+            <p className="inline-block px-4 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-sm tracking-wide">
+              {todaysScripture.reference}
+            </p>
+          </div>
+
+          {/* Shorts Display */}
+          <div className="flex flex-col items-center">
+            <div className="relative group w-full max-w-[260px] mx-auto">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[20px] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative aspect-[9/16] w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-100">
+                <iframe
+                  className="w-full h-full"
+                  src={playlistUrl}
+                  title="Daily Christian Inspiration"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                onClick={() => window.open(`https://www.youtube.com/channel/${channelId}`, '_blank')}
+                className="rounded-full border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all duration-300"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Visit Channel
+              </Button>
             </div>
           </div>
-
-          <div className="text-center mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(`https://www.youtube.com/channel/${channelId}`, '_blank')}
-              className="text-xs rounded-full border-primary/20 hover:bg-primary hover:text-white transition-all duration-300"
-            >
-              <ExternalLink className="w-3 h-3 mr-1.5" />
-              Visit Channel
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

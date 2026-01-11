@@ -60,11 +60,21 @@ const GroupChatsPage = () => {
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
-    // Dialog States
+    // Dialog & UI States
     const [showCreateGroup, setShowCreateGroup] = useState(false);
+    const [showParticipants, setShowParticipants] = useState(false);
+    const [showAddMember, setShowAddMember] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+
     const [newGroupName, setNewGroupName] = useState("");
     const [newGroupDescription, setNewGroupDescription] = useState("");
     const [creatingGroup, setCreatingGroup] = useState(false);
+
+    const [participants, setParticipants] = useState<any[]>([]);
+    const [userSearchQuery, setUserSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchingUsers, setSearchingUsers] = useState(false);
+    const [addingMember, setAddingMember] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
@@ -113,10 +123,7 @@ const GroupChatsPage = () => {
             const data = await GroupChatService.getGroupChats();
             setChats(data);
             if (user) {
-                const counts: Record<string, number> = {};
-                for (const chat of data) {
-                    counts[chat.id] = await GroupChatService.getUnreadCount(chat.id);
-                }
+                const counts = await GroupChatService.getAllUnreadCounts();
                 setUnreadCounts(counts);
             }
         } catch (error) {
@@ -205,6 +212,60 @@ const GroupChatsPage = () => {
         setSelectedChat(null);
     };
 
+    const fetchParticipants = async () => {
+        if (!selectedChat) return;
+        try {
+            const data = await GroupChatService.getParticipants(selectedChat.id);
+            setParticipants(data);
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to fetch participants", variant: "destructive" });
+        }
+    };
+
+    const handleSearchUsers = async (q: string) => {
+        setUserSearchQuery(q);
+        if (q.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        try {
+            setSearchingUsers(true);
+            const results = await GroupChatService.searchUsers(q);
+            setSearchResults(results);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSearchingUsers(false);
+        }
+    };
+
+    const handleAddMember = async (userId: string) => {
+        if (!selectedChat) return;
+        try {
+            setAddingMember(true);
+            await GroupChatService.addMembers(selectedChat.id, [userId]);
+            toast({ title: "Success", description: "Member added to group" });
+            fetchParticipants();
+            setShowAddMember(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to add member", variant: "destructive" });
+        } finally {
+            setAddingMember(false);
+        }
+    };
+
+    const handleUpdateAvatar = async (url: string) => {
+        if (!selectedChat) return;
+        try {
+            await GroupChatService.updateGroupInfo(selectedChat.id, { avatar_url: url });
+            setSelectedChat({ ...selectedChat, avatar_url: url });
+            toast({ title: "Success", description: "Group avatar updated" });
+            fetchChats();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update avatar", variant: "destructive" });
+        }
+    };
+
     const getIconComponent = (iconName: string) => iconMap[iconName] || MessageCircle;
 
     const formatTime = (dateString: string) => {
@@ -233,7 +294,7 @@ const GroupChatsPage = () => {
     }
 
     return (
-        <div className="flex h-[100dvh] bg-slate-50 dark:bg-slate-950 overflow-hidden">
+        <div className="flex h-full bg-slate-50 dark:bg-slate-950 overflow-hidden overscroll-none">
             {/* Sidebar - Hidden on mobile when chat is selected */}
             <div className={cn(
                 "w-full md:w-96 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col",
@@ -346,9 +407,16 @@ const GroupChatsPage = () => {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { fetchParticipants(); setShowParticipants(true); }}>
                                             <Users className="w-4 h-4 mr-2" /> View Participants
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setShowAddMember(true)}>
+                                            <UserCheck className="w-4 h-4 mr-2" /> Add Members
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setShowSettings(true)}>
+                                            <Settings className="w-4 h-4 mr-2" /> Group Settings
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteGroup(selectedChat.id)}>
                                             <Trash2 className="w-4 h-4 mr-2" /> Delete Group
                                         </DropdownMenuItem>
@@ -411,36 +479,120 @@ const GroupChatsPage = () => {
                 )}
             </div>
 
-            {/* Create Group Dialog */}
-            <Dialog open={showCreateGroup} onOpenChange={setShowCreateGroup}>
-                <DialogContent>
+            {/* Participants Dialog */}
+            <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Create New Group</DialogTitle>
+                        <DialogTitle>Participants</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[400px] mt-4">
+                        <div className="space-y-3">
+                            {participants.map((p: any) => (
+                                <div key={p.user_id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                                            {p.presence?.status_message?.charAt(0) || "U"}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-sm">{p.user_id === user?.id ? "You" : p.user_id.split('-')[0]}</p>
+                                            <p className="text-xs text-slate-500">{p.presence?.is_online ? "Online" : "Offline"}</p>
+                                        </div>
+                                    </div>
+                                    {p.presence?.is_online && <div className="w-2 h-2 rounded-full bg-green-500" />}
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Member Dialog */}
+            <Dialog open={showAddMember} onOpenChange={setShowAddMember}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add Members</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Input
+                                placeholder="Search by name or email..."
+                                value={userSearchQuery}
+                                onChange={(e) => handleSearchUsers(e.target.value)}
+                                className="pl-10 rounded-xl"
+                            />
+                        </div>
+                        <ScrollArea className="max-h-[300px]">
+                            <div className="space-y-2">
+                                {searchingUsers ? (
+                                    <div className="text-center py-4"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>
+                                ) : searchResults.length > 0 ? (
+                                    searchResults.map((u) => (
+                                        <div key={u.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold">
+                                                    {u.full_name?.charAt(0) || "U"}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold">{u.full_name || u.email}</p>
+                                                    <p className="text-xs text-slate-500">{u.email}</p>
+                                                </div>
+                                            </div>
+                                            <Button size="sm" onClick={() => handleAddMember(u.id)} disabled={addingMember}>
+                                                Add
+                                            </Button>
+                                        </div>
+                                    ))
+                                ) : userSearchQuery.length >= 2 && (
+                                    <p className="text-center text-slate-500 py-4">No users found</p>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Settings Dialog */}
+            <Dialog open={showSettings} onOpenChange={setShowSettings}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Group Settings</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-24 h-24 rounded-3xl bg-indigo-500 flex items-center justify-center text-white overflow-hidden relative group">
+                                {selectedChat?.avatar_url ? (
+                                    <img src={selectedChat.avatar_url} alt="Group Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Users className="w-12 h-12" />
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => {
+                                    const url = prompt("Enter Image URL for group avatar:");
+                                    if (url) handleUpdateAvatar(url);
+                                }}>
+                                    <Edit2 className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-500">Tap icon to change avatar</p>
+                        </div>
+
                         <div className="space-y-2">
                             <Label>Group Name</Label>
                             <Input
-                                placeholder="Ex: Youth Leadership"
-                                value={newGroupName}
-                                onChange={(e) => setNewGroupName(e.target.value)}
+                                value={selectedChat?.name || ""}
+                                onChange={(e) => selectedChat && setSelectedChat({ ...selectedChat, name: e.target.value })}
+                                onBlur={() => selectedChat && GroupChatService.updateGroupInfo(selectedChat.id, { name: selectedChat.name })}
                             />
                         </div>
                         <div className="space-y-2">
                             <Label>Description</Label>
                             <Textarea
-                                placeholder="What is this group for?"
-                                value={newGroupDescription}
-                                onChange={(e) => setNewGroupDescription(e.target.value)}
+                                value={selectedChat?.description || ""}
+                                onChange={(e) => selectedChat && setSelectedChat({ ...selectedChat, description: e.target.value })}
+                                onBlur={() => selectedChat && GroupChatService.updateGroupInfo(selectedChat.id, { description: selectedChat.description })}
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowCreateGroup(false)}>Cancel</Button>
-                        <Button onClick={handleCreateGroup} disabled={creatingGroup || !newGroupName.trim()}>
-                            {creatingGroup ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Group"}
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

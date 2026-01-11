@@ -192,7 +192,7 @@ const ResourcesPage = () => {
       icon: Calendar,
       color: "from-green-500 to-emerald-500",
       shadow: "shadow-green-500/20",
-      onClick: () => navigate("/group-chats")
+      onClick: () => navigate("/news")
     },
     {
       title: "Bible Plans",
@@ -206,7 +206,7 @@ const ResourcesPage = () => {
       icon: ChevronRight,
       color: "from-rose-500 to-pink-600",
       shadow: "shadow-rose-500/20",
-      onClick: () => navigate("/group-chats")
+      onClick: () => navigate("/follow-up")
     },
     {
       title: "Group Chats",
