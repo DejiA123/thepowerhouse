@@ -160,27 +160,18 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-dvh text-foreground bg-background overscroll-none">
-      {/* Status bar background for PWA fullscreen mode (theme-aware) */}
-      <div
-        className="fixed top-0 left-0 right-0 bg-background z-[100] pointer-events-none status-bar-bg"
-        style={{
-          height: 'env(safe-area-inset-top)',
-        }}
-      />
+    <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* Background fill for status bar */}
+      <div className="fixed top-0 left-0 right-0 bg-background z-[-1]" style={{ height: 'env(safe-area-inset-top)' }} />
 
       {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
 
-      {/* Main Content with safe area padding */}
+      {/* Main Content */}
       <main
         id="main-content"
         className="flex-1 overflow-y-auto"
-        style={{
-          paddingTop: showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' ? 'env(safe-area-inset-top)' : '0',
-          paddingBottom: showChrome && location.pathname !== '/group-chats' ? 'calc(3.5rem + env(safe-area-inset-bottom))' : '0'
-        }}
       >
-        <div className={location.pathname === '/group-chats' ? "h-full" : ""}>
+        <div className={showChrome && location.pathname !== '/group-chats' ? "lg:pb-4" : (location.pathname === '/group-chats' ? "h-full" : "")}>
           {children}
         </div>
       </main>
