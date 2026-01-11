@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
     Calendar, CheckCircle2, ClipboardList, Clock, CreditCard, FileText, Flag, Users, Edit, Plus, Save, Trash2,
-    Link, Settings, DollarSign, PieChart, UserPlus, Briefcase, Mail, Phone, MapPin, ExternalLink, Target, AlertCircle
+    Link, Settings, DollarSign, PieChart, UserPlus, Briefcase, Mail, Phone, MapPin, ExternalLink, Target, AlertCircle, LayoutDashboard, X
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,26 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from 'sonner';
+import { managementService, type Expense, type Guest, type Task, type ProjectTool, type ManagementSettings } from '@/services/managementService';
 
-// --- Interfaces ---
-
-interface Expense {
-    id: string;
-    item: string;
-    category: string;
-    amount: number;
-    status: 'Paid' | 'Pending' | 'Approved';
-}
-
-interface Guest {
-    id: string;
-    name: string;
-    role: string;
-    organization?: string;
-    rsvp: 'Confirmed' | 'Pending' | 'Declined';
-    seat?: string;
-}
-
+// Re-map interfaces to match DB schema and unify field names for UI
 interface Phase {
     id: string;
     name: string;
@@ -46,11 +29,7 @@ interface Phase {
     description: string;
 }
 
-interface Task {
-    id: string;
-    text: string;
-    completed: boolean;
-}
+// --- Interfaces ---
 
 interface Unit {
     name: string;
@@ -59,43 +38,77 @@ interface Unit {
     deadline?: string;
 }
 
-interface ToolLink {
-    id: string;
-    name: string;
-    description: string;
-    url: string;
-    icon: any;
-}
+const ICON_MAP: Record<string, any> = {
+    CreditCard,
+    Users,
+    MapPin,
+    Link,
+    Briefcase,
+    FileText,
+};
 
 // --- Components ---
 
-const BudgetTracker = () => {
-    const [expenses, setExpenses] = useState<Expense[]>([
-        { id: "1", item: "Convention Centre Deposit", category: "Venue", amount: 5000, status: "Paid" },
-        { id: "2", item: "Guest Speaker Flights", category: "Travel", amount: 1200, status: "Approved" },
-        { id: "3", item: "Sound Equipment Rental", category: "Media", amount: 800, status: "Pending" },
-    ]);
+const BudgetTracker = ({
+    isEditMode,
+    totalBudget,
+    setTotalBudget,
+    expenses,
+    onAddExpense,
+    onDeleteExpense,
+    onUpdateExpense
+}: {
+    isEditMode: boolean;
+    totalBudget: number;
+    setTotalBudget: (v: number) => void;
+    expenses: Expense[];
+    onAddExpense: (exp: any) => void;
+    onDeleteExpense: (id: string) => void;
+    onUpdateExpense: (id: string, updates: Partial<Expense>) => void;
+}) => {
     const [newItem, setNewItem] = useState("");
     const [newAmount, setNewAmount] = useState("");
     const [newCategory, setNewCategory] = useState("Logistics");
+    const [newStatus, setNewStatus] = useState("Pending");
 
-    const totalBudget = 25000;
-    const spent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-    const percentUsed = (spent / totalBudget) * 100;
+    // Inline editing states for expenses
+    const [editingExpId, setEditingExpId] = useState<string | null>(null);
+    const [editExpName, setEditExpName] = useState("");
+    const [editExpAmount, setEditExpAmount] = useState("");
+    const [editExpCategory, setEditExpCategory] = useState("");
+    const [editExpStatus, setEditExpStatus] = useState("");
+
+    const spent = (expenses || []).reduce((acc, curr) => acc + curr.amount, 0);
+    const percentUsed = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
 
     const addExpense = () => {
         if (!newItem || !newAmount) return;
-        const expense: Expense = {
-            id: Date.now().toString(),
-            item: newItem,
+        onAddExpense({
+            item_name: newItem,
             amount: parseFloat(newAmount),
             category: newCategory,
-            status: "Pending"
-        };
-        setExpenses([...expenses, expense]);
+            status: newStatus
+        });
         setNewItem("");
         setNewAmount("");
-        toast.success("Expense added successfully");
+    };
+
+    const startEditing = (exp: Expense) => {
+        setEditingExpId(exp.id);
+        setEditExpName(exp.item_name);
+        setEditExpAmount(exp.amount.toString());
+        setEditExpCategory(exp.category);
+        setEditExpStatus(exp.status);
+    };
+
+    const saveExpEdit = (id: string) => {
+        onUpdateExpense(id, {
+            item_name: editExpName,
+            amount: parseFloat(editExpAmount),
+            category: editExpCategory,
+            status: editExpStatus
+        });
+        setEditingExpId(null);
     };
 
     return (
@@ -106,7 +119,19 @@ const BudgetTracker = () => {
                     <Card className="bg-green-50 dark:bg-green-900/20 border-green-100">
                         <CardContent className="p-4">
                             <p className="text-xs font-semibold text-green-600 uppercase">Total Budget</p>
-                            <p className="text-2xl font-bold">€{totalBudget.toLocaleString()}</p>
+                            {isEditMode ? (
+                                <div className="flex items-center gap-1">
+                                    <span className="text-lg font-bold">€</span>
+                                    <Input
+                                        type="number"
+                                        value={totalBudget}
+                                        onChange={(e) => setTotalBudget(Number(e.target.value))}
+                                        className="h-8 py-0 font-bold text-xl border-none bg-transparent focus-visible:ring-0 px-0"
+                                    />
+                                </div>
+                            ) : (
+                                <p className="text-2xl font-bold">€{totalBudget.toLocaleString()}</p>
+                            )}
                         </CardContent>
                     </Card>
                     <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-100">
@@ -128,33 +153,106 @@ const BudgetTracker = () => {
                         <CardTitle>Expense Log</CardTitle>
                         <CardDescription>Recent transactions and approvals</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Item</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {expenses.map((expense) => (
-                                    <TableRow key={expense.id}>
-                                        <TableCell className="font-medium">{expense.item}</TableCell>
-                                        <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
-                                        <TableCell>€{expense.amount.toLocaleString()}</TableCell>
-                                        <TableCell>
-                                            <Badge className={
-                                                expense.status === 'Paid' ? 'bg-green-500 hover:bg-green-600' :
-                                                    expense.status === 'Approved' ? 'bg-blue-500 hover:bg-blue-600' :
-                                                        'bg-orange-500 hover:bg-orange-600'
-                                            }>{expense.status}</Badge>
-                                        </TableCell>
+                    <CardContent className="p-0 sm:p-6">
+                        <div className="overflow-x-auto">
+                            <Table className="w-full">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[150px] md:w-[180px] text-xs px-4">Item</TableHead>
+                                        <TableHead className="text-xs w-[100px] md:w-[120px] px-4">Category</TableHead>
+                                        <TableHead className="text-xs w-[80px] md:w-[100px] px-4">Amount</TableHead>
+                                        <TableHead className="text-right text-xs w-[120px] md:w-[140px] px-4">Status / Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {(expenses || []).map((expense) => (
+                                        <TableRow key={expense.id}>
+                                            <TableCell className="font-medium py-4 px-4">
+                                                {editingExpId === expense.id ? (
+                                                    <Input value={editExpName} onChange={e => setEditExpName(e.target.value)} className="w-full h-8 px-2 text-xs" />
+                                                ) : (
+                                                    <div className="truncate max-w-[120px] md:max-w-[170px]" title={expense.item_name}>{expense.item_name}</div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
+                                                {editingExpId === expense.id ? (
+                                                    <Select value={editExpCategory} onValueChange={setEditExpCategory}>
+                                                        <SelectTrigger className="w-full h-8 px-2 text-[10px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Venue">Venue</SelectItem>
+                                                            <SelectItem value="Travel">Travel</SelectItem>
+                                                            <SelectItem value="Media">Media</SelectItem>
+                                                            <SelectItem value="Hospitality">Hospitality</SelectItem>
+                                                            <SelectItem value="Logistics">Logistics</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{expense.category}</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
+                                                {editingExpId === expense.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-xs">€</span>
+                                                        <Input type="number" value={editExpAmount} onChange={e => setEditExpAmount(e.target.value)} className="w-full h-8 px-2 text-xs" />
+                                                    </div>
+                                                ) : (
+                                                    <span className="font-bold text-sm">€{expense.amount.toLocaleString()}</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
+                                                <div className="flex items-center justify-end gap-2 text-xs">
+                                                    {editingExpId === expense.id ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <Select value={editExpStatus} onValueChange={setEditExpStatus}>
+                                                                <SelectTrigger className="w-[80px] md:w-[100px] h-8 text-[10px] px-2">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Pending">Pending</SelectItem>
+                                                                    <SelectItem value="Approved">Approved</SelectItem>
+                                                                    <SelectItem value="Paid">Paid</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => saveExpEdit(expense.id)}>
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:bg-slate-50" onClick={() => setEditingExpId(null)}>
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <Badge className={
+                                                                expense.status === 'Paid' ? 'bg-green-500 hover:bg-green-600 border-none px-2 py-0 text-[10px]' :
+                                                                    expense.status === 'Approved' ? 'bg-blue-500 hover:bg-blue-600 border-none px-2 py-0 text-[10px]' :
+                                                                        'bg-orange-500 hover:bg-orange-600 border-none px-2 py-0 text-[10px]'
+                                                            }>{expense.status}</Badge>
+
+                                                            <div className="flex items-center">
+                                                                {isEditMode && (
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => startEditing(expense)}>
+                                                                        <Edit className="w-3 h-3" />
+                                                                    </Button>
+                                                                )}
+                                                                {isEditMode && (
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => onDeleteExpense(expense.id)}>
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -188,6 +286,19 @@ const BudgetTracker = () => {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-2">
+                            <Label>Status</Label>
+                            <Select value={newStatus} onValueChange={setNewStatus}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Approved">Approved</SelectItem>
+                                    <SelectItem value="Paid">Paid</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <Button className="w-full bg-slate-900 text-white hover:bg-slate-800" onClick={addExpense}>
                             <Plus className="w-4 h-4 mr-2" /> Record Expense
                         </Button>
@@ -215,45 +326,61 @@ const BudgetTracker = () => {
     );
 };
 
-const GuestListManager = () => {
-    const [guests, setGuests] = useState<Guest[]>([
-        { id: "1", name: "Bishop David Oyedepo", role: "Special Guest", organization: "LFC Worldwide", rsvp: "Confirmed", seat: "VIP-01" },
-        { id: "2", name: "Mayor of Dublin", role: "Government", organization: "City Council", rsvp: "Pending" },
-    ]);
+const GuestListManager = ({
+    guests,
+    onAddGuest,
+    onUpdateGuest,
+    onDeleteGuest,
+    isEditMode
+}: {
+    guests: Guest[];
+    onAddGuest: (g: any) => void;
+    onUpdateGuest: (id: string, g: any) => void;
+    onDeleteGuest: (id: string) => void;
+    isEditMode: boolean;
+}) => {
     const [newGuestName, setNewGuestName] = useState("");
     const [newGuestRole, setNewGuestRole] = useState("Guest");
     const [newOrg, setNewOrg] = useState("");
 
     // Edit state
     const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editOrg, setEditOrg] = useState("");
+    const [editRole, setEditRole] = useState("");
     const [editSeat, setEditSeat] = useState("");
     const [editRsvp, setEditRsvp] = useState("");
 
     const addGuest = () => {
         if (!newGuestName) return;
-        const guest: Guest = {
-            id: Date.now().toString(),
+        onAddGuest({
             name: newGuestName,
             role: newGuestRole,
             organization: newOrg,
-            rsvp: "Pending"
-        };
-        setGuests([...guests, guest]);
+            rsvp_status: "Pending"
+        });
         setNewGuestName("");
         setNewOrg("");
-        toast.success("Guest added to list");
     };
 
     const startEditing = (guest: Guest) => {
         setEditingGuestId(guest.id);
-        setEditSeat(guest.seat || "");
-        setEditRsvp(guest.rsvp);
+        setEditName(guest.name);
+        setEditOrg(guest.organization || "");
+        setEditRole(guest.role || "");
+        setEditSeat(guest.assigned_seat || "");
+        setEditRsvp(guest.rsvp_status);
     };
 
     const saveEdit = (id: string) => {
-        setGuests(guests.map(g => g.id === id ? { ...g, seat: editSeat, rsvp: editRsvp as any } : g));
+        onUpdateGuest(id, {
+            name: editName,
+            organization: editOrg,
+            role: editRole,
+            assigned_seat: editSeat,
+            rsvp_status: editRsvp as any
+        });
         setEditingGuestId(null);
-        toast.success("Guest details updated");
     };
 
     return (
@@ -266,42 +393,113 @@ const GuestListManager = () => {
                             <CardDescription>Manage invitations and RSVPs</CardDescription>
                         </div>
                         <div className="flex gap-2">
-                            <Badge variant="secondary">{guests.filter(g => g.rsvp === 'Confirmed').length} Confirmed</Badge>
-                            <Badge variant="outline">{guests.length} Total</Badge>
+                            <Badge variant="secondary">{(guests || []).filter(g => g.rsvp_status === 'Confirmed').length} Confirmed</Badge>
+                            <Badge variant="outline">{(guests || []).length} Total</Badge>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        {/* Overflow-x-auto handles horizontal scrolling for small screens */}
+                    <CardContent className="p-0 sm:p-6">
                         <div className="overflow-x-auto">
-                            <Table>
+                            <Table className="w-full">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[200px]">Name</TableHead>
-                                        <TableHead>Role/Org</TableHead>
-                                        <TableHead>Seat</TableHead>
-                                        <TableHead>RSVP</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead className="w-[140px] md:w-[180px] text-xs px-4">Name</TableHead>
+                                        <TableHead className="text-xs px-4 hidden sm:table-cell">Role/Org</TableHead>
+                                        <TableHead className="text-xs w-[60px] md:w-[80px] px-4">Seat</TableHead>
+                                        <TableHead className="text-xs w-[100px] md:w-[120px] px-4">RSVP</TableHead>
+                                        <TableHead className="text-right text-xs w-[80px] md:w-[100px] px-4">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {guests.map((guest) => (
+                                    {(guests || []).map((guest) => (
                                         <TableRow key={guest.id}>
-                                            <TableCell className="font-bold">{guest.name}</TableCell>
-                                            <TableCell>
-                                                <div className="text-sm">{guest.role}</div>
-                                                <div className="text-xs text-slate-500">{guest.organization}</div>
-                                            </TableCell>
-                                            <TableCell>
+                                            <TableCell className="font-bold py-4 px-4">
                                                 {editingGuestId === guest.id ? (
-                                                    <Input className="w-20 h-8" value={editSeat} onChange={e => setEditSeat(e.target.value)} />
+                                                    <Input
+                                                        className="w-full h-8 px-2 text-xs mb-1"
+                                                        value={editName}
+                                                        onChange={e => setEditName(e.target.value)}
+                                                        placeholder="Name"
+                                                    />
                                                 ) : (
-                                                    <span className="font-mono text-xs text-slate-500">{guest.seat || '-'}</span>
+                                                    <div className="truncate max-w-[100px] md:max-w-[170px]" title={guest.name}>
+                                                        {guest.name}
+                                                    </div>
+                                                )}
+
+                                                {/* Mobile-only Role and Org display/edit */}
+                                                <div className="sm:hidden mt-1 space-y-1">
+                                                    {editingGuestId === guest.id ? (
+                                                        <>
+                                                            <Select value={editRole} onValueChange={setEditRole}>
+                                                                <SelectTrigger className="w-full h-7 px-2 text-[10px]">
+                                                                    <SelectValue placeholder="Category" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="Bishop">Bishop / Apostle</SelectItem>
+                                                                    <SelectItem value="Pastor">Pastor / Minister</SelectItem>
+                                                                    <SelectItem value="Government">Government / Dignitary</SelectItem>
+                                                                    <SelectItem value="Guest">General Guest</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Input
+                                                                className="w-full h-7 px-2 text-[10px]"
+                                                                value={editOrg}
+                                                                onChange={e => setEditOrg(e.target.value)}
+                                                                placeholder="Org"
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{guest.role}</div>
+                                                            <div className="text-[10px] text-slate-500 truncate max-w-[100px]">{guest.organization}</div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4 hidden sm:table-cell">
+                                                {editingGuestId === guest.id ? (
+                                                    <div className="space-y-1">
+                                                        <Select value={editRole} onValueChange={setEditRole}>
+                                                            <SelectTrigger className="w-full h-8 px-2 text-[10px]">
+                                                                <SelectValue placeholder="Category" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Bishop">Bishop / Apostle</SelectItem>
+                                                                <SelectItem value="Pastor">Pastor / Minister</SelectItem>
+                                                                <SelectItem value="Government">Government / Dignitary</SelectItem>
+                                                                <SelectItem value="Guest">General Guest</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <Input
+                                                            className="w-full h-7 px-2 text-[10px]"
+                                                            value={editOrg}
+                                                            onChange={e => setEditOrg(e.target.value)}
+                                                            placeholder="Organization"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="text-sm truncate max-w-[120px] md:max-w-[150px]">{guest.role}</div>
+                                                        <div className="text-xs text-slate-500 truncate max-w-[120px] md:max-w-[150px]">{guest.organization}</div>
+                                                    </>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="py-4 px-4 text-center sm:text-left">
+                                                {editingGuestId === guest.id ? (
+                                                    <Input
+                                                        className="w-full h-8 px-2 text-xs"
+                                                        value={editSeat}
+                                                        onChange={e => setEditSeat(e.target.value)}
+                                                        placeholder="S"
+                                                    />
+                                                ) : (
+                                                    <span className="font-mono text-xs text-slate-500">{guest.assigned_seat || '-'}</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
                                                 {editingGuestId === guest.id ? (
                                                     <Select value={editRsvp} onValueChange={setEditRsvp}>
-                                                        <SelectTrigger className="w-32 h-8">
+                                                        <SelectTrigger className="w-full h-8 text-[10px] px-2">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -312,18 +510,31 @@ const GuestListManager = () => {
                                                     </Select>
                                                 ) : (
                                                     <Badge className={
-                                                        guest.rsvp === 'Confirmed' ? 'bg-green-100 text-green-700 hover:bg-green-200 border-none' :
-                                                            guest.rsvp === 'Declined' ? 'bg-red-100 text-red-700 hover:bg-red-200 border-none' :
-                                                                'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-none'
-                                                    }>{guest.rsvp}</Badge>
+                                                        guest.rsvp_status === 'Confirmed' ? 'bg-green-100 text-green-700 hover:bg-green-200 border-none px-1.5 py-0 text-[10px]' :
+                                                            guest.rsvp_status === 'Declined' ? 'bg-red-100 text-red-700 hover:bg-red-200 border-none px-1.5 py-0 text-[10px]' :
+                                                                'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-none px-1.5 py-0 text-[10px]'
+                                                    }>{guest.rsvp_status}</Badge>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                {editingGuestId === guest.id ? (
-                                                    <Button size="sm" variant="ghost" onClick={() => saveEdit(guest.id)} className="text-green-600"><CheckCircle2 className="w-4 h-4" /></Button>
-                                                ) : (
-                                                    <Button variant="ghost" size="sm" onClick={() => startEditing(guest)}><Edit className="w-3 h-3" /></Button>
-                                                )}
+                                            <TableCell className="text-right py-4 px-4">
+                                                <div className="flex justify-end gap-1">
+                                                    {editingGuestId === guest.id ? (
+                                                        <Button size="icon" variant="ghost" onClick={() => saveEdit(guest.id)} className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                        </Button>
+                                                    ) : (
+                                                        <>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditing(guest)}>
+                                                                <Edit className="w-3 h-3 text-slate-400" />
+                                                            </Button>
+                                                            {isEditMode && (
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600" onClick={() => onDeleteGuest(guest.id)}>
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -383,7 +594,11 @@ const GuestListManager = () => {
     );
 };
 
-const ModernProjectBrief = () => {
+const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => {
+    const alreadyExistingUnits = unitInformation.filter(u => u.is_existing_unit);
+    const immediateActionUnits = unitInformation.filter(u => u.unit_type === 'Immediate Action');
+    const subsequentUnits = unitInformation.filter(u => u.unit_type === 'Subsequent');
+
     return (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
             {/* Hero Section */}
@@ -397,45 +612,128 @@ const ModernProjectBrief = () => {
                     <p className="text-lg md:text-xl text-slate-300 leading-relaxed">
                         A definitive guide to the planning, execution, and spiritual preparation for the upcoming consecration ceremony and convention.
                     </p>
+                    <div className="mt-6 flex items-center gap-4">
+                        <Badge className="bg-green-500 text-white">Status: In Progress</Badge>
+                        <span className="text-sm text-slate-400">Timing: January 2026 - August 2026</span>
+                    </div>
                 </div>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
-                {/* Left Column: Core Pillars */}
+                {/* Left Column: Core Information */}
                 <div className="md:col-span-2 space-y-8">
+                    {/* Overview */}
                     <section>
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
                                 <Target className="w-6 h-6" />
                             </div>
-                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Strategic Objective</h3>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Overview</h3>
                         </div>
                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-lg">
+                            This brief contains a high-level summary of the project management of the forthcoming Bishopric Consecration & Outpouring Convention.
+                        </p>
+                    </section>
+
+                    {/* Strategic Objective */}
+                    <section>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                                <Flag className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Strategic Objective</h3>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                             To facilitate a seamless, spiritually charged, and excellently organized event that honors the consecration of the Bishop-Elect and hosts the Outpouring Convention, ensuring maximum impact and comfort for all attendees and dignitaries.
                         </p>
                     </section>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
-                        <Card className="bg-slate-50 dark:bg-slate-800/50 border-none">
-                            <CardContent className="p-6">
-                                <h4 className="font-bold flex items-center gap-2 mb-2"><Users className="w-4 h-4 text-purple-600" /> Unit Formation</h4>
-                                <p className="text-sm text-slate-500">Pastors will nominate members based on skills and spiritual maturity. Units integrated to ensure blended collaboration.</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-slate-50 dark:bg-slate-800/50 border-none">
-                            <CardContent className="p-6">
-                                <h4 className="font-bold flex items-center gap-2 mb-2"><Briefcase className="w-4 h-4 text-purple-600" /> Legacy Integration</h4>
-                                <p className="text-sm text-slate-500">Leveraging existing structures: National Organising Committee, Choir, and Pastoral Teams.</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    {/* Immediate Actions */}
+                    <section>
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-orange-600 pl-4 text-orange-600">Immediate Actions</h3>
+                        <div className="space-y-3">
+                            {immediateActionUnits.map((unit, i) => (
+                                <Card key={i} className="border-l-4 border-l-orange-500">
+                                    <CardContent className="p-4">
+                                        <div className="flex gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                                                {i + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
 
+                    {/* Subsequent Units */}
+                    <section>
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-blue-600 pl-4 text-blue-600">Subsequent Units</h3>
+                        <div className="space-y-3">
+                            {subsequentUnits.map((unit, i) => (
+                                <Card key={i} className="border-l-4 border-l-blue-500">
+                                    <CardContent className="p-4">
+                                        <div className="flex gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                                                {i + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Already Existing Units */}
+                    <section>
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-green-600 pl-4 text-green-600">Already Existing Units</h3>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            {alreadyExistingUnits.map((unit, i) => (
+                                <Card key={i} className="bg-green-50 dark:bg-green-900/10 border-green-200">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-2">
+                                            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                                            <div>
+                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{unit.full_description}</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Unit Formation Plan */}
+                    <section>
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-purple-600 pl-4">Unit Formation Plan</h3>
+                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200">
+                            <CardContent className="p-6">
+                                <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
+                                    <strong>National Workers Meeting:</strong> Before this meeting, a list of all Units is given to each of the main Pastors. Pastors nominate different members and workers into groups they see fit based on skills and spiritual maturity.
+                                </p>
+                                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    During the meeting, everyone is informed by their Pastor what unit they will be joining and who the unit lead will be. This ensures a blended approach and maximum collaboration across all branches.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </section>
+
+                    {/* Key Responsibilities */}
                     <section>
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-purple-600 pl-4">Key Responsibilities</h3>
                         <div className="space-y-4">
                             {[
                                 { title: "Spiritual Preparedness", desc: "Intercessory Unit to maintain spiritual atmosphere throughout planning." },
-                                { title: "Excellence in Hospitality", desc: "Usher & Protocol / Flights & Accomms to ensure world-class treatment of guests." },
+                                { title: "Excellence in Hospitality", desc: "Usher & Protocol / Flights & Accommodations to ensure world-class treatment of guests." },
                                 { title: "Operational Efficiency", desc: "NOC & Admin to handle budgets, deadlines, and compliance." }
                             ].map((item, i) => (
                                 <div key={i} className="flex gap-4">
@@ -505,135 +803,293 @@ const ModernProjectBrief = () => {
 };
 
 
+
 // --- Main Page Component ---
 
 const ManagementTeamPage = () => {
     // --- State Management ---
     const [currentTime] = useState(new Date());
-    const [isEditMode, setIsEditMode] = useState(false);
+    const [activeTab, setActiveTab] = useState("dashboard");
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Progress
-    const [overallProgress, setOverallProgress] = useState(33);
+    // Tab-specific Edit Modes
+    const [isDashboardEditMode, setIsDashboardEditMode] = useState(false);
+    const [isUnitsEditMode, setIsUnitsEditMode] = useState(false);
+    const [isGuestsEditMode, setIsGuestsEditMode] = useState(false);
+    const [isBudgetEditMode, setIsBudgetEditMode] = useState(false);
+
+    // Dynamic Data
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [guests, setGuests] = useState<Guest[]>([]);
+    const [allTasks, setAllTasks] = useState<Task[]>([]);
+    const [tools, setTools] = useState<ProjectTool[]>([]);
+    const [phases, setPhases] = useState<Phase[]>([]);
+    const [unitInformation, setUnitInformation] = useState<any[]>([]);
+
+    // Progress & Settings
+    const [overallProgress, setOverallProgress] = useState(0);
     const [isManualProgress, setIsManualProgress] = useState(false);
-    const [manualProgress, setManualProgress] = useState(33);
+    const [manualProgress, setManualProgress] = useState(0);
+    const [totalBudget, setTotalBudget] = useState(25000);
 
-    // Tools
-    const [tools, setTools] = useState<ToolLink[]>([
-        { id: "1", name: "Budget Tracker", description: "Monitor expenses", url: "#", icon: CreditCard },
-        { id: "2", name: "Guest List", description: "Manage VIP RSVPs", url: "#", icon: Users },
-        { id: "3", name: "Venue Plan", description: "Seating Layouts", url: "https://example.com/map", icon: MapPin },
-    ]);
     const [newToolName, setNewToolName] = useState("");
     const [newToolUrl, setNewToolUrl] = useState("");
 
-    // Units
-    const [immediateUnits, setImmediateUnits] = useState<Unit[]>([
-        {
-            name: "Intercessory Unit",
-            description: "Spiritual foundation and covering",
-            tasks: [
-                { id: "iu1", text: "Daily midnight prayers (12am - 1am)", completed: true },
-                { id: "iu2", text: "Weekly Friday vigils", completed: false },
-                { id: "iu3", text: "Prayer walk at convention venue", completed: false },
-            ],
-            deadline: "Ongoing"
-        },
-        {
-            name: "National Organising Committee",
-            description: "Overall coordination and strategy",
-            tasks: [
-                { id: "noc1", text: "Finalize budget approval", completed: true },
-                { id: "noc2", text: "Secure convention venue deposit", completed: true },
-                { id: "noc3", text: "Draft letter to guest ministers", completed: false },
-            ],
-            deadline: "Jan 30"
-        }
-    ]);
+    // Task Editing State
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editTaskText, setEditTaskText] = useState("");
+    const [editTaskDeadline, setEditTaskDeadline] = useState("");
 
-    const [subsequentUnits, setSubsequentUnits] = useState<Unit[]>([
-        {
-            name: "Ushering & Protocol",
-            description: "Guest management and order",
-            tasks: [
-                { id: "up1", text: "Uniform inspection", completed: false },
-                { id: "up2", text: "Protocol training for VIP handling", completed: false },
-            ]
-        },
-        {
-            name: "Media & Technical",
-            description: "Audio, video and streaming",
-            tasks: [
-                { id: "mt1", text: "Equipment audit", completed: true },
-                { id: "mt2", text: "Hire additional sound engineer", completed: false },
-            ]
-        }
-    ]);
+    // Fetch Data
+    const fetchData = async () => {
+        try {
+            setIsLoading(true);
+            const [settingsData, expensesData, guestsData, tasksData, toolsData, phasesData, unitInfoData] = await Promise.all([
+                managementService.getSettings(),
+                managementService.getExpenses(),
+                managementService.getGuests(),
+                managementService.getTasks(),
+                managementService.getTools(),
+                managementService.getPhases(),
+                managementService.getUnitInformation()
+            ]);
 
-    // Phases
-    const phases: Phase[] = [
-        { id: "p1", name: "Phase I", startDate: new Date(2026, 0, 1), endDate: new Date(2026, 2, 31), status: "In Progress", description: "Planning & Formation" },
-        { id: "p2", name: "Phase II", startDate: new Date(2026, 3, 1), endDate: new Date(2026, 4, 31), status: "Upcoming", description: "Heavy Lifting & Execution" },
-        { id: "p3", name: "Phase III", startDate: new Date(2026, 5, 1), endDate: new Date(2026, 6, 31), status: "Upcoming", description: "Final Preparations" },
-    ];
+            setTotalBudget(settingsData.total_budget);
+            setOverallProgress(settingsData.overall_progress);
+            setIsManualProgress(settingsData.is_manual_progress);
+            setManualProgress(settingsData.manual_progress);
+
+            setExpenses(expensesData);
+            setGuests(guestsData);
+            setAllTasks(tasksData);
+            setTools(toolsData);
+            setPhases(phasesData.map(p => ({
+                id: p.id,
+                name: p.name,
+                startDate: new Date(p.start_date),
+                endDate: new Date(p.end_date),
+                status: p.status,
+                description: p.description
+            })));
+            setUnitInformation(unitInfoData);
+        } catch (error) {
+            console.error("Error fetching management data:", error);
+            toast.error("Failed to load dashboard data");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    // Derived Units
+    const immediateUnits: Unit[] = Array.from(new Set(allTasks.filter(t => t.is_immediate).map(t => t.unit_name))).map(name => ({
+        name,
+        description: name === 'Intercessory Unit' ? "Spiritual foundation and covering" : "Overall coordination and strategy",
+        tasks: allTasks.filter(t => t.unit_name === name && t.is_immediate),
+        deadline: allTasks.find(t => t.unit_name === name && t.is_immediate)?.deadline || undefined
+    }));
+
+    const subsequentUnits: Unit[] = Array.from(new Set(allTasks.filter(t => !t.is_immediate).map(t => t.unit_name))).map(name => ({
+        name,
+        description: name === 'Ushering & Protocol' ? "Guest management and order" : "Audio, video and streaming",
+        tasks: allTasks.filter(t => t.unit_name === name && !t.is_immediate)
+    }));
+
+    // Derived Progress Calculation
+    useEffect(() => {
+        if (!isManualProgress && allTasks.length > 0) {
+            const completedCount = allTasks.filter(t => t.is_completed).length;
+            const newProgress = Math.round((completedCount / allTasks.length) * 100);
+            if (newProgress !== overallProgress) {
+                setOverallProgress(newProgress);
+                managementService.updateSettings({ overall_progress: newProgress });
+            }
+        }
+    }, [allTasks, isManualProgress]);
+
+    // Handlers
+    const handleUpdateTotalBudget = async (val: number) => {
+        setTotalBudget(val);
+        try {
+            await managementService.updateSettings({ total_budget: val });
+        } catch (error) {
+            toast.error("Failed to update budget");
+        }
+    };
+
+    const handleToggleManualProgress = async (c: boolean) => {
+        setIsManualProgress(c);
+        try {
+            await managementService.updateSettings({ is_manual_progress: c });
+        } catch (error) {
+            toast.error("Failed to update mode");
+        }
+    };
+
+    const handleUpdateManualProgress = async (val: number) => {
+        setManualProgress(val);
+        setOverallProgress(val);
+        try {
+            await managementService.updateSettings({ manual_progress: val, overall_progress: val });
+        } catch (error) {
+            toast.error("Failed to update progress");
+        }
+    };
+
+    const toggleTask = async (unitName: string, taskId: string, isImmediate: boolean) => {
+        try {
+            const task = allTasks.find(t => t.id === taskId);
+            if (!task) return;
+            const newCompleted = !task.is_completed;
+
+            // Optimistic Update
+            setAllTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: newCompleted } : t));
+
+            await managementService.updateTask(taskId, { is_completed: newCompleted });
+        } catch (error) {
+            toast.error("Failed to update task");
+            fetchData(); // Rollback
+        }
+    };
+
+    const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
+        try {
+            await managementService.updateTask(id, updates);
+            setAllTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+            toast.success("Task updated");
+        } catch (error) {
+            toast.error("Failed to update task");
+        }
+    };
+
+    const handleDeleteTask = async (id: string) => {
+        try {
+            await managementService.deleteTask(id);
+            setAllTasks(prev => prev.filter(t => t.id !== id));
+            toast.success("Task removed");
+        } catch (error) {
+            toast.error("Failed to delete task");
+        }
+    };
+
+    const handleAddTask = async (unitName: string, isImmediate: boolean) => {
+        try {
+            const newTask = await managementService.addTask({
+                unit_name: unitName,
+                task_text: "New Task",
+                is_completed: false,
+                is_immediate: isImmediate,
+                deadline: "30th Jan 2026"
+            });
+            setAllTasks([...allTasks, newTask]);
+            toast.success("Task added");
+        } catch (error) {
+            toast.error("Failed to add task");
+            console.error(error);
+        }
+    };
+
+    const handleAddExpense = async (exp: any) => {
+        try {
+            const newExp = await managementService.addExpense(exp);
+            setExpenses([newExp, ...expenses]);
+            toast.success("Expense added");
+        } catch (error) {
+            toast.error("Failed to add expense");
+        }
+    };
+
+    const handleDeleteExpense = async (id: string) => {
+        try {
+            await managementService.deleteExpense(id);
+            setExpenses(expenses.filter(e => e.id !== id));
+            toast.success("Expense removed");
+        } catch (error) {
+            toast.error("Failed to delete expense");
+        }
+    };
+
+    const handleUpdateExpense = async (id: string, updates: Partial<Expense>) => {
+        try {
+            await managementService.updateExpense(id, updates);
+            setExpenses(expenses.map(e => e.id === id ? { ...e, ...updates } : e));
+            toast.success("Expense updated");
+        } catch (error) {
+            toast.error("Failed to update expense");
+        }
+    };
+
+    const handleAddGuest = async (g: any) => {
+        try {
+            const newGuest = await managementService.addGuest(g);
+            setGuests([newGuest, ...guests]);
+            toast.success("Guest added");
+        } catch (error) {
+            toast.error("Failed to add guest");
+        }
+    };
+
+    const handleUpdateGuest = async (id: string, updates: any) => {
+        try {
+            await managementService.updateGuest(id, updates);
+            setGuests(guests.map(g => g.id === id ? { ...g, ...updates } : g));
+            toast.success("Guest updated");
+        } catch (error) {
+            toast.error("Failed to update guest");
+        }
+    };
+
+    const handleDeleteGuest = async (id: string) => {
+        try {
+            await managementService.deleteGuest(id);
+            setGuests(guests.filter(g => g.id !== id));
+            toast.success("Guest removed");
+        } catch (error) {
+            toast.error("Failed to delete guest");
+        }
+    };
+
+    const handleAddTool = async () => {
+        if (!newToolName) return;
+        try {
+            const newTool = await managementService.addTool({
+                name: newToolName,
+                description: "Custom Action",
+                url: "#",
+                icon_name: "Link"
+            });
+            setTools([...tools, newTool]);
+            setNewToolName("");
+            toast.success("Tool added");
+        } catch (error) {
+            toast.error("Failed to add tool");
+        }
+    };
+
+    const handleDeleteTool = async (id: string) => {
+        try {
+            await managementService.deleteTool(id);
+            setTools(tools.filter(t => t.id !== id));
+            toast.success("Tool removed");
+        } catch (error) {
+            toast.error("Failed to delete tool");
+        }
+    };
 
     // Derived State
-    const currentPhase = phases.find(p => currentTime >= p.startDate && currentTime <= p.endDate) || phases[0];
+    const currentPhase = phases.find(p => {
+        const now = currentTime;
+        return now >= p.startDate && now <= p.endDate;
+    }) || (phases.length > 0 ? phases[0] : { name: "Planning", startDate: new Date(), endDate: new Date() });
 
-    const activeUnitCount = immediateUnits.length + subsequentUnits.length; // Simplified for now
+    const activeUnitCount = immediateUnits.length + subsequentUnits.length;
 
-    // --- Effects ---
-    useEffect(() => {
-        if (!isManualProgress) {
-            // Calculate progress based on tasks
-            const allTasks = [...immediateUnits.flatMap(u => u.tasks), ...subsequentUnits.flatMap(u => u.tasks)];
-            const completedCount = allTasks.filter(t => t.completed).length;
-            const newProgress = allTasks.length > 0 ? Math.round((completedCount / allTasks.length) * 100) : 0;
-            setOverallProgress(newProgress);
-        } else {
-            setOverallProgress(manualProgress);
-        }
-    }, [immediateUnits, subsequentUnits, isManualProgress, manualProgress]);
-
-    // --- Handlers ---
-    const toggleTask = (unitName: string, taskId: string, isImmediate: boolean) => {
-        const updateUnits = (units: Unit[]) => units.map(unit => {
-            if (unit.name === unitName) {
-                return {
-                    ...unit,
-                    tasks: unit.tasks.map(task =>
-                        task.id === taskId ? { ...task, completed: !task.completed } : task
-                    )
-                };
-            }
-            return unit;
-        });
-
-        if (isImmediate) {
-            setImmediateUnits(updateUnits(immediateUnits));
-        } else {
-            setSubsequentUnits(updateUnits(subsequentUnits));
-        }
-    };
-
-    const handleAddTool = () => {
-        if (!newToolName) return;
-        const newTool: ToolLink = {
-            id: Date.now().toString(),
-            name: newToolName,
-            description: "Custom Link",
-            url: newToolUrl || "#",
-            icon: Link
-        };
-        setTools([...tools, newTool]);
-        setNewToolName("");
-        setNewToolUrl("");
-        toast.success("Tool added");
-    };
-
-    const handleDeleteTool = (id: string) => {
-        setTools(tools.filter(t => t.id !== id));
-        toast.success("Tool removed");
-    };
+    if (isLoading) {
+        return <div className="flex items-center justify-center h-screen">Loading Management Dashboard...</div>;
+    }
 
 
     return (
@@ -658,27 +1114,91 @@ const ManagementTeamPage = () => {
                         <p className="hidden md:block text-xl font-bold font-mono text-purple-600">
                             {Math.ceil((new Date(2026, 7, 14).getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24))} Days
                         </p>
-                        <Button
-                            variant={isEditMode ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setIsEditMode(!isEditMode)}
-                            className="gap-2"
-                        >
-                            {isEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
-                            {isEditMode ? "Save Changes" : "Edit Dashboard"}
-                        </Button>
+
+                        {activeTab === 'dashboard' && (
+                            <Button
+                                variant={isDashboardEditMode ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setIsDashboardEditMode(!isDashboardEditMode)}
+                                className="gap-2"
+                            >
+                                {isDashboardEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                                {isDashboardEditMode ? "Save Layout" : "Edit Dashboard"}
+                            </Button>
+                        )}
+
+                        {activeTab === 'units' && (
+                            <Button
+                                variant={isUnitsEditMode ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setIsUnitsEditMode(!isUnitsEditMode)}
+                                className="gap-2"
+                            >
+                                {isUnitsEditMode ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                                {isUnitsEditMode ? "Finish Editing" : "Manage Units"}
+                            </Button>
+                        )}
+
+                        {activeTab === 'guests' && (
+                            <Button
+                                variant={isGuestsEditMode ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setIsGuestsEditMode(!isGuestsEditMode)}
+                                className="gap-2"
+                            >
+                                {isGuestsEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                                {isGuestsEditMode ? "Finish Editing" : "Manage Guests"}
+                            </Button>
+                        )}
+
+                        {activeTab === 'budget' && (
+                            <Button
+                                variant={isBudgetEditMode ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setIsBudgetEditMode(!isBudgetEditMode)}
+                                className="gap-2"
+                            >
+                                {isBudgetEditMode ? <Save className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                                {isBudgetEditMode ? "Finish Editing" : "Manage Budget"}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Main Content Tabs */}
-            <Tabs defaultValue="dashboard" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-8 h-auto p-1">
-                    <TabsTrigger value="dashboard" className="py-2">Dashboard</TabsTrigger>
-                    <TabsTrigger value="brief" className="py-2">Brief</TabsTrigger>
-                    <TabsTrigger value="budget" className="py-2">Budget</TabsTrigger>
-                    <TabsTrigger value="guests" className="py-2">Guest List</TabsTrigger>
-                    <TabsTrigger value="units" className="py-2">Units</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="flex flex-nowrap overflow-x-auto pb-2 justify-start md:justify-center gap-2 mb-8 bg-transparent h-auto p-0 w-full no-scrollbar">
+                    <TabsTrigger
+                        value="dashboard"
+                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
+                    >
+                        <LayoutDashboard className="w-4 h-4" /> Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="brief"
+                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
+                    >
+                        <FileText className="w-4 h-4" /> Brief
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="units"
+                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
+                    >
+                        <ClipboardList className="w-4 h-4" /> Units
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="guests"
+                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
+                    >
+                        <Users className="w-4 h-4" /> Guest List
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="budget"
+                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
+                    >
+                        <CreditCard className="w-4 h-4" /> Budget
+                    </TabsTrigger>
                 </TabsList>
 
                 {/* DASHBOARD TAB - RESTORED HYBRID VERSION */}
@@ -688,12 +1208,12 @@ const ManagementTeamPage = () => {
                         <Card className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-none shadow-xl col-span-1 md:col-span-2">
                             <CardHeader className="pb-2 flex flex-row justify-between items-center">
                                 <CardTitle className="text-lg font-medium opacity-90">Overall Progress</CardTitle>
-                                {isEditMode && (
+                                {isDashboardEditMode && (
                                     <div className="flex items-center space-x-2 bg-black/20 px-3 py-1 rounded-full">
                                         <Checkbox
                                             id="manual-mode"
                                             checked={isManualProgress}
-                                            onCheckedChange={(c) => setIsManualProgress(!!c)}
+                                            onCheckedChange={(c) => handleToggleManualProgress(!!c)}
                                             className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-600"
                                         />
                                         <label htmlFor="manual-mode" className="text-xs font-medium cursor-pointer select-none">Manual Override</label>
@@ -702,12 +1222,12 @@ const ManagementTeamPage = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="flex items-end gap-2 mb-4">
-                                    {isEditMode && isManualProgress ? (
+                                    {isDashboardEditMode && isManualProgress ? (
                                         <div className="flex items-center gap-2">
                                             <Input
                                                 type="number"
                                                 value={manualProgress}
-                                                onChange={(e) => setManualProgress(Number(e.target.value))}
+                                                onChange={(e) => handleUpdateManualProgress(Number(e.target.value))}
                                                 className="w-24 h-12 text-3xl font-bold bg-white/20 border-none text-white focus-visible:ring-1 focus-visible:ring-white"
                                             />
                                             <span className="text-3xl font-bold">%</span>
@@ -716,7 +1236,7 @@ const ManagementTeamPage = () => {
                                         <div className="text-4xl font-bold">{overallProgress}%</div>
                                     )}
                                 </div>
-                                <Progress value={overallProgress} className="h-2 bg-white/20" indicatorClassName="bg-white" />
+                                <Progress value={overallProgress} className="h-2 bg-white/20" />
                                 <p className="text-xs mt-2 opacity-75">
                                     {isManualProgress ? "Manually set by admin" : "Auto-calculated from task completion"}
                                 </p>
@@ -754,16 +1274,19 @@ const ManagementTeamPage = () => {
                             <CardContent className="space-y-3">
                                 {tools.map(tool => (
                                     <div key={tool.id} className="group flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-100">
-                                        <a href={tool.url} className="flex items-center gap-3 flex-1">
+                                        <button
+                                            onClick={() => setActiveTab(tool.url)}
+                                            className="flex items-center gap-3 flex-1 text-left"
+                                        >
                                             <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center">
-                                                <tool.icon className="w-4 h-4" />
+                                                {React.createElement(ICON_MAP[tool.icon_name] || Link, { className: "w-4 h-4" })}
                                             </div>
                                             <div>
                                                 <div className="font-medium text-sm">{tool.name}</div>
                                                 <div className="text-[10px] text-slate-400">{tool.description}</div>
                                             </div>
-                                        </a>
-                                        {isEditMode && (
+                                        </button>
+                                        {isDashboardEditMode && (
                                             <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteTool(tool.id)}>
                                                 <Trash2 className="w-3 h-3" />
                                             </Button>
@@ -771,7 +1294,7 @@ const ManagementTeamPage = () => {
                                     </div>
                                 ))}
 
-                                {isEditMode && (
+                                {isDashboardEditMode && (
                                     <div className="pt-4 border-t border-slate-100 mt-4 space-y-2">
                                         <Input placeholder="Tool Name" className="h-8 text-xs" value={newToolName} onChange={e => setNewToolName(e.target.value)} />
                                         <Input placeholder="https://..." className="h-8 text-xs" value={newToolUrl} onChange={e => setNewToolUrl(e.target.value)} />
@@ -796,8 +1319,8 @@ const ManagementTeamPage = () => {
                                         return (
                                             <div key={phase.id} className="ml-6 relative">
                                                 <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 ${isActive ? 'bg-purple-600 border-purple-600 animate-pulse' :
-                                                        isPast ? 'bg-slate-400 border-slate-400' :
-                                                            'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600'
+                                                    isPast ? 'bg-slate-400 border-slate-400' :
+                                                        'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600'
                                                     }`} />
                                                 <div className="flex justify-between items-start">
                                                     <div>
@@ -821,17 +1344,31 @@ const ManagementTeamPage = () => {
 
                 {/* BRIEF TAB */}
                 <TabsContent value="brief">
-                    <ModernProjectBrief />
+                    <ModernProjectBrief unitInformation={unitInformation} />
                 </TabsContent>
 
                 {/* BUDGET TAB */}
                 <TabsContent value="budget">
-                    <BudgetTracker />
+                    <BudgetTracker
+                        isEditMode={isBudgetEditMode}
+                        totalBudget={totalBudget}
+                        setTotalBudget={handleUpdateTotalBudget}
+                        expenses={expenses}
+                        onAddExpense={handleAddExpense}
+                        onDeleteExpense={handleDeleteExpense}
+                        onUpdateExpense={handleUpdateExpense}
+                    />
                 </TabsContent>
 
                 {/* GUESTS TAB */}
                 <TabsContent value="guests">
-                    <GuestListManager />
+                    <GuestListManager
+                        guests={guests}
+                        onAddGuest={handleAddGuest}
+                        onUpdateGuest={handleUpdateGuest}
+                        onDeleteGuest={handleDeleteGuest}
+                        isEditMode={isGuestsEditMode}
+                    />
                 </TabsContent>
 
                 {/* UNITS TAB - RESTORED & IMPROVED */}
@@ -847,27 +1384,93 @@ const ManagementTeamPage = () => {
                                         <CardHeader className="pb-2">
                                             <div className="flex justify-between">
                                                 <CardTitle className="text-base">{unit.name}</CardTitle>
-                                                {unit.deadline && <Badge variant="outline" className="text-xs">{unit.deadline}</Badge>}
                                             </div>
                                             <CardDescription>{unit.description}</CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {unit.tasks.map(task => (
-                                                    <div key={task.id} className="flex items-start space-x-2">
-                                                        <Checkbox
-                                                            id={task.id}
-                                                            checked={task.completed}
-                                                            onCheckedChange={() => toggleTask(unit.name, task.id, true)}
-                                                        />
-                                                        <label
-                                                            htmlFor={task.id}
-                                                            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${task.completed ? 'line-through text-slate-400' : ''}`}
-                                                        >
-                                                            {task.text}
-                                                        </label>
+                                                    <div key={task.id} className="group flex items-start justify-between space-x-2">
+                                                        <div className="flex items-start space-x-2 flex-1">
+                                                            <Checkbox
+                                                                id={task.id}
+                                                                checked={task.is_completed}
+                                                                onCheckedChange={() => toggleTask(unit.name, task.id, true)}
+                                                            />
+                                                            {editingTaskId === task.id ? (
+                                                                <div className="flex-1 space-y-2">
+                                                                    <Input
+                                                                        value={editTaskText}
+                                                                        onChange={e => setEditTaskText(e.target.value)}
+                                                                        className="h-8 text-sm"
+                                                                    />
+                                                                    <Input
+                                                                        value={editTaskDeadline}
+                                                                        onChange={e => setEditTaskDeadline(e.target.value)}
+                                                                        className="h-8 text-xs font-mono"
+                                                                        placeholder="30th Jan 2026"
+                                                                    />
+                                                                    <div className="flex gap-2">
+                                                                        <Button size="sm" variant="ghost" onClick={() => {
+                                                                            handleUpdateTask(task.id, { task_text: editTaskText, deadline: editTaskDeadline });
+                                                                            setEditingTaskId(null);
+                                                                        }} className="h-7 px-2 text-green-600 border border-green-100"><CheckCircle2 className="w-4 h-4" /></Button>
+                                                                        <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-7 px-2 text-slate-400 border border-slate-100"><Trash2 className="w-3 h-3 rotate-45" /></Button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex-1">
+                                                                    <label
+                                                                        htmlFor={task.id}
+                                                                        className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${task.is_completed ? 'line-through text-slate-400' : ''}`}
+                                                                    >
+                                                                        {task.task_text}
+                                                                    </label>
+                                                                    {task.deadline && (
+                                                                        <div className="flex items-center gap-1 mt-1 text-[10px] text-orange-600 font-bold uppercase tracking-tight">
+                                                                            <Calendar className="w-3 h-3" />
+                                                                            {task.deadline}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {isUnitsEditMode && editingTaskId !== task.id && (
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-slate-400"
+                                                                    onClick={() => {
+                                                                        setEditingTaskId(task.id);
+                                                                        setEditTaskText(task.task_text);
+                                                                        setEditTaskDeadline(task.deadline || "");
+                                                                    }}
+                                                                >
+                                                                    <Edit className="w-3 h-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-red-400"
+                                                                    onClick={() => handleDeleteTask(task.id)}
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
+                                                {isUnitsEditMode && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full mt-2 h-8 text-[10px] border-dashed text-slate-500 hover:text-purple-600 hover:border-purple-200"
+                                                        onClick={() => handleAddTask(unit.name, true)}
+                                                    >
+                                                        <Plus className="w-3 h-3 mr-1" /> Add Action
+                                                    </Button>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -887,22 +1490,89 @@ const ManagementTeamPage = () => {
                                             <CardDescription>{unit.description}</CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {unit.tasks.map(task => (
-                                                    <div key={task.id} className="flex items-start space-x-2">
-                                                        <Checkbox
-                                                            id={task.id}
-                                                            checked={task.completed}
-                                                            onCheckedChange={() => toggleTask(unit.name, task.id, false)}
-                                                        />
-                                                        <label
-                                                            htmlFor={task.id}
-                                                            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${task.completed ? 'line-through text-slate-400' : ''}`}
-                                                        >
-                                                            {task.text}
-                                                        </label>
+                                                    <div key={task.id} className="group flex items-start justify-between space-x-2">
+                                                        <div className="flex items-start space-x-2 flex-1">
+                                                            <Checkbox
+                                                                id={task.id}
+                                                                checked={task.is_completed}
+                                                                onCheckedChange={() => toggleTask(unit.name, task.id, false)}
+                                                            />
+                                                            {editingTaskId === task.id ? (
+                                                                <div className="flex-1 space-y-2">
+                                                                    <Input
+                                                                        value={editTaskText}
+                                                                        onChange={e => setEditTaskText(e.target.value)}
+                                                                        className="h-8 text-sm"
+                                                                    />
+                                                                    <Input
+                                                                        value={editTaskDeadline}
+                                                                        onChange={e => setEditTaskDeadline(e.target.value)}
+                                                                        className="h-8 text-xs font-mono"
+                                                                        placeholder="30 Jan 2026"
+                                                                    />
+                                                                    <div className="flex gap-2">
+                                                                        <Button size="sm" variant="ghost" onClick={() => {
+                                                                            handleUpdateTask(task.id, { task_text: editTaskText, deadline: editTaskDeadline });
+                                                                            setEditingTaskId(null);
+                                                                        }} className="h-7 px-2 text-green-600 border border-green-100"><CheckCircle2 className="w-4 h-4" /></Button>
+                                                                        <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-7 px-2 text-slate-400 border border-slate-100"><Trash2 className="w-3 h-3 rotate-45" /></Button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex-1">
+                                                                    <label
+                                                                        htmlFor={task.id}
+                                                                        className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${task.is_completed ? 'line-through text-slate-400' : ''}`}
+                                                                    >
+                                                                        {task.task_text}
+                                                                    </label>
+                                                                    {task.deadline && (
+                                                                        <div className="flex items-center gap-1 mt-1 text-[10px] text-blue-600 font-bold uppercase tracking-tight">
+                                                                            <Calendar className="w-3 h-3" />
+                                                                            {task.deadline}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {isUnitsEditMode && editingTaskId !== task.id && (
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-slate-400"
+                                                                    onClick={() => {
+                                                                        setEditingTaskId(task.id);
+                                                                        setEditTaskText(task.task_text);
+                                                                        setEditTaskDeadline(task.deadline || "");
+                                                                    }}
+                                                                >
+                                                                    <Edit className="w-3 h-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-red-400"
+                                                                    onClick={() => handleDeleteTask(task.id)}
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
+                                                {isUnitsEditMode && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full mt-2 h-8 text-[10px] border-dashed text-slate-500 hover:text-purple-600 hover:border-purple-200"
+                                                        onClick={() => handleAddTask(unit.name, false)}
+                                                    >
+                                                        <Plus className="w-3 h-3 mr-1" /> Add Action
+                                                    </Button>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
