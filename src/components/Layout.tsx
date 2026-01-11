@@ -177,7 +177,7 @@ const Layout = ({ children }: LayoutProps) => {
         className="flex-1 overflow-y-auto"
         style={{
           paddingTop: showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' ? 'env(safe-area-inset-top)' : '0',
-          paddingBottom: showChrome && location.pathname !== '/group-chats' ? 'calc(4rem + env(safe-area-inset-bottom))' : '0'
+          paddingBottom: showChrome && location.pathname !== '/group-chats' ? 'calc(3.5rem + env(safe-area-inset-bottom))' : '0'
         }}
       >
         <div className={location.pathname === '/group-chats' ? "h-full" : ""}>
