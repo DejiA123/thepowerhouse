@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
     Calendar, CheckCircle2, ClipboardList, Clock, CreditCard, FileText, Flag, Users, Edit, Plus, Save, Trash2,
-    Link, Settings, DollarSign, PieChart, UserPlus, Briefcase, Mail, Phone, MapPin, ExternalLink, Target, AlertCircle, LayoutDashboard, X
+    Link, Settings, DollarSign, PieChart, UserPlus, Briefcase, Mail, Phone, MapPin, ExternalLink, Target, AlertCircle, LayoutDashboard, X, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -997,6 +997,23 @@ const ManagementTeamPage = () => {
     }, []);
     const [activeTab, setActiveTab] = useState("dashboard");
     const [isLoading, setIsLoading] = useState(true);
+    const tabsListRef = useRef<HTMLDivElement>(null);
+    const [showLeftFade, setShowLeftFade] = useState(false);
+    const [showRightFade, setShowRightFade] = useState(false);
+
+    const checkScroll = () => {
+        if (tabsListRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = tabsListRef.current;
+            setShowLeftFade(scrollLeft > 10);
+            setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, []);
 
     // Function to change tabs and scroll to top
     const handleTabChange = (newTab: string) => {
@@ -1450,40 +1467,66 @@ const ManagementTeamPage = () => {
                 </div>
             </div>
 
-            {/* Main Content Tabs */}
+            {/* Main Content Tabs - Redesigned with Sticky & Scroll Cues */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="flex flex-nowrap overflow-x-auto pb-2 justify-start md:justify-center gap-2 mb-8 bg-transparent h-auto p-0 w-full no-scrollbar">
-                    <TabsTrigger
-                        value="dashboard"
-                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
-                    >
-                        <LayoutDashboard className="w-4 h-4" /> Dashboard
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="brief"
-                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
-                    >
-                        <FileText className="w-4 h-4" /> Brief
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="units"
-                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
-                    >
-                        <ClipboardList className="w-4 h-4" /> Units
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="guests"
-                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
-                    >
-                        <Users className="w-4 h-4" /> Guest List
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="budget"
-                        className="flex-shrink-0 data-[state=active]:bg-purple-600 data-[state=active]:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 md:px-6 py-2 md:py-3 transition-all duration-300 shadow-sm flex items-center gap-2 text-xs md:text-sm whitespace-nowrap"
-                    >
-                        <CreditCard className="w-4 h-4" /> Budget
-                    </TabsTrigger>
-                </TabsList>
+                <div className="sticky top-0 z-40 -mx-4 px-4 py-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 mb-8 transition-all duration-300">
+                    <div className="relative group max-w-5xl mx-auto">
+                        {/* Scroll Cues: Fades & Arrows */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none transition-opacity duration-300 bg-gradient-to-r from-slate-50 dark:from-slate-900 to-transparent ${showLeftFade ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none transition-opacity duration-300 bg-gradient-to-l from-slate-50 dark:from-slate-900 to-transparent ${showRightFade ? 'opacity-100' : 'opacity-0'}`} />
+
+                        {/* Left Arrow (Desktop) */}
+                        {showLeftFade && (
+                            <div className="absolute left-[-20px] top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 text-slate-400">
+                                <ChevronLeft className="w-4 h-4" />
+                            </div>
+                        )}
+
+                        {/* Right Arrow (Desktop) */}
+                        {showRightFade && (
+                            <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 text-slate-400 animate-pulse">
+                                <ChevronRight className="w-4 h-4" />
+                            </div>
+                        )}
+
+                        <TabsList
+                            ref={tabsListRef}
+                            onScroll={checkScroll}
+                            className="flex flex-nowrap overflow-x-auto pb-1 justify-start gap-1 bg-slate-200/50 dark:bg-slate-800/50 p-1 w-full no-scrollbar rounded-2xl h-auto border border-white/40 dark:border-slate-700/40"
+                        >
+                            <TabsTrigger
+                                value="dashboard"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                                <LayoutDashboard className="w-4 h-4" /> Dashboard
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="brief"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                                <FileText className="w-4 h-4" /> Brief
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="units"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                                <ClipboardList className="w-4 h-4" /> Units
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="guests"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                                <Users className="w-4 h-4" /> Guest List
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="budget"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                            >
+                                <CreditCard className="w-4 h-4" /> Budget
+                            </TabsTrigger>
+                        </TabsList>
+                    </div>
+                </div>
 
                 {/* DASHBOARD TAB - RESTORED HYBRID VERSION */}
                 <TabsContent value="dashboard" className="space-y-6">
