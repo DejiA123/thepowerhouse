@@ -16,6 +16,7 @@ export interface Guest {
     organization: string;
     rsvp_status: string;
     assigned_seat: string;
+    personal_assistant?: string;
 }
 
 export interface Task {
@@ -40,6 +41,12 @@ export interface ManagementSettings {
     overall_progress: number;
     is_manual_progress: boolean;
     manual_progress: number;
+    brief_title: string;
+    brief_subtitle: string;
+    brief_overview: string;
+    strategic_objective: string;
+    unit_formation_plan_pastor: string;
+    unit_formation_plan_meeting: string;
 }
 
 export interface UnitInformation {
@@ -244,5 +251,34 @@ export const managementService = {
 
         if (error) throw error;
         return (data || []) as UnitInformation[];
+    },
+
+    async updateUnitInformation(id: string, updates: Partial<UnitInformation>) {
+        const { error } = await (supabase as any)
+            .from('unit_information')
+            .update(updates)
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    async addUnitInformation(unit: Omit<UnitInformation, 'id'>) {
+        const { data, error } = await (supabase as any)
+            .from('unit_information')
+            .insert(unit)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as UnitInformation;
+    },
+
+    async deleteUnitInformation(id: string) {
+        const { error } = await (supabase as any)
+            .from('unit_information')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
     }
 };

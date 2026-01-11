@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from 'sonner';
 import { managementService, type Expense, type Guest, type Task, type ProjectTool, type ManagementSettings } from '@/services/managementService';
+import { generateProjectBriefPDF } from '@/utils/pdfGenerator';
 
 // Re-map interfaces to match DB schema and unify field names for UI
 interface Phase {
@@ -161,7 +162,7 @@ const BudgetTracker = ({
                                         <TableHead className="w-[150px] md:w-[180px] text-xs px-4">Item</TableHead>
                                         <TableHead className="text-xs w-[100px] md:w-[120px] px-4">Category</TableHead>
                                         <TableHead className="text-xs w-[80px] md:w-[100px] px-4">Amount</TableHead>
-                                        <TableHead className="text-right text-xs w-[120px] md:w-[140px] px-4">Status / Actions</TableHead>
+                                        <TableHead className="text-right text-xs w-[120px] md:w-[140px] px-4">{isEditMode ? 'Status / Actions' : 'Status'}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -232,18 +233,16 @@ const BudgetTracker = ({
                                                                         'bg-orange-500 hover:bg-orange-600 border-none px-2 py-0 text-[10px]'
                                                             }>{expense.status}</Badge>
 
-                                                            <div className="flex items-center">
-                                                                {isEditMode && (
+                                                            {isEditMode && (
+                                                                <div className="flex items-center">
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => startEditing(expense)}>
                                                                         <Edit className="w-3 h-3" />
                                                                     </Button>
-                                                                )}
-                                                                {isEditMode && (
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => onDeleteExpense(expense.id)}>
                                                                         <Trash2 className="w-3 h-3" />
                                                                     </Button>
-                                                                )}
-                                                            </div>
+                                                                </div>
+                                                            )}
                                                         </>
                                                     )}
                                                 </div>
@@ -342,12 +341,14 @@ const GuestListManager = ({
     const [newGuestName, setNewGuestName] = useState("");
     const [newGuestRole, setNewGuestRole] = useState("Guest");
     const [newOrg, setNewOrg] = useState("");
+    const [newGuestPA, setNewGuestPA] = useState("");
 
     // Edit state
     const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [editOrg, setEditOrg] = useState("");
     const [editRole, setEditRole] = useState("");
+    const [editPA, setEditPA] = useState("");
     const [editSeat, setEditSeat] = useState("");
     const [editRsvp, setEditRsvp] = useState("");
 
@@ -357,10 +358,12 @@ const GuestListManager = ({
             name: newGuestName,
             role: newGuestRole,
             organization: newOrg,
-            rsvp_status: "Pending"
+            rsvp_status: "Pending",
+            personal_assistant: newGuestRole === 'Bishop' ? newGuestPA : undefined
         });
         setNewGuestName("");
         setNewOrg("");
+        setNewGuestPA("");
     };
 
     const startEditing = (guest: Guest) => {
@@ -368,6 +371,7 @@ const GuestListManager = ({
         setEditName(guest.name);
         setEditOrg(guest.organization || "");
         setEditRole(guest.role || "");
+        setEditPA(guest.personal_assistant || "");
         setEditSeat(guest.assigned_seat || "");
         setEditRsvp(guest.rsvp_status);
     };
@@ -377,6 +381,7 @@ const GuestListManager = ({
             name: editName,
             organization: editOrg,
             role: editRole,
+            personal_assistant: editRole === 'Bishop' ? editPA : null,
             assigned_seat: editSeat,
             rsvp_status: editRsvp as any
         });
@@ -406,7 +411,7 @@ const GuestListManager = ({
                                         <TableHead className="text-xs px-4 hidden sm:table-cell">Role/Org</TableHead>
                                         <TableHead className="text-xs w-[60px] md:w-[80px] px-4">Seat</TableHead>
                                         <TableHead className="text-xs w-[100px] md:w-[120px] px-4">RSVP</TableHead>
-                                        <TableHead className="text-right text-xs w-[80px] md:w-[100px] px-4">Actions</TableHead>
+                                        {isEditMode && <TableHead className="text-right text-xs w-[80px] md:w-[100px] px-4">Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -452,6 +457,9 @@ const GuestListManager = ({
                                                         <>
                                                             <div className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{guest.role}</div>
                                                             <div className="text-[10px] text-slate-500 truncate max-w-[100px]">{guest.organization}</div>
+                                                            {guest.role === 'Bishop' && guest.personal_assistant && (
+                                                                <div className="text-[10px] text-blue-600 italic">PA: {guest.personal_assistant}</div>
+                                                            )}
                                                         </>
                                                     )}
                                                 </div>
@@ -476,11 +484,24 @@ const GuestListManager = ({
                                                             onChange={e => setEditOrg(e.target.value)}
                                                             placeholder="Organization"
                                                         />
+                                                        {editRole === 'Bishop' && (
+                                                            <Input
+                                                                className="w-full h-7 px-2 text-[10px] bg-blue-50 border-blue-100"
+                                                                value={editPA}
+                                                                onChange={e => setEditPA(e.target.value)}
+                                                                placeholder="Personal Assistant"
+                                                            />
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <>
                                                         <div className="text-sm truncate max-w-[120px] md:max-w-[150px]">{guest.role}</div>
                                                         <div className="text-xs text-slate-500 truncate max-w-[120px] md:max-w-[150px]">{guest.organization}</div>
+                                                        {guest.role === 'Bishop' && guest.personal_assistant && (
+                                                            <div className="text-[10px] text-blue-600 font-medium italic mt-1">
+                                                                PA: {guest.personal_assistant}
+                                                            </div>
+                                                        )}
                                                     </>
                                                 )}
                                             </TableCell>
@@ -516,26 +537,26 @@ const GuestListManager = ({
                                                     }>{guest.rsvp_status}</Badge>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right py-4 px-4">
-                                                <div className="flex justify-end gap-1">
-                                                    {editingGuestId === guest.id ? (
-                                                        <Button size="icon" variant="ghost" onClick={() => saveEdit(guest.id)} className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                        </Button>
-                                                    ) : (
-                                                        <>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditing(guest)}>
-                                                                <Edit className="w-3 h-3 text-slate-400" />
+                                            {isEditMode && (
+                                                <TableCell className="text-right py-4 px-4">
+                                                    <div className="flex justify-end gap-1">
+                                                        {editingGuestId === guest.id ? (
+                                                            <Button size="icon" variant="ghost" onClick={() => saveEdit(guest.id)} className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                                                <CheckCircle2 className="w-4 h-4" />
                                                             </Button>
-                                                            {isEditMode && (
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600" onClick={() => onDeleteGuest(guest.id)}>
+                                                        ) : (
+                                                            <>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEditing(guest)}>
+                                                                    <Edit className="w-3 h-3 text-slate-400" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-700 hover:bg-red-50" onClick={() => onDeleteGuest(guest.id)}>
                                                                     <Trash2 className="w-3 h-3" />
                                                                 </Button>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </TableCell>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -546,55 +567,118 @@ const GuestListManager = ({
             </div>
 
             <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Invite Guest</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Full Name</Label>
-                            <Input placeholder="John Doe" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Organization</Label>
-                            <Input placeholder="Organization Name" value={newOrg} onChange={e => setNewOrg(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Category</Label>
-                            <Select value={newGuestRole} onValueChange={setNewGuestRole}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Bishop">Bishop / Apostle</SelectItem>
-                                    <SelectItem value="Pastor">Pastor / Minister</SelectItem>
-                                    <SelectItem value="Government">Government / Dignitary</SelectItem>
-                                    <SelectItem value="Guest">General Guest</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Button className="w-full" onClick={addGuest}>
-                            <UserPlus className="w-4 h-4 mr-2" /> Add to List
-                        </Button>
-                    </CardContent>
-                </Card>
+                {isEditMode ? (
+                    <>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Invite Guest</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Full Name</Label>
+                                    <Input placeholder="John Doe" value={newGuestName} onChange={e => setNewGuestName(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Organization</Label>
+                                    <Input placeholder="Organization Name" value={newOrg} onChange={e => setNewOrg(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Category</Label>
+                                    <Select value={newGuestRole} onValueChange={setNewGuestRole}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Bishop">Bishop / Apostle</SelectItem>
+                                            <SelectItem value="Pastor">Pastor / Minister</SelectItem>
+                                            <SelectItem value="Government">Government / Dignitary</SelectItem>
+                                            <SelectItem value="Guest">General Guest</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {newGuestRole === 'Bishop' && (
+                                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                                        <Label>Personal Assistant</Label>
+                                        <Input placeholder="PA Name" value={newGuestPA} onChange={e => setNewGuestPA(e.target.value)} />
+                                    </div>
+                                )}
+                                <Button className="w-full" onClick={addGuest}>
+                                    <UserPlus className="w-4 h-4 mr-2" /> Add to List
+                                </Button>
+                            </CardContent>
+                        </Card>
 
-                <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-100">
-                    <CardHeader>
-                        <CardTitle className="text-purple-900 dark:text-purple-100 text-sm">Protocol Notes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-purple-800 dark:text-purple-200 leading-relaxed">
-                            Ensure all Bishops are assigned a Personal Assistant from the Pastoral Care Unit. Hotel bookings should be confirmed 2 weeks prior to arrival.
-                        </p>
-                    </CardContent>
-                </Card>
+                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-100">
+                            <CardHeader>
+                                <CardTitle className="text-purple-900 dark:text-purple-100 text-sm">Protocol Notes</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-xs text-purple-800 dark:text-purple-200 leading-relaxed">
+                                    Ensure all Bishops are assigned a Personal Assistant from the Pastoral Care Unit. Hotel bookings should be confirmed 2 weeks prior to arrival.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </>
+                ) : (
+                    <Card className="bg-slate-900 text-white border-none shadow-xl overflow-hidden relative group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <Users className="w-24 h-24 -mt-8 -mr-8" />
+                        </div>
+                        <CardHeader>
+                            <CardTitle className="text-white">Guest Management</CardTitle>
+                            <CardDescription className="text-slate-400">View and track RSVPs</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                <p className="text-xs text-slate-300 leading-relaxed italic">
+                                    "Ensure all Bishops are assigned a Personal Assistant from the Pastoral Care Unit. Hotel bookings should be confirmed 2 weeks prior to arrival."
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-4">
+                                <AlertCircle className="w-3 h-3" />
+                                Click "Manage Guests" above to add or edit entries
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );
 };
 
-const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => {
+const ModernProjectBrief = ({
+    unitInformation,
+    isEditMode,
+    briefTitle,
+    setBriefTitle,
+    briefSubtitle,
+    setBriefSubtitle,
+    briefOverview,
+    setBriefOverview,
+    strategicObjective,
+    setStrategicObjective,
+    unitFormationPastor,
+    setUnitFormationPastor,
+    unitFormationMeeting,
+    setUnitFormationMeeting,
+    onUpdateUnit
+}: {
+    unitInformation: any[],
+    isEditMode: boolean,
+    briefTitle: string,
+    setBriefTitle: (v: string) => void,
+    briefSubtitle: string,
+    setBriefSubtitle: (v: string) => void,
+    briefOverview: string,
+    setBriefOverview: (v: string) => void,
+    strategicObjective: string,
+    setStrategicObjective: (v: string) => void,
+    unitFormationPastor: string,
+    setUnitFormationPastor: (v: string) => void,
+    unitFormationMeeting: string,
+    setUnitFormationMeeting: (v: string) => void,
+    onUpdateUnit: (id: string, updates: any) => void
+}) => {
     const alreadyExistingUnits = unitInformation.filter(u => u.is_existing_unit);
     const immediateActionUnits = unitInformation.filter(u => u.unit_type === 'Immediate Action');
     const subsequentUnits = unitInformation.filter(u => u.unit_type === 'Subsequent');
@@ -602,19 +686,41 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
     return (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
             {/* Hero Section */}
-            <div className="relative rounded-3xl overflow-hidden bg-slate-900 text-white p-8 md:p-12 mb-8">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600 rounded-full blur-[100px] opacity-50 pointer-events-none" />
+            <div className="relative rounded-3xl overflow-hidden bg-slate-900 text-white p-8 md:p-12 mb-8 border border-white/10 shadow-2xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600 rounded-full blur-[100px] opacity-40 pointer-events-none" />
                 <div className="relative z-10 max-w-3xl">
-                    <Badge className="bg-amber-400 text-amber-900 border-none mb-6">Confidential - Management Only</Badge>
-                    <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6 leading-tight">
-                        Bishopric Consecration & <br />Outpouring Convention
-                    </h2>
-                    <p className="text-lg md:text-xl text-slate-300 leading-relaxed">
-                        A definitive guide to the planning, execution, and spiritual preparation for the upcoming consecration ceremony and convention.
-                    </p>
-                    <div className="mt-6 flex items-center gap-4">
-                        <Badge className="bg-green-500 text-white">Status: In Progress</Badge>
-                        <span className="text-sm text-slate-400">Timing: January 2026 - August 2026</span>
+                    <Badge className="bg-amber-400 text-amber-900 border-none mb-6 font-bold px-3 py-1">Confidential - Management Only</Badge>
+
+                    {isEditMode ? (
+                        <div className="space-y-4 mb-6">
+                            <Input
+                                value={briefTitle}
+                                onChange={(e) => setBriefTitle(e.target.value)}
+                                className="text-3xl md:text-5xl font-black bg-white/10 border-white/20 text-white h-auto py-2"
+                            />
+                            <Textarea
+                                value={briefSubtitle}
+                                onChange={(e) => setBriefSubtitle(e.target.value)}
+                                className="text-lg bg-white/10 border-white/20 text-slate-300 h-24"
+                            />
+                        </div>
+                    ) : (
+                        <>
+                            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6 leading-tight">
+                                {briefTitle}
+                            </h2>
+                            <p className="text-lg md:text-xl text-slate-300 leading-relaxed mb-6">
+                                {briefSubtitle}
+                            </p>
+                        </>
+                    )}
+
+                    <div className="flex items-center gap-4">
+                        <Badge className="bg-green-500 text-white border-none px-3 py-1 shadow-lg shadow-green-500/20">Status: In Progress</Badge>
+                        <div className="flex items-center gap-2 text-sm text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                            <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                            <span className="font-semibold tracking-wide">August 14th - 16th, 2026</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -625,27 +731,43 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                     {/* Overview */}
                     <section>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center shadow-sm">
                                 <Target className="w-6 h-6" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Overview</h3>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-lg">
-                            This brief contains a high-level summary of the project management of the forthcoming Bishopric Consecration & Outpouring Convention.
-                        </p>
+                        {isEditMode ? (
+                            <Textarea
+                                value={briefOverview}
+                                onChange={(e) => setBriefOverview(e.target.value)}
+                                className="text-lg min-h-[100px]"
+                            />
+                        ) : (
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-lg">
+                                {briefOverview}
+                            </p>
+                        )}
                     </section>
 
                     {/* Strategic Objective */}
                     <section>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shadow-sm">
                                 <Flag className="w-6 h-6" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Strategic Objective</h3>
                         </div>
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                            To facilitate a seamless, spiritually charged, and excellently organized event that honors the consecration of the Bishop-Elect and hosts the Outpouring Convention, ensuring maximum impact and comfort for all attendees and dignitaries.
-                        </p>
+                        {isEditMode ? (
+                            <Textarea
+                                value={strategicObjective}
+                                onChange={(e) => setStrategicObjective(e.target.value)}
+                                className="text-base min-h-[100px]"
+                            />
+                        ) : (
+                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                                {strategicObjective}
+                            </p>
+                        )}
                     </section>
 
                     {/* Immediate Actions */}
@@ -653,15 +775,32 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-orange-600 pl-4 text-orange-600">Immediate Actions</h3>
                         <div className="space-y-3">
                             {immediateActionUnits.map((unit, i) => (
-                                <Card key={i} className="border-l-4 border-l-orange-500">
+                                <Card key={unit.id || i} className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
                                     <CardContent className="p-4">
                                         <div className="flex gap-3">
                                             <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                                                 {i + 1}
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                                {isEditMode ? (
+                                                    <div className="space-y-2">
+                                                        <Input
+                                                            value={unit.unit_name}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
+                                                            className="font-bold h-8"
+                                                        />
+                                                        <Textarea
+                                                            value={unit.full_description}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
+                                                            className="text-sm min-h-[60px]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                        <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </CardContent>
@@ -675,15 +814,32 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-blue-600 pl-4 text-blue-600">Subsequent Units</h3>
                         <div className="space-y-3">
                             {subsequentUnits.map((unit, i) => (
-                                <Card key={i} className="border-l-4 border-l-blue-500">
+                                <Card key={unit.id || i} className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
                                     <CardContent className="p-4">
                                         <div className="flex gap-3">
                                             <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                                                 {i + 1}
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                                {isEditMode ? (
+                                                    <div className="space-y-2">
+                                                        <Input
+                                                            value={unit.unit_name}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
+                                                            className="font-bold h-8"
+                                                        />
+                                                        <Textarea
+                                                            value={unit.full_description}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
+                                                            className="text-sm min-h-[60px]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                        <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </CardContent>
@@ -697,13 +853,30 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-green-600 pl-4 text-green-600">Already Existing Units</h3>
                         <div className="grid sm:grid-cols-2 gap-3">
                             {alreadyExistingUnits.map((unit, i) => (
-                                <Card key={i} className="bg-green-50 dark:bg-green-900/10 border-green-200">
+                                <Card key={unit.id || i} className="bg-green-50 dark:bg-green-900/10 border-green-200 shadow-sm hover:shadow-md transition-shadow">
                                     <CardContent className="p-4">
                                         <div className="flex items-start gap-2">
                                             <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                            <div>
-                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{unit.full_description}</p>
+                                            <div className="flex-1">
+                                                {isEditMode ? (
+                                                    <div className="space-y-2">
+                                                        <Input
+                                                            value={unit.unit_name}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
+                                                            className="font-bold h-7 text-sm"
+                                                        />
+                                                        <Textarea
+                                                            value={unit.full_description}
+                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
+                                                            className="text-xs min-h-[50px]"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
+                                                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{unit.full_description}</p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </CardContent>
@@ -715,14 +888,37 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                     {/* Unit Formation Plan */}
                     <section>
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-purple-600 pl-4">Unit Formation Plan</h3>
-                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200">
+                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 shadow-sm">
                             <CardContent className="p-6">
-                                <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
-                                    <strong>National Workers Meeting:</strong> Before this meeting, a list of all Units is given to each of the main Pastors. Pastors nominate different members and workers into groups they see fit based on skills and spiritual maturity.
-                                </p>
-                                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                                    During the meeting, everyone is informed by their Pastor what unit they will be joining and who the unit lead will be. This ensures a blended approach and maximum collaboration across all branches.
-                                </p>
+                                {isEditMode ? (
+                                    <div className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-purple-600 uppercase tracking-wider">Pastor Strategy</label>
+                                            <Textarea
+                                                value={unitFormationPastor}
+                                                onChange={(e) => setUnitFormationPastor(e.target.value)}
+                                                className="bg-white/50 min-h-[80px]"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-purple-600 uppercase tracking-wider">Meeting Strategy</label>
+                                            <Textarea
+                                                value={unitFormationMeeting}
+                                                onChange={(e) => setUnitFormationMeeting(e.target.value)}
+                                                className="bg-white/50 min-h-[80px]"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
+                                            <strong>National Workers Meeting:</strong> {unitFormationPastor}
+                                        </p>
+                                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                                            {unitFormationMeeting}
+                                        </p>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
                     </section>
@@ -736,11 +932,21 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
                                 { title: "Excellence in Hospitality", desc: "Usher & Protocol / Flights & Accommodations to ensure world-class treatment of guests." },
                                 { title: "Operational Efficiency", desc: "NOC & Admin to handle budgets, deadlines, and compliance." }
                             ].map((item, i) => (
-                                <div key={i} className="flex gap-4">
-                                    <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 mt-1">{i + 1}</div>
-                                    <div>
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.title}</h4>
-                                        <p className="text-slate-500 text-sm">{item.desc}</p>
+                                <div key={i} className="flex gap-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-sm font-black shrink-0 mt-1">{i + 1}</div>
+                                    <div className="flex-1">
+                                        {isEditMode ? (
+                                            <div className="space-y-2">
+                                                <Input value={item.title} readOnly className="font-bold h-8 bg-slate-100/50" />
+                                                <Textarea value={item.desc} readOnly className="text-sm min-h-[40px] bg-slate-100/50" />
+                                                <p className="text-[10px] text-slate-400 italic">Static responsibilities (editable soon)</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.title}</h4>
+                                                <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -750,48 +956,20 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
 
                 {/* Right Column: Key Contacts & Info */}
                 <div className="space-y-6">
-                    <Card className="bg-slate-900 text-white border-none">
-                        <CardHeader>
-                            <CardTitle className="text-white text-lg">Project Lead</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                                    <Users className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="font-bold">National Organising Committee</p>
-                                    <p className="text-sm text-slate-400">Main Coordinator</p>
-                                </div>
-                            </div>
-                            <div className="pt-4 border-t border-white/10 space-y-2">
-                                <div className="flex items-center gap-2 text-sm text-slate-300">
-                                    <Mail className="w-4 h-4" /> noc@thepowerhouse.ie
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-slate-300">
-                                    <Phone className="w-4 h-4" /> +353 89 999 9999
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">Resources</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3">
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2 h-auto py-3 cursor-pointer hover:bg-slate-50 transition-colors"
+                                onClick={() => generateProjectBriefPDF({})}
+                            >
                                 <FileText className="w-4 h-4 text-red-500" />
                                 <div className="text-left">
                                     <div className="font-bold text-xs">Full PDF Brief</div>
                                     <div className="text-[10px] text-slate-500">2.4 MB • Updated Today</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3">
-                                <MapPin className="w-4 h-4 text-blue-500" />
-                                <div className="text-left">
-                                    <div className="font-bold text-xs">Venue Layouts</div>
-                                    <div className="text-[10px] text-slate-500">High Res Maps</div>
                                 </div>
                             </Button>
                         </CardContent>
@@ -808,15 +986,35 @@ const ModernProjectBrief = ({ unitInformation }: { unitInformation: any[] }) => 
 
 const ManagementTeamPage = () => {
     // --- State Management ---
-    const [currentTime] = useState(new Date());
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        // Update current time every hour to ensure month transitions are caught
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000 * 60 * 60);
+        return () => clearInterval(timer);
+    }, []);
     const [activeTab, setActiveTab] = useState("dashboard");
     const [isLoading, setIsLoading] = useState(true);
+
+    // Function to change tabs and scroll to top
+    const handleTabChange = (newTab: string) => {
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+            mainContent.scrollTo({ top: 0, behavior: 'instant' });
+        } else {
+            window.scrollTo(0, 0);
+        }
+        setActiveTab(newTab);
+    };
 
     // Tab-specific Edit Modes
     const [isDashboardEditMode, setIsDashboardEditMode] = useState(false);
     const [isUnitsEditMode, setIsUnitsEditMode] = useState(false);
     const [isGuestsEditMode, setIsGuestsEditMode] = useState(false);
     const [isBudgetEditMode, setIsBudgetEditMode] = useState(false);
+    const [isBriefEditMode, setIsBriefEditMode] = useState(false);
 
     // Dynamic Data
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -831,6 +1029,14 @@ const ManagementTeamPage = () => {
     const [isManualProgress, setIsManualProgress] = useState(false);
     const [manualProgress, setManualProgress] = useState(0);
     const [totalBudget, setTotalBudget] = useState(25000);
+
+    // Brief Content States
+    const [briefTitle, setBriefTitle] = useState("Bishopric Consecration & Outpouring Convention");
+    const [briefSubtitle, setBriefSubtitle] = useState("A definitive guide to the planning, execution, and spiritual preparation for the upcoming consecration ceremony and convention.");
+    const [briefOverview, setBriefOverview] = useState("This brief contains a high-level summary of the project management of the forthcoming Bishopric Consecration & Outpouring Convention.");
+    const [strategicObjective, setStrategicObjective] = useState("To facilitate a seamless, spiritually charged, and excellently organized event that honors the consecration of the Bishop-Elect and hosts the Outpouring Convention, ensuring maximum impact and comfort for all attendees and dignitaries.");
+    const [unitFormationPastor, setUnitFormationPastor] = useState("National Workers Meeting: Before this meeting, a list of all Units is given to each of the main Pastors. Pastors nominate different members and workers into groups they see fit based on skills and spiritual maturity.");
+    const [unitFormationMeeting, setUnitFormationMeeting] = useState("During the meeting, everyone is informed by their Pastor what unit they will be joining and who the unit lead will be. This ensures a blended approach and maximum collaboration across all branches.");
 
     const [newToolName, setNewToolName] = useState("");
     const [newToolUrl, setNewToolUrl] = useState("");
@@ -859,6 +1065,14 @@ const ManagementTeamPage = () => {
             setIsManualProgress(settingsData.is_manual_progress);
             setManualProgress(settingsData.manual_progress);
 
+            // Brief Settings
+            if (settingsData.brief_title) setBriefTitle(settingsData.brief_title);
+            if (settingsData.brief_subtitle) setBriefSubtitle(settingsData.brief_subtitle);
+            if (settingsData.brief_overview) setBriefOverview(settingsData.brief_overview);
+            if (settingsData.strategic_objective) setStrategicObjective(settingsData.strategic_objective);
+            if (settingsData.unit_formation_plan_pastor) setUnitFormationPastor(settingsData.unit_formation_plan_pastor);
+            if (settingsData.unit_formation_plan_meeting) setUnitFormationMeeting(settingsData.unit_formation_plan_meeting);
+
             setExpenses(expensesData);
             setGuests(guestsData);
             setAllTasks(tasksData);
@@ -883,6 +1097,27 @@ const ManagementTeamPage = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Scroll to top when tab changes
+    useEffect(() => {
+        const resetScroll = () => {
+            const mainContent = document.getElementById('main-content');
+            if (mainContent) {
+                mainContent.scrollTo(0, 0);
+            } else {
+                window.scrollTo(0, 0);
+            }
+        };
+
+        // Immediate reset
+        resetScroll();
+
+        // Also reset after next paint and with a timeout for reliability
+        requestAnimationFrame(resetScroll);
+        const timer = setTimeout(resetScroll, 150);
+
+        return () => clearTimeout(timer);
+    }, [activeTab]);
 
     // Derived Units
     const immediateUnits: Unit[] = Array.from(new Set(allTasks.filter(t => t.is_immediate).map(t => t.unit_name))).map(name => ({
@@ -1079,6 +1314,34 @@ const ManagementTeamPage = () => {
         }
     };
 
+    const handleUpdateUnitInfo = async (id: string, updates: any) => {
+        try {
+            await managementService.updateUnitInformation(id, updates);
+            setUnitInformation(unitInformation.map(u => u.id === id ? { ...u, ...updates } : u));
+        } catch (error) {
+            console.error("Error updating unit info:", error);
+            toast.error("Failed to update unit information");
+        }
+    };
+
+    const handleSaveBrief = async () => {
+        try {
+            await managementService.updateSettings({
+                brief_title: briefTitle,
+                brief_subtitle: briefSubtitle,
+                brief_overview: briefOverview,
+                strategic_objective: strategicObjective,
+                unit_formation_plan_pastor: unitFormationPastor,
+                unit_formation_plan_meeting: unitFormationMeeting
+            });
+            setIsBriefEditMode(false);
+            toast.success("Project brief updated successfully");
+        } catch (error) {
+            console.error("Error saving brief:", error);
+            toast.error("Failed to save project brief");
+        }
+    };
+
     // Derived State
     const currentPhase = phases.find(p => {
         const now = currentTime;
@@ -1101,8 +1364,14 @@ const ManagementTeamPage = () => {
                         <Clock className="w-3 h-3 mr-1" />
                         {currentPhase.name} Active
                     </Badge>
-                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                        Bishopric Consecration & <span className="text-purple-600 block md:inline">Outpouring Convention</span>
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight flex flex-col md:flex-row md:items-center gap-4">
+                        <span>Bishopric Consecration & <span className="text-purple-600">Outpouring Convention</span></span>
+                        <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/30 border border-purple-100 dark:border-purple-800 px-4 py-1.5 rounded-2xl shadow-sm transition-all hover:shadow-md hover:border-purple-200">
+                            <Calendar className="w-4 h-4 text-purple-600" />
+                            <span className="text-xs font-black text-purple-700 dark:text-purple-300 uppercase tracking-[0.2em]">
+                                14 - 16 Aug 2026
+                            </span>
+                        </div>
                     </h1>
                     <p className="text-slate-500 font-medium mt-2 max-w-2xl">
                         Project Management Dashboard for {currentTime.toLocaleString('default', { month: 'long', year: 'numeric' })}
@@ -1162,12 +1431,27 @@ const ManagementTeamPage = () => {
                                 {isBudgetEditMode ? "Finish Editing" : "Manage Budget"}
                             </Button>
                         )}
+
+                        {activeTab === 'brief' && (
+                            <Button
+                                variant={isBriefEditMode ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                    if (isBriefEditMode) handleSaveBrief();
+                                    else setIsBriefEditMode(true);
+                                }}
+                                className="gap-2"
+                            >
+                                {isBriefEditMode ? <Save className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                                {isBriefEditMode ? "Save Brief" : "Manage Brief"}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Main Content Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="flex flex-nowrap overflow-x-auto pb-2 justify-start md:justify-center gap-2 mb-8 bg-transparent h-auto p-0 w-full no-scrollbar">
                     <TabsTrigger
                         value="dashboard"
@@ -1253,13 +1537,21 @@ const ManagementTeamPage = () => {
                             </CardContent>
                         </Card>
 
-                        <Card>
+                        <Card className="relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/5 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-500" />
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-slate-500">Day Count</CardTitle>
+                                <CardTitle className="text-sm font-medium text-slate-500 flex items-center justify-between">
+                                    Day Count
+                                    <Calendar className="w-4 h-4 text-purple-600" />
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">214</div>
-                                <p className="text-xs text-slate-500">Until Convention</p>
+                                <div className="text-2xl font-black text-purple-600">
+                                    {Math.ceil((new Date(2026, 7, 14).getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24))} Days
+                                </div>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter mt-1">
+                                    Aug 14th - 16th, 2026
+                                </p>
                             </CardContent>
                         </Card>
                     </div>
@@ -1275,7 +1567,7 @@ const ManagementTeamPage = () => {
                                 {tools.map(tool => (
                                     <div key={tool.id} className="group flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                                         <button
-                                            onClick={() => setActiveTab(tool.url)}
+                                            onClick={() => handleTabChange(tool.url)}
                                             className="flex items-center gap-3 flex-1 text-left"
                                         >
                                             <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center">
@@ -1318,7 +1610,7 @@ const ManagementTeamPage = () => {
 
                                         return (
                                             <div key={phase.id} className="ml-6 relative">
-                                                <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 ${isActive ? 'bg-purple-600 border-purple-600 animate-pulse' :
+                                                <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 ${isActive ? 'bg-purple-600 border-purple-600' :
                                                     isPast ? 'bg-slate-400 border-slate-400' :
                                                         'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600'
                                                     }`} />
@@ -1344,7 +1636,23 @@ const ManagementTeamPage = () => {
 
                 {/* BRIEF TAB */}
                 <TabsContent value="brief">
-                    <ModernProjectBrief unitInformation={unitInformation} />
+                    <ModernProjectBrief
+                        unitInformation={unitInformation}
+                        isEditMode={isBriefEditMode}
+                        briefTitle={briefTitle}
+                        setBriefTitle={setBriefTitle}
+                        briefSubtitle={briefSubtitle}
+                        setBriefSubtitle={setBriefSubtitle}
+                        briefOverview={briefOverview}
+                        setBriefOverview={setBriefOverview}
+                        strategicObjective={strategicObjective}
+                        setStrategicObjective={setStrategicObjective}
+                        unitFormationPastor={unitFormationPastor}
+                        setUnitFormationPastor={setUnitFormationPastor}
+                        unitFormationMeeting={unitFormationMeeting}
+                        setUnitFormationMeeting={setUnitFormationMeeting}
+                        onUpdateUnit={handleUpdateUnitInfo}
+                    />
                 </TabsContent>
 
                 {/* BUDGET TAB */}
