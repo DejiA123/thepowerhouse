@@ -392,14 +392,49 @@ const GuestListManager = ({
         <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Guest List</CardTitle>
-                            <CardDescription>Manage invitations and RSVPs</CardDescription>
+                    <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/50 pb-6">
+                        <div className="flex-1">
+                            <CardTitle className="text-xl font-black tracking-tight text-slate-900 dark:text-white mb-1">Guest List</CardTitle>
+                            <CardDescription className="font-medium text-slate-500">Manage invitations and RSVPs</CardDescription>
                         </div>
-                        <div className="flex gap-2">
-                            <Badge variant="secondary">{(guests || []).filter(g => g.rsvp_status === 'Confirmed').length} Confirmed</Badge>
-                            <Badge variant="outline">{(guests || []).length} Total</Badge>
+
+                        <div className="w-full sm:w-auto flex flex-col gap-3 min-w-[240px]">
+                            <div className="flex items-center justify-between gap-6 px-1">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 flex items-center justify-center">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                                            {(guests || []).filter(g => g.rsvp_status === 'Confirmed').length}
+                                        </div>
+                                        <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Confirmed</div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 flex items-center justify-center">
+                                        <Users className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                                            {(guests || []).length}
+                                        </div>
+                                        <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Total</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5 px-1">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-purple-600">
+                                    <span>RSVP Progress</span>
+                                    <span>{Math.round(((guests || []).filter(g => g.rsvp_status === 'Confirmed').length / Math.max((guests || []).length, 1)) * 100)}%</span>
+                                </div>
+                                <Progress
+                                    value={((guests || []).filter(g => g.rsvp_status === 'Confirmed').length / Math.max((guests || []).length, 1)) * 100}
+                                    className="h-1.5 bg-slate-100 dark:bg-slate-800 [&>div]:bg-purple-600 [&>div]:transition-none"
+                                />
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 sm:p-6">

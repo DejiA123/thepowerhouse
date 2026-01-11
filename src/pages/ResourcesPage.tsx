@@ -203,8 +203,8 @@ const ResourcesPage = () => {
     {
       title: "Follow Up",
       icon: ChevronRight,
-      color: "from-teal-500 to-green-500",
-      shadow: "shadow-teal-500/20",
+      color: "from-rose-500 to-pink-600",
+      shadow: "shadow-rose-500/20",
       onClick: () => navigate("/follow-up")
     }
   ];
