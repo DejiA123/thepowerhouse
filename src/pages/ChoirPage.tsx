@@ -230,6 +230,10 @@ const ChoirPage = () => {
     const [importText, setImportText] = useState("");
     const [importSetType, setImportSetType] = useState<'praise' | 'worship' | null>(null);
 
+    // UI States for Import Folder Songs
+    const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
+    const [importFolderText, setImportFolderText] = useState("");
+
     // Unified YouTube ID extractor
     const extractYoutubeId = (url?: string) => {
         if (!url) return null;
@@ -615,6 +619,61 @@ const ChoirPage = () => {
         } catch (e) {
             console.error(e);
             toast.error("Failed to import some songs");
+        }
+    };
+
+    const handleImportFolderSongs = async () => {
+        if (!importFolderText.trim() || !activeFolderId) return;
+
+        const lines = importFolderText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        let matchedCount = 0;
+
+        try {
+            const results = await Promise.all(lines.map(async (line) => {
+                // Try to match with lyrics in other folders to pre-fill details
+                // Exclude current folder to avoid self-match if we were editing (but we are adding new so it's fine)
+                const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+
+                const songDetails = match ? {
+                    title: match.title,
+                    key: match.key || "",
+                    artist: match.artist || "",
+                    url: match.url || "",
+                    notes: match.notes || ""
+                } : {
+                    title: line,
+                    key: "",
+                    artist: "",
+                    url: "",
+                    notes: ""
+                };
+
+                if (match) matchedCount++;
+
+                return choirService.addSongToFolder({
+                    folder_id: activeFolderId,
+                    ...songDetails
+                });
+            }));
+
+            const newSongs = results as any[]; // Type assertion for the song object
+
+            // Update local state
+            setFolders(folders.map(f => {
+                if (f.id === activeFolderId) {
+                    return { ...f, songs: [...(f.songs || []), ...newSongs] };
+                }
+                return f;
+            }) as any);
+
+            setIsImportFolderOpen(false);
+            setImportFolderText("");
+            toast.success(`Imported ${newSongs.length} songs to folder (${matchedCount} details matched)`);
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to import songs to folder");
         }
     };
 
@@ -1604,66 +1663,116 @@ const ChoirPage = () => {
                                         </Dialog>
 
                                         {activeFolderId && (
-                                            <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white shadow-md">
-                                                        <Plus className="w-4 h-4 sm:mr-2" />
-                                                        <span className="hidden sm:inline">Add Song</span>
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
-                                                    </DialogHeader>
-                                                    <div className="space-y-4 py-4">
-                                                        <div className="space-y-2">
-                                                            <Label>Song Title</Label>
-                                                            <Input
-                                                                placeholder="e.g. Goodness of God"
-                                                                value={newSong.title}
-                                                                onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
-                                                            />
+                                            <div className="flex gap-2">
+                                                <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                                            <Download className="w-4 h-4 sm:mr-2" />
+                                                            <span className="hidden sm:inline">Import</span>
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                                                        <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
+                                                            <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+                                                                <Download className="w-6 h-6 text-purple-600" />
+                                                                Import Songs to Folder
+                                                            </DialogTitle>
+                                                        </DialogHeader>
+
+                                                        <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                                                            <div className="space-y-4">
+                                                                <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                                                    Paste a list of songs (one song per line). We'll try to find matches in your library to pre-fill details.
+                                                                </p>
+                                                                <Textarea
+                                                                    placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
+                                                                    className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
+                                                                    value={importFolderText}
+                                                                    onChange={(e) => setImportFolderText(e.target.value)}
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
+                                                                <Button
+                                                                    onClick={handleImportFolderSongs}
+                                                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-purple-500/20"
+                                                                    disabled={!importFolderText.trim()}
+                                                                >
+                                                                    Import {importFolderText.split('\n').filter(l => l.trim()).length} Songs
+                                                                </Button>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    onClick={() => setIsImportFolderOpen(false)}
+                                                                    className="rounded-2xl py-8 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto"
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
                                                         </div>
-                                                        <div className="grid grid-cols-2 gap-4">
+                                                    </DialogContent>
+                                                </Dialog>
+
+                                                <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white shadow-md">
+                                                            <Plus className="w-4 h-4 sm:mr-2" />
+                                                            <span className="hidden sm:inline">Add Song</span>
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
+                                                        </DialogHeader>
+                                                        <div className="space-y-4 py-4">
                                                             <div className="space-y-2">
-                                                                <Label>Key</Label>
+                                                                <Label>Song Title</Label>
                                                                 <Input
-                                                                    placeholder="e.g. A"
-                                                                    value={newSong.key}
-                                                                    onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                                                                    placeholder="e.g. Goodness of God"
+                                                                    value={newSong.title}
+                                                                    onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div className="space-y-2">
+                                                                    <Label>Key</Label>
+                                                                    <Input
+                                                                        placeholder="e.g. A"
+                                                                        value={newSong.key}
+                                                                        onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>Artist (Optional)</Label>
+                                                                    <Input
+                                                                        placeholder="e.g. CeCe Winans"
+                                                                        value={newSong.artist}
+                                                                        onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>YouTube/Audio Link</Label>
+                                                                <Input
+                                                                    placeholder="https://..."
+                                                                    value={newSong.url}
+                                                                    onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
                                                                 />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <Label>Artist (Optional)</Label>
-                                                                <Input
-                                                                    placeholder="e.g. CeCe Winans"
-                                                                    value={newSong.artist}
-                                                                    onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                                                                <Label>Notes</Label>
+                                                                <Textarea
+                                                                    placeholder="Add notes about structure, harmonies, etc."
+                                                                    value={newSong.notes}
+                                                                    onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <Label>YouTube/Audio Link</Label>
-                                                            <Input
-                                                                placeholder="https://..."
-                                                                value={newSong.url}
-                                                                onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>Notes</Label>
-                                                            <Textarea
-                                                                placeholder="Add notes about structure, harmonies, etc."
-                                                                value={newSong.notes}
-                                                                onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <Button onClick={handleAddSong} className="bg-purple-600 text-white">Save Song</Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                                        <DialogFooter>
+                                                            <Button onClick={handleAddSong} className="bg-purple-600 text-white">Save Song</Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
