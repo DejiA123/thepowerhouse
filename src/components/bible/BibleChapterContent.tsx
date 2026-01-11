@@ -894,7 +894,7 @@ export const BibleChapterContent = ({
         className={cn(
           "fixed left-0 right-0 z-[100] px-4 transition-all duration-500 ease-out",
           selectedVerses.length > 0 || isMultiSelectMode
-            ? "bottom-6 opacity-100 translate-y-0"
+            ? "bottom-[calc(env(safe-area-inset-bottom)+5rem)] opacity-100 translate-y-0"
             : "bottom-0 opacity-0 translate-y-20 pointer-events-none"
         )}
       >
@@ -1020,7 +1020,9 @@ export const BibleChapterContent = ({
       <div
         className={cn(
           "fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out pointer-events-none",
-          selectedVerses.length > 0 || isMultiSelectMode ? "bottom-40" : "bottom-20"
+          selectedVerses.length > 0 || isMultiSelectMode
+            ? "bottom-[calc(env(safe-area-inset-bottom)+16.5rem)]"
+            : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)]"
         )}
       >
         <div className="flex items-center justify-between px-8 pointer-events-auto max-w-lg mx-auto">

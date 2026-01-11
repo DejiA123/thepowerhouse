@@ -718,9 +718,7 @@
   @apply p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200;
 }
 
-.bible-navigation-controls {
-  @apply fixed bottom-[72px] left-0 right-0 flex items-center justify-center px-4 py-3 bg-background/95 backdrop-blur-sm z-50 border-t border-border/30;
-}
+
 
 /* Bible book selection styles */
 .bible-book-selection {
@@ -1152,9 +1150,7 @@
   @apply text-sm text-muted-foreground mr-2 font-medium;
 }
 
-.bible-controls {
-  @apply fixed bottom-20 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border p-4 flex items-center justify-between;
-}
+
 
 .quick-action-card {
   @apply relative overflow-hidden rounded-lg bg-cover bg-center bg-no-repeat h-32 flex items-end mb-4;
