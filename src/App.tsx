@@ -15,6 +15,7 @@ import NewsPage from "@/pages/NewsPage";
 import GroupsPage from "@/pages/GroupsPage";
 import GivePage from "@/pages/GivePage";
 import ResourcesPage from "@/pages/ResourcesPage";
+import GroupChatsPage from "@/pages/GroupChatsPage";
 import BibleReadingPlansPage from "@/pages/BibleReadingPlansPage";
 import ServicesPage from "@/pages/ServicesPage";
 import AuthPage from "@/pages/AuthPage";
@@ -183,6 +184,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute>
                   <ResourcesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/group-chats"
+              element={
+                <ProtectedRoute>
+                  <GroupChatsPage />
                 </ProtectedRoute>
               }
             />

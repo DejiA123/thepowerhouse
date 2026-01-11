@@ -13,7 +13,8 @@ import {
   Calendar,
   Heart,
   ChevronRight,
-  PlayCircle
+  PlayCircle,
+  MessageCircle
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -177,7 +178,7 @@ const ResourcesPage = () => {
       icon: Users,
       color: "from-blue-500 to-cyan-500",
       shadow: "shadow-blue-500/20",
-      onClick: () => navigate("/groups")
+      onClick: () => navigate("/group-chats")
     },
     {
       title: "Prayer Request",
@@ -191,7 +192,7 @@ const ResourcesPage = () => {
       icon: Calendar,
       color: "from-green-500 to-emerald-500",
       shadow: "shadow-green-500/20",
-      onClick: () => navigate("/news")
+      onClick: () => navigate("/group-chats")
     },
     {
       title: "Bible Plans",
@@ -205,7 +206,14 @@ const ResourcesPage = () => {
       icon: ChevronRight,
       color: "from-rose-500 to-pink-600",
       shadow: "shadow-rose-500/20",
-      onClick: () => navigate("/follow-up")
+      onClick: () => navigate("/group-chats")
+    },
+    {
+      title: "Group Chats",
+      icon: MessageCircle,
+      color: "from-indigo-500 to-purple-500",
+      shadow: "shadow-indigo-500/20",
+      onClick: () => navigate("/group-chats")
     }
   ];
 

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AnnouncementsHub from "@/components/AnnouncementsHub";
 import EventsManager from "@/components/EventsManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { Calendar, Clock, MapPin, Star, Settings, ArrowRight } from "lucide-reac
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
@@ -32,9 +31,10 @@ const NewsPage = () => {
     }
   }, [user]);
 
-  const featuredEvents = events.filter(e => e.is_featured);
-  // fallback if no featured events, use the latest one
-  const displayFeatured = featuredEvents.length > 0 ? featuredEvents : (events.length > 0 ? [events[0]] : []);
+  const displayFeatured = useMemo(() => {
+    const featured = events.filter(e => e.is_featured);
+    return featured.length > 0 ? featured : (events.length > 0 ? [events[0]] : []);
+  }, [events]);
 
   useEffect(() => {
     // Exclude all featured events from the latest events list to prevent duplication
@@ -152,7 +152,14 @@ const NewsPage = () => {
                   Manage Events
                 </Button>
               )}
-              <Button variant="link" className="text-slate-300 hover:text-white transition-colors">
+              <Button
+                variant="link"
+                className="text-slate-300 hover:text-white transition-colors"
+                onClick={() => {
+                  const element = document.getElementById('announcements-sidebar');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
                 View All Announcements <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </div>
@@ -187,79 +194,70 @@ const NewsPage = () => {
           </div>
         </div>
 
-        {/* Featured Events Carousel */}
+        {/* Featured Events Vertical List */}
         {displayFeatured.length > 0 && (
-          <div className="animate-in slide-in-from-bottom-8 duration-700 delay-200 relative group/carousel">
-            <Carousel className="w-full" opts={{ loop: true }}>
-              <CarouselContent>
-                {displayFeatured.map((event) => (
-                  <CarouselItem key={event.id}>
-                    <Card className="group border-none bg-slate-900 text-white overflow-hidden shadow-2xl relative min-h-[450px] flex flex-col justify-end mx-1">
-                      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2073')] bg-cover bg-center brightness-50 group-hover:scale-105 transition-transform duration-1000" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent z-0" />
+          <div className="animate-in slide-in-from-bottom-8 duration-700 delay-200 flex flex-col gap-8">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">Featured Highlights</h2>
+            </div>
+            {displayFeatured.map((event) => (
+              <Card key={event.id} className="group border-none bg-slate-900 text-white overflow-hidden shadow-2xl relative min-h-[450px] flex flex-col justify-end transition-all hover:shadow-indigo-500/10">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2073')] bg-cover bg-center brightness-50 group-hover:scale-105 transition-transform duration-1000" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent z-0" />
 
-                      <div className="relative z-10 p-8 sm:p-12 space-y-6 max-w-3xl">
-                        <div className="flex items-center gap-3">
-                          <Badge className="bg-amber-500 text-white border-transparent px-3 py-1 text-xs uppercase tracking-widest font-black">
-                            Featured Event
-                          </Badge>
-                          <span className="text-white/60 text-sm font-medium flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-indigo-400" />
-                            {formatDate(event.event_date).full}
-                          </span>
-                        </div>
+                <div className="relative z-10 p-8 sm:p-12 space-y-6 max-w-3xl">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-amber-500 text-white border-transparent px-3 py-1 text-xs uppercase tracking-widest font-black">
+                      Featured Event
+                    </Badge>
+                    <span className="text-white/60 text-sm font-medium flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
+                      {formatDate(event.event_date).full}
+                    </span>
+                  </div>
 
-                        <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-                          {event.title}
-                        </h2>
-                        <p className="text-lg text-slate-300 leading-relaxed font-medium line-clamp-3">
-                          {event.description}
-                        </p>
+                  <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+                    {event.title}
+                  </h2>
+                  <p className="text-lg text-slate-300 leading-relaxed font-medium line-clamp-3">
+                    {event.description}
+                  </p>
 
-                        <div className="flex flex-wrap gap-6 items-center pt-4">
-                          {event.event_time && (
-                            <div className="flex items-center gap-2 text-slate-300 font-bold border-r border-white/10 pr-6">
-                              <Clock className="w-5 h-5 text-indigo-400" />
-                              {formatTime(event.event_time)}
-                            </div>
-                          )}
-                          {event.location && (
-                            <div className="flex items-center gap-2 text-slate-300 font-bold">
-                              <MapPin className="w-5 h-5 text-indigo-400" />
-                              {event.location}
-                            </div>
-                          )}
-                          <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
-                            {isAdmin && (
-                              <Button
-                                variant="secondary"
-                                onClick={() => {
-                                  setEditEventId(event.id);
-                                  setIsManageEventsOpen(true);
-                                }}
-                                className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-bold"
-                              >
-                                <Settings className="mr-2 h-4 w-4" />
-                                Edit Featured
-                              </Button>
-                            )}
-                            <Button className="flex-1 sm:flex-none bg-white text-slate-900 hover:bg-indigo-50 font-black px-8 py-6 h-auto transition-all active:scale-95 shadow-xl shadow-black/50">
-                              Join Us This Week
-                            </Button>
-                          </div>
-                        </div>
+                  <div className="flex flex-wrap gap-6 items-center pt-4">
+                    {event.event_time && (
+                      <div className="flex items-center gap-2 text-slate-300 font-bold border-r border-white/10 pr-6 uppercase tracking-wider text-xs">
+                        <Clock className="w-5 h-5 text-indigo-400" />
+                        {formatTime(event.event_time)}
                       </div>
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              {displayFeatured.length > 1 && (
-                <>
-                  <CarouselPrevious className="left-4 opacity-0 group-hover/carousel:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white border-white/20" />
-                  <CarouselNext className="right-4 opacity-0 group-hover/carousel:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white border-white/20" />
-                </>
-              )}
-            </Carousel>
+                    )}
+                    {event.location && (
+                      <div className="flex items-center gap-2 text-slate-300 font-bold uppercase tracking-wider text-xs">
+                        <MapPin className="w-5 h-5 text-indigo-400" />
+                        {event.location}
+                      </div>
+                    )}
+                    <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
+                      {isAdmin && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setEditEventId(event.id);
+                            setIsManageEventsOpen(true);
+                          }}
+                          className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-bold"
+                        >
+                          <Settings className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                      )}
+                      <Button className="flex-1 sm:flex-none bg-white text-slate-900 hover:bg-indigo-50 font-black px-8 py-6 h-auto transition-all active:scale-95 shadow-xl shadow-black/50">
+                        Join Us This Week
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
 
@@ -380,7 +378,7 @@ const NewsPage = () => {
           </div>
 
           {/* Sidebar Area */}
-          <div className="space-y-8">
+          <div id="announcements-sidebar" className="space-y-8 scroll-mt-24">
             {/* Announcements Hub */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16" />
@@ -424,18 +422,30 @@ const NewsPage = () => {
             }
           }}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-none shadow-2xl p-0 bg-slate-50 dark:bg-slate-950">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-20">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
-                  <Settings className="w-6 h-6 text-indigo-500" />
-                  Events Management
-                </DialogTitle>
-                <DialogDescription>Create, edit, and organize church events.</DialogDescription>
-              </DialogHeader>
+          <DialogContent className="w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden fixed inset-0 top-0 left-0 translate-x-0 translate-y-0 z-[200] [&>button]:z-[300] [&>button]:right-6 [&>button]:top-6 sm:[&>button]:top-8 [&>button]:h-11 [&>button]:w-11 [&>button]:bg-white/90 [&>button]:dark:bg-slate-900/90 [&>button]:backdrop-blur-xl [&>button]:rounded-2xl [&>button]:shadow-2xl [&>button]:border [&>button]:border-slate-200/50 [&>button]:dark:border-slate-800/50 [&>button]:opacity-100 [&>button]:transition-all [&>button]:hover:scale-110 [&>button]:active:scale-95 [&>button]:hover:shadow-indigo-500/20 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-6 [&>button_svg]:w-6 [&>button_svg]:text-slate-950 [&>button_svg]:dark:text-white">
+            <div className="p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 pr-20 sm:pr-32">
+              <div className="max-w-6xl mx-auto flex flex-col gap-2">
+                <DialogHeader>
+                  <div className="flex items-center gap-4 mb-1">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+                      <Settings className="w-6 h-6 animate-spin-slow" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-2xl sm:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
+                        Events Control
+                      </DialogTitle>
+                      <DialogDescription className="text-xs sm:text-sm font-bold text-indigo-500 uppercase tracking-[0.2em]">
+                        Admin Command Center
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </div>
             </div>
-            <div className="p-8">
-              <EventsManager initialEditEventId={editEventId} />
+            <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
+              <div className="max-w-6xl mx-auto p-6 sm:p-12">
+                <EventsManager initialEditEventId={editEventId} />
+              </div>
             </div>
           </DialogContent>
         </Dialog>
