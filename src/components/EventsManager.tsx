@@ -246,111 +246,125 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
               Add New Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-xl w-[95vw] max-h-[95dvh] sm:max-h-[90dvh] overflow-y-auto border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 scrollbar-hide">
-            <div className="sticky top-0 z-10 p-8 border-b border-slate-50 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
-              <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
-              <p className="text-sm text-slate-500 mt-1">Fill in the details to schedule a new highlight.</p>
-            </div>
-            <div className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Event Title *</label>
-                <Input
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="The Grand Opening..."
-                  className="h-14 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 font-bold text-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Description</label>
-                <Textarea
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="What should people know about this event?"
-                  rows={3}
-                  className="bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 resize-none py-4"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Date *</label>
-                  <Input
-                    type="date"
-                    value={newEvent.event_date}
-                    onChange={(e) => setNewEvent(prev => ({ ...prev, event_date: e.target.value }))}
-                    className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
-                  />
+          <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-slate-100/80 [&>button]:dark:bg-slate-800/80 [&>button]:backdrop-blur-xl [&>button]:rounded-2xl [&>button]:shadow-xl [&>button]:border [&>button]:border-slate-200/50 [&>button]:dark:border-slate-700/50 [&>button]:opacity-100 [&>button]:transition-all [&>button]:hover:scale-110 [&>button_svg]:h-6 [&>button_svg]:w-6">
+            <div
+              className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
+              style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
+            >
+              <div className="max-w-3xl mx-auto flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+                  <Plus className="w-6 h-6" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Time</label>
-                  <Input
-                    type="time"
-                    value={newEvent.event_time}
-                    onChange={(e) => setNewEvent(prev => ({ ...prev, event_time: e.target.value }))}
-                    className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
-                  />
+                <div>
+                  <DialogTitle className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">Create Event</DialogTitle>
+                  <p className="text-xs sm:text-sm font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">Schedule a new highlight</p>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    value={newEvent.location}
-                    onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="Enter venue location"
-                    className="h-12 pl-11 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Category</label>
-                  <Select value={newEvent.event_type} onValueChange={(value) => setNewEvent(prev => ({ ...prev, event_type: value }))}>
-                    <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-                      {eventTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Priority</label>
-                  <Select value={newEvent.priority} onValueChange={(value) => setNewEvent(prev => ({ ...prev, priority: value }))}>
-                    <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-                      {priorities.map(priority => (
-                        <SelectItem key={priority.value} value={priority.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{priority.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
-                <input
-                  type="checkbox"
-                  id="featured"
-                  checked={newEvent.is_featured}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, is_featured: e.target.checked }))}
-                  className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
-                />
-                <label htmlFor="featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
               </div>
             </div>
-            <DialogFooter className="p-8 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-50 dark:border-slate-800 gap-3">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="h-14 px-8 rounded-2xl font-bold flex-1 sm:flex-none border-slate-200 dark:border-slate-700">Cancel</Button>
-              <Button
-                onClick={createEvent}
-                disabled={loading || !newEvent.title || !newEvent.event_date}
-                className="h-14 px-8 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 transition-all flex-1"
-              >
-                {loading ? "Creating..." : "Launch Event"}
-              </Button>
+            <div className="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-slate-950/30 p-8 sm:p-12">
+              <div className="max-w-3xl mx-auto space-y-10">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Event Title *</label>
+                  <Input
+                    value={newEvent.title}
+                    onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="The Grand Opening..."
+                    className="h-14 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 font-bold text-lg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Description</label>
+                  <Textarea
+                    value={newEvent.description}
+                    onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What should people know about this event?"
+                    rows={3}
+                    className="bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 resize-none py-4"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Date *</label>
+                    <Input
+                      type="date"
+                      value={newEvent.event_date}
+                      onChange={(e) => setNewEvent(prev => ({ ...prev, event_date: e.target.value }))}
+                      className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Time</label>
+                    <Input
+                      type="time"
+                      value={newEvent.event_time}
+                      onChange={(e) => setNewEvent(prev => ({ ...prev, event_time: e.target.value }))}
+                      className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Location</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      value={newEvent.location}
+                      onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Enter venue location"
+                      className="h-12 pl-11 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Category</label>
+                    <Select value={newEvent.event_type} onValueChange={(value) => setNewEvent(prev => ({ ...prev, event_type: value }))}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
+                        {eventTypes.map(type => (
+                          <SelectItem key={type.value} value={type.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Priority</label>
+                    <Select value={newEvent.priority} onValueChange={(value) => setNewEvent(prev => ({ ...prev, priority: value }))}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
+                        {priorities.map(priority => (
+                          <SelectItem key={priority.value} value={priority.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{priority.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
+                  <input
+                    type="checkbox"
+                    id="featured"
+                    checked={newEvent.is_featured}
+                    onChange={(e) => setNewEvent(prev => ({ ...prev, is_featured: e.target.checked }))}
+                    className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
+                  />
+                  <label htmlFor="featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}>
+              <div className="max-w-3xl mx-auto w-full flex flex-col sm:flex-row gap-4">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancel</Button>
+                <Button
+                  onClick={createEvent}
+                  disabled={loading || !newEvent.title || !newEvent.event_date}
+                  className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95"
+                >
+                  {loading ? "Creating..." : "Launch Event"}
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -458,110 +472,124 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
 
       {/* Edit Event Dialog */}
       <Dialog open={!!editEvent} onOpenChange={() => setEditEvent(null)}>
-        <DialogContent className="max-w-xl w-[95vw] max-h-[95dvh] sm:max-h-[90dvh] overflow-y-auto border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 scrollbar-hide">
-          <div className="sticky top-0 z-10 p-8 border-b border-slate-50 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
-            <DialogTitle className="text-2xl font-black tracking-tight">Refine Event</DialogTitle>
-            <p className="text-sm text-slate-500 mt-1">Make adjustments to your scheduled activity.</p>
+        <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-slate-100/80 [&>button]:dark:bg-slate-800/80 [&>button]:backdrop-blur-xl [&>button]:rounded-2xl [&>button]:shadow-xl [&>button]:border [&>button]:border-slate-200/50 [&>button]:dark:border-slate-700/50 [&>button]:opacity-100 [&>button]:transition-all [&>button]:hover:scale-110 [&>button_svg]:h-6 [&>button_svg]:w-6">
+          <div
+            className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
+          >
+            <div className="max-w-3xl mx-auto flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
+                <Edit className="w-6 h-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">Refine Event</DialogTitle>
+                <p className="text-xs sm:text-sm font-bold text-amber-500 uppercase tracking-[0.2em] mt-1">Adjust event details</p>
+              </div>
+            </div>
           </div>
           {editEvent && (
-            <div className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Event Title *</label>
-                <Input
-                  value={editEvent.title}
-                  onChange={(e) => setEditEvent(prev => prev ? { ...prev, title: e.target.value } : null)}
-                  className="h-14 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 font-bold text-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Description</label>
-                <Textarea
-                  value={editEvent.description || ""}
-                  onChange={(e) => setEditEvent(prev => prev ? { ...prev, description: e.target.value } : null)}
-                  rows={3}
-                  className="bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 resize-none py-4"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-slate-950/30 p-8 sm:p-12">
+              <div className="max-w-3xl mx-auto space-y-10">
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Date *</label>
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Event Title *</label>
                   <Input
-                    type="date"
-                    value={editEvent.event_date}
-                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, event_date: e.target.value } : null)}
-                    className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    value={editEvent.title}
+                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, title: e.target.value } : null)}
+                    className="h-14 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 font-bold text-lg"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Time</label>
-                  <Input
-                    type="time"
-                    value={editEvent.event_time || ""}
-                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, event_time: e.target.value } : null)}
-                    className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Description</label>
+                  <Textarea
+                    value={editEvent.description || ""}
+                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, description: e.target.value } : null)}
+                    rows={3}
+                    className="bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus-visible:ring-indigo-500 resize-none py-4"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    value={editEvent.location || ""}
-                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, location: e.target.value } : null)}
-                    className="h-12 pl-11 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Date *</label>
+                    <Input
+                      type="date"
+                      value={editEvent.event_date}
+                      onChange={(e) => setEditEvent(prev => prev ? { ...prev, event_date: e.target.value } : null)}
+                      className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Time</label>
+                    <Input
+                      type="time"
+                      value={editEvent.event_time || ""}
+                      onChange={(e) => setEditEvent(prev => prev ? { ...prev, event_time: e.target.value } : null)}
+                      className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Location</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      value={editEvent.location || ""}
+                      onChange={(e) => setEditEvent(prev => prev ? { ...prev, location: e.target.value } : null)}
+                      className="h-12 pl-11 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Category</label>
+                    <Select value={editEvent.event_type} onValueChange={(value) => setEditEvent(prev => prev ? { ...prev, event_type: value } : null)}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
+                        {eventTypes.map(type => (
+                          <SelectItem key={type.value} value={type.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-400">Priority</label>
+                    <Select value={editEvent.priority} onValueChange={(value) => setEditEvent(prev => prev ? { ...prev, priority: value } : null)}>
+                      <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
+                        {priorities.map(priority => (
+                          <SelectItem key={priority.value} value={priority.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{priority.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
+                  <input
+                    type="checkbox"
+                    id="edit-featured"
+                    checked={editEvent.is_featured}
+                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, is_featured: e.target.checked } : null)}
+                    className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
                   />
+                  <label htmlFor="edit-featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Category</label>
-                  <Select value={editEvent.event_type} onValueChange={(value) => setEditEvent(prev => prev ? { ...prev, event_type: value } : null)}>
-                    <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-                      {eventTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-wider text-slate-400">Priority</label>
-                  <Select value={editEvent.priority} onValueChange={(value) => setEditEvent(prev => prev ? { ...prev, priority: value } : null)}>
-                    <SelectTrigger className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus:ring-indigo-500 capitalize">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-                      {priorities.map(priority => (
-                        <SelectItem key={priority.value} value={priority.value} className="focus:bg-indigo-50 dark:focus:bg-indigo-900/40 rounded-lg mx-1">{priority.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
-                <input
-                  type="checkbox"
-                  id="edit-featured"
-                  checked={editEvent.is_featured}
-                  onChange={(e) => setEditEvent(prev => prev ? { ...prev, is_featured: e.target.checked } : null)}
-                  className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
-                />
-                <label htmlFor="edit-featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
               </div>
             </div>
           )}
-          <DialogFooter className="p-8 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-50 dark:border-slate-800 gap-3">
-            <Button variant="outline" onClick={() => setEditEvent(null)} className="h-14 px-8 rounded-2xl font-bold flex-1 sm:flex-none border-slate-200 dark:border-slate-700">Cancel</Button>
-            <Button
-              onClick={updateEvent}
-              disabled={editLoading || !editEvent?.title || !editEvent?.event_date}
-              className="h-14 px-8 rounded-2xl font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-600/20 transition-all flex-1"
-            >
-              {editLoading ? "Updating..." : "Apply Changes"}
-            </Button>
+          <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}>
+            <div className="max-w-3xl mx-auto w-full flex flex-col sm:flex-row gap-4">
+              <Button variant="outline" onClick={() => setEditEvent(null)} className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancel</Button>
+              <Button
+                onClick={updateEvent}
+                disabled={editLoading || !editEvent?.title || !editEvent?.event_date}
+                className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-[2] bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-600/30 transition-all active:scale-95"
+              >
+                {editLoading ? "Updating..." : "Apply Changes"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
