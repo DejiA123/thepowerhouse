@@ -95,23 +95,33 @@ const ResourcesPage = () => {
 
         const initialCategories: ResourceCategory[] = [
           {
-            title: "Sermon Series",
-            icon: <Video className="w-5 h-5" />,
+            title: "Interactive Session",
+            icon: <MessageCircle className="w-5 h-5" />,
             items: [
               {
-                name: "Faith Foundations",
-                description: "Building strong faith fundamentals",
-                downloads: downloadCounts["Sermon Series"]?.["Faith Foundations"] || 0
+                name: "Prayer",
+                description: "Deepening your conversation with God",
+                downloads: downloadCounts["Interactive Session"]?.["Prayer"] || 0
               },
               {
-                name: "Walking in Purpose",
-                description: "Discovering God's calling",
-                downloads: downloadCounts["Sermon Series"]?.["Walking in Purpose"] || 0
+                name: "Humility",
+                description: "The path to spiritual greatness",
+                downloads: downloadCounts["Interactive Session"]?.["Humility"] || 0
               },
               {
-                name: "Kingdom Living",
-                description: "Living as citizens of heaven",
-                downloads: downloadCounts["Sermon Series"]?.["Kingdom Living"] || 0
+                name: "Giving",
+                description: "The heart of generosity",
+                downloads: downloadCounts["Interactive Session"]?.["Giving"] || 0
+              },
+              {
+                name: "Faith",
+                description: "Trusting God in all seasons",
+                downloads: downloadCounts["Interactive Session"]?.["Faith"] || 0
+              },
+              {
+                name: "Word of God",
+                description: "The lamp to our feet",
+                downloads: downloadCounts["Interactive Session"]?.["Word of God"] || 0
               }
             ]
           },
@@ -285,10 +295,10 @@ const ResourcesPage = () => {
                             <Download className="w-3 h-3 mr-1" />
                             {item.downloads}
                           </span>
-                          {category.title === "Sermon Series" && (
+                          {category.title === "Interactive Session" && (
                             <span className="text-[10px] items-center flex font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">
                               <PlayCircle className="w-3 h-3 mr-1" />
-                              Watch
+                              Listen
                             </span>
                           )}
                         </div>
