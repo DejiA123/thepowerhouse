@@ -178,7 +178,7 @@ const ResourcesPage = () => {
       icon: Users,
       color: "from-blue-500 to-cyan-500",
       shadow: "shadow-blue-500/20",
-      onClick: () => navigate("/group-chats")
+      onClick: () => navigate("/groups")
     },
     {
       title: "Prayer Request",
