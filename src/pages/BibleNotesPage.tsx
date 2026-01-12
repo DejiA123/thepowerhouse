@@ -130,7 +130,8 @@ const BibleNotesPage = () => {
             tags: [],
             is_favorite: false,
             is_private: false,
-            is_pinned: false
+            is_pinned: false,
+            folder_id: (typeof activeFolderId === 'string') ? activeFolderId : undefined
         });
         setShowNewNoteDialog(true);
     };
@@ -1072,7 +1073,7 @@ const BibleNotesPage = () => {
                                                 <SelectValue placeholder="Folder" />
                                             </div>
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent position="popper" sideOffset={5} className="z-[10000]">
                                             <SelectItem value="unfiled">All Notes</SelectItem>
                                             {folders.map(folder => (
                                                 <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
@@ -1109,8 +1110,10 @@ const BibleNotesPage = () => {
                                                     tags: selectedNote.tags || [],
                                                     is_favorite: selectedNote.is_favorite || false,
                                                     is_private: selectedNote.is_private || false,
-                                                    is_pinned: selectedNote.is_pinned || false
+                                                    is_pinned: selectedNote.is_pinned || false,
+                                                    folder_id: selectedNote.folder_id || undefined
                                                 });
+                                                setEditingNote(selectedNote);
                                                 setIsInlineEditing(true);
                                             }}
                                         >
@@ -1187,7 +1190,7 @@ const BibleNotesPage = () => {
                                                     <SelectValue placeholder="Add to Folder" />
                                                 </div>
                                             </SelectTrigger>
-                                            <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                                            <SelectContent position="popper" sideOffset={5} className="z-[10000]">
                                                 <SelectItem value="unfiled">All Notes</SelectItem>
                                                 {folders.map(folder => (
                                                     <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
