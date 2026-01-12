@@ -246,8 +246,8 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
               Add New Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-xl border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+          <DialogContent className="max-w-xl w-[95vw] max-h-[95dvh] sm:max-h-[90dvh] overflow-y-auto border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 scrollbar-hide">
+            <div className="sticky top-0 z-10 p-8 border-b border-slate-50 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
               <DialogTitle className="text-2xl font-black tracking-tight">Create Event</DialogTitle>
               <p className="text-sm text-slate-500 mt-1">Fill in the details to schedule a new highlight.</p>
             </div>
@@ -458,8 +458,8 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
 
       {/* Edit Event Dialog */}
       <Dialog open={!!editEvent} onOpenChange={() => setEditEvent(null)}>
-        <DialogContent className="max-w-xl border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-hidden">
-          <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+        <DialogContent className="max-w-xl w-[95vw] max-h-[95dvh] sm:max-h-[90dvh] overflow-y-auto border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 scrollbar-hide">
+          <div className="sticky top-0 z-10 p-8 border-b border-slate-50 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
             <DialogTitle className="text-2xl font-black tracking-tight">Refine Event</DialogTitle>
             <p className="text-sm text-slate-500 mt-1">Make adjustments to your scheduled activity.</p>
           </div>
@@ -567,8 +567,8 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-hidden max-w-sm text-center">
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-y-auto max-h-[90dvh] max-w-sm text-center">
           <div className="p-8">
             <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/20 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <Trash2 className="w-8 h-8" />
