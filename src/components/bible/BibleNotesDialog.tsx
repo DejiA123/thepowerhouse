@@ -289,7 +289,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Bible Notes - {getLocationText()}
+            My Notes - {getLocationText()}
           </DialogTitle>
           <DialogDescription>
             Create, edit, and manage your Bible study notes for this chapter or verse.

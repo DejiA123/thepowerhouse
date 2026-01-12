@@ -133,7 +133,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
             <Plus className="w-5 h-5" />
-            <span>Bible Notes - {book} {chapter}{verse ? `:${verse}` : ''}</span>
+            <span>My Notes - {book} {chapter}{verse ? `:${verse}` : ''}</span>
           </CardTitle>
           {onBackToChapters && (
             <Button variant="outline" size="sm" onClick={onBackToChapters}>

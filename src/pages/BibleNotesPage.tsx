@@ -109,7 +109,7 @@ const BibleNotesPage = () => {
     }, [user]);
 
     useEffect(() => {
-        if (user && activeFolderId !== undefined) {
+        if (user) {
             fetchNotes();
         }
     }, [activeFolderId, user]);
@@ -560,7 +560,7 @@ const BibleNotesPage = () => {
 
                     <div className="max-w-2xl">
                         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 drop-shadow-sm font-outfit">
-                            Bible Notes
+                            My Notes
                         </h1>
                         <p className="text-white/80 text-lg md:text-xl font-medium leading-relaxed mb-10">
                             Capture every moment of divine inspiration and build your personal library of biblical wisdom.
