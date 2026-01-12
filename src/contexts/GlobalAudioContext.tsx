@@ -153,7 +153,25 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       audio.src = audioUrl;
+      audio.load();
       await audio.play();
+
+      // Update Media Session Position State
+      const updatePosition = () => {
+        if ('mediaSession' in navigator && audio.duration) {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            playbackRate: audio.playbackRate,
+            position: audio.currentTime,
+          });
+        }
+      };
+
+      if (audio.duration) {
+        updatePosition();
+      } else {
+        audio.addEventListener('loadedmetadata', updatePosition, { once: true });
+      }
 
       // Start prefetching next chapter immediately after current starts
       prefetchNextChapter(book, chapter, version);
@@ -242,9 +260,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     }
 
+    // Direct transition for better background performance
     setTimeout(() => {
       isAutoAdvancingRef.current = false;
-    }, 2000); // Increased timeout to prevent rapid firing during background transitions
+    }, 1500);
 
   }, [playBibleChapterMP3, reset]);
 
@@ -297,27 +316,55 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('🎵 Audio element event: ended');
       const { loopChapter, autoPlayNext, currentBook, currentChapter } = audioStateRef.current;
 
-      // Notify service worker that audio ended
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'AUDIO_ENDED',
-          book: currentBook,
-          chapter: currentChapter,
-          autoPlayNext
-        });
-      }
-
       if (loopChapter) {
         audio.currentTime = 0;
         audio.play().catch(console.error);
       } else if (autoPlayNext) {
         console.log('🎵 Automatically advancing to next chapter');
+
+        // Notify service worker that audio ended IMMEDIATELY before transition
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'AUDIO_ENDED',
+            book: currentBook,
+            chapter: currentChapter,
+            autoPlayNext
+          });
+        }
+
         goToNextChapter();
       } else {
         setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
         if ('mediaSession' in navigator) {
           navigator.mediaSession.playbackState = 'paused';
         }
+      }
+    };
+
+    // Watchdog timer to ensure transition happens if 'ended' event is suppressed by OS
+    let watchdogTimer: any = null;
+    const startWatchdog = () => {
+      if (watchdogTimer) clearInterval(watchdogTimer);
+      watchdogTimer = setInterval(() => {
+        if (!audio.paused && audio.duration > 0) {
+          const timeLeft = audio.duration - audio.currentTime;
+          // If we are within 1 second of the end and not yet moving to next chapter
+          if (timeLeft < 1 && audioStateRef.current.autoPlayNext && !isAutoAdvancingRef.current) {
+            console.log('🎵 Watchdog: Audio near end, triggering transition');
+            handleEnded();
+          }
+        }
+      }, 500);
+    };
+
+    const handleTimeUpdate = () => {
+      // Periodic position state update for OS lock screen
+      if ('mediaSession' in navigator && audio.duration && Math.floor(audio.currentTime) % 5 === 0) {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime,
+        });
       }
     };
 
@@ -333,6 +380,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    startWatchdog();
 
     if ('mediaSession' in navigator) {
       console.log('🎵 Setting Media Session action handlers.');
@@ -373,6 +422,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      if (watchdogTimer) clearInterval(watchdogTimer);
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.setActionHandler('play', null);
