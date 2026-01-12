@@ -253,24 +253,6 @@ const ResourcesPage = () => {
           ))}
         </div>
 
-        {/* Featured Resource */}
-        <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-32 blur-3xl"></div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-medium mb-3 backdrop-blur-sm border border-white/20">
-              Featured
-            </div>
-            <h3 className="text-xl font-bold mb-1">40 Days of Prayer</h3>
-            <p className="text-gray-400 text-sm mb-4 max-w-[80%]">Join our church-wide prayer and fasting journey.</p>
-            <Button
-              onClick={() => handleDownload("40 Days of Prayer", "Featured Resource")}
-              className="bg-white text-gray-900 hover:bg-gray-100 border-0 rounded-xl font-semibold shadow-lg shadow-white/10 w-full sm:w-auto transition-transform active:scale-95"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download Guide
-            </Button>
-          </div>
-        </div>
 
         {/* Categories */}
         {loading ? (
