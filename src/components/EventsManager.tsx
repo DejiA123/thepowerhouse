@@ -246,7 +246,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
               Add New Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:ring-0 [&>button]:outline-none [&>button]:focus:ring-0 [&>button]:focus:outline-none [&>button]:focus-visible:ring-0 [&>button]:focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
+          <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:!ring-0 [&>button]:!outline-none [&>button]:!focus:ring-0 [&>button]:!focus:outline-none [&>button]:!focus-visible:ring-0 [&>button]:!focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
             <div
               className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
               style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
@@ -472,7 +472,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
 
       {/* Edit Event Dialog */}
       <Dialog open={!!editEvent} onOpenChange={() => setEditEvent(null)}>
-        <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:ring-0 [&>button]:outline-none [&>button]:focus:ring-0 [&>button]:focus:outline-none [&>button]:focus-visible:ring-0 [&>button]:focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
+        <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:!ring-0 [&>button]:!outline-none [&>button]:!focus:ring-0 [&>button]:!focus:outline-none [&>button]:!focus-visible:ring-0 [&>button]:!focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
           <div
             className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
             style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
@@ -605,7 +605,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
             <p className="text-slate-500 mt-3 font-medium px-4">This action is permanent and cannot be reversed. Proceed with caution.</p>
           </div>
           <DialogFooter className="p-6 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-50 dark:border-slate-800 grid grid-cols-2 gap-4 sm:space-x-0">
-            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-12 rounded-xl font-bold border-slate-200 dark:border-slate-700">Go Back</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-12 rounded-xl font-bold border-slate-200 dark:border-slate-700 focus-visible:ring-0 focus-visible:outline-none">Go Back</Button>
             <Button
               variant="destructive"
               onClick={deleteEvent}
