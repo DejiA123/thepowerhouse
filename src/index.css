@@ -728,10 +728,11 @@
 }
 
 .bible-book-header {
-  @apply flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-border bg-white dark:bg-card;
-  /* Reduced padding to minimize gap */
-  padding-bottom: 8px;
-  margin-bottom: 2px;
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-border bg-white dark:bg-card;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .bible-book-cancel {
@@ -861,7 +862,7 @@
   padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
 .bible-chapter-back {
