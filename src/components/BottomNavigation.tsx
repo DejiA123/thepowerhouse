@@ -28,15 +28,19 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-0.5 px-4 min-w-0 flex-1 touch-none"
+              className="flex flex-col items-center justify-center py-0.5 px-4 min-w-0 flex-1 touch-none group"
               draggable="false"
             >
               <Icon
-                className={`w-6 h-6 ${isActive ? "text-primary" : "text-muted-foreground"
+                className={`w-6 h-6 transition-colors duration-200 ${isActive
+                  ? "text-primary shadow-sm"
+                  : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
               <span
-                className={`text-xs ${isActive ? "text-primary font-medium" : "text-muted-foreground"
+                className={`text-[10px] mt-1 transition-colors duration-200 ${isActive
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
                 draggable="false"
               >
