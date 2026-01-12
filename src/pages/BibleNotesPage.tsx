@@ -942,7 +942,7 @@ const BibleNotesPage = () => {
                     {selectedNote && (
                         <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                             {/* Standard Header Bar - Clean Apple Notes Style */}
-                            <div className="flex items-center justify-between px-6 h-16 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50">
+                            <div className="relative flex items-center justify-between px-6 h-16 border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50">
                                 <Button
                                     variant="ghost"
                                     onClick={() => {
@@ -953,28 +953,28 @@ const BibleNotesPage = () => {
                                             setShowNoteDialog(false);
                                         }
                                     }}
-                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2"
+                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2 z-10"
                                 >
                                     <ArrowLeft className="w-5 h-5" />
                                     {isInlineEditing ? 'Cancel' : 'Back'}
                                 </Button>
 
-                                <div className="flex-1 flex justify-center overflow-hidden px-4">
+                                <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[40%] md:max-w-lg">
                                     {isInlineEditing ? (
                                         <Input
                                             value={newNote.title}
                                             onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                                             placeholder="Note Title"
-                                            className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white max-w-lg"
+                                            className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
                                         />
                                     ) : (
-                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white max-w-lg text-center w-full">
+                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white text-center">
                                             {selectedNote.title || 'Divine Insight'}
                                         </h2>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 z-10">
                                     {isInlineEditing ? (
                                         <Button
                                             onClick={async () => {
