@@ -286,8 +286,8 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+        <DialogHeader className="sm:text-center">
+          <DialogTitle className="flex items-center justify-center gap-2 text-center w-full">
             <FileText className="w-5 h-5" />
             My Notes - {getLocationText()}
           </DialogTitle>

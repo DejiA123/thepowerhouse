@@ -69,7 +69,7 @@ const DailyScripture = () => {
         <CardContent className="relative z-10 space-y-8">
           {/* Scripture Section */}
           <div className="text-center px-4">
-            <h4 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600 mb-3 leading-relaxed">
+            <h4 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600 mb-3 leading-relaxed">
               "{todaysScripture.verse}"
             </h4>
             <p className="inline-block px-4 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-sm tracking-wide">
