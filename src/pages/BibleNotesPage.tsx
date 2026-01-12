@@ -968,7 +968,7 @@ const BibleNotesPage = () => {
                                             className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white max-w-lg"
                                         />
                                     ) : (
-                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white max-w-lg">
+                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white max-w-lg text-center w-full">
                                             {selectedNote.title || 'Divine Insight'}
                                         </h2>
                                     )}
@@ -1205,7 +1205,7 @@ const BibleNotesPage = () => {
                                     placeholder="Enter a title for this note"
                                     value={newNote.title}
                                     onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                    className="text-2xl md:text-3xl font-bold border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-[1.5rem] px-6 h-20 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all placeholder:text-gray-200 dark:placeholder:text-gray-700 text-gray-900 dark:text-white shadow-sm"
+                                    className="text-2xl md:text-3xl font-bold border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-[1.5rem] px-6 h-20 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all placeholder:text-gray-200 dark:placeholder:text-gray-700 text-gray-900 dark:text-white shadow-sm text-center"
                                 />
                             </div>
 

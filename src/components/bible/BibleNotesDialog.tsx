@@ -308,6 +308,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                   value={newNote.title}
                   onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Give your note a title..."
+                  className="text-center font-semibold"
                 />
               </div>
 
@@ -459,6 +460,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                                 value={editingNote.title || ''}
                                 onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
                                 placeholder="Note title..."
+                                className="text-center font-semibold"
                               />
                             </div>
 
@@ -536,7 +538,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                           <div className="flex justify-between items-start gap-3">
                             <div className="flex-1">
                               {note.title && (
-                                <h4 className="font-medium text-foreground mb-1">{note.title}</h4>
+                                <h4 className="font-medium text-foreground mb-1 text-center w-full">{note.title}</h4>
                               )}
                               <p className="text-sm leading-relaxed text-muted-foreground">{note.note_text}</p>
                             </div>
