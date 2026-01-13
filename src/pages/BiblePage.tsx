@@ -87,9 +87,9 @@ const BiblePage = () => {
   useEffect(() => {
     const loadVersions = async () => {
       const bibleVersions = await enhancedApiBibleService.getVersions();
-      const validVersions = bibleVersions.filter(version =>
-        version && version.abbreviation && version.name
-      );
+      const validVersions = bibleVersions
+        .filter(version => version && version.abbreviation && version.name)
+        .sort((a, b) => a.name.localeCompare(b.name));
       setVersions(validVersions);
     };
     loadVersions();
