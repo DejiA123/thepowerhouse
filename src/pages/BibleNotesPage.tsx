@@ -100,20 +100,12 @@ const BibleNotesPage = () => {
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
 
-    const [isScrolled, setIsScrolled] = useState(false);
-
     useEffect(() => {
         if (user) {
             fetchNotes();
             fetchFolders();
         }
         window.scrollTo(0, 0);
-
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 10);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
     }, [user]);
 
     useEffect(() => {
@@ -539,51 +531,8 @@ const BibleNotesPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950">
-            {/* Fixed Navigation Header - Removed 'sticky' to eliminate gap issues */}
-            <div className={cn(
-                "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-                isScrolled
-                    ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-sm"
-                    : "bg-transparent"
-            )}>
-                <div className="pt-[env(safe-area-inset-top)]">
-                    <div className={cn(
-                        "container mx-auto max-w-6xl px-4 py-3 flex items-center justify-between border-b transition-all duration-300",
-                        isScrolled
-                            ? "border-gray-200 dark:border-gray-800"
-                            : "border-transparent"
-                    )}>
-                        <Button
-                            variant="ghost"
-                            onClick={() => navigate('/bible')}
-                            className={cn(
-                                "rounded-full px-4 font-medium transition-all duration-300 flex items-center gap-1",
-                                isScrolled
-                                    ? "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                                    : "text-white hover:bg-white/20 bg-black/20 backdrop-blur-md border border-white/10"
-                            )}
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                            <span className="text-[15px]">Back</span>
-                        </Button>
-                        <Button
-                            onClick={openNewNote}
-                            className={cn(
-                                "font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105 active:scale-95",
-                                isScrolled
-                                    ? "bg-indigo-600 text-white hover:bg-indigo-700 px-6"
-                                    : "bg-white text-indigo-600 hover:bg-white/90 px-6 shadow-black/20"
-                            )}
-                        >
-                            <Plus className="w-5 h-5 mr-1.5" />
-                            New Note
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
             {/* Stunning Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-32">
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-12">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
@@ -591,7 +540,26 @@ const BibleNotesPage = () => {
                 <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
 
                 <div className="relative z-10 container mx-auto max-w-6xl">
-                    <div className="max-w-2xl mt-8">
+                    {/* Navigation Buttons */}
+                    <div className="flex items-center justify-between mb-8">
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/bible')}
+                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md rounded-full px-4"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Return to Bible
+                        </Button>
+                        <Button
+                            onClick={openNewNote}
+                            className="bg-white text-purple-600 hover:bg-white/90 font-bold px-6 rounded-full shadow-lg transition-transform hover:scale-105"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add New Note
+                        </Button>
+                    </div>
+
+                    <div className="max-w-2xl">
                         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 drop-shadow-sm font-outfit">
                             My Notes
                         </h1>
