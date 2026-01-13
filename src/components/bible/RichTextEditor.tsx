@@ -164,6 +164,42 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
         </BubbleMenu>
       )}
 
+      {editor && (
+        <BubbleMenu editor={editor} shouldShow={({ state }) => {
+          const { selection } = state;
+          return !selection.empty && !editor.isActive('table');
+        }}>
+          <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-950/95 border border-gray-100 dark:border-gray-800 p-1.5 rounded-full shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10">
+            <ToolbarButton
+              isActive={editor.isActive('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              title="Bold"
+              className="h-9 w-9"
+            >
+              <Bold className="w-4 h-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              isActive={editor.isActive('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              title="Italic"
+              className="h-9 w-9"
+            >
+              <Italic className="w-4 h-4" />
+            </ToolbarButton>
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
+            <ToolbarButton
+              isActive={editor.isActive('taskList')}
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+              activeColor="text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+              title="Add Checkbox"
+              className="h-9 w-9"
+            >
+              <CheckSquare className="w-4 h-4" />
+            </ToolbarButton>
+          </div>
+        </BubbleMenu>
+      )}
+
       <div className={cn(
         "fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out py-8",
         position === 'top' ? 'top-0' : 'bottom-0'
@@ -356,6 +392,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       TaskList,
       TaskItem.configure({
         nested: true,
+        HTMLAttributes: {
+          class: 'task-item',
+        },
       }),
       BubbleMenuExtension,
     ],
@@ -378,10 +417,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           '[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:mb-3 [&_h3]:mt-6 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200',
           '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ul_li]:mb-1',
           '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_ol_li]:mb-1',
-          '[&_.taskList]:list-none [&_.taskList]:p-0 [&_.taskList]:my-4',
-          '[&_.taskList_li]:flex [&_.taskList_li]:gap-3 [&_.taskList_li]:items-start [&_.taskList_li]:mb-2',
-          '[&_.taskList_input]:mt-1.5 [&_.taskList_input]:h-5 [&_.taskList_input]:w-5 [&_.taskList_input]:rounded-full [&_.taskList_input]:border-gray-300 [&_.taskList_input]:text-blue-600 [&_.taskList_input]:focus:ring-blue-500 [&_.taskList_input]:cursor-pointer',
-          '[&_.taskList_li[data-checked=\"true\"]_p]:line-through [&_.taskList_li[data-checked=\"true\"]_p]:opacity-50',
           !readOnly && !compact && 'min-h-[500px]',
           readOnly && 'caret-transparent' // Hide caret in readOnly mode
         ),
@@ -431,7 +466,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         <EditorContent editor={editor} className="min-h-full" />
         {!content && editor && editor.getText().length === 0 && !readOnly && (
           <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium">
-            {placeholder || 'Begin your divine exploration...'}
+            {placeholder || 'Select here to write your note...'}
           </div>
         )}
       </div>

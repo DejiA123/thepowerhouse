@@ -1336,6 +1336,89 @@ select {
   user-select: text;
 }
 
+/* Restore native appearance for checkbox inputs in task lists */
+input[type="checkbox"] {
+  -webkit-appearance: checkbox !important;
+  -moz-appearance: checkbox !important;
+  appearance: checkbox !important;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  accent-color: #2563eb;
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* TipTap Task List Specific Styles */
+ul[data-type="taskList"] {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 1rem 0 !important;
+}
+
+li[data-type="taskItem"] {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+  margin-bottom: 0.5rem !important;
+  list-style: none !important;
+  width: 100% !important;
+}
+
+li[data-type="taskItem"]>label {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 2.25rem !important;
+  /* Slightly wider for better spacing */
+  padding-top: 0.125rem !important;
+  /* Align with text baseline */
+  cursor: pointer !important;
+  margin: 0 !important;
+  user-select: none !important;
+}
+
+li[data-type="taskItem"]>label>input[type="checkbox"] {
+  -webkit-appearance: checkbox !important;
+  -moz-appearance: checkbox !important;
+  appearance: checkbox !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  width: 1.2rem !important;
+  height: 1.2rem !important;
+  accent-color: #2563eb !important;
+  flex-shrink: 0 !important;
+}
+
+/* Any direct child that is NOT the label should be the content */
+li[data-type="taskItem"]> :not(label) {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+}
+
+/* If the content is inside a p tag (common in TipTap) */
+li[data-type="taskItem"] p {
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: inherit !important;
+}
+
+li[data-type="taskItem"][data-checked="true"]> :not(label) {
+  text-decoration: line-through !important;
+  opacity: 0.6 !important;
+}
+
+/* Ensure prose-sm doesn't override layout */
+.prose ul[data-type="taskList"] li::before {
+  content: none !important;
+}
+
 /* Ensure inputs are properly focusable in PWA */
 input:focus,
 textarea:focus,
