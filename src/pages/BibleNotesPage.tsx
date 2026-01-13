@@ -529,6 +529,24 @@ const BibleNotesPage = () => {
         }
     };
 
+    const getNoteTitleFallback = (html: string): string => {
+        if (!html) return 'Divine Insight';
+        try {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            const firstParagraph = div.querySelector('p');
+            const text = firstParagraph ? firstParagraph.textContent : div.textContent;
+
+            if (!text || text.trim().length === 0) return 'Divine Insight';
+            const cleanText = text.trim();
+            return cleanText.substring(0, 40) + (cleanText.length > 40 ? '...' : '');
+        } catch {
+            const cleanText = html.replace(/<[^>]*>/g, '').trim();
+            if (!cleanText) return 'Divine Insight';
+            return cleanText.substring(0, 40) + (cleanText.length > 40 ? '...' : '');
+        }
+    };
+
     const stats = {
         total: globalStats.total,
         favourites: globalStats.favourites,
@@ -879,7 +897,7 @@ const BibleNotesPage = () => {
                                                 </div>
 
                                                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                                    {note.title || 'Divine Insight'}
+                                                    {note.title || getNoteTitleFallback(note.note_text)}
                                                 </h3>
 
                                                 <div className="relative min-h-[100px] max-h-[180px] overflow-hidden mb-6 group/editor">
@@ -984,7 +1002,7 @@ const BibleNotesPage = () => {
                                         />
                                     ) : (
                                         <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white text-center">
-                                            {selectedNote.title || 'Divine Insight'}
+                                            {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
                                         </h2>
                                     )}
                                 </div>
@@ -1105,7 +1123,10 @@ const BibleNotesPage = () => {
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <RichTextEditor
                                                     content={selectedNote?.note_text || ''}
-                                                    onChange={(content) => setSelectedNote(prev => prev ? { ...prev, note_text: content } : null)}
+                                                    onChange={(content) => {
+                                                        setSelectedNote(prev => prev ? { ...prev, note_text: content } : null);
+                                                        setNewNote(prev => ({ ...prev, note_text: content }));
+                                                    }}
                                                     placeholder=""
                                                     toolbarPosition="bottom"
                                                     className="flex-1 h-full"
@@ -1163,7 +1184,7 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Dialog */}
             <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
-                <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0">
+                <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden">
                     {/* Premium Navbar */}
                     <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                         <div className="flex items-center gap-4">

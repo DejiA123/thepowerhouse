@@ -406,7 +406,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     editorProps: {
       attributes: {
         class: cn(
-          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all',
+          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all text-[16px]',
           compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-1',
           'selection:bg-blue-100 dark:selection:bg-blue-900/30',
           '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
