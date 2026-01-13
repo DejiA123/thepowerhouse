@@ -82,26 +82,29 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
     }
   };
 
-  const shadowClass = position === 'top' ? 'shadow-sm' : 'shadow-[0_-8px_30px_rgba(0,0,0,0.12)]';
-  const heightClass = position === 'top' ? 'h-12' : 'h-16 pb-safe';
+  const shadowClass = "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]";
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
 
   const ToolbarButton = ({
     isActive,
     onClick,
     children,
     className = "",
-    activeColor = "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30"
+    activeColor = "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30",
+    title
   }: {
     isActive?: boolean,
     onClick: () => void,
     children: React.ReactNode,
     className?: string,
-    activeColor?: string
+    activeColor?: string,
+    title?: string
   }) => (
     <Button
       variant="ghost"
       size="sm"
       onClick={onClick}
+      title={title}
       className={cn(
         "h-10 w-10 p-0 rounded-full transition-all duration-200",
         isActive ? activeColor : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800",
@@ -162,85 +165,116 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
       )}
 
       <div className={cn(
-        "bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl sticky z-20 transition-all border-gray-100 dark:border-gray-800",
-        position === 'top' ? 'top-0 border-b' : 'bottom-0 border-t',
-        shadowClass
+        "fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out py-8",
+        position === 'top' ? 'top-0' : 'bottom-0'
       )}>
-        <div className="flex flex-col w-full">
-          {/* Secondary Formatting Menu (Apple Notes "Aa" Menu) */}
+        <div className="flex flex-col items-center gap-4">
+          {/* Grouped Formatting Menu (Aa) */}
           {showFormattingMenu && (
-            <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-100 dark:border-gray-800 animate-in slide-in-from-bottom-2 duration-200 overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full">
-                <ToolbarButton isActive={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+            <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2.5 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex flex-wrap items-center justify-center gap-2 max-w-[90vw] md:max-w-2xl ring-1 ring-black/5 dark:ring-white/5">
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/40 p-1 rounded-full">
+                <ToolbarButton isActive={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
                   <Bold className="w-5 h-5" />
                 </ToolbarButton>
-                <ToolbarButton isActive={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+                <ToolbarButton isActive={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
                   <Italic className="w-5 h-5" />
                 </ToolbarButton>
-                <ToolbarButton isActive={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+                <ToolbarButton isActive={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline">
                   <UnderlineIcon className="w-5 h-5" />
                 </ToolbarButton>
               </div>
 
-              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1 shrink-0"></div>
-
-              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full shrink-0">
-                <ToolbarButton isActive={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-                  <span className="font-bold text-sm">H1</span>
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/40 p-1 rounded-full">
+                <ToolbarButton isActive={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="Heading 1">
+                  <Heading1 className="w-5 h-5" />
                 </ToolbarButton>
-                <ToolbarButton isActive={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-                  <span className="font-bold text-sm">H2</span>
+                <ToolbarButton isActive={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">
+                  <Heading2 className="w-5 h-5" />
                 </ToolbarButton>
               </div>
 
-              <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1 shrink-0"></div>
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/40 p-1 rounded-full">
+                <ToolbarButton isActive={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bullet List">
+                  <List className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Numbered List">
+                  <ListOrdered className="w-5 h-5" />
+                </ToolbarButton>
+              </div>
 
-              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/50 p-1 rounded-full shrink-0">
-                <ToolbarButton isActive={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+              <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/40 p-1 rounded-full">
+                <ToolbarButton isActive={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align Left">
                   <AlignLeft className="w-5 h-5" />
                 </ToolbarButton>
-                <ToolbarButton isActive={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+                <ToolbarButton isActive={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Align Center">
                   <AlignCenter className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton isActive={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align Right">
+                  <AlignRight className="w-5 h-5" />
                 </ToolbarButton>
               </div>
             </div>
           )}
 
-          {/* Main Toolbar */}
-          <div className={cn("flex items-center justify-between px-6", heightClass)}>
-            <div className="flex items-center gap-4 md:gap-8">
-              <ToolbarButton
-                isActive={showFormattingMenu}
-                onClick={() => setShowFormattingMenu(!showFormattingMenu)}
-                activeColor="text-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50 dark:bg-indigo-900/30"
-              >
-                <span className="text-xl font-serif font-bold italic">Aa</span>
-              </ToolbarButton>
-
-              <ToolbarButton
-                isActive={editor.isActive('taskList')}
-                onClick={() => editor.chain().focus().toggleTaskList().run()}
-              >
-                <CheckSquare className="w-6 h-6" />
-              </ToolbarButton>
-
-              <ToolbarButton
-                isActive={editor.isActive('table')}
-                onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-              >
+          {/* Smart Insert Menu (+) */}
+          {showInsertMenu && (
+            <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex items-center gap-2 ring-1 ring-black/5 dark:ring-white/5">
+              <ToolbarButton onClick={() => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setShowInsertMenu(false); }} title="Insert Table">
                 <TableIcon className="w-6 h-6" />
               </ToolbarButton>
-
-              <ToolbarButton onClick={() => setShowImageDialog(true)}>
+              <ToolbarButton onClick={() => { setShowImageDialog(true); setShowInsertMenu(false); }} title="Insert Image">
                 <ImageIcon className="w-6 h-6" />
               </ToolbarButton>
+              <ToolbarButton onClick={() => { setShowLinkDialog(true); setShowInsertMenu(false); }} title="Add Link">
+                <LinkIcon className="w-6 h-6" />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => { editor.chain().focus().toggleBlockquote().run(); setShowInsertMenu(false); }} title="Blockquote">
+                <Quote className="w-6 h-6" />
+              </ToolbarButton>
             </div>
+          )}
 
-            <div className="flex items-center gap-2">
-              <ToolbarButton onClick={() => editor.chain().focus().undo().run()}>
+          {/* Main Floating Pill Toolbar */}
+          <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/20 dark:border-gray-800 p-1.5 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-1.5 ring-1 ring-black/5 dark:ring-white/10 hover:shadow-[0_25px_60px_rgba(0,0,0,0.25)] transition-all duration-300 active:scale-95">
+            <ToolbarButton
+              isActive={showInsertMenu}
+              onClick={() => { setShowInsertMenu(!showInsertMenu); setShowFormattingMenu(false); }}
+              activeColor="bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+              className="h-11 w-11"
+              title="Insert Content"
+            >
+              <Plus className={cn("w-6 h-6 transition-transform duration-300", showInsertMenu && "rotate-45")} />
+            </ToolbarButton>
+
+            <div className="h-8 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
+
+            <ToolbarButton
+              isActive={showFormattingMenu}
+              onClick={() => { setShowFormattingMenu(!showFormattingMenu); setShowInsertMenu(false); }}
+              activeColor="bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+              className="h-11 w-11"
+              title="Format Text"
+            >
+              <span className="text-xl font-serif font-black">Aa</span>
+            </ToolbarButton>
+
+            <ToolbarButton
+              isActive={editor.isActive('taskList')}
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+              activeColor="text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+              className="h-11 w-11"
+              title="Checkbox"
+            >
+              <CheckSquare className="w-6 h-6" />
+            </ToolbarButton>
+
+            <div className="h-8 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
+
+            <div className="flex items-center">
+              <ToolbarButton onClick={() => editor.chain().focus().undo().run()} className="h-11 w-11" title="Undo">
                 <Undo className="w-5 h-5" />
               </ToolbarButton>
-              <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>
+              <ToolbarButton onClick={() => editor.chain().focus().redo().run()} className="h-11 w-11" title="Redo">
                 <Redo className="w-5 h-5" />
               </ToolbarButton>
             </div>
@@ -284,7 +318,19 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
       BulletList,
       OrderedList,
       ListItem,
@@ -321,16 +367,22 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     editorProps: {
       attributes: {
         class: cn(
-          'prose mx-auto focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all',
-          compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-6 md:p-10',
-          'selection:bg-indigo-100 dark:selection:bg-indigo-900/30',
+          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all',
+          compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-1',
+          'selection:bg-blue-100 dark:selection:bg-blue-900/30',
           '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
           '[&_table_td]:border [&_table_td]:border-gray-200 dark:[&_table_td]:border-gray-800 [&_table_td]:p-2 [&_table_td]:min-w-[100px]',
           '[&_table_th]:border [&_table_th]:border-gray-200 dark:[&_table_th]:border-gray-800 [&_table_th]:p-2 [&_table_th]:bg-gray-50 dark:[&_table_th]:bg-gray-900 [&_table_th]:font-bold',
+          '[&_h1]:text-4xl [&_h1]:font-black [&_h1]:mb-6 [&_h1]:mt-10 [&_h1]:text-gray-900 dark:[&_h1]:text-white',
+          '[&_h2]:text-3xl [&_h2]:font-bold [&_h2]:mb-4 [&_h2]:mt-8 [&_h2]:text-gray-800 dark:[&_h2]:text-gray-100',
+          '[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:mb-3 [&_h3]:mt-6 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200',
+          '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ul_li]:mb-1',
+          '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_ol_li]:mb-1',
           '[&_.taskList]:list-none [&_.taskList]:p-0 [&_.taskList]:my-4',
           '[&_.taskList_li]:flex [&_.taskList_li]:gap-3 [&_.taskList_li]:items-start [&_.taskList_li]:mb-2',
-          '[&_.taskList_input]:mt-1.5 [&_.taskList_input]:h-5 [&_.taskList_input]:w-5 [&_.taskList_input]:rounded-full [&_.taskList_input]:border-gray-300 [&_.taskList_input]:text-indigo-600 [&_.taskList_input]:focus:ring-indigo-500',
-          !readOnly && !compact && 'min-h-[300px]',
+          '[&_.taskList_input]:mt-1.5 [&_.taskList_input]:h-5 [&_.taskList_input]:w-5 [&_.taskList_input]:rounded-full [&_.taskList_input]:border-gray-300 [&_.taskList_input]:text-blue-600 [&_.taskList_input]:focus:ring-blue-500 [&_.taskList_input]:cursor-pointer',
+          '[&_.taskList_li[data-checked=\"true\"]_p]:line-through [&_.taskList_li[data-checked=\"true\"]_p]:opacity-50',
+          !readOnly && !compact && 'min-h-[500px]',
           readOnly && 'caret-transparent' // Hide caret in readOnly mode
         ),
       },
@@ -349,7 +401,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       // Small optimization: only update if it's truly different to avoid cursor jumps
-      editor.commands.setContent(content, false);
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [editor, content]);
 
@@ -372,7 +424,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           position="top"
         />
       )}
-      <div className="flex-1 relative overflow-y-auto min-h-0">
+      <div className={cn(
+        "flex-1 relative overflow-y-auto min-h-0",
+        toolbarPosition === 'bottom' && !readOnly && "pb-36"
+      )}>
         <EditorContent editor={editor} className="min-h-full" />
         {!content && editor && editor.getText().length === 0 && !readOnly && (
           <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium">

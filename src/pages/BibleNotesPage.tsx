@@ -1098,61 +1098,62 @@ const BibleNotesPage = () => {
                                 </div>
                             )}
 
-                            {/* Content Area - RichTextEditor handles internal scrolling */}
                             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
-                                <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col min-h-0">
-                                    {isInlineEditing ? (
-                                        <div className="flex-1 flex flex-col min-h-0">
-                                            <RichTextEditor
-                                                content={newNote.note_text}
-                                                onChange={(content) => setNewNote({ ...newNote, note_text: content })}
-                                                placeholder="Speak your heart here..."
-                                                toolbarPosition="bottom"
-                                                className="flex-1"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div
-                                            className="flex-1 flex flex-col min-h-0 cursor-text transition-all hover:bg-gray-50/50 dark:hover:bg-white/[0.02]"
-                                            onClick={() => {
-                                                setNewNote({
-                                                    title: selectedNote.title || '',
-                                                    note_text: selectedNote.note_text || '',
-                                                    book: selectedNote.book || 'genesis',
-                                                    chapter: selectedNote.chapter?.toString() || '1',
-                                                    verse: selectedNote.verse?.toString() || '',
-                                                    category: selectedNote.category || 'insight',
-                                                    tags: selectedNote.tags || [],
-                                                    is_favorite: selectedNote.is_favorite || false,
-                                                    is_private: selectedNote.is_private || false,
-                                                    is_pinned: selectedNote.is_pinned || false,
-                                                    folder_id: selectedNote.folder_id || undefined
-                                                });
-                                                setEditingNote(selectedNote);
-                                                setIsInlineEditing(true);
-                                            }}
-                                        >
-                                            <RichTextEditor
-                                                content={selectedNote.note_text}
-                                                readOnly={true}
-                                                onChange={async (content) => {
-                                                    // Allow direct saving from preview (e.g. table edits)
-                                                    try {
-                                                        const { error } = await supabase
-                                                            .from('bible_notes')
-                                                            .update({ note_text: content })
-                                                            .eq('id', selectedNote.id);
-                                                        if (error) throw error;
-                                                        selectedNote.note_text = content;
-                                                        fetchNotes();
-                                                    } catch (err) {
-                                                        console.error("Preview save error:", err);
-                                                    }
+                                <div className="flex-1 flex flex-col min-h-0">
+                                    <div className="px-4 md:px-6 mt-6">
+                                        {isInlineEditing ? (
+                                            <div className="flex-1 flex flex-col min-h-0">
+                                                <RichTextEditor
+                                                    content={selectedNote?.note_text || ''}
+                                                    onChange={(content) => setSelectedNote(prev => prev ? { ...prev, note_text: content } : null)}
+                                                    placeholder=""
+                                                    toolbarPosition="bottom"
+                                                    className="flex-1 h-full"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="flex-1 flex flex-col min-h-0 cursor-text transition-all hover:bg-gray-50/50 dark:hover:bg-white/[0.02]"
+                                                onClick={() => {
+                                                    setNewNote({
+                                                        title: selectedNote.title || '',
+                                                        note_text: selectedNote.note_text || '',
+                                                        book: selectedNote.book || 'genesis',
+                                                        chapter: selectedNote.chapter?.toString() || '1',
+                                                        verse: selectedNote.verse?.toString() || '',
+                                                        category: selectedNote.category || 'insight',
+                                                        tags: selectedNote.tags || [],
+                                                        is_favorite: selectedNote.is_favorite || false,
+                                                        is_private: selectedNote.is_private || false,
+                                                        is_pinned: selectedNote.is_pinned || false,
+                                                        folder_id: selectedNote.folder_id || undefined
+                                                    });
+                                                    setEditingNote(selectedNote);
+                                                    setIsInlineEditing(true);
                                                 }}
-                                                className="max-w-none"
-                                            />
-                                        </div>
-                                    )}
+                                            >
+                                                <RichTextEditor
+                                                    content={selectedNote.note_text}
+                                                    readOnly={true}
+                                                    onChange={async (content) => {
+                                                        // Allow direct saving from preview (e.g. table edits)
+                                                        try {
+                                                            const { error } = await supabase
+                                                                .from('bible_notes')
+                                                                .update({ note_text: content })
+                                                                .eq('id', selectedNote.id);
+                                                            if (error) throw error;
+                                                            selectedNote.note_text = content;
+                                                            fetchNotes();
+                                                        } catch (err) {
+                                                            console.error("Preview save error:", err);
+                                                        }
+                                                    }}
+                                                    className="max-w-none"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1189,19 +1190,18 @@ const BibleNotesPage = () => {
                     </div>
 
                     {/* Editor Content */}
-                    < div className="flex-1 overflow-y-auto bg-gray-50/30 dark:bg-gray-950" >
-                        <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-[3rem] my-8 max-w-4xl mx-auto min-h-[calc(100vh-160px)] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
-                            {/* Editor Header Info */}
-                            <div className="p-10 pb-0 space-y-8">
+                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-950 overflow-hidden">
+                        <div className="flex-1 flex flex-col min-h-0">
+                            <div className="px-4 md:px-6 pt-10 pb-4 space-y-6">
                                 <div className="flex flex-wrap gap-4 items-center">
                                     <div className="w-full md:w-auto">
                                         <Select
                                             value={newNote.folder_id || 'unfiled'}
                                             onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
                                         >
-                                            <SelectTrigger className="w-[200px] h-11 rounded-2xl border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm font-medium">
+                                            <SelectTrigger className="w-auto min-w-[140px] h-9 rounded-full border-none bg-gray-50 dark:bg-gray-800 shadow-sm font-bold text-xs">
                                                 <div className="flex items-center gap-2">
-                                                    <Folder className="w-4 h-4 text-blue-500" />
+                                                    <Folder className="w-3.5 h-3.5 text-blue-500" />
                                                     <SelectValue placeholder="Add to Folder" />
                                                 </div>
                                             </SelectTrigger>
@@ -1217,21 +1217,23 @@ const BibleNotesPage = () => {
                                 </div>
 
                                 <Input
-                                    placeholder="Enter a title for this note"
+                                    placeholder="Note Title"
                                     value={newNote.title}
                                     onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                    className="text-2xl md:text-3xl font-bold border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-[1.5rem] px-6 h-20 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all placeholder:text-gray-200 dark:placeholder:text-gray-700 text-gray-900 dark:text-white shadow-sm text-center"
+                                    className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-all placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left"
                                 />
                             </div>
 
                             {/* Rich Text Editor - Now styled premium */}
-                            <div className="p-10 flex-1 flex flex-col group">
-                                <div className="flex-1 rounded-[2rem] border-2 border-transparent group-focus-within:border-blue-100 dark:group-focus-within:border-blue-900/20 transition-all overflow-hidden bg-gray-50/10 backdrop-blur-sm">
+                            <div className="px-4 md:px-6 flex-1 flex flex-col group min-h-0">
+                                <div className="flex-1 transition-all overflow-hidden bg-transparent">
                                     <RichTextEditor
                                         content={newNote.note_text}
                                         onChange={(content) => setNewNote({ ...newNote, note_text: content })}
                                         placeholder=""
+                                        toolbarPosition="bottom"
                                         ref={richTextEditorRef}
+                                        className="flex-1 h-full"
                                     />
                                 </div>
                             </div>
