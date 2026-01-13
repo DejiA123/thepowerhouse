@@ -99,6 +99,7 @@ const BibleNotesPage = () => {
     const navigate = useNavigate();
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
+    const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -106,6 +107,12 @@ const BibleNotesPage = () => {
             fetchFolders();
         }
         window.scrollTo(0, 0);
+
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 100);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, [user]);
 
     useEffect(() => {
@@ -540,25 +547,6 @@ const BibleNotesPage = () => {
                 <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
 
                 <div className="relative z-10 container mx-auto max-w-6xl">
-                    {/* Navigation Buttons */}
-                    <div className="flex items-center justify-between mb-8">
-                        <Button
-                            variant="ghost"
-                            onClick={() => navigate('/bible')}
-                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md rounded-full px-4"
-                        >
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Return to Bible
-                        </Button>
-                        <Button
-                            onClick={openNewNote}
-                            className="bg-white text-purple-600 hover:bg-white/90 font-bold px-6 rounded-full shadow-lg transition-transform hover:scale-105"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add New Note
-                        </Button>
-                    </div>
-
                     <div className="max-w-2xl">
                         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 drop-shadow-sm font-outfit">
                             My Notes
@@ -610,24 +598,34 @@ const BibleNotesPage = () => {
                 </div>
             </div>
 
-            {/* Sticky Floating Button Bar - appears when scrolling */}
-            <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 shadow-md">
-                <div className="container mx-auto max-w-6xl px-4 py-2 flex items-center justify-between">
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate('/bible')}
-                        className="text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-full px-4 font-medium"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Return to Bible
-                    </Button>
-                    <Button
-                        onClick={openNewNote}
-                        className="bg-indigo-600 text-white hover:bg-indigo-700 font-semibold px-6 rounded-full shadow-lg transition-all hover:scale-105"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add New Note
-                    </Button>
+            {/* Premium Sticky Navigation Bar */}
+            <div className={cn(
+                "sticky top-0 z-50 transition-all duration-500 ease-out",
+                isScrolled
+                    ? "translate-y-0 opacity-100"
+                    : "-translate-y-full opacity-0"
+            )}>
+                <div className="bg-gradient-to-r from-white/95 via-white/95 to-white/95 dark:from-gray-900/95 dark:via-gray-900/95 dark:to-gray-900/95 backdrop-blur-2xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-black/5">
+                    <div className="container mx-auto max-w-6xl px-4 py-3">
+                        <div className="flex items-center justify-between">
+                            <Button
+                                variant="ghost"
+                                onClick={() => navigate('/bible')}
+                                className="group text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-950/50 dark:hover:to-purple-950/50 rounded-xl px-4 py-2 font-medium transition-all duration-300 hover:scale-105"
+                            >
+                                <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+                                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">Bible</span>
+                            </Button>
+                            <Button
+                                onClick={openNewNote}
+                                className="group relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 font-bold px-8 py-2.5 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                                <Plus className="w-4 h-4 mr-2 relative z-10" />
+                                <span className="relative z-10">New Note</span>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
