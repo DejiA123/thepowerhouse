@@ -539,52 +539,51 @@ const BibleNotesPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950">
-            {/* Sticky Navigation Header */}
-            {/* Sticky Navigation Header */}
+            {/* Fixed Navigation Header - Removed 'sticky' to eliminate gap issues */}
             <div className={cn(
-                "sticky top-0 z-40 transition-all duration-300 border-b pt-[env(safe-area-inset-top)]",
+                "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
                 isScrolled
-                    ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-gray-200 dark:border-gray-800 shadow-sm"
-                    : "bg-transparent border-transparent"
+                    ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-sm"
+                    : "bg-transparent"
             )}>
-                <div className="container mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate('/bible')}
-                        className={cn(
-                            "rounded-full px-4 font-medium transition-all duration-300 flex items-center gap-1",
-                            isScrolled
-                                ? "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                                : "text-white hover:bg-white/20 bg-black/20 backdrop-blur-md border border-white/10"
-                        )}
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span className="text-[15px]">Back</span>
-                    </Button>
-                    <Button
-                        onClick={openNewNote}
-                        className={cn(
-                            "font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105 active:scale-95",
-                            isScrolled
-                                ? "bg-indigo-600 text-white hover:bg-indigo-700 px-6"
-                                : "bg-white text-indigo-600 hover:bg-white/90 px-6 shadow-black/20"
-                        )}
-                    >
-                        <Plus className="w-5 h-5 mr-1.5" />
-                        New Note
-                    </Button>
+                <div className="pt-[env(safe-area-inset-top)]">
+                    <div className={cn(
+                        "container mx-auto max-w-6xl px-4 py-3 flex items-center justify-between border-b transition-all duration-300",
+                        isScrolled
+                            ? "border-gray-200 dark:border-gray-800"
+                            : "border-transparent"
+                    )}>
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/bible')}
+                            className={cn(
+                                "rounded-full px-4 font-medium transition-all duration-300 flex items-center gap-1",
+                                isScrolled
+                                    ? "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                                    : "text-white hover:bg-white/20 bg-black/20 backdrop-blur-md border border-white/10"
+                            )}
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            <span className="text-[15px]">Back</span>
+                        </Button>
+                        <Button
+                            onClick={openNewNote}
+                            className={cn(
+                                "font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105 active:scale-95",
+                                isScrolled
+                                    ? "bg-indigo-600 text-white hover:bg-indigo-700 px-6"
+                                    : "bg-white text-indigo-600 hover:bg-white/90 px-6 shadow-black/20"
+                            )}
+                        >
+                            <Plus className="w-5 h-5 mr-1.5" />
+                            New Note
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            {/* Stunning Hero Section - Added -mt to pull it under the fixed/sticky header if needed, but here we want natural flow until scroll. Actually, to have transparent header OVER it, we need negative margin or absolute positioning.
-                Since the header is 'sticky', it sits in flow. To make it transparent OVER the hero, the hero needs to go UNDER it.
-                We can achieve this by making the header 'fixed' or using negative margin on the hero.
-                Let's use -mt on the hero to pull it up under the sticky header, but sticky takes up space.
-                Actually, simpler: Header is sticky. Default state is "at top". Hero is below.
-                If we want the header OVER the hero, the header should be fixed or the hero should be -mt.
-                Let's try -mt-20 (approx header height) to pull hero up.
-            */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-24 -mt-[88px]">
+            {/* Stunning Hero Section */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-32">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
