@@ -332,14 +332,26 @@ const ResourcesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Prayer Request Dialog */}
+      {/* Prayer Request Dialog - Full Screen */}
       <Dialog open={showPrayerRequest} onOpenChange={setShowPrayerRequest}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0 bg-white dark:bg-gray-900 border-0 rounded-2xl">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle>Submit Prayer Request</DialogTitle>
-          </DialogHeader>
-          <div className="p-6 pt-2">
-            <PrayerRequestForm />
+        <DialogContent className="w-screen h-screen max-w-none m-0 p-0 bg-white dark:bg-gray-900 border-0 rounded-none data-[state=open]:slide-in-from-bottom-0">
+          <div className="flex flex-col h-full">
+            <DialogHeader className="sticky top-0 z-10 bg-gradient-to-r from-purple-600 to-pink-500 text-white p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-xl font-bold text-white">Submit Prayer Request</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPrayerRequest(false)}
+                  className="text-white hover:bg-white/20 rounded-full"
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+              <PrayerRequestForm onSuccess={() => setShowPrayerRequest(false)} />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
