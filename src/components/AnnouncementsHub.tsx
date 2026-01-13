@@ -2,18 +2,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Bell, Search, Filter, Pin, Plus, Edit, Clock } from "lucide-react";
+import { Bell, Search, Plus, Edit, Clock, Trash2, Megaphone, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const AnnouncementsHub = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
@@ -29,8 +28,6 @@ const AnnouncementsHub = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
-
-  const categories = ["All", "General", "Youth", "Evangelism", "Campus", "Workers", "Events"];
 
   useEffect(() => {
     fetchAnnouncements();
@@ -53,22 +50,19 @@ const AnnouncementsHub = () => {
   };
 
   const fetchAnnouncements = async () => {
-    // First fetch announcements
-    const { data: announcementsData, error: announcementsError } = await supabase
+    const { data: announcementsData } = await supabase
       .from('announcements')
       .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (announcementsData) {
-      // Then fetch profiles for all author_ids
       const authorIds = [...new Set(announcementsData.map(a => a.author_id))];
-      const { data: profilesData, error: profilesError } = await supabase
+      const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', authorIds);
 
-      // Create a map of user_id to profile
       const profilesMap = new Map();
       if (profilesData) {
         profilesData.forEach(profile => {
@@ -76,16 +70,14 @@ const AnnouncementsHub = () => {
         });
       }
 
-      // Combine announcements with their profiles
       const announcementsWithProfiles = announcementsData.map(announcement => ({
         ...announcement,
         profiles: profilesMap.get(announcement.author_id) || null
       }));
 
-      console.log('Fetched announcements with profiles:', announcementsWithProfiles); // Debug log
       setAnnouncements(announcementsWithProfiles);
     } else {
-      setAnnouncements([]); // Always set state to avoid stale UI
+      setAnnouncements([]);
     }
   };
 
@@ -94,15 +86,14 @@ const AnnouncementsHub = () => {
 
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('announcements')
       .insert({
         title: newAnnouncement.title,
         content: newAnnouncement.content,
         author_id: user.id,
-        is_active: true // Always set explicitly
-      })
-      .select(); // Get the inserted row(s) back
+        is_active: true
+      });
 
     if (!error) {
       toast({ title: "Success", description: "Announcement created successfully" });
@@ -110,8 +101,7 @@ const AnnouncementsHub = () => {
       setIsDialogOpen(false);
       await fetchAnnouncements();
     } else {
-      console.error("Failed to create announcement:", error);
-      toast({ title: "Error", description: `Failed to create announcement: ${error.message || error}`, variant: "destructive" });
+      toast({ title: "Error", description: `Failed to create announcement`, variant: "destructive" });
     }
 
     setLoading(false);
@@ -162,48 +152,55 @@ const AnnouncementsHub = () => {
       return matchesSearch;
     });
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   return (
-    <Card className="border-none bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-2xl ring-1 ring-slate-200/50 dark:ring-slate-800/50 overflow-hidden">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-              <Bell className="w-5 h-5 animate-bounce-subtle" />
+    <Card className="border-none bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl shadow-2xl ring-1 ring-white/50 dark:ring-white/10 overflow-hidden rounded-[2.5rem]">
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent pointer-events-none" />
+
+      <CardHeader className="relative pb-6 px-8 pt-8">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="flex items-center space-x-4 w-full sm:w-auto">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-lg group-hover:bg-indigo-500/30 transition-all duration-500" />
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-300">
+                <Megaphone className="w-6 h-6 animate-pulse" />
+              </div>
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Announcements</span>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-0.5">Community Updates</p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">
+                Announcements
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className="h-5 px-2 text-[10px] uppercase font-bold tracking-wider bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50">
+                  Updates
+                </Badge>
+                <p className="text-xs font-medium text-slate-400">Latest news from the team</p>
+              </div>
             </div>
           </div>
+
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all px-4 h-9 rounded-xl font-bold">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create
+                <Button size="sm" className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-xl shadow-indigo-500/20 active:scale-95 transition-all px-6 h-10 rounded-xl font-bold group">
+                  <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-300" />
+                  New Post
                 </Button>
               </DialogTrigger>
-              <DialogContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black tracking-tight">New Announcement</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
+              <DialogContent className="border-none shadow-2xl rounded-3xl bg-white dark:bg-slate-900 p-0 overflow-hidden max-w-lg">
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black tracking-tight">Create Announcement</DialogTitle>
+                    <p className="text-indigo-100 font-medium">Share updates with the community</p>
+                  </DialogHeader>
+                </div>
+                <div className="p-8 space-y-6">
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-wider text-slate-400">Title</label>
                     <Input
                       value={newAnnouncement.title}
                       onChange={(e) => setNewAnnouncement(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Enter announcement title"
-                      className="h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                      placeholder="e.g. Youth Service Check-in"
+                      className="h-12 bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500 font-medium text-lg"
                     />
                   </div>
                   <div className="space-y-2">
@@ -211,64 +208,84 @@ const AnnouncementsHub = () => {
                     <Textarea
                       value={newAnnouncement.content}
                       onChange={(e) => setNewAnnouncement(prev => ({ ...prev, content: e.target.value }))}
-                      placeholder="Enter announcement content"
-                      rows={4}
-                      className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                      placeholder="Type your message here..."
+                      rows={6}
+                      className="bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800 rounded-xl focus-visible:ring-indigo-500 resize-none font-medium leading-relaxed"
                     />
                   </div>
-                  <Button
-                    onClick={createAnnouncement}
-                    disabled={loading || !newAnnouncement.title || !newAnnouncement.content}
-                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-lg shadow-xl shadow-indigo-600/20 active:scale-95 transition-all mt-4"
-                  >
-                    {loading ? "Creating..." : "Post Announcement"}
-                  </Button>
+                  <DialogFooter className="pt-2">
+                    <Button
+                      onClick={createAnnouncement}
+                      disabled={loading || !newAnnouncement.title || !newAnnouncement.content}
+                      className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-lg shadow-xl shadow-indigo-600/20 active:scale-95 transition-all rounded-xl"
+                    >
+                      {loading ? "Publishing..." : "Publish Now"}
+                    </Button>
+                  </DialogFooter>
                 </div>
               </DialogContent>
             </Dialog>
           )}
         </CardTitle>
 
-        <div className="flex flex-col sm:flex-row gap-4 mt-6">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            <Input
-              placeholder="Search community updates..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 h-11 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl focus-visible:ring-indigo-500 transition-all shadow-sm"
-            />
+        <div className="relative mt-8">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-slate-400" />
           </div>
+          <Input
+            placeholder="Search announcements..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 rounded-2xl focus-visible:ring-indigo-500 transition-all shadow-sm hover:bg-white/80 dark:hover:bg-slate-800/80 backdrop-blur-sm"
+          />
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 px-6 pb-6 mt-2">
-        {filteredAnnouncements.length > 0 ? (
-          <div className="space-y-4">
-            {filteredAnnouncements.map((announcement) => (
+      <CardContent className="px-8 pb-8">
+        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          {filteredAnnouncements.length > 0 ? (
+            filteredAnnouncements.map((announcement) => (
               <div
                 key={announcement.id}
-                className="group p-5 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900/50 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden"
+                className="group relative bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50 hover:border-indigo-500/30 dark:hover:border-indigo-400/30 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5"
               >
-                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-full" />
-
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                      <Bell className="w-4 h-4" />
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-3 flex-1">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                        <Bell className="w-4 h-4" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {announcement.title}
+                      </h3>
+                      {(new Date().getTime() - new Date(announcement.created_at).getTime()) < (7 * 24 * 60 * 60 * 1000) && (
+                        <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-500 text-[10px] px-1.5 h-5">NEW</Badge>
+                      )}
                     </div>
-                    <h3 className="font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                      {announcement.title}
-                    </h3>
+
+                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap pl-11">
+                      {announcement.content}
+                    </p>
+
+                    <div className="flex items-center gap-4 pl-11 pt-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{new Date(announcement.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                      <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                      <div className="text-xs font-medium text-slate-400">
+                        {announcement.profiles?.full_name || 'Admin'}
+                      </div>
+                    </div>
                   </div>
 
                   {isAdmin && (
-                    <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-lg p-1 shadow-sm border border-slate-100 dark:border-slate-800">
                       <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => setEditAnnouncement(announcement)}
-                        className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg"
+                        className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-md"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </Button>
@@ -276,60 +293,38 @@ const AnnouncementsHub = () => {
                         size="icon"
                         variant="ghost"
                         onClick={() => setDeleteId(announcement.id)}
-                        className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                        className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md"
                       >
-                        <Pin className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   )}
                 </div>
-
-                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
-                  {announcement.content}
-                </p>
-
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-slate-800/30 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800/50">
-                  <div className="flex items-center gap-2">
-                    <span className="text-indigo-500">By</span>
-                    <span className="text-slate-900 dark:text-slate-200">
-                      {announcement.profiles?.full_name || announcement.profiles?.email || 'Unknown'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-indigo-500" />
-                    <span>
-                      {new Date(announcement.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
-        ) : announcements.length === 0 ? (
-          <div className="text-center py-12 px-6">
-            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-slate-800">
-              <Bell className="w-8 h-8 text-slate-300" />
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 ring-1 ring-slate-100 dark:ring-slate-700">
+                <Bell className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No Announcements</h3>
+              <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                Check back later for news and updates from the community.
+              </p>
             </div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">No Updates Yet</h3>
-            <p className="text-xs text-slate-500 mt-1">Announcements will appear here once posted.</p>
-          </div>
-        ) : searchTerm.trim() !== "" ? (
-          <div className="text-center py-12 px-6">
-            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-slate-800">
-              <Search className="w-8 h-8 text-slate-300" />
-            </div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">No Results Found</h3>
-            <p className="text-xs text-slate-500 mt-1">Try adjusting your search terms.</p>
-          </div>
-        ) : null}
-        {/* Edit Announcement Dialog */}
+          )}
+        </div>
+
+        {/* Edit & Delete Dialogs unchanged functionally but styled similarly if needed */}
         {isAdmin && editAnnouncement && (
           <Dialog open={!!editAnnouncement} onOpenChange={(open) => !open && setEditAnnouncement(null)}>
-            <DialogContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight">Edit Announcement</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
+            <DialogContent className="border-none shadow-2xl rounded-3xl bg-white dark:bg-slate-900 p-0 overflow-hidden max-w-lg">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black tracking-tight">Edit Post</DialogTitle>
+                </DialogHeader>
+              </div>
+              <div className="p-8 space-y-6">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-wider text-slate-400">Title</label>
                   <Input
@@ -343,18 +338,18 @@ const AnnouncementsHub = () => {
                   <Textarea
                     value={editAnnouncement.content}
                     onChange={(e) => setEditAnnouncement((prev: any) => ({ ...prev, content: e.target.value }))}
-                    rows={4}
-                    className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500"
+                    rows={6}
+                    className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl focus-visible:ring-indigo-500 resize-none"
                   />
                 </div>
-                <DialogFooter className="gap-2 sm:gap-0 mt-6">
-                  <Button variant="outline" onClick={() => setEditAnnouncement(null)} className="h-12 rounded-xl flex-1 sm:flex-none">
+                <DialogFooter className="pt-2 gap-2">
+                  <Button variant="ghost" onClick={() => setEditAnnouncement(null)} className="h-12 rounded-xl flex-1">
                     Cancel
                   </Button>
                   <Button
                     onClick={updateAnnouncement}
                     disabled={editLoading || !editAnnouncement.title || !editAnnouncement.content}
-                    className="h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex-1 sm:flex-none sm:min-w-[140px]"
+                    className="flex-1 h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-black shadow-xl shadow-indigo-600/20 active:scale-95 transition-all rounded-xl"
                   >
                     {editLoading ? "Saving..." : "Save Changes"}
                   </Button>
@@ -363,23 +358,28 @@ const AnnouncementsHub = () => {
             </DialogContent>
           </Dialog>
         )}
-        {/* Delete Confirmation Dialog */}
+
         {isAdmin && deleteId && (
           <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-            <DialogContent className="border-none shadow-2xl rounded-2xl bg-white dark:bg-slate-900">
+            <DialogContent className="border-none shadow-2xl rounded-3xl bg-white dark:bg-slate-900 p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black tracking-tight text-rose-600">Delete Announcement?</DialogTitle>
+                <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center text-rose-600 mb-4">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <DialogTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Delete Post?</DialogTitle>
               </DialogHeader>
-              <p className="text-slate-600 dark:text-slate-400 py-4">Are you sure you want to delete this announcement? This action is permanent and cannot be undone.</p>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setDeleteId(null)} className="h-12 rounded-xl flex-1 sm:flex-none">
+              <p className="text-slate-600 dark:text-slate-400 text-base font-medium py-2">
+                This action cannot be undone. This will permanently remove the announcement from the hub.
+              </p>
+              <DialogFooter className="gap-3 mt-6">
+                <Button variant="outline" onClick={() => setDeleteId(null)} className="h-12 rounded-xl flex-1 font-bold">
                   Cancel
                 </Button>
                 <Button
                   variant="destructive"
                   onClick={deleteAnnouncement}
                   disabled={deleteLoading}
-                  className="h-12 font-black shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex-1 sm:flex-none sm:min-w-[120px]"
+                  className="h-12 font-black shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex-1 rounded-xl"
                 >
                   {deleteLoading ? "Deleting..." : "Delete Permanently"}
                 </Button>
