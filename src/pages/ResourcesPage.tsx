@@ -193,7 +193,7 @@ const ResourcesPage = () => {
     {
       title: "Prayer Request",
       icon: Heart,
-      color: "from-sky-500 to-blue-600",
+      color: "from-blue-500 to-blue-700",
       shadow: "shadow-blue-500/20",
       onClick: () => setShowPrayerRequest(true)
     },
@@ -221,8 +221,8 @@ const ResourcesPage = () => {
     {
       title: "Group Chats",
       icon: MessageCircle,
-      color: "from-indigo-500 to-blue-600",
-      shadow: "shadow-indigo-500/20",
+      color: "from-blue-600 to-blue-800",
+      shadow: "shadow-blue-500/20",
       onClick: () => navigate("/group-chats")
     }
   ];
@@ -231,7 +231,7 @@ const ResourcesPage = () => {
     <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-32">
       {/* Hero Section */}
       <div className="relative bg-primary pt-12 pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-blue-500 to-sky-400 opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 opacity-90" />
         <div className="absolute inset-0 bg-[url('/patterns/circuit.svg')] opacity-10" />
 
         <div className="relative z-10 text-center text-white max-w-lg mx-auto">
@@ -336,7 +336,7 @@ const ResourcesPage = () => {
       <Dialog open={showPrayerRequest} onOpenChange={setShowPrayerRequest}>
         <DialogContent className="w-screen h-screen max-w-none m-0 p-0 bg-white dark:bg-gray-900 border-0 rounded-none data-[state=open]:slide-in-from-bottom-0">
           <div className="flex flex-col h-full">
-            <DialogHeader className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+            <DialogHeader className="sticky top-0 z-10 bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-xl font-bold text-white">Submit Prayer Request</DialogTitle>
                 <Button

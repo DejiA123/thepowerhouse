@@ -160,8 +160,8 @@ const AnnouncementsHub = () => {
         <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center space-x-4 w-full sm:w-auto">
             <div className="relative group">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-2xl blur-lg group-hover:bg-blue-500/30 transition-all duration-500" />
-              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
+              <div className="absolute inset-0 bg-blue-600/20 rounded-2xl blur-lg group-hover:bg-blue-600/30 transition-all duration-500" />
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-600/25 group-hover:scale-105 transition-transform duration-300">
                 <Megaphone className="w-6 h-6 animate-pulse" />
               </div>
             </div>
@@ -181,13 +181,13 @@ const AnnouncementsHub = () => {
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white shadow-xl shadow-blue-500/20 active:scale-95 transition-all px-6 h-10 rounded-xl font-bold group">
+                <Button size="sm" className="w-full sm:w-auto bg-gradient-to-r from-blue-800 to-blue-600 hover:from-blue-700 hover:to-blue-500 text-white shadow-xl shadow-blue-900/20 active:scale-95 transition-all px-6 h-10 rounded-xl font-bold group">
                   <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-300" />
                   New Post
                 </Button>
               </DialogTrigger>
               <DialogContent className="border-none shadow-2xl rounded-3xl bg-white dark:bg-slate-900 p-0 overflow-hidden max-w-lg">
-                <div className="bg-gradient-to-r from-blue-600 to-sky-500 p-8 text-white">
+                <div className="bg-gradient-to-r from-blue-800 to-blue-600 p-8 text-white">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black tracking-tight">Create Announcement</DialogTitle>
                     <p className="text-indigo-100 font-medium">Share updates with the community</p>
