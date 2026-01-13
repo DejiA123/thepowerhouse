@@ -207,9 +207,7 @@ const ResourcesPage = () => {
 
       <div className="px-4 -mt-12 relative z-20 space-y-6 max-w-4xl mx-auto">
         {/* Location Selector */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-1.5 ring-1 ring-black/5">
-          <LocationSelector />
-        </div>
+        <LocationSelector />
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
