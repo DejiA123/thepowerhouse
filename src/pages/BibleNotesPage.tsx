@@ -110,7 +110,7 @@ const BibleNotesPage = () => {
 
     useEffect(() => {
         if (user) {
-            fetchNotes();
+            fetchNotes(activeFolderId);
         }
     }, [activeFolderId, user]);
 
@@ -136,7 +136,7 @@ const BibleNotesPage = () => {
         setShowNewNoteDialog(true);
     };
 
-    const fetchNotes = async () => {
+    const fetchNotes = async (folderId: string | null | undefined = activeFolderId) => {
         if (!user) return;
 
         try {
@@ -147,12 +147,12 @@ const BibleNotesPage = () => {
                 .eq('user_id', user.id);
 
             // Filter by active folder
-            if (activeFolderId === null) {
+            if (folderId === null) {
                 query = query.is('folder_id', null);
-            } else if (activeFolderId) {
-                query = query.eq('folder_id', activeFolderId);
+            } else if (folderId) {
+                query = query.eq('folder_id', folderId);
             }
-            // If activeFolderId is undefined, get all notes
+            // If folderId is undefined, get all notes
 
             const { data, error } = await query.order('created_at', { ascending: false });
 
