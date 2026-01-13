@@ -174,9 +174,9 @@ const AnnouncementsHub = () => {
   return (
     <Card className="border-none bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl shadow-2xl ring-1 ring-slate-200/50 dark:ring-slate-800/50 overflow-hidden">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
               <Bell className="w-5 h-5 animate-bounce-subtle" />
             </div>
             <div>
@@ -187,7 +187,7 @@ const AnnouncementsHub = () => {
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all px-4 h-9 rounded-xl font-bold">
+                <Button size="sm" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all px-4 h-9 rounded-xl font-bold">
                   <Plus className="w-4 h-4 mr-2" />
                   Create
                 </Button>
