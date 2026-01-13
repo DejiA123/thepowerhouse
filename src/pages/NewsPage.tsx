@@ -95,9 +95,9 @@ const NewsPage = () => {
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20 animate-in fade-in duration-700">
       {/* Immersive Hero Section */}
       <div className="relative overflow-hidden bg-slate-900 py-24 sm:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-slate-900 to-slate-900 z-0" />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl opacity-50 animate-pulse" />
-        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl opacity-50 animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-slate-900 to-slate-900 z-0" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl opacity-50 animate-pulse" />
+        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-sky-500/20 rounded-full blur-3xl opacity-50 animate-pulse" />
 
         <div className="relative z-10 container mx-auto px-6 lg:px-8">
           <div className="max-w-2xl animate-in slide-in-from-left-8 duration-1000">
@@ -105,7 +105,7 @@ const NewsPage = () => {
               Updates & Announcements
             </Badge>
             <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl mb-6 leading-tight">
-              Stay <span className="text-indigo-400">Connected</span> with Our Community.
+              Stay <span className="text-blue-400">Connected</span> with Our Community.
             </h1>
             <p className="text-lg leading-8 text-slate-300 mb-10 max-w-xl text-balance">
               Get the latest news, upcoming events, and important announcements from our church family.

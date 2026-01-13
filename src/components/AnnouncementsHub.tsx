@@ -160,8 +160,8 @@ const AnnouncementsHub = () => {
         <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center space-x-4 w-full sm:w-auto">
             <div className="relative group">
-              <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-lg group-hover:bg-indigo-500/30 transition-all duration-500" />
-              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform duration-300">
+              <div className="absolute inset-0 bg-blue-500/20 rounded-2xl blur-lg group-hover:bg-blue-500/30 transition-all duration-500" />
+              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform duration-300">
                 <Megaphone className="w-6 h-6 animate-pulse" />
               </div>
             </div>
@@ -181,13 +181,13 @@ const AnnouncementsHub = () => {
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-xl shadow-indigo-500/20 active:scale-95 transition-all px-6 h-10 rounded-xl font-bold group">
+                <Button size="sm" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white shadow-xl shadow-blue-500/20 active:scale-95 transition-all px-6 h-10 rounded-xl font-bold group">
                   <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-300" />
                   New Post
                 </Button>
               </DialogTrigger>
               <DialogContent className="border-none shadow-2xl rounded-3xl bg-white dark:bg-slate-900 p-0 overflow-hidden max-w-lg">
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
+                <div className="bg-gradient-to-r from-blue-600 to-sky-500 p-8 text-white">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black tracking-tight">Create Announcement</DialogTitle>
                     <p className="text-indigo-100 font-medium">Share updates with the community</p>
@@ -247,15 +247,15 @@ const AnnouncementsHub = () => {
             filteredAnnouncements.map((announcement) => (
               <div
                 key={announcement.id}
-                className="group relative bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50 hover:border-indigo-500/30 dark:hover:border-indigo-400/30 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5"
+                className="group relative bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50 hover:border-blue-500/30 dark:hover:border-sky-400/30 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-0.5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-3 flex-1">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                         <Bell className="w-4 h-4" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">
                         {announcement.title}
                       </h3>
                       {(new Date().getTime() - new Date(announcement.created_at).getTime()) < (7 * 24 * 60 * 60 * 1000) && (

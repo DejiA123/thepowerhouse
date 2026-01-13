@@ -553,7 +553,7 @@ const BibleNotesPage = () => {
                             </Button>
                             <Button
                                 onClick={openNewNote}
-                                className="group relative flex items-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 font-bold px-6 py-2.5 rounded-2xl shadow-xl shadow-purple-500/25 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+                                className="group relative flex items-center gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 text-white hover:from-blue-700 hover:via-blue-600 hover:to-sky-500 font-bold px-6 py-2.5 rounded-2xl shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                                 <Plus className="w-5 h-5 relative z-10" />
@@ -565,12 +565,13 @@ const BibleNotesPage = () => {
             </div>
 
             {/* Stunning Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-12">
+            <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-500 to-sky-400 text-white pb-24 px-4 pt-12">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-                <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+                <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+
 
                 <div className="relative z-10 container mx-auto max-w-6xl">
                     <div className="max-w-2xl">
