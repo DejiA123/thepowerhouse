@@ -531,35 +531,37 @@ const BibleNotesPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950">
+            {/* Sticky Navigation Header */}
+            <div className="sticky top-0 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 pt-[env(safe-area-inset-top)] shadow-md">
+                <div className="container mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/bible')}
+                        className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md rounded-full px-4"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back
+                    </Button>
+                    <Button
+                        onClick={openNewNote}
+                        className="bg-white text-purple-600 hover:bg-white/90 font-bold px-6 rounded-full shadow-lg transition-transform hover:scale-105"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Note
+                    </Button>
+                </div>
+            </div>
+
             {/* Stunning Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pt-12 pb-24 px-4">
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-6">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
                 <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
 
                 <div className="relative z-10 container mx-auto max-w-6xl">
-                    <div className="flex items-center justify-between mb-8">
-                        <Button
-                            variant="ghost"
-                            onClick={() => navigate('/bible')}
-                            className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md rounded-full px-4"
-                        >
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Return to Bible
-                        </Button>
-                        <div className="flex gap-2">
-                            <Button
-                                onClick={openNewNote}
-                                className="bg-white text-purple-600 hover:bg-white/90 font-bold px-6 rounded-full shadow-lg transition-transform hover:scale-105"
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add New Note
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="max-w-2xl">
+                    <div className="max-w-2xl mt-8">
                         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 drop-shadow-sm font-outfit">
                             My Notes
                         </h1>
