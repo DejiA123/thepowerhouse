@@ -538,6 +538,32 @@ const BibleNotesPage = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950">
+            {/* Premium Sticky Navigation Bar - Between header and My Notes */}
+            <div className="sticky top-0 z-50">
+                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 shadow-lg">
+                    <div className="container mx-auto max-w-6xl px-4 py-3">
+                        <div className="flex items-center justify-between">
+                            <Button
+                                variant="ghost"
+                                onClick={() => navigate('/bible')}
+                                className="group flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-2xl px-5 py-2.5 font-semibold transition-all duration-300 hover:scale-105 active:scale-95"
+                            >
+                                <ArrowLeft className="w-5 h-5 text-indigo-600 transition-transform group-hover:-translate-x-1" />
+                                <span className="text-indigo-600 dark:text-indigo-400">Return to Bible</span>
+                            </Button>
+                            <Button
+                                onClick={openNewNote}
+                                className="group relative flex items-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 font-bold px-6 py-2.5 rounded-2xl shadow-xl shadow-purple-500/25 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                                <Plus className="w-5 h-5 relative z-10" />
+                                <span className="relative z-10">Add New Note</span>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Stunning Hero Section */}
             <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white pb-24 px-4 pt-12">
                 <div className="absolute inset-0 bg-black/10"></div>
@@ -594,32 +620,6 @@ const BibleNotesPage = () => {
                                 <span className="text-xs font-semibold uppercase tracking-wider text-white/60">{stat.label}</span>
                             </button>
                         ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Premium Sticky Navigation Bar - Always visible when scrolling */}
-            <div className="sticky top-0 z-50">
-                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 shadow-lg">
-                    <div className="container mx-auto max-w-6xl px-4 py-3">
-                        <div className="flex items-center justify-between">
-                            <Button
-                                variant="ghost"
-                                onClick={() => navigate('/bible')}
-                                className="group flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-2xl px-5 py-2.5 font-semibold transition-all duration-300 hover:scale-105 active:scale-95"
-                            >
-                                <ArrowLeft className="w-5 h-5 text-indigo-600 transition-transform group-hover:-translate-x-1" />
-                                <span className="text-indigo-600 dark:text-indigo-400">Return to Bible</span>
-                            </Button>
-                            <Button
-                                onClick={openNewNote}
-                                className="group relative flex items-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 font-bold px-6 py-2.5 rounded-2xl shadow-xl shadow-purple-500/25 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                                <Plus className="w-5 h-5 relative z-10" />
-                                <span className="relative z-10">Add New Note</span>
-                            </Button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1238,7 +1238,7 @@ const BibleNotesPage = () => {
                     </div >
                 </DialogContent >
             </Dialog>
-        </div>
+        </div >
     );
 };
 
