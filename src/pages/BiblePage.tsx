@@ -89,10 +89,12 @@ const BiblePage = () => {
       const bibleVersions = await enhancedApiBibleService.getVersions();
       const validVersions = bibleVersions
         .filter(version => version && version.abbreviation && version.name)
-        .map(version => ({
-          ...version,
-          name: version.name === "The Holy Bible, American Standard Version" ? "American Standard Version" : version.name
-        }))
+        .map(version => {
+          let name = version.name;
+          if (name === "The Holy Bible, American Standard Version") name = "American Standard Version";
+          if (name === "King James (Authorised) Version") name = "King James Version";
+          return { ...version, name };
+        })
         .sort((a, b) => a.name.localeCompare(b.name));
       setVersions(validVersions);
     };
