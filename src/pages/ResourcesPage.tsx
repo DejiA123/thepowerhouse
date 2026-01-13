@@ -228,8 +228,8 @@ const ResourcesPage = () => {
     {
       title: "Group Chats",
       icon: MessageCircle,
-      color: "from-blue-800 to-slate-900",
-      shadow: "shadow-blue-900/20",
+      color: "from-blue-600 to-blue-800",
+      shadow: "shadow-blue-600/20",
       onClick: () => navigate("/group-chats")
     }
   ];
@@ -310,9 +310,11 @@ const ResourcesPage = () => {
                           )}
                         </div>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
-                        <Download className="w-4 h-4" />
-                      </div>
+                      {category.title !== "Interactive Session" && (
+                        <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                          <Download className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
@@ -363,15 +365,15 @@ const ResourcesPage = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={!!viewingResource} onOpenChange={(open) => !open && setViewingResource(null)}>
-        <DialogContent className="max-w-md bg-white dark:bg-gray-900 rounded-2xl border-white/10">
-          <DialogHeader>
-            <DialogTitle>{viewingResource?.name}</DialogTitle>
+        <DialogContent className="w-screen h-screen max-w-none m-0 p-0 bg-white dark:bg-gray-900 border-none rounded-none flex flex-col">
+          <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-bold">{viewingResource?.name}</DialogTitle>
+              <Button onClick={() => setViewingResource(null)} variant="ghost" size="sm" className="bg-gray-100 dark:bg-gray-800 rounded-full">Close</Button>
+            </div>
           </DialogHeader>
-          <div className="p-4 whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+          <div className="flex-1 overflow-y-auto p-6 pb-24 whitespace-pre-wrap text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
             {viewingResource?.content}
-          </div>
-          <div className="flex justify-end p-4">
-            <Button onClick={() => setViewingResource(null)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
