@@ -134,14 +134,8 @@ const LocationSelector = () => {
   const currentLocation = locations.find(l => l.id === selectedLocation);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl p-0.5 group shadow-2xl shadow-blue-900/10 dark:shadow-blue-900/30">
-      {/* Animated border gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 opacity-30 animate-pulse"></div>
-
-      <Card className="relative border-0 shadow-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden rounded-[22px]">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-100 dark:bg-blue-900/20 rounded-full blur-3xl pointer-events-none opacity-40"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-cyan-100 dark:bg-cyan-900/20 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+    <div className="relative overflow-hidden rounded-3xl group shadow-lg dark:shadow-black/20">
+      <Card className="relative border border-gray-100 dark:border-gray-800 shadow-none bg-white dark:bg-gray-900 overflow-hidden rounded-3xl">
 
         <CardHeader className="relative z-10 pb-2">
           <CardTitle className="flex items-center justify-between">
