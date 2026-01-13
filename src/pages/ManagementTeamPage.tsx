@@ -426,13 +426,13 @@ const GuestListManager = ({
                             </div>
 
                             <div className="space-y-1.5 px-1">
-                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-purple-600">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-blue-600">
                                     <span>RSVP Progress</span>
                                     <span>{Math.round(((guests || []).filter(g => g.rsvp_status === 'Confirmed').length / Math.max((guests || []).length, 1)) * 100)}%</span>
                                 </div>
                                 <Progress
                                     value={((guests || []).filter(g => g.rsvp_status === 'Confirmed').length / Math.max((guests || []).length, 1)) * 100}
-                                    className="h-1.5 bg-slate-100 dark:bg-slate-800 [&>div]:bg-purple-600 [&>div]:transition-none"
+                                    className="h-1.5 bg-slate-100 dark:bg-slate-800 [&>div]:bg-blue-600 [&>div]:transition-none"
                                 />
                             </div>
                         </div>
@@ -490,7 +490,7 @@ const GuestListManager = ({
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <div className="text-[10px] text-purple-600 font-semibold uppercase tracking-wider">{guest.role}</div>
+                                                            <div className="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">{guest.role}</div>
                                                             <div className="text-[10px] text-slate-500 truncate max-w-[100px]">{guest.organization}</div>
                                                             {guest.role === 'Bishop' && guest.personal_assistant && (
                                                                 <div className="text-[10px] text-blue-600 italic">PA: {guest.personal_assistant}</div>
@@ -643,12 +643,12 @@ const GuestListManager = ({
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-100">
+                        <Card className="bg-blue-50 dark:bg-blue-900/10 border-blue-100">
                             <CardHeader>
-                                <CardTitle className="text-purple-900 dark:text-purple-100 text-sm">Protocol Notes</CardTitle>
+                                <CardTitle className="text-blue-900 dark:text-blue-100 text-sm">Protocol Notes</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-xs text-purple-800 dark:text-purple-200 leading-relaxed">
+                                <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
                                     Ensure all Bishops are assigned a Personal Assistant from the Pastoral Care Unit. Hotel bookings should be confirmed 2 weeks prior to arrival.
                                 </p>
                             </CardContent>
@@ -722,7 +722,7 @@ const ModernProjectBrief = ({
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
             {/* Hero Section */}
             <div className="relative rounded-3xl overflow-hidden bg-slate-900 text-white p-8 md:p-12 mb-8 border border-white/10 shadow-2xl">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600 rounded-full blur-[100px] opacity-40 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full blur-[100px] opacity-40 pointer-events-none" />
                 <div className="relative z-10 max-w-3xl">
                     <Badge className="bg-amber-400 text-amber-900 border-none mb-6 font-bold px-3 py-1">Confidential - Management Only</Badge>
 
@@ -753,7 +753,7 @@ const ModernProjectBrief = ({
                     <div className="flex items-center gap-4">
                         <Badge className="bg-green-500 text-white border-none px-3 py-1 shadow-lg shadow-green-500/20">Status: In Progress</Badge>
                         <div className="flex items-center gap-2 text-sm text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
-                            <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                            <Calendar className="w-3.5 h-3.5 text-blue-400" />
                             <span className="font-semibold tracking-wide">August 14th - 16th, 2026</span>
                         </div>
                     </div>
@@ -787,7 +787,7 @@ const ModernProjectBrief = ({
                     {/* Strategic Objective */}
                     <section>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center shadow-sm">
                                 <Flag className="w-6 h-6" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Strategic Objective</h3>

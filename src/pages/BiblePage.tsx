@@ -23,7 +23,7 @@ import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { FileText, Volume2, Smartphone } from "lucide-react";
+import { FileText, Volume2, Smartphone, X } from "lucide-react";
 
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
@@ -567,22 +567,34 @@ const BiblePage = () => {
 
         {/* Highlights List Dialog (Lifted from BibleChapterContent) */}
         <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Pencil className="w-5 h-5" />
-                Your Highlights
-              </DialogTitle>
-              <DialogDescription>
+          <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col">
+            <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                  <Pencil className="w-5 h-5 text-blue-600" />
+                  Your Highlights
+                </DialogTitle>
+                <Button
+                  onClick={() => setShowHighlightsList(false)}
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
+              <DialogDescription className="hidden">
                 Select any verse to navigate to it
               </DialogDescription>
             </DialogHeader>
-            <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
-              setShowHighlightsList(false);
-              if (bookApi && chapterNum) {
-                handleBookChange(bookApi, chapterNum, false);
-              }
-            }} />
+            <div className="flex-1 overflow-y-auto p-4 pb-24">
+              <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
+                setShowHighlightsList(false);
+                if (bookApi && chapterNum) {
+                  handleBookChange(bookApi, chapterNum, false);
+                }
+              }} />
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -43,8 +43,8 @@ const DepartmentsHub = () => {
 
       <Tabs defaultValue="directory" className="w-full">
         {/* Modern Pill Navigation */}
-        <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-          <TabsList className="h-auto p-1 bg-gray-100/80 dark:bg-gray-800 rounded-full inline-flex w-auto min-w-full sm:min-w-0 justify-start">
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide flex justify-center">
+          <TabsList className="h-auto p-1 bg-gray-100/80 dark:bg-gray-800 rounded-full inline-flex w-auto justify-center">
             <TabsTrigger
               value="directory"
               className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all text-gray-500 hover:text-gray-900"

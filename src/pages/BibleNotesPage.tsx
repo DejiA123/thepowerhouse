@@ -806,7 +806,7 @@ const BibleNotesPage = () => {
                                         placeholder="Search your notes"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-purple-500"
+                                        className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
                                 <div className="flex gap-2 w-full lg:w-auto">
@@ -837,7 +837,7 @@ const BibleNotesPage = () => {
                         {/* Notes Grid */}
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-24">
-                                <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                                 <p className="mt-6 text-gray-500 font-medium animate-pulse">Gathering your notes...</p>
                             </div>
                         ) : filteredNotes.length > 0 ? (
@@ -854,7 +854,7 @@ const BibleNotesPage = () => {
                                             onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
                                         >
                                             {/* Category Accent Line - Partially visible by default for mobile parity */}
-                                            <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                                            <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-blue-600 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
 
                                             <div className="p-7">
                                                 <div className="flex items-center justify-between mb-4">
@@ -878,7 +878,7 @@ const BibleNotesPage = () => {
                                                     </div>
                                                 </div>
 
-                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-purple-600 transition-colors">
+                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-blue-600 transition-colors">
                                                     {note.title || 'Divine Insight'}
                                                 </h3>
 
@@ -920,8 +920,8 @@ const BibleNotesPage = () => {
                             </div>
                         ) : (
                             <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-16 text-center border-2 border-dashed border-gray-200 dark:border-gray-800">
-                                <div className="w-24 h-24 bg-purple-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce transition-all duration-1000">
-                                    <BookOpen className="w-10 h-10 text-purple-500" />
+                                <div className="w-24 h-24 bg-blue-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce transition-all duration-1000">
+                                    <BookOpen className="w-10 h-10 text-blue-500" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
                                     {searchTerm ? "No results found" : "Your spiritual journey awaits"}
@@ -935,7 +935,7 @@ const BibleNotesPage = () => {
                                 {!searchTerm && (
                                     <Button
                                         onClick={() => setShowNewNoteDialog(true)}
-                                        className="bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold h-14 px-10 rounded-full shadow-xl hover:shadow-purple-500/20 transition-all hover:scale-105"
+                                        className="bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold h-14 px-10 rounded-full shadow-xl hover:shadow-blue-500/20 transition-all hover:scale-105"
                                     >
                                         <Plus className="w-5 h-5 mr-2" />
                                         Write My First Entry
@@ -1201,7 +1201,7 @@ const BibleNotesPage = () => {
                                         >
                                             <SelectTrigger className="w-[200px] h-11 rounded-2xl border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm font-medium">
                                                 <div className="flex items-center gap-2">
-                                                    <Folder className="w-4 h-4 text-purple-500" />
+                                                    <Folder className="w-4 h-4 text-blue-500" />
                                                     <SelectValue placeholder="Add to Folder" />
                                                 </div>
                                             </SelectTrigger>
@@ -1226,7 +1226,7 @@ const BibleNotesPage = () => {
 
                             {/* Rich Text Editor - Now styled premium */}
                             <div className="p-10 flex-1 flex flex-col group">
-                                <div className="flex-1 rounded-[2rem] border-2 border-transparent group-focus-within:border-purple-100 dark:group-focus-within:border-purple-900/20 transition-all overflow-hidden bg-gray-50/10 backdrop-blur-sm">
+                                <div className="flex-1 rounded-[2rem] border-2 border-transparent group-focus-within:border-blue-100 dark:group-focus-within:border-blue-900/20 transition-all overflow-hidden bg-gray-50/10 backdrop-blur-sm">
                                     <RichTextEditor
                                         content={newNote.note_text}
                                         onChange={(content) => setNewNote({ ...newNote, note_text: content })}

@@ -34,8 +34,15 @@ const ResourcesPage = () => {
   const [showPrayerRequest, setShowPrayerRequest] = useState(false);
   const [resourceCategories, setResourceCategories] = useState<ResourceCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingResource, setViewingResource] = useState<{ name: string; content: string } | null>(null);
 
   const handleDownload = async (itemName: string, category: string) => {
+    if (category === "Interactive Session") {
+      const content = `${category}: ${itemName}\n\nThis is a sample interactive session document from The Power House International Church.\n\nHere you would find the full content of the session, including scripture references, prayer points, and discussion questions.`;
+      setViewingResource({ name: itemName, content });
+      return;
+    }
+
     try {
       // Record the download in the database
       await ResourceService.recordDownload(
@@ -193,8 +200,8 @@ const ResourcesPage = () => {
     {
       title: "Prayer Request",
       icon: Heart,
-      color: "from-blue-500 to-blue-700",
-      shadow: "shadow-blue-500/20",
+      color: "from-blue-400 to-blue-600",
+      shadow: "shadow-blue-400/20",
       onClick: () => setShowPrayerRequest(true)
     },
     {
@@ -221,8 +228,8 @@ const ResourcesPage = () => {
     {
       title: "Group Chats",
       icon: MessageCircle,
-      color: "from-blue-600 to-blue-800",
-      shadow: "shadow-blue-500/20",
+      color: "from-blue-800 to-slate-900",
+      shadow: "shadow-blue-900/20",
       onClick: () => navigate("/group-chats")
     }
   ];
@@ -297,8 +304,8 @@ const ResourcesPage = () => {
                           </span>
                           {category.title === "Interactive Session" && (
                             <span className="text-[10px] items-center flex font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded">
-                              <PlayCircle className="w-3 h-3 mr-1" />
-                              Listen
+                              <Book className="w-3 h-3 mr-1" />
+                              View
                             </span>
                           )}
                         </div>
@@ -352,6 +359,19 @@ const ResourcesPage = () => {
             <div className="flex-1 overflow-y-auto p-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
               <PrayerRequestForm onSuccess={() => setShowPrayerRequest(false)} />
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!viewingResource} onOpenChange={(open) => !open && setViewingResource(null)}>
+        <DialogContent className="max-w-md bg-white dark:bg-gray-900 rounded-2xl border-white/10">
+          <DialogHeader>
+            <DialogTitle>{viewingResource?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="p-4 whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+            {viewingResource?.content}
+          </div>
+          <div className="flex justify-end p-4">
+            <Button onClick={() => setViewingResource(null)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
