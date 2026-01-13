@@ -598,31 +598,26 @@ const BibleNotesPage = () => {
                 </div>
             </div>
 
-            {/* Premium Sticky Navigation Bar */}
-            <div className={cn(
-                "sticky top-0 z-50 transition-all duration-500 ease-out",
-                isScrolled
-                    ? "translate-y-0 opacity-100"
-                    : "-translate-y-full opacity-0"
-            )}>
-                <div className="bg-gradient-to-r from-white/95 via-white/95 to-white/95 dark:from-gray-900/95 dark:via-gray-900/95 dark:to-gray-900/95 backdrop-blur-2xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg shadow-black/5">
+            {/* Premium Sticky Navigation Bar - Always visible when scrolling */}
+            <div className="sticky top-0 z-50">
+                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 shadow-lg">
                     <div className="container mx-auto max-w-6xl px-4 py-3">
                         <div className="flex items-center justify-between">
                             <Button
                                 variant="ghost"
                                 onClick={() => navigate('/bible')}
-                                className="group text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-950/50 dark:hover:to-purple-950/50 rounded-xl px-4 py-2 font-medium transition-all duration-300 hover:scale-105"
+                                className="group flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-2xl px-5 py-2.5 font-semibold transition-all duration-300 hover:scale-105 active:scale-95"
                             >
-                                <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-                                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">Bible</span>
+                                <ArrowLeft className="w-5 h-5 text-indigo-600 transition-transform group-hover:-translate-x-1" />
+                                <span className="text-indigo-600 dark:text-indigo-400">Return to Bible</span>
                             </Button>
                             <Button
                                 onClick={openNewNote}
-                                className="group relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 font-bold px-8 py-2.5 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+                                className="group relative flex items-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white hover:from-indigo-700 hover:via-purple-700 hover:to-pink-600 font-bold px-6 py-2.5 rounded-2xl shadow-xl shadow-purple-500/25 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                                <Plus className="w-4 h-4 mr-2 relative z-10" />
-                                <span className="relative z-10">New Note</span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                                <Plus className="w-5 h-5 relative z-10" />
+                                <span className="relative z-10">Add New Note</span>
                             </Button>
                         </div>
                     </div>
