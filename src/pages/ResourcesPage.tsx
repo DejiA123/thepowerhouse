@@ -275,11 +275,7 @@ const ResourcesPage = () => {
                       )}
                     </div>
                   ))}
-                  <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
-                    <Button variant="ghost" size="sm" className="text-primary text-xs font-semibold hover:text-primary/80 hover:bg-transparent">
-                      View All {category.title}
-                    </Button>
-                  </div>
+
                 </div>
               </div>
             ))}
