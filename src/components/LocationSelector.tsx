@@ -3,27 +3,15 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Clock, Phone, Mail, Navigation } from "lucide-react";
+import { MapPin, Clock, Phone, Mail, Navigation, MessageCircle, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const LocationSelector = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const { toast } = useToast();
 
   const locations = [
-    {
-      id: "dublin",
-      name: "Dublin",
-      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
-      times: {
-        sunday: "10 AM",
-        bibleStudy: "8 PM",
-        prayer: "8 PM"
-      },
-      phone: "089 252 7008",
-      email: "contact.thepowerhouse@gmail.com",
-      coordinates: { lat: 53.353, lng: -6.263 }
-    },
     {
       id: "galway",
       name: "Galway",
@@ -35,7 +23,22 @@ const LocationSelector = () => {
       },
       phone: "089 953 4714",
       email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/GalwayGroup",
       coordinates: { lat: 53.295, lng: -8.997 }
+    },
+    {
+      id: "dublin",
+      name: "Dublin",
+      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
+      times: {
+        sunday: "10 AM",
+        bibleStudy: "8 PM",
+        prayer: "8 PM"
+      },
+      phone: "089 252 7008",
+      email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/DublinGroup",
+      coordinates: { lat: 53.353, lng: -6.263 }
     },
     {
       id: "kildare",
@@ -48,6 +51,7 @@ const LocationSelector = () => {
       },
       phone: "089 953 5663",
       email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/KildareGroup",
       coordinates: { lat: 53.179, lng: -6.800 }
     },
     {
@@ -61,6 +65,7 @@ const LocationSelector = () => {
       },
       phone: "089 982 2556",
       email: "contact.thepowerhouse@gmail.com",
+      whatsappGroup: "https://chat.whatsapp.com/AthloneGroup",
       coordinates: { lat: 53.4239, lng: -7.9407 }
     }
   ];
@@ -129,81 +134,130 @@ const LocationSelector = () => {
   const currentLocation = locations.find(l => l.id === selectedLocation);
 
   return (
-    <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MapPin className="w-5 h-5 text-primary" />
-          <span>Select Your Location</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex space-x-3">
-          <Select value={selectedLocation} onValueChange={handleLocationSelect}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Choose your nearest location" />
-            </SelectTrigger>
-            <SelectContent>
-              {locations.map((location) => (
-                <SelectItem key={location.id} value={location.id}>
-                  {location.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={recommendNearestLocation}>
-            <Navigation className="w-4 h-4 mr-2" />
-            Find Nearest
-          </Button>
-        </div>
+    <div className="relative overflow-hidden rounded-3xl p-0.5 group shadow-2xl shadow-blue-900/10 dark:shadow-blue-900/30">
+      {/* Animated border gradient */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-600 opacity-30 animate-pulse"></div>
 
-        {currentLocation && (
-          <Card className="bg-accent">
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-lg mb-3 text-primary">{currentLocation.name}</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-start space-x-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <span className="text-muted-foreground">{currentLocation.address}</span>
-                </div>
-                <div className="space-y-1 pl-6">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-3 h-3 text-primary/70" />
-                    <span className="text-muted-foreground">Sunday Service: {currentLocation.times.sunday}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-3 h-3 text-primary/70" />
-                    <span className="text-muted-foreground">Bible Study: {currentLocation.times.bibleStudy}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-3 h-3 text-primary/70" />
-                    <span className="text-muted-foreground">Prayer Meeting: {currentLocation.times.prayer}</span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{currentLocation.phone}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{currentLocation.email}</span>
+      <Card className="relative border-0 shadow-none bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl overflow-hidden rounded-[22px]">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-100 dark:bg-blue-900/20 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-cyan-100 dark:bg-cyan-900/20 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+
+        <CardHeader className="relative z-10 pb-2">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-400">
+              <MapPin className="w-5 h-5" />
+              <span className="tracking-wide font-bold">Find Your Church</span>
+            </div>
+            {currentLocation && (
+              <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+                {currentLocation.name}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 relative z-10">
+          <div className="flex space-x-3">
+            <Select value={selectedLocation} onValueChange={handleLocationSelect}>
+              <SelectTrigger className="flex-1 rounded-xl h-12 border-blue-100 dark:border-blue-900/50 bg-white dark:bg-gray-800 shadow-sm focus:ring-blue-500">
+                <SelectValue placeholder="Choose your nearest location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={recommendNearestLocation}
+              className="rounded-xl h-12 px-6 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/30"
+            >
+              <Navigation className="w-4 h-4 mr-2" />
+              Nearest
+            </Button>
+          </div>
+
+          {currentLocation ? (
+            <div className="group/card relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-900/50 p-6 shadow-xl shadow-blue-900/5 animate-in slide-in-from-bottom-2 duration-500">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-cyan-600 dark:from-blue-400 dark:to-cyan-400">
+                  {currentLocation.name}
+                </h3>
+                <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <MapPin className="w-5 h-5" />
                 </div>
               </div>
-              <Button
-                className="w-full mt-4"
-                onClick={() => handleGetDirections(currentLocation)}
-              >
-                <Navigation className="w-4 h-4 mr-2" />
-                Get Directions
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
-        <div className="text-center text-sm text-muted-foreground">
-          Your selected location will be saved for future visits
-        </div>
-      </CardContent>
-    </Card>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-3 text-sm text-gray-600 dark:text-gray-300">
+                  <MapPin className="w-5 h-5 mt-0.5 shrink-0 text-blue-400" />
+                  <span className="leading-relaxed font-medium">{currentLocation.address}</span>
+                </div>
+
+                <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-4 space-y-3 border border-blue-100/50 dark:border-blue-900/20">
+                  <div className="flex items-center justify-between text-sm font-medium">
+                    <span className="text-gray-600 dark:text-gray-400 flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-400" /> Sunday Service</span>
+                    <span className="text-blue-700 dark:text-blue-300 font-bold bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-sm">{currentLocation.times.sunday}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-medium">
+                    <span className="text-gray-600 dark:text-gray-400 flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-400" /> Bible Study</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-bold bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-sm">{currentLocation.times.bibleStudy}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-medium">
+                    <span className="text-gray-600 dark:text-gray-400 flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-400" /> Prayer Meeting</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-bold bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-sm">{currentLocation.times.prayer}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors cursor-pointer">
+                      <Phone className="w-4 h-4 text-blue-400" />
+                      <span className="font-medium">{currentLocation.phone}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors cursor-pointer">
+                    <Mail className="w-4 h-4 text-blue-400" />
+                    <span className="font-medium truncate">{currentLocation.email}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    className="w-full font-semibold hover:bg-green-50 hover:text-green-700 hover:border-green-200 dark:hover:bg-green-900/20 dark:hover:text-green-400 dark:hover:border-green-900 transition-all rounded-xl h-11"
+                    onClick={() => window.open(currentLocation.whatsappGroup, '_blank')}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                  <Button
+                    className="w-full font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 border-0 rounded-xl h-11 transition-all hover:scale-[1.02]"
+                    onClick={() => handleGetDirections(currentLocation)}
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Directions
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 px-4 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
+              <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <MapPin className="w-8 h-8 opacity-50" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No Location Selected</h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                Please select your nearest church location above to see service times and details.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
