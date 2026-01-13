@@ -610,6 +610,27 @@ const BibleNotesPage = () => {
                 </div>
             </div>
 
+            {/* Sticky Floating Button Bar - appears when scrolling */}
+            <div className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 shadow-md">
+                <div className="container mx-auto max-w-6xl px-4 py-2 flex items-center justify-between">
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate('/bible')}
+                        className="text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-full px-4 font-medium"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Return to Bible
+                    </Button>
+                    <Button
+                        onClick={openNewNote}
+                        className="bg-indigo-600 text-white hover:bg-indigo-700 font-semibold px-6 rounded-full shadow-lg transition-all hover:scale-105"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add New Note
+                    </Button>
+                </div>
+            </div>
+
             {/* Content Area */}
             <div className="container mx-auto max-w-7xl px-4 -mt-12 relative z-20 pb-20">
                 <div className="flex flex-col lg:flex-row gap-8">
