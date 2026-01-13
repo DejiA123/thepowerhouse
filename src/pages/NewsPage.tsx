@@ -17,8 +17,6 @@ type Event = Tables<"events">;
 
 const NewsPage = () => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManageEventsOpen, setIsManageEventsOpen] = useState(false);
   const [editEventId, setEditEventId] = useState<string | null>(null);
@@ -35,18 +33,6 @@ const NewsPage = () => {
     const featured = events.filter(e => e.is_featured);
     return featured.length > 0 ? featured : (events.length > 0 ? [events[0]] : []);
   }, [events]);
-
-  useEffect(() => {
-    // Exclude all featured events from the latest events list to prevent duplication
-    const featuredIds = new Set(displayFeatured.map(e => e.id));
-    let baseEvents = events.filter(e => !featuredIds.has(e.id));
-
-    if (selectedCategory === "all") {
-      setFilteredEvents(baseEvents);
-    } else {
-      setFilteredEvents(baseEvents.filter(event => event.event_type === selectedCategory));
-    }
-  }, [selectedCategory, events, displayFeatured]);
 
   const checkAdminStatus = async () => {
     const { data } = await supabase
@@ -78,25 +64,7 @@ const NewsPage = () => {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-900/50';
-      case 'medium': return 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-900/50';
-      case 'low': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-900/50';
-      default: return 'bg-slate-500/10 text-slate-600 border-slate-200 dark:border-slate-900/50';
-    }
-  };
 
-  const getEventTypeColor = (type: string) => {
-    switch (type) {
-      case 'special': return 'bg-violet-500/10 text-violet-600 border-violet-200 dark:border-violet-900/50';
-      case 'youth': return 'bg-sky-500/10 text-sky-600 border-sky-200 dark:border-sky-900/50';
-      case 'evangelism': return 'bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-900/50';
-      case 'campus': return 'bg-indigo-500/10 text-indigo-600 border-indigo-200 dark:border-indigo-900/50';
-      case 'workers': return 'bg-teal-500/10 text-teal-600 border-teal-200 dark:border-teal-900/50';
-      default: return 'bg-slate-500/10 text-slate-600 border-slate-200 dark:border-slate-900/50';
-    }
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -121,7 +89,7 @@ const NewsPage = () => {
     });
   };
 
-  const categories = ["all", "special", "youth", "evangelism", "campus", "workers"];
+
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20 animate-in fade-in duration-700">
@@ -168,31 +136,6 @@ const NewsPage = () => {
       </div>
 
       <div className="container mx-auto px-6 lg:px-8 space-y-16">
-        {/* Category Filters */}
-        <div className="flex flex-col space-y-4 animate-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Filter By Category</h2>
-            <span className="text-xs font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">
-              {filteredEvents.length} Events
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "px-4 py-2 rounded-full text-sm font-bold transition-all border outline-none",
-                  selectedCategory === cat
-                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:border-white dark:text-slate-900"
-                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                )}
-              >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Featured Events Vertical List */}
         {displayFeatured.length > 0 && (
@@ -261,132 +204,19 @@ const NewsPage = () => {
           </div>
         )}
 
-        {/* Upcoming Events Grid & Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-in slide-in-from-bottom-8 duration-1000 delay-300">
-          {/* Main Events Feed */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <Calendar className="w-6 h-6 text-indigo-500" />
-                Latest Events
-              </h3>
-            </div>
-
-            {filteredEvents.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {filteredEvents.map((event) => {
-                  const dateInfo = formatDate(event.event_date);
-                  return (
-                    <Card
-                      key={event.id}
-                      className="group border-none bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl transition-all border border-slate-200/60 dark:border-slate-800/60 overflow-hidden relative"
-                    >
-                      <div className="flex flex-col sm:flex-row">
-                        {/* Date Left Card */}
-                        <div className="w-full sm:w-24 bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center py-4 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-slate-800">
-                          <span className="text-3xl font-black text-slate-900 dark:text-white leading-none mb-1">{dateInfo.day}</span>
-                          <span className="text-xs font-bold text-indigo-500 uppercase tracking-widest">{dateInfo.month}</span>
-                        </div>
-
-                        <div className="flex-1 p-6 relative">
-                          <CardHeader className="p-0 mb-4">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                  <Badge variant="outline" className={cn(getPriorityColor(event.priority), "text-[10px] uppercase border-none px-2")}>
-                                    {event.priority}
-                                  </Badge>
-                                  <Badge variant="outline" className={cn(getEventTypeColor(event.event_type || ''), "text-[10px] uppercase border-none px-2")}>
-                                    {event.event_type}
-                                  </Badge>
-                                </div>
-                                <CardTitle className="text-xl font-bold group-hover:text-indigo-600 transition-colors">
-                                  {event.title}
-                                  {event.is_featured && (
-                                    <Star className="inline-block ml-2 w-4 h-4 text-amber-400 fill-amber-400" />
-                                  )}
-                                </CardTitle>
-                              </div>
-
-                              {isAdmin && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    setEditEventId(event.id);
-                                    setIsManageEventsOpen(true);
-                                  }}
-                                  className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                                >
-                                  <Settings className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="p-0 space-y-4">
-                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
-                              {event.description}
-                            </p>
-
-                            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-2">
-                              {event.event_time && (
-                                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                                  {formatTime(event.event_time)}
-                                </div>
-                              )}
-                              {event.location && (
-                                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                                  <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-                                  {event.location}
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-
-                          <Button variant="ghost" size="icon" className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                            <ArrowRight className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="w-8 h-8 text-slate-400" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {events.length === 0
-                    ? "No upcoming events found"
-                    : selectedCategory === "all"
-                      ? "All events are featured above"
-                      : "No events for this category"}
-                </h3>
-                <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                  {events.length === 0
-                    ? "Check back later for new updates and community events."
-                    : selectedCategory === "all"
-                      ? "Check out our highlighted events in the carousel at the top of the page."
-                      : "Try selecting a different category or check back later."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar Area */}
-          <div id="announcements-sidebar" className="space-y-8 scroll-mt-24">
+        {/* Announcements & Newsletter - Centered Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto animate-in slide-in-from-bottom-8 duration-1000 delay-300">
+          <div id="announcements-sidebar" className="space-y-8 scroll-mt-24 w-full">
             {/* Announcements Hub */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm relative overflow-hidden h-full">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16" />
               <AnnouncementsHub />
             </div>
+          </div>
 
+          <div className="space-y-8 w-full">
             {/* Newsletter CTA */}
-            <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden group">
+            <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden group h-full flex flex-col justify-center">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500" />
               <div className="relative z-10 space-y-4">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
