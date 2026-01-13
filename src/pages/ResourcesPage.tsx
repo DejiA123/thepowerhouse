@@ -131,48 +131,6 @@ const ResourcesPage = () => {
                 downloads: downloadCounts["Interactive Session"]?.["Word of God"] || 0
               }
             ]
-          },
-          {
-            title: "Study Guides",
-            icon: <FileText className="w-5 h-5" />,
-            items: [
-              {
-                name: "New Testament Survey",
-                description: "Comprehensive NT overview",
-                downloads: downloadCounts["Study Guides"]?.["New Testament Survey"] || 0
-              },
-              {
-                name: "Prayer & Fasting Guide",
-                description: "Spiritual discipline handbook",
-                downloads: downloadCounts["Study Guides"]?.["Prayer & Fasting Guide"] || 0
-              },
-              {
-                name: "Financial Stewardship",
-                description: "Biblical money management",
-                downloads: downloadCounts["Study Guides"]?.["Financial Stewardship"] || 0
-              }
-            ]
-          },
-          {
-            title: "Audio Resources",
-            icon: <Headphones className="w-5 h-5" />,
-            items: [
-              {
-                name: "Daily Devotionals",
-                description: "Morning inspiration podcasts",
-                downloads: downloadCounts["Audio Resources"]?.["Daily Devotionals"] || 0
-              },
-              {
-                name: "Worship Playlists",
-                description: "Curated praise & worship",
-                downloads: downloadCounts["Audio Resources"]?.["Worship Playlists"] || 0
-              },
-              {
-                name: "Teaching Archives",
-                description: "Past sermon recordings",
-                downloads: downloadCounts["Audio Resources"]?.["Teaching Archives"] || 0
-              }
-            ]
           }
         ];
 
