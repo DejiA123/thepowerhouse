@@ -180,7 +180,7 @@ const LocationSelector = () => {
             </Button>
           </div>
 
-          {currentLocation ? (
+          {currentLocation && (
             <div className="group/card relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-900/50 p-6 shadow-xl shadow-blue-900/5 animate-in slide-in-from-bottom-2 duration-500">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-cyan-600 dark:from-blue-400 dark:to-cyan-400">
@@ -243,16 +243,6 @@ const LocationSelector = () => {
                   </Button>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 px-4 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
-              <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                <MapPin className="w-8 h-8 opacity-50" />
-              </div>
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No Location Selected</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-                Please select your nearest church location above to see service times and details.
-              </p>
             </div>
           )}
         </CardContent>
