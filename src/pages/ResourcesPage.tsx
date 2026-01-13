@@ -343,7 +343,7 @@ const ResourcesPage = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowPrayerRequest(false)}
-                  className="text-white hover:bg-white/20 rounded-full"
+                  className="text-white hover:bg-white/20 rounded-full focus:ring-0 focus-visible:ring-0 focus:outline-none"
                 >
                   Close
                 </Button>
