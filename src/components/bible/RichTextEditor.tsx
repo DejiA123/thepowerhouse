@@ -400,6 +400,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     ],
     content: content,
     editable: true, // Always editable to allow BubbleMenu interaction
+    onFocus: () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+      }
+    },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
@@ -429,6 +435,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         return false;
       },
       handleTextInput: () => readOnly, // Block text input if readOnly
+      handleScrollToSelection: () => true, // Disable Tiptap scrolling to selection
     },
   });
 

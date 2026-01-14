@@ -1451,19 +1451,17 @@ select:focus {
 
 html,
 body {
-  overscroll-behavior: none !important;
-  height: 100%;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+  /* Remove global overflow: hidden as it clips bottom nav in PWA */
 }
 
+/* Modal open locking - keep background stable */
 body[data-state='open'],
 body.modal-open {
-  position: fixed !important;
-  width: 100% !important;
-  height: 100% !important;
   overflow: hidden !important;
+  touch-action: none;
+  -ms-touch-action: none;
 }
 
 /* Fix for iOS Safari "jump" - strictly defining scroll padding */

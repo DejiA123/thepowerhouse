@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
@@ -160,9 +159,9 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      {/* Background fill for status bar */}
-      <div className="fixed top-0 left-0 right-0 bg-background z-[-1]" style={{ height: 'env(safe-area-inset-top)' }} />
+    <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
+      {/* Background fill for status bar - now using a real element to avoid pushing container height */}
+      <div className="shrink-0 bg-background z-20" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
       {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
 
