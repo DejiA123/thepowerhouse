@@ -201,7 +201,7 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
       )}
 
       <div className={cn(
-        "fixed left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out py-8",
+        "absolute left-1/2 -translate-x-1/2 z-[100] py-8",
         position === 'top' ? 'top-0' : 'bottom-0'
       )}>
         <div className="flex flex-col items-center gap-4">
@@ -406,7 +406,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     editorProps: {
       attributes: {
         class: cn(
-          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 transition-all text-[16px]',
+          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 text-[16px]',
           compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-1',
           'selection:bg-blue-100 dark:selection:bg-blue-900/30',
           '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
@@ -450,7 +450,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
   }), [editor]);
 
   return (
-    <div className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 transition-colors", className)}>
+    <div className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950", className)}>
       {toolbarPosition === 'top' && !readOnly && (
         <MenuBar
           editor={editor}

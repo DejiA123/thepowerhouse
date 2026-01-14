@@ -1137,7 +1137,7 @@ const BibleNotesPage = () => {
                                             </div>
                                         ) : (
                                             <div
-                                                className="flex-1 flex flex-col min-h-0 cursor-text transition-all hover:bg-gray-50/50 dark:hover:bg-white/[0.02]"
+                                                className="flex-1 flex flex-col min-h-0 cursor-text"
                                                 onClick={() => {
                                                     setNewNote({
                                                         title: selectedNote.title || '',
@@ -1193,7 +1193,7 @@ const BibleNotesPage = () => {
                 >
                     <div className="flex flex-col h-full bg-white dark:bg-gray-950 overscroll-none">
                         {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
@@ -1248,13 +1248,13 @@ const BibleNotesPage = () => {
                                         placeholder="Note Title"
                                         value={newNote.title}
                                         onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                        className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none transition-all placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left"
+                                        className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left"
                                     />
                                 </div>
 
                                 {/* Rich Text Editor - Now styled premium */}
                                 <div className="px-4 md:px-6 flex-1 flex flex-col group min-h-0">
-                                    <div className="flex-1 transition-all overflow-hidden bg-transparent">
+                                    <div className="flex-1 overflow-hidden bg-transparent">
                                         <RichTextEditor
                                             content={newNote.note_text}
                                             onChange={(content) => setNewNote({ ...newNote, note_text: content })}
