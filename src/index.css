@@ -1434,17 +1434,25 @@ select:focus {
   input,
   textarea,
   select,
-  [contenteditable] {
+  [contenteditable],
+  .ProseMirror {
     font-size: 16px !important;
   }
 }
 
 /* Global ContentEditable stability for Mobile */
-[contenteditable] {
+[contenteditable],
+.ProseMirror {
   -webkit-user-select: text;
   user-select: text;
   touch-action: manipulation !important;
-  /* Allow internal scrolling but prevent default dragging */
+  outline: none !important;
+}
+
+html,
+body {
+  overscroll-behavior-y: none !important;
+  overscroll-behavior: none !important;
 }
 
 /* Disable overscroll on fixed full-screen containers */

@@ -417,7 +417,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           '[&_h3]:text-2xl [&_h3]:font-bold [&_h3]:mb-3 [&_h3]:mt-6 [&_h3]:text-gray-700 dark:[&_h3]:text-gray-200',
           '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4 [&_ul_li]:mb-1',
           '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4 [&_ol_li]:mb-1',
-          !readOnly && !compact && 'min-h-[500px]',
+          !readOnly && !compact && 'min-h-[200px] sm:min-h-[500px]',
           readOnly && 'caret-transparent' // Hide caret in readOnly mode
         ),
       },

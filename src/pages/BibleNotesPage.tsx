@@ -1191,7 +1191,7 @@ const BibleNotesPage = () => {
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden overscroll-none"
                 >
-                    <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+                    <div className="flex flex-col h-full bg-white dark:bg-gray-950 overscroll-none">
                         {/* Premium Navbar */}
                         <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                             <div className="flex items-center gap-4">
