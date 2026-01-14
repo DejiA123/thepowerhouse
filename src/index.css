@@ -1433,9 +1433,24 @@ select:focus {
 
   input,
   textarea,
-  select {
+  select,
+  [contenteditable] {
     font-size: 16px !important;
   }
+}
+
+/* Global ContentEditable stability for Mobile */
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation !important;
+  /* Allow internal scrolling but prevent default dragging */
+}
+
+/* Disable overscroll on fixed full-screen containers */
+.overscroll-none {
+  overscroll-behavior: none !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* PWA specific input handling */

@@ -973,7 +973,7 @@ const BibleNotesPage = () => {
             }}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen h-[100dvh] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col"
+                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col overscroll-none"
                 >
                     {selectedNote && (
                         <div className="flex flex-col h-full bg-white dark:bg-gray-950">
@@ -1189,7 +1189,7 @@ const BibleNotesPage = () => {
             <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen h-[100dvh] max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden"
+                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden overscroll-none"
                 >
                     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                         {/* Premium Navbar */}
