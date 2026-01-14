@@ -14,7 +14,7 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass border-t-0 w-full shrink-0 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+4px)] z-50 rounded-none border-t border-white/10"
+      className="glass w-full shrink-0 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+2px)] z-50 rounded-none border-t border-black/5 dark:border-white/10 shadow-[0_-2px_20px_rgba(0,0,0,0.12)]"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
