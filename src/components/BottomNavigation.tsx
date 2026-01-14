@@ -14,12 +14,12 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass border-t-0 w-full shrink-0 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)] z-50 rounded-none border-t border-white/10"
+      className="glass border-t-0 w-full shrink-0 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+4px)] z-50 rounded-none border-t border-white/10"
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="w-full pt-1 flex justify-around touch-none select-none">
+      <div className="w-full pt-0.5 flex justify-around touch-none select-none">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
