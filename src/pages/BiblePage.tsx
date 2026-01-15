@@ -31,7 +31,7 @@ const BiblePage = () => {
   // Add styles to prevent page scrolling - only allow content scrolling
   useEffect(() => {
     // Apply fixed height and overflow hidden to body when on Bible page
-    document.body.style.height = '100vh';
+    document.body.style.height = '100dvh';
     document.body.style.overflow = 'hidden';
 
     // Cleanup function to restore normal scrolling when leaving the page
@@ -508,7 +508,7 @@ const BiblePage = () => {
   if (selectedChapter && !showHighlights && !showNotes) {
     // Full Bible reading layout
     return (
-      <div className="min-h-screen bg-background pb-[72px] pt-[env(safe-area-inset-top)]">
+      <div className="min-h-screen bg-background pb-[72px] pt-[max(env(safe-area-inset-top),20px)]">
         {renderContent()}
 
         {/* Version Selector Drawer */}
@@ -609,7 +609,7 @@ const BiblePage = () => {
 
   // Book selection or other layouts
   return (
-    <div className="h-screen bg-background overscroll-contain pt-[env(safe-area-inset-top)]">
+    <div className="h-screen bg-background overscroll-contain pt-[max(env(safe-area-inset-top),20px)]">
       {renderContent()}
 
       {/* Bible History Dialog */}

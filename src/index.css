@@ -1452,9 +1452,10 @@ select:focus {
   -webkit-touch-callout: default !important;
   -webkit-user-select: text !important;
   user-select: text !important;
-  touch-action: pan-y !important;
-  overscroll-behavior: contain !important;
+  touch-action: manipulation !important;
+  overscroll-behavior: auto !important;
   cursor: text !important;
+  transform: translateZ(0);
 }
 
 /* Global ContentEditable stability for Mobile */
