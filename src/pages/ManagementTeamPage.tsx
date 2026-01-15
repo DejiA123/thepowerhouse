@@ -922,13 +922,13 @@ const ModernProjectBrief = ({
 
                     {/* Unit Formation Plan */}
                     <section>
-                        <h3 className="text-xl font-bold mb-4 border-l-4 border-purple-600 pl-4">Unit Formation Plan</h3>
-                        <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 shadow-sm">
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-blue-600 pl-4">Unit Formation Plan</h3>
+                        <Card className="bg-blue-50 dark:bg-blue-900/10 border-blue-200 shadow-sm">
                             <CardContent className="p-6">
                                 {isEditMode ? (
                                     <div className="space-y-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-purple-600 uppercase tracking-wider">Pastor Strategy</label>
+                                            <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Pastor Strategy</label>
                                             <Textarea
                                                 value={unitFormationPastor}
                                                 onChange={(e) => setUnitFormationPastor(e.target.value)}
@@ -936,7 +936,7 @@ const ModernProjectBrief = ({
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-bold text-purple-600 uppercase tracking-wider">Meeting Strategy</label>
+                                            <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Meeting Strategy</label>
                                             <Textarea
                                                 value={unitFormationMeeting}
                                                 onChange={(e) => setUnitFormationMeeting(e.target.value)}
@@ -960,7 +960,7 @@ const ModernProjectBrief = ({
 
                     {/* Key Responsibilities */}
                     <section>
-                        <h3 className="text-xl font-bold mb-4 border-l-4 border-purple-600 pl-4">Key Responsibilities</h3>
+                        <h3 className="text-xl font-bold mb-4 border-l-4 border-blue-600 pl-4">Key Responsibilities</h3>
                         <div className="space-y-4">
                             {[
                                 { title: "Spiritual Preparedness", desc: "Intercessory Unit to maintain spiritual atmosphere throughout planning." },
@@ -1417,10 +1417,10 @@ const ManagementTeamPage = () => {
                         {currentPhase.name} Active
                     </Badge>
                     <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight flex flex-col md:flex-row md:items-center gap-4">
-                        <span>Bishopric Consecration & <span className="text-purple-600">Outpouring Convention</span></span>
-                        <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/30 border border-purple-100 dark:border-purple-800 px-4 py-1.5 rounded-2xl shadow-sm transition-all hover:shadow-md hover:border-purple-200">
-                            <Calendar className="w-4 h-4 text-purple-600" />
-                            <span className="text-xs font-black text-purple-700 dark:text-purple-300 uppercase tracking-[0.2em]">
+                        <span>Bishopric Consecration & <span className="text-blue-600">Outpouring Convention</span></span>
+                        <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 px-4 py-1.5 rounded-2xl shadow-sm transition-all hover:shadow-md hover:border-blue-200">
+                            <Calendar className="w-4 h-4 text-blue-600" />
+                            <span className="text-xs font-black text-blue-700 dark:text-blue-300 uppercase tracking-[0.2em]">
                                 14 - 16 Aug 2026
                             </span>
                         </div>
@@ -1432,7 +1432,7 @@ const ManagementTeamPage = () => {
                 <div className="flex flex-col items-end gap-2">
                     <p className="hidden md:block text-xs uppercase tracking-widest text-slate-400 font-bold">Days Remaining</p>
                     <div className="flex items-center gap-4">
-                        <p className="hidden md:block text-xl font-bold font-mono text-purple-600">
+                        <p className="hidden md:block text-xl font-bold font-mono text-blue-600">
                             {Math.ceil((new Date(2026, 7, 14).getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24))} Days
                         </p>
 
@@ -1531,31 +1531,31 @@ const ManagementTeamPage = () => {
                         >
                             <TabsTrigger
                                 value="dashboard"
-                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
                                 <LayoutDashboard className="w-4 h-4" /> Dashboard
                             </TabsTrigger>
                             <TabsTrigger
                                 value="brief"
-                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
                                 <FileText className="w-4 h-4" /> Brief
                             </TabsTrigger>
                             <TabsTrigger
                                 value="units"
-                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
                                 <ClipboardList className="w-4 h-4" /> Units
                             </TabsTrigger>
                             <TabsTrigger
                                 value="guests"
-                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
                                 <Users className="w-4 h-4" /> Guest List
                             </TabsTrigger>
                             <TabsTrigger
                                 value="budget"
-                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                className="flex-shrink-0 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 data-[state=active]:shadow-md rounded-xl px-4 md:px-6 py-2.5 transition-all duration-300 flex items-center gap-2 text-xs md:text-sm font-bold whitespace-nowrap text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                             >
                                 <CreditCard className="w-4 h-4" /> Budget
                             </TabsTrigger>
@@ -1567,7 +1567,7 @@ const ManagementTeamPage = () => {
                 <TabsContent value="dashboard" className="space-y-6">
                     {/* Status Overview */}
                     <div className="grid md:grid-cols-4 gap-6">
-                        <Card className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-none shadow-xl col-span-1 md:col-span-2">
+                        <Card className="bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 text-white border-none shadow-xl col-span-1 md:col-span-2">
                             <CardHeader className="pb-2 flex flex-row justify-between items-center">
                                 <CardTitle className="text-lg font-medium opacity-90">Overall Progress</CardTitle>
                                 {isDashboardEditMode && (
@@ -1576,7 +1576,7 @@ const ManagementTeamPage = () => {
                                             id="manual-mode"
                                             checked={isManualProgress}
                                             onCheckedChange={(c) => handleToggleManualProgress(!!c)}
-                                            className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-600"
+                                            className="border-white data-[state=checked]:bg-white data-[state=checked]:text-blue-600"
                                         />
                                         <label htmlFor="manual-mode" className="text-xs font-medium cursor-pointer select-none">Manual Override</label>
                                     </div>
@@ -1616,15 +1616,15 @@ const ManagementTeamPage = () => {
                         </Card>
 
                         <Card className="relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/5 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-500" />
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/5 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-500" />
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-medium text-slate-500 flex items-center justify-between">
                                     Day Count
-                                    <Calendar className="w-4 h-4 text-purple-600" />
+                                    <Calendar className="w-4 h-4 text-blue-600" />
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-black text-purple-600">
+                                <div className="text-2xl font-black text-blue-600">
                                     {Math.ceil((new Date(2026, 7, 14).getTime() - currentTime.getTime()) / (1000 * 60 * 60 * 24))} Days
                                 </div>
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter mt-1">
@@ -1648,7 +1648,7 @@ const ManagementTeamPage = () => {
                                             onClick={() => handleTabChange(tool.url)}
                                             className="flex items-center gap-3 flex-1 text-left"
                                         >
-                                            <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center">
+                                            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center">
                                                 {React.createElement(ICON_MAP[tool.icon_name] || Link, { className: "w-4 h-4" })}
                                             </div>
                                             <div>
@@ -1688,13 +1688,13 @@ const ManagementTeamPage = () => {
 
                                         return (
                                             <div key={phase.id} className="ml-6 relative">
-                                                <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 ${isActive ? 'bg-purple-600 border-purple-600' :
+                                                <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 ${isActive ? 'bg-blue-600 border-blue-600' :
                                                     isPast ? 'bg-slate-400 border-slate-400' :
                                                         'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600'
                                                     }`} />
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <h3 className={`text-lg font-bold ${isActive ? 'text-purple-600' : 'text-slate-900 dark:text-white'}`}>
+                                                        <h3 className={`text-lg font-bold ${isActive ? 'text-blue-600' : 'text-slate-900 dark:text-white'}`}>
                                                             {phase.name}
                                                         </h3>
                                                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{phase.description}</p>
