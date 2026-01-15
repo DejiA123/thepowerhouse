@@ -978,7 +978,7 @@ const BibleNotesPage = () => {
                     {selectedNote && (
                         <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                             {/* Standard Header Bar - Clean Apple Notes Style */}
-                            <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+max(env(safe-area-inset-top),44px))]">
+                            <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                                 <Button
                                     variant="ghost"
                                     onClick={() => {
@@ -1193,7 +1193,7 @@ const BibleNotesPage = () => {
                 >
                     <div className="flex flex-col h-full bg-white dark:bg-gray-950 overscroll-none">
                         {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+max(env(safe-area-inset-top),44px))]">
+                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
