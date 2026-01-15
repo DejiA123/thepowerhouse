@@ -163,8 +163,8 @@ const Layout = ({ children }: LayoutProps) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-    // Set fallback variable: 50px for iOS Browser (Dynamic Island/Notch safety), 0px for everything else
-    const fallbackValue = (isIOS && !isStandalone) ? '50px' : '0px';
+    // Set fallback variable: 44px for iOS Browser (standard notch height), 0px for everything else
+    const fallbackValue = (isIOS && !isStandalone) ? '44px' : '0px';
     document.documentElement.style.setProperty('--sat-fallback', fallbackValue);
 
     console.log('📱 Layout: Platform Config', { isIOS, isStandalone, fallback: fallbackValue });
@@ -173,19 +173,12 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
-      {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
-      {/* Only show for pages WITHOUT Header (like GroupChats, Intro) except Bible */}
-      {location.pathname !== '/bible' && (location.pathname === '/group-chats' || !showChrome) && (
+      {/* Hide on Bible page to prevent double padding with internal headers */}
+      {location.pathname !== '/bible' && (
         <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
       )}
 
-      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && (
-        <>
-          <Header />
-          {/* Spacer for Fixed Header: 80px logo + 16px padding (py-2 = 0.5rem*2) + safe-area-top */}
-          <div style={{ height: 'calc(5rem + 1rem + max(env(safe-area-inset-top), var(--sat-fallback, 0px)))' }} />
-        </>
-      )}
+      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
 
       {/* Main Content */}
       <main
