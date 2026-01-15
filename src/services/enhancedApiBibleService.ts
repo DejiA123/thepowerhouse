@@ -142,6 +142,7 @@ export const enhancedApiBibleService = {
             else if (name.includes('reformed standard version')) abbr = 'RSV';
             else if (name.includes('american standard version')) abbr = 'ASV';
             else if (name.includes('douay-rheims')) abbr = 'DRA';
+            else if (name.includes('english majority text')) abbr = 'EMTV'; // Explicitly identify to block
             else if (name.includes('geneva bible')) abbr = 'GNV';
             else if (name.includes('young\'s literal translation')) abbr = 'YLT';
             else if (name.includes('darby translation')) abbr = 'DARBY';
@@ -172,11 +173,13 @@ export const enhancedApiBibleService = {
             'WEB', 'WEBBE', 'WEBUS', 'WEBU', 'WMB', 'WMBBE',
             'ASVBT', 'BSB', 'LXXUP', 'BRENT', 'KJVCPB', 'DRA',
             'EMTV', 'FBV', 'GNV', 'OJPS', 'LSV', 'RV', 'OKE',
-            'F35', 'TOJB2011', 'TCENT', 'T4T', 'KJV' // User specifically requested KJV removal
+            'F35', 'TOJBT2011', 'TCENT', 'T4T', 'KJV' // User specifically requested KJV removal
           ];
 
           // Checks
-          const isBlockedAbbr = blockedAbbreviations.includes(abbr);
+          const isBlockedAbbr = blockedAbbreviations.some(blocked =>
+            blocked.toLowerCase() === abbr.toLowerCase()
+          );
 
           // Also filter by name for specific unwanted versions to be safe
           const name = (bible.name || '').toLowerCase();
@@ -691,6 +694,7 @@ export const enhancedApiBibleService = {
       'esv': '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57',
       'nlt': '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8',
       'nasb': '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29'
+      // AMPC removed - requires paid API.Bible subscription; falls back to AMP via Bolls.life
     };
 
     const fallback = commonMappings[versionId.toLowerCase()];
@@ -855,7 +859,6 @@ export const enhancedApiBibleService = {
       'NRSV': 'NRSV',
       'MSG': 'MSG',
       'DRA': 'DRA',
-      'EMTV': 'EMTV',
       'GNV': 'GNV',
       'LEB': 'LEB',
       'TLV': 'TLV',

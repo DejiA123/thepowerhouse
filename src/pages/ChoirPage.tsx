@@ -38,7 +38,7 @@ import {
     PlusCircle,
     Clock
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -148,6 +148,7 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
 
 const ChoirPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams(); // Added for deep linking
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("vocalists");
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -305,6 +306,25 @@ const ChoirPage = () => {
         };
         fetchData();
     }, []);
+
+    // Sync state with URL params (Deep Linking)
+    useEffect(() => {
+        const folderId = searchParams.get('folderId');
+        const tab = searchParams.get('tab');
+
+        if (folderId) {
+            setActiveFolderId(folderId);
+            setActiveTab('vocalists');
+        }
+
+        if (tab) {
+            if (tab === 'schedule') {
+                setIsScheduleOpen(true);
+            } else if (['vocalists', 'instrumentalists'].includes(tab)) {
+                setActiveTab(tab);
+            }
+        }
+    }, [searchParams]);
 
     // Refresh library when adding to setlist to ensure dropdown is fresh
     useEffect(() => {

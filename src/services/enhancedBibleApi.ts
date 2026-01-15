@@ -87,13 +87,6 @@ export const enhancedBibleApi = {
         source: 'bible.helloao.org'
       },
       {
-        name: 'English Majority Text Version',
-        abbreviation: 'EMTV',
-        language: 'English',
-        version: 'emtv',
-        source: 'bible.helloao.org'
-      },
-      {
         name: 'Geneva Bible 1599',
         abbreviation: 'GNV',
         language: 'English',
@@ -131,7 +124,7 @@ export const enhancedBibleApi = {
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 enhancedBibleApi: Fetching ${book} chapter ${chapter} (version: ${version})`);
-      
+
       // Determine the source for this version
       const versionInfo = await this.getVersionInfo(version);
       if (!versionInfo) {
@@ -170,7 +163,7 @@ export const enhancedBibleApi = {
   async getESVChapter(book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from ESV API: ${book} ${chapter}`);
-      
+
       // Use the existing ESV API service
       const passageText = await esvApi.getPassageText(book, chapter);
       if (!passageText) {
@@ -181,7 +174,7 @@ export const enhancedBibleApi = {
       // Parse the passage text into verses
       // ESV API returns formatted text, so we'll split by verse numbers
       const verses = this.parseESVText(passageText, book, chapter);
-      
+
       if (verses.length > 0) {
         console.log(`✅ Successfully loaded ${verses.length} verses from ESV API`);
         return {
@@ -202,7 +195,7 @@ export const enhancedBibleApi = {
   async getApiBibleChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from API.Bible: ${version} ${book} ${chapter}`);
-      
+
       // Use the updated API.Bible service
       return await apiBibleService.getChapter(version, book, chapter);
     } catch (error) {
@@ -215,13 +208,12 @@ export const enhancedBibleApi = {
   async getHelloaoChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Fetching from bible.helloao.org: ${version} ${book} ${chapter}`);
-      
+
       // Map version to bible.helloao.org format
       const versionMappings: Record<string, string> = {
         'kjv': 'eng_kjv',
         'asv': 'eng_asv',
         'dra': 'eng_dra',
-        'emtv': 'eng_emtv',
         'gnv': 'eng_gnv',
         'lsv': 'eng_lsv',
         'dby': 'eng_dby',
@@ -270,7 +262,7 @@ export const enhancedBibleApi = {
       }
 
       const data = await response.json();
-      
+
       // Parse the response
       if (data && data.chapter && data.chapter.content && Array.isArray(data.chapter.content)) {
         const verses = data.chapter.content
@@ -303,7 +295,7 @@ export const enhancedBibleApi = {
       // This is a simple parser - can be enhanced
       const verses: BibleVerse[] = [];
       const lines = text.split('\n');
-      
+
       lines.forEach((line, index) => {
         if (line.trim()) {
           // Extract verse number and text
@@ -311,7 +303,7 @@ export const enhancedBibleApi = {
           if (verseMatch) {
             const verseNumber = parseInt(verseMatch[1]);
             const verseText = verseMatch[2].trim();
-            
+
             if (verseText) {
               verses.push({
                 book,
