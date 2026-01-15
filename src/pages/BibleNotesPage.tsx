@@ -973,12 +973,12 @@ const BibleNotesPage = () => {
             }}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col overscroll-none"
+                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col overscroll-none ios-input-fix select-text"
                 >
                     {selectedNote && (
                         <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                             {/* Standard Header Bar - Clean Apple Notes Style */}
-                            <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                            <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+max(env(safe-area-inset-top),44px))]">
                                 <Button
                                     variant="ghost"
                                     onClick={() => {
@@ -1189,11 +1189,11 @@ const BibleNotesPage = () => {
             <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden overscroll-none"
+                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden overscroll-none ios-input-fix select-text"
                 >
                     <div className="flex flex-col h-full bg-white dark:bg-gray-950 overscroll-none">
                         {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+max(env(safe-area-inset-top),44px))]">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
@@ -1248,7 +1248,7 @@ const BibleNotesPage = () => {
                                         placeholder="Note Title"
                                         value={newNote.title}
                                         onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                        className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left"
+                                        className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
                                     />
                                 </div>
 

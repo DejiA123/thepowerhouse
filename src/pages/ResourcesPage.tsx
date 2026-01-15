@@ -297,7 +297,7 @@ const ResourcesPage = () => {
       <Dialog open={showPrayerRequest} onOpenChange={setShowPrayerRequest}>
         <DialogContent className="w-screen h-screen max-w-none m-0 p-0 bg-white dark:bg-gray-900 border-0 rounded-none data-[state=open]:slide-in-from-bottom-0">
           <div className="flex flex-col h-full">
-            <DialogHeader className="sticky top-0 z-10 bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+            <DialogHeader className="sticky top-0 z-10 bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 pt-[calc(1.5rem+max(env(safe-area-inset-top),44px))]">
               <div className="flex items-center justify-between">
                 <DialogTitle className="text-xl font-bold text-white">Submit Prayer Request</DialogTitle>
                 <Button
@@ -310,7 +310,7 @@ const ResourcesPage = () => {
                 </Button>
               </div>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+            <div className="flex-1 overflow-y-auto p-6 pb-[calc(2rem+max(env(safe-area-inset-bottom),20px))]">
               <PrayerRequestForm onSuccess={() => setShowPrayerRequest(false)} />
             </div>
           </div>
@@ -318,7 +318,7 @@ const ResourcesPage = () => {
       </Dialog>
       <Dialog open={!!viewingResource} onOpenChange={(open) => !open && setViewingResource(null)}>
         <DialogContent className="w-screen h-screen max-w-none m-0 p-0 bg-white dark:bg-gray-900 border-none rounded-none flex flex-col">
-          <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+          <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-10 pt-[calc(0.5rem+max(env(safe-area-inset-top),44px))]">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xl font-bold">{viewingResource?.name}</DialogTitle>
               <Button onClick={() => setViewingResource(null)} variant="ghost" size="sm" className="bg-gray-100 dark:bg-gray-800 rounded-full">Close</Button>
