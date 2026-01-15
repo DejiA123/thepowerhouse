@@ -1420,6 +1420,13 @@ li[data-type="taskItem"][data-checked="true"]> :not(label) {
 }
 
 /* Ensure inputs are properly focusable in PWA */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -1460,8 +1467,6 @@ body {
 body[data-state='open'],
 body.modal-open {
   overflow: hidden !important;
-  touch-action: none;
-  -ms-touch-action: none;
 }
 
 /* Fix for iOS Safari "jump" - strictly defining scroll padding */

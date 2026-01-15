@@ -336,7 +336,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                 value={newNote.note_text}
                 onChange={(e) => setNewNote(prev => ({ ...prev, note_text: e.target.value }))}
                 placeholder="Write your note here... You can include insights, questions, prayers, applications, or any thoughts about this passage."
-                className="min-h-[100px]"
+                className="min-h-[100px] select-text cursor-text"
               />
             </div>
 
@@ -357,7 +357,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                       }
                     }}
                     placeholder="Add tags..."
-                    className="flex-1"
+                    className="flex-1 select-text cursor-text"
                   />
                   <Button
                     type="button"
@@ -460,7 +460,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                                 value={editingNote.title || ''}
                                 onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
                                 placeholder="Note title..."
-                                className="text-center font-semibold"
+                                className="text-center font-semibold select-text cursor-text"
                               />
                             </div>
 
@@ -490,7 +490,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                             <Textarea
                               value={editingNote.note_text}
                               onChange={(e) => setEditingNote(prev => prev ? { ...prev, note_text: e.target.value } : null)}
-                              className="min-h-[80px]"
+                              className="min-h-[80px] select-text cursor-text"
                             />
                           </div>
 
