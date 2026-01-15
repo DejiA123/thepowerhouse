@@ -161,7 +161,10 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
-      <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), 20px)' }} />
+      {/* Hide on Bible page to prevent double padding with internal headers */}
+      {location.pathname !== '/bible' && (
+        <div className="shrink-0 bg-background z-20" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+      )}
 
       {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
 
