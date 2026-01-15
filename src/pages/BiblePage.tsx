@@ -508,7 +508,7 @@ const BiblePage = () => {
   if (selectedChapter && !showHighlights && !showNotes) {
     // Full Bible reading layout
     return (
-      <div className="min-h-screen bg-background pb-[72px]">
+      <div className="min-h-screen bg-background pb-[72px] pt-[env(safe-area-inset-top)]">
         {renderContent()}
 
         {/* Version Selector Drawer */}
@@ -609,7 +609,7 @@ const BiblePage = () => {
 
   // Book selection or other layouts
   return (
-    <div className="h-screen  bg-background overscroll-contain">
+    <div className="h-screen bg-background overscroll-contain pt-[env(safe-area-inset-top)]">
       {renderContent()}
 
       {/* Bible History Dialog */}
