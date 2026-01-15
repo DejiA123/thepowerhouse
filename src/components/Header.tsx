@@ -39,9 +39,8 @@ const Header = () => {
   };
 
   return (
-    <header className={`glass sticky top-0 z-40 transition-all duration-300 ease-in-out ${isBiblePage && isScrolled ? 'transform -translate-y-full opacity-0' : 'transform translate-y-0 opacity-100'
-      }`}>
-      <div className="px-4 py-4">
+    <header className="glass fixed top-0 w-full z-40">
+      <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-1">
             <div className="w-20 h-20 flex items-center justify-center">
