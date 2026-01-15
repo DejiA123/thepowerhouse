@@ -249,7 +249,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
           <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:!ring-0 [&>button]:!outline-none [&>button]:!focus:ring-0 [&>button]:!focus:outline-none [&>button]:!focus-visible:ring-0 [&>button]:!focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
             <div
               className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
-              style={{ paddingTop: 'calc(max(env(safe-area-inset-top), var(--sat-fallback, 0px)) + 2rem)' }}
+              style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
             >
               <div className="max-w-3xl mx-auto flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
@@ -475,7 +475,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
         <DialogContent className="fixed inset-0 z-[300] w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden translate-x-0 translate-y-0 [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:!ring-0 [&>button]:!outline-none [&>button]:!focus:ring-0 [&>button]:!focus:outline-none [&>button]:!focus-visible:ring-0 [&>button]:!focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
           <div
             className="sticky top-0 z-10 p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md"
-            style={{ paddingTop: 'calc(max(env(safe-area-inset-top), var(--sat-fallback, 0px)) + 2rem)' }}
+            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
           >
             <div className="max-w-3xl mx-auto flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
