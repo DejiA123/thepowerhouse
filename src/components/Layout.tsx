@@ -163,8 +163,8 @@ const Layout = ({ children }: LayoutProps) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-    // Set fallback variable: 20px for iOS Browser (to fix "too high" issue), 0px for everything else (Desktop/PWA)
-    const fallbackValue = (isIOS && !isStandalone) ? '20px' : '0px';
+    // Set fallback variable: 44px for iOS Browser (standard notch height), 0px for everything else
+    const fallbackValue = (isIOS && !isStandalone) ? '44px' : '0px';
     document.documentElement.style.setProperty('--sat-fallback', fallbackValue);
 
     console.log('📱 Layout: Platform Config', { isIOS, isStandalone, fallback: fallbackValue });
