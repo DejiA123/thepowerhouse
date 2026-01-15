@@ -158,12 +158,24 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
+  // Handle iOS Safari specific spacing (non-PWA)
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+    // Set fallback variable: 20px for iOS Browser (to fix "too high" issue), 0px for everything else (Desktop/PWA)
+    const fallbackValue = (isIOS && !isStandalone) ? '20px' : '0px';
+    document.documentElement.style.setProperty('--sat-fallback', fallbackValue);
+
+    console.log('📱 Layout: Platform Config', { isIOS, isStandalone, fallback: fallbackValue });
+  }, []);
+
   return (
     <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
       {/* Hide on Bible page to prevent double padding with internal headers */}
       {location.pathname !== '/bible' && (
-        <div className="shrink-0 bg-background z-20" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+        <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
       )}
 
       {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
