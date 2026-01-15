@@ -173,8 +173,9 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
-      {/* Hide on Bible page to prevent double padding with internal headers */}
-      {location.pathname !== '/bible' && (
+      {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
+      {/* Only show for pages WITHOUT Header (like GroupChats, Intro) except Bible */}
+      {location.pathname !== '/bible' && (location.pathname === '/group-chats' || !showChrome) && (
         <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
       )}
 
