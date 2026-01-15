@@ -179,7 +179,13 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
       )}
 
-      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && <Header />}
+      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && (
+        <>
+          <Header />
+          {/* Spacer for Fixed Header: 80px logo + 16px padding (py-2 = 0.5rem*2) + safe-area-top */}
+          <div style={{ height: 'calc(5rem + 1rem + max(env(safe-area-inset-top), var(--sat-fallback, 0px)))' }} />
+        </>
+      )}
 
       {/* Main Content */}
       <main
