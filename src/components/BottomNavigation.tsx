@@ -14,8 +14,9 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass w-full fixed bottom-0 left-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
+      className="glass w-full fixed left-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
       style={{
+        bottom: '-4px', // Force it lower than standard bottom:0
         paddingBottom: '0px',
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
       }}
@@ -23,7 +24,7 @@ const BottomNavigation = () => {
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="w-full flex justify-around touch-none select-none items-center h-7">
+      <div className="w-full flex justify-around touch-none select-none items-center h-10">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -37,7 +38,7 @@ const BottomNavigation = () => {
               title={item.name}
             >
               <Icon
-                className={`w-4 h-4 transition-colors duration-200 ${isActive
+                className={`w-6 h-6 transition-colors duration-200 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
