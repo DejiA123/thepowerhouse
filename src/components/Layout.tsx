@@ -16,12 +16,15 @@ const Layout = ({ children }: LayoutProps) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-    // Use 0px as fallback for all platforms, including iOS Safari browser, 
-    // to rely on env(safe-area-inset-top) which is supported in modern Safari.
-    const fallbackValue = '0px';
-    document.documentElement.style.setProperty('--sat-fallback', fallbackValue);
+    // Set fallback variables: 0px for top (relying on modern Safari's env support)
+    // For bottom in browser mode, we want at least 12px for better tap targets on modern iPhones
+    const topFallback = '0px';
+    const bottomFallback = (isIOS && !isStandalone) ? '12px' : '0px';
 
-    console.log('📱 Layout: Platform Config', { isIOS, isStandalone, fallback: fallbackValue });
+    document.documentElement.style.setProperty('--sat-fallback', topFallback);
+    document.documentElement.style.setProperty('--sab-fallback', bottomFallback);
+
+    console.log('📱 Layout: Platform Config', { isIOS, isStandalone, topFallback, bottomFallback });
     const savedTheme = localStorage.getItem('theme') || 'system';
     const savedColorTheme = localStorage.getItem('colorTheme') || 'default';
     const root = document.documentElement;
