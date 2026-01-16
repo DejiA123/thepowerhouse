@@ -14,7 +14,7 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass w-full shrink-0 pt-1 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
+      className="glass w-full shrink-0 pt-0.5 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
       style={{
         paddingBottom: 'max(env(safe-area-inset-bottom), var(--sab-fallback, 0px))',
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
@@ -32,7 +32,7 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-0.5 px-4 min-w-0 flex-1 touch-none group"
+              className="flex flex-col items-center justify-center py-0 px-4 min-w-0 flex-1 touch-none group"
               draggable="false"
             >
               <Icon
@@ -42,7 +42,7 @@ const BottomNavigation = () => {
                   }`}
               />
               <span
-                className={`text-[10px] mt-1 transition-colors duration-200 ${isActive
+                className={`text-[10px] mt-0.5 transition-colors duration-200 ${isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
