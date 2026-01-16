@@ -31,11 +31,11 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center p-0 min-w-0 flex-1 touch-none group"
+              className="flex flex-col items-center justify-center py-1 px-4 min-w-0 flex-1 touch-none group"
               draggable="false"
             >
               <Icon
-                className={`w-5 h-5 transition-colors duration-200 ${isActive
+                className={`w-6 h-6 transition-colors duration-200 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
