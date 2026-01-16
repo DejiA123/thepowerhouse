@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
 
@@ -192,7 +193,10 @@ const Layout = ({ children }: LayoutProps) => {
         id="main-content"
         className="flex-1 overflow-y-auto"
       >
-        <div className={showChrome && location.pathname !== '/group-chats' ? "lg:pb-4" : (location.pathname === '/group-chats' ? "h-full" : "")}>
+        <div className={cn(
+          "min-h-full",
+          showChrome && location.pathname !== '/group-chats' ? "pb-12" : (location.pathname === '/group-chats' ? "h-full" : "")
+        )}>
           {children}
         </div>
       </main>
