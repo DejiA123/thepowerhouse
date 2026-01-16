@@ -91,12 +91,21 @@
     html,
     body {
       height: 100%;
+      width: 100%;
       margin: 0;
       padding: 0;
+      overflow: hidden;
+      position: fixed;
+      overscroll-behavior: none;
+      -webkit-user-select: none; /* Prevent selection on UI elements - override in specific components */
     }
 
+    /* Re-enable selection for the root container and children */
     #root {
-      min-height: 100%;
+      -webkit-user-select: text;
+      user-select: text;
+      height: 100%;
+      width: 100%;
       background-color: inherit;
     }
 

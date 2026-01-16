@@ -21,13 +21,16 @@ const Header = () => {
   useEffect(() => {
     if (!isBiblePage) return;
 
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+
     const handleScroll = () => {
-      const scrollTop = window.scrollY;
+      const scrollTop = mainContent.scrollTop;
       setIsScrolled(scrollTop > 50); // Hide after 50px of scroll
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    mainContent.addEventListener('scroll', handleScroll);
+    return () => mainContent.removeEventListener('scroll', handleScroll);
   }, [isBiblePage]);
 
   const handleUserIconClick = () => {

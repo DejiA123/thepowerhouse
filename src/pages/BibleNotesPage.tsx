@@ -106,13 +106,22 @@ const BibleNotesPage = () => {
             fetchNotes();
             fetchFolders();
         }
-        window.scrollTo(0, 0);
+
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+            mainContent.scrollTo(0, 0);
+        }
 
         const handleScroll = () => {
-            setIsScrolled(window.scrollY > 100);
+            if (mainContent) {
+                setIsScrolled(mainContent.scrollTop > 100);
+            }
         };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+
+        if (mainContent) {
+            mainContent.addEventListener('scroll', handleScroll);
+            return () => mainContent.removeEventListener('scroll', handleScroll);
+        }
     }, [user]);
 
     useEffect(() => {

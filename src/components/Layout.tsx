@@ -17,9 +17,9 @@ const Layout = ({ children }: LayoutProps) => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
     // Set fallback variables: 0px for top (relying on modern Safari's env support)
-    // For bottom in browser mode, we want at least 12px for better tap targets on modern iPhones
+    // For bottom in browser mode, we want a substantial fallback (24px) to ensure accessibility
     const topFallback = '0px';
-    const bottomFallback = (isIOS && !isStandalone) ? '12px' : '0px';
+    const bottomFallback = (isIOS && !isStandalone) ? '24px' : '0px';
 
     document.documentElement.style.setProperty('--sat-fallback', topFallback);
     document.documentElement.style.setProperty('--sab-fallback', bottomFallback);
@@ -171,7 +171,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
+    <div className="fixed inset-0 flex flex-col w-full h-full text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
       {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
       {/* Only show for pages WITHOUT Header (like GroupChats, Intro) except Bible */}

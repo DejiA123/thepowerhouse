@@ -109,12 +109,27 @@
     --muted-foreground: 0 0% 75%;
     --accent: 0 0% 18%;
     --accent-foreground: 0 0% 95%;
-    --destructive: 0 62.8% 60.6%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 25%;
     --input: 0 0% 18%;
     --ring: 217 91% 60%;
     --radius: 0.75rem;
+  }
+
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: fixed;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
   }
 
   /* Blue Theme */
