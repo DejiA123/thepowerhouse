@@ -14,17 +14,15 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass w-full fixed left-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
+      className="glass w-full shrink-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 pb-safe"
       style={{
-        bottom: '-12px', // Force it even deeper to the screen edge
-        paddingBottom: '0px',
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="w-full flex justify-around touch-none select-none items-center h-14 pb-2">
+      <div className="w-full flex justify-around touch-none select-none items-center py-2">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -33,16 +31,24 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex items-center justify-center p-0 min-w-0 flex-1 touch-none group h-full"
+              className="flex flex-col items-center justify-center p-0 min-w-0 flex-1 touch-none group"
               draggable="false"
-              title={item.name}
             >
               <Icon
-                className={`w-6 h-6 transition-colors duration-200 ${isActive
+                className={`w-5 h-5 transition-colors duration-200 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
+              <span
+                className={`text-[10px] mt-1 transition-colors duration-200 ${isActive
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
+                  }`}
+                draggable="false"
+              >
+                {item.name}
+              </span>
             </Link>
           );
         })}
