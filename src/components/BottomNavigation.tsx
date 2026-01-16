@@ -16,7 +16,7 @@ const BottomNavigation = () => {
     <nav
       className="glass w-full shrink-0 pt-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10"
       style={{
-        paddingBottom: '4px',
+        paddingBottom: '0px',
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
