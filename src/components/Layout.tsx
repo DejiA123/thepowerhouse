@@ -19,7 +19,7 @@ const Layout = ({ children }: LayoutProps) => {
     // Set fallback variables: 0px for top (relying on modern Safari's env support)
     // For bottom in browser mode, we want a substantial fallback (24px) to ensure accessibility
     const topFallback = '0px';
-    const bottomFallback = (isIOS && !isStandalone) ? '12px' : '0px';
+    const bottomFallback = '0px';
 
     document.documentElement.style.setProperty('--sat-fallback', topFallback);
     document.documentElement.style.setProperty('--sab-fallback', bottomFallback);
