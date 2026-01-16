@@ -20,7 +20,7 @@ const Layout = ({ children }: LayoutProps) => {
     // Set fallback variables: 0px for top (relying on modern Safari's env support)
     // For bottom in browser mode, we want a substantial fallback (24px) to ensure accessibility
     const topFallback = '0px';
-    const bottomFallback = (isIOS && !isStandalone) ? '8px' : '0px';
+    const bottomFallback = (isIOS && !isStandalone) ? '4px' : '0px';
 
     document.documentElement.style.setProperty('--sat-fallback', topFallback);
     document.documentElement.style.setProperty('--sab-fallback', bottomFallback);
@@ -195,7 +195,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <div className={cn(
           "min-h-full",
-          showChrome && location.pathname !== '/group-chats' ? "" : (location.pathname === '/group-chats' ? "h-full" : "")
+          showChrome && location.pathname !== '/group-chats' ? "pb-20" : (location.pathname === '/group-chats' ? "h-full" : "")
         )}>
           {children}
         </div>
