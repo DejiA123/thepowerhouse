@@ -8,7 +8,7 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8081,
+    port: 8080,
   },
   plugins: [
     react(),
@@ -71,7 +71,7 @@ export default defineConfig(({ mode }) => ({
     reportCompressedSize: false,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js'],
+    include: ['react', 'react-dom', 'react-dom/client', '@supabase/supabase-js'],
     force: true, // Force pre-bundling
   }
 }))

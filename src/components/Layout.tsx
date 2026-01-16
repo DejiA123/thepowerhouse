@@ -16,8 +16,9 @@ const Layout = ({ children }: LayoutProps) => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-    // Set fallback variable: 50px for iOS Browser (Dynamic Island/Notch safety), 0px for everything else
-    const fallbackValue = (isIOS && !isStandalone) ? '50px' : '0px';
+    // Use 0px as fallback for all platforms, including iOS Safari browser, 
+    // to rely on env(safe-area-inset-top) which is supported in modern Safari.
+    const fallbackValue = '0px';
     document.documentElement.style.setProperty('--sat-fallback', fallbackValue);
 
     console.log('📱 Layout: Platform Config', { isIOS, isStandalone, fallback: fallbackValue });
