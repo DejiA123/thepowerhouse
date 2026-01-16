@@ -23,7 +23,7 @@ const BottomNavigation = () => {
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="w-full flex justify-around touch-none select-none items-center h-9">
+      <div className="w-full flex justify-around touch-none select-none items-center h-7">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -37,7 +37,7 @@ const BottomNavigation = () => {
               title={item.name}
             >
               <Icon
-                className={`w-5 h-5 transition-colors duration-200 ${isActive
+                className={`w-4 h-4 transition-colors duration-200 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
