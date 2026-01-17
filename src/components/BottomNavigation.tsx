@@ -14,16 +14,17 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full shrink-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
+      className="w-full fixed bottom-0 left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
-        boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
+        boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) - 8px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
       <div
-        className="w-full flex justify-around touch-none select-none items-center pt-1 pb-1"
+        className="w-full flex justify-around touch-none select-none items-center pt-2"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -33,17 +34,17 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center py-0.5 px-2 min-w-0 flex-1 touch-none group"
+              className="flex flex-col items-center justify-center py-0.5 px-4 min-w-0 flex-1 touch-none group"
               draggable="false"
             >
               <Icon
-                className={`w-[22px] h-[22px] transition-colors duration-200 ${isActive
+                className={`w-7 h-7 transition-colors duration-200 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
               <span
-                className={`text-[10px] mt-0.5 transition-colors duration-200 ${isActive
+                className={`text-[11px] mt-0.5 transition-colors duration-200 ${isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
