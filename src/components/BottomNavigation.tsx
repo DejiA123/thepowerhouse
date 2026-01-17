@@ -17,7 +17,8 @@ const BottomNavigation = () => {
       className="w-full fixed bottom-0 left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        paddingBottom: 'env(safe-area-inset-bottom)'
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)',
+        transform: 'translateY(12px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -38,13 +39,13 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-5 h-5 transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[21px] h-[21px] transition-colors duration-200 mb-0.5 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
               <span
-                className={`text-[9px] transition-colors duration-200 ${isActive
+                className={`text-[10px] transition-colors duration-200 ${isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
