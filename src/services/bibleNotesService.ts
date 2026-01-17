@@ -66,8 +66,14 @@ export const bibleNotesService = {
 
         if (error) throw error;
 
+        const folderData = data as any;
         return {
-            ...data,
+            id: folderData.id,
+            user_id: folderData.user_id,
+            name: folderData.name,
+            parent_id: folderData.parent_id,
+            created_at: folderData.created_at,
+            updated_at: folderData.updated_at,
             noteCount: 0,
             notes: []
         };
@@ -82,7 +88,15 @@ export const bibleNotesService = {
             .single();
 
         if (error) throw error;
-        return data;
+        const folderData = data as any;
+        return {
+            id: folderData.id,
+            user_id: folderData.user_id,
+            name: folderData.name,
+            parent_id: folderData.parent_id,
+            created_at: folderData.created_at,
+            updated_at: folderData.updated_at
+        };
     },
 
     async deleteFolder(id: string): Promise<void> {
@@ -106,7 +120,7 @@ export const bibleNotesService = {
             query = query.is('folder_id', null);
         } else if (folderId) {
             // Get notes in specific folder
-            query = query.eq('folder_id' as any, folderId);
+            query = query.eq('folder_id', folderId);
         }
         // If folderId is undefined, get all notes
 

@@ -626,7 +626,7 @@ const ChoirPage = () => {
                 return choirService.addWeeklySong(songData);
             }));
 
-            const newSongs = results as WeeklySetSong[];
+            const newSongs = results as unknown as WeeklySetSong[];
             if (importSetType === 'praise') {
                 setPraiseSet(prev => [...prev, ...newSongs]);
             } else {

@@ -350,7 +350,8 @@ const BibleNotesPage = () => {
                 tags: [],
                 is_favorite: false,
                 is_private: false,
-                is_pinned: false
+                is_pinned: false,
+                folder_id: undefined
             });
 
             setEditingNote(null);
@@ -471,7 +472,8 @@ const BibleNotesPage = () => {
                 tags: [],
                 is_favorite: false,
                 is_private: false,
-                is_pinned: false
+                is_pinned: false,
+                folder_id: undefined
             });
 
             setShowNewNoteDialog(false);

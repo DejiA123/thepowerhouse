@@ -252,7 +252,14 @@ export class GroupChatService {
             throw error;
         }
 
-        return data || [];
+        return (data || []).map((msg: any) => ({
+            ...msg,
+            user: msg.user ? {
+                id: msg.user.id,
+                email: msg.user.email,
+                user_metadata: msg.user.user_metadata as { full_name?: string; avatar_url?: string } | undefined
+            } : undefined
+        })) as ChatMessage[];
     }
 
     /**
@@ -290,7 +297,17 @@ export class GroupChatService {
             throw error;
         }
 
-        return data;
+        if (!data) return null;
+        
+        const msg = data as any;
+        return {
+            ...msg,
+            user: msg.user ? {
+                id: msg.user.id,
+                email: msg.user.email,
+                user_metadata: msg.user.user_metadata as { full_name?: string; avatar_url?: string } | undefined
+            } : undefined
+        } as ChatMessage;
     }
 
     /**
@@ -419,15 +436,7 @@ export class GroupChatService {
     static async getParticipants(chatId: string): Promise<(ChatParticipant & { presence?: UserPresence })[]> {
         const { data, error } = await supabase
             .from('chat_participants')
-            .select(`
-        *,
-        presence:user_id (
-          user_id,
-          is_online,
-          last_seen,
-          status_message
-        )
-      `)
+            .select('*')
             .eq('chat_id', chatId)
             .order('joined_at', { ascending: false });
 
@@ -436,7 +445,24 @@ export class GroupChatService {
             throw error;
         }
 
-        return data || [];
+        // Fetch presence separately to avoid relationship issues
+        const participants = data || [];
+        const participantsWithPresence = await Promise.all(
+            participants.map(async (p: any) => {
+                const { data: presenceData } = await supabase
+                    .from('user_presence')
+                    .select('*')
+                    .eq('user_id', p.user_id)
+                    .maybeSingle();
+                
+                return {
+                    ...p,
+                    presence: presenceData as UserPresence | undefined
+                };
+            })
+        );
+
+        return participantsWithPresence;
     }
 
     /**
@@ -579,7 +605,11 @@ export class GroupChatService {
             throw error;
         }
 
-        return data;
+        const callData = data as any;
+        return {
+            ...callData,
+            call_type: callData.call_type as 'audio' | 'video'
+        };
     }
 
     /**

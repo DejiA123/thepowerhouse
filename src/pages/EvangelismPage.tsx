@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import {
     Heart,
     Map,
+    MapPin,
     Users,
     Trophy,
     Target,
@@ -63,7 +64,7 @@ const EvangelismPage = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="text-5xl font-black mb-2 tracking-tight">{soulsSaved}</div>
-                        <Progress value={(soulsSaved / targetSouls) * 100} className="h-2 bg-black/20" indicatorClassName="bg-white" />
+                        <Progress value={(soulsSaved / targetSouls) * 100} className="h-2 bg-black/20 [&>div]:bg-white" />
                         <p className="text-xs mt-2 opacity-80 font-medium">Target: {targetSouls} Souls</p>
                     </CardContent>
                 </Card>
