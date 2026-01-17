@@ -80,6 +80,41 @@ export type Database = {
         }
         Relationships: []
       }
+      bible_note_folders: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bible_note_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "bible_note_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bible_notes: {
         Row: {
           book: string
@@ -87,6 +122,7 @@ export type Database = {
           chapter: number
           color: string | null
           created_at: string | null
+          folder_id: string | null
           id: string
           is_favorite: boolean | null
           is_pinned: boolean | null
@@ -106,6 +142,7 @@ export type Database = {
           chapter: number
           color?: string | null
           created_at?: string | null
+          folder_id?: string | null
           id?: string
           is_favorite?: boolean | null
           is_pinned?: boolean | null
@@ -125,6 +162,7 @@ export type Database = {
           chapter?: number
           color?: string | null
           created_at?: string | null
+          folder_id?: string | null
           id?: string
           is_favorite?: boolean | null
           is_pinned?: boolean | null
@@ -138,7 +176,105 @@ export type Database = {
           user_id?: string
           verse?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bible_notes_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "bible_note_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_sessions: {
+        Row: {
+          call_type: string
+          chat_id: string
+          ended_at: string | null
+          id: string
+          initiated_by: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          call_type: string
+          chat_id: string
+          ended_at?: string | null
+          id?: string
+          initiated_by: string
+          started_at?: string | null
+          status: string
+        }
+        Update: {
+          call_type?: string
+          chat_id?: string
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_sessions_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_sessions_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          chat_id: string
+          content: string
+          created_at: string | null
+          id: string
+          is_deleted: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_notifications: {
         Row: {
@@ -172,6 +308,240 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      chat_participants: {
+        Row: {
+          chat_id: string
+          id: string
+          joined_at: string | null
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          id?: string
+          joined_at?: string | null
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_participants_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      choir_calendar_events: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          event_date: string
+          id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_date: string
+          id?: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_date?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      choir_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "choir_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      choir_instrumental_resources: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          type: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title: string
+          type: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          type?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      choir_setlist_info: {
+        Row: {
+          id: string
+          info_type: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          id?: string
+          info_type: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          id?: string
+          info_type?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
+      choir_songs: {
+        Row: {
+          artist: string | null
+          created_at: string
+          folder_id: string
+          id: string
+          key: string | null
+          notes: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          artist?: string | null
+          created_at?: string
+          folder_id: string
+          id?: string
+          key?: string | null
+          notes?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          artist?: string | null
+          created_at?: string
+          folder_id?: string
+          id?: string
+          key?: string | null
+          notes?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_songs_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "choir_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      choir_weekly_set_songs: {
+        Row: {
+          artist: string | null
+          created_at: string
+          id: string
+          instrumental_notes: string | null
+          instrumental_url: string | null
+          key: string | null
+          library_song_id: string | null
+          set_type: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          artist?: string | null
+          created_at?: string
+          id?: string
+          instrumental_notes?: string | null
+          instrumental_url?: string | null
+          key?: string | null
+          library_song_id?: string | null
+          set_type: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          artist?: string | null
+          created_at?: string
+          id?: string
+          instrumental_notes?: string | null
+          instrumental_url?: string | null
+          key?: string | null
+          library_song_id?: string | null
+          set_type?: string
+          title?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_weekly_set_songs_library_song_id_fkey"
+            columns: ["library_song_id"]
+            isOneToOne: false
+            referencedRelation: "choir_songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       donations: {
         Row: {
@@ -265,6 +635,108 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      group_admins: {
+        Row: {
+          can_add_members: boolean | null
+          can_edit_info: boolean | null
+          can_remove_members: boolean | null
+          chat_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          can_add_members?: boolean | null
+          can_edit_info?: boolean | null
+          can_remove_members?: boolean | null
+          chat_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          can_add_members?: boolean | null
+          can_edit_info?: boolean | null
+          can_remove_members?: boolean | null
+          chat_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_admins_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_admins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_chats: {
+        Row: {
+          avatar_url: string | null
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          created_by_user: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          is_custom: boolean | null
+          name: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_user?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_custom?: boolean | null
+          name: string
+        }
+        Update: {
+          avatar_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          created_by_user?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_custom?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_chats_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_chats_created_by_user_fkey"
+            columns: ["created_by_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       group_members: {
         Row: {
@@ -456,6 +928,7 @@ export type Database = {
           links: string | null
           phone: string | null
           updated_at: string
+          user_metadata: Json | null
         }
         Insert: {
           avatar_url?: string | null
@@ -467,6 +940,7 @@ export type Database = {
           links?: string | null
           phone?: string | null
           updated_at?: string
+          user_metadata?: Json | null
         }
         Update: {
           avatar_url?: string | null
@@ -478,6 +952,220 @@ export type Database = {
           links?: string | null
           phone?: string | null
           updated_at?: string
+          user_metadata?: Json | null
+        }
+        Relationships: []
+      }
+      project_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_by: string | null
+          date_added: string | null
+          id: string
+          item_name: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_by?: string | null
+          date_added?: string | null
+          id?: string
+          item_name: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_by?: string | null
+          date_added?: string | null
+          id?: string
+          item_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      project_guests: {
+        Row: {
+          assigned_seat: string | null
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          organization: string | null
+          personal_assistant: string | null
+          role: string | null
+          rsvp_status: string | null
+        }
+        Insert: {
+          assigned_seat?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          organization?: string | null
+          personal_assistant?: string | null
+          role?: string | null
+          rsvp_status?: string | null
+        }
+        Update: {
+          assigned_seat?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          organization?: string | null
+          personal_assistant?: string | null
+          role?: string | null
+          rsvp_status?: string | null
+        }
+        Relationships: []
+      }
+      project_phases: {
+        Row: {
+          description: string | null
+          end_date: string
+          id: string
+          name: string
+          phase_description: string | null
+          start_date: string
+          status: string | null
+          target_met: boolean | null
+        }
+        Insert: {
+          description?: string | null
+          end_date: string
+          id?: string
+          name: string
+          phase_description?: string | null
+          start_date: string
+          status?: string | null
+          target_met?: boolean | null
+        }
+        Update: {
+          description?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          phase_description?: string | null
+          start_date?: string
+          status?: string | null
+          target_met?: boolean | null
+        }
+        Relationships: []
+      }
+      project_settings: {
+        Row: {
+          brief_overview: string | null
+          brief_subtitle: string | null
+          brief_title: string | null
+          id: string
+          is_manual_progress: boolean | null
+          key_responsibilities: Json | null
+          manual_progress: number | null
+          overall_progress: number | null
+          strategic_objective: string | null
+          total_budget: number | null
+          unit_formation_plan_meeting: string | null
+          unit_formation_plan_pastor: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          brief_overview?: string | null
+          brief_subtitle?: string | null
+          brief_title?: string | null
+          id: string
+          is_manual_progress?: boolean | null
+          key_responsibilities?: Json | null
+          manual_progress?: number | null
+          overall_progress?: number | null
+          strategic_objective?: string | null
+          total_budget?: number | null
+          unit_formation_plan_meeting?: string | null
+          unit_formation_plan_pastor?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          brief_overview?: string | null
+          brief_subtitle?: string | null
+          brief_title?: string | null
+          id?: string
+          is_manual_progress?: boolean | null
+          key_responsibilities?: Json | null
+          manual_progress?: number | null
+          overall_progress?: number | null
+          strategic_objective?: string | null
+          total_budget?: number | null
+          unit_formation_plan_meeting?: string | null
+          unit_formation_plan_pastor?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      project_tasks: {
+        Row: {
+          created_at: string | null
+          deadline: string | null
+          description: string | null
+          id: string
+          is_completed: boolean | null
+          is_immediate: boolean | null
+          sort_order: number | null
+          task_text: string
+          unit_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_immediate?: boolean | null
+          sort_order?: number | null
+          task_text: string
+          unit_name: string
+        }
+        Update: {
+          created_at?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          is_immediate?: boolean | null
+          sort_order?: number | null
+          task_text?: string
+          unit_name?: string
+        }
+        Relationships: []
+      }
+      project_tools: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon_name: string | null
+          id: string
+          name: string
+          sort_order: number | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          name: string
+          sort_order?: number | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          name?: string
+          sort_order?: number | null
+          url?: string | null
         }
         Relationships: []
       }
@@ -649,6 +1337,36 @@ export type Database = {
         }
         Relationships: []
       }
+      unit_information: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          full_description: string | null
+          id: string
+          is_existing_unit: boolean | null
+          unit_name: string
+          unit_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          full_description?: string | null
+          id?: string
+          is_existing_unit?: boolean | null
+          unit_name: string
+          unit_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          full_description?: string | null
+          id?: string
+          is_existing_unit?: boolean | null
+          unit_name?: string
+          unit_type?: string | null
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           audio_quality: string | null
@@ -678,6 +1396,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_presence: {
+        Row: {
+          is_online: boolean | null
+          last_seen: string | null
+          status_message: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean | null
+          last_seen?: string | null
+          status_message?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean | null
+          last_seen?: string | null
+          status_message?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -778,6 +1528,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_chat_member: { Args: { _chat_id: string }; Returns: boolean }
       is_user_attending_service: {
         Args: {
           service_date_param: string
