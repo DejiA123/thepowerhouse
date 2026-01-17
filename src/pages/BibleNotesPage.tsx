@@ -984,10 +984,10 @@ const BibleNotesPage = () => {
             }}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col overscroll-none ios-input-fix select-text"
+                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col ios-input-fix select-text"
                 >
                     {selectedNote && (
-                        <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+                        <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
                             {/* Standard Header Bar - Clean Apple Notes Style */}
                             <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                                 <Button
@@ -1132,7 +1132,7 @@ const BibleNotesPage = () => {
 
                             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
                                 <div className="flex-1 flex flex-col min-h-0">
-                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0">
+                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-hidden">
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <RichTextEditor
@@ -1148,7 +1148,7 @@ const BibleNotesPage = () => {
                                             </div>
                                         ) : (
                                             <div
-                                                className="flex-1 flex flex-col min-h-0 cursor-text"
+                                                className="flex-1 flex flex-col min-h-0 cursor-text overflow-hidden"
                                                 onClick={() => {
                                                     setNewNote({
                                                         title: selectedNote.title || '',
@@ -1200,9 +1200,9 @@ const BibleNotesPage = () => {
             <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden overscroll-none ios-input-fix select-text"
+                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden ios-input-fix select-text"
                 >
-                    <div className="flex flex-col h-full bg-white dark:bg-gray-950 overscroll-none">
+                    <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
                         {/* Premium Navbar */}
                         <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                             <div className="flex items-center gap-4">
