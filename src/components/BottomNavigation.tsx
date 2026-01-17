@@ -14,7 +14,7 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="glass w-full shrink-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 pb-safe"
+      className="glass w-full fixed bottom-0 left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 pb-safe"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)'
       }}
@@ -22,7 +22,7 @@ const BottomNavigation = () => {
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
-      <div className="w-full flex justify-around touch-none select-none items-center pt-1.5 pb-0.5">
+      <div className="w-full flex justify-around touch-none select-none items-center pt-2 pb-1">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
