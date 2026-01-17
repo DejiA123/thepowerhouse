@@ -172,7 +172,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-hidden">
+    <div className="fixed inset-0 flex flex-col w-full h-[100dvh] text-foreground bg-background overscroll-none overflow-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
       {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
       {/* Only show for pages WITHOUT Header (like GroupChats, Intro) except Bible */}
