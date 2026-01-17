@@ -14,11 +14,10 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full absolute left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
+      className="w-full absolute bottom-0 left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        bottom: '-12px',
-        paddingBottom: '12px'
+        paddingBottom: '0px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -35,7 +34,7 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-end py-0 px-4 min-w-0 flex-1 touch-none group h-10 pb-0"
+              className="flex flex-col items-center justify-end py-0 px-4 min-w-0 flex-1 touch-none group h-9 pb-0"
               draggable="false"
             >
               <Icon
