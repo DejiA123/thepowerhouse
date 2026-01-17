@@ -917,7 +917,7 @@ const BibleNotesPage = () => {
                                                         readOnly={true}
                                                         compact={true}
                                                         onChange={() => { }}
-                                                        className="pointer-events-auto"
+                                                        className="pointer-events-none"
                                                     />
                                                     {/* Gradient fade to indicate more content */}
                                                     <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none"></div>
@@ -1132,7 +1132,7 @@ const BibleNotesPage = () => {
 
                             <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
                                 <div className="flex-1 flex flex-col min-h-0">
-                                    <div className="px-4 md:px-6 mt-6">
+                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0">
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <RichTextEditor
@@ -1265,7 +1265,7 @@ const BibleNotesPage = () => {
 
                                 {/* Rich Text Editor - Now styled premium */}
                                 <div className="px-4 md:px-6 flex-1 flex flex-col group min-h-0">
-                                    <div className="flex-1 overflow-hidden bg-transparent">
+                                    <div className="flex-1 min-h-0 overflow-hidden bg-transparent">
                                         <RichTextEditor
                                             content={newNote.note_text}
                                             onChange={(content) => setNewNote({ ...newNote, note_text: content })}
