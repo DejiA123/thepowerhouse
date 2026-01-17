@@ -17,16 +17,16 @@ const BottomNavigation = () => {
       className="w-full fixed left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        bottom: '-60px',
-        paddingBottom: '60px',
-        transform: 'translateY(10px)'
+        top: '100%',
+        transform: 'translateY(-100%) translateY(25px)',
+        paddingBottom: '25px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
       <div
-        className="w-full flex justify-around touch-none select-none items-start pt-2 h-16"
+        className="w-full flex justify-around touch-none select-none items-start pt-2 h-14"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -40,13 +40,13 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-7 h-7 transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[22px] h-[22px] transition-colors duration-200 mb-0.5 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
               <span
-                className={`text-[11px] transition-colors duration-200 ${isActive
+                className={`text-[10px] transition-colors duration-200 ${isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
