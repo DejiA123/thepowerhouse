@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, BookOpen, Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, BookOpen, Settings2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { useToast } from "@/hooks/use-toast";
@@ -331,13 +331,23 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none p-0 overflow-hidden">
-        <DialogHeader className="flex-shrink-0 pb-6 pt-10 px-8 border-b border-slate-200 dark:border-slate-700">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
-            <Search className="w-6 h-6 text-primary" />
-            Bible Search
-          </DialogTitle>
-          <DialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400">
+      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none p-0 overflow-hidden [&>button]:hidden">
+        <DialogHeader className="flex-shrink-0 pb-6 pt-[calc(1rem+env(safe-area-inset-top))] px-8 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+              <Search className="w-6 h-6 text-primary" />
+              Bible Search
+            </DialogTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-700/50 -mr-2"
+            >
+              <X className="w-6 h-6 text-slate-500" />
+            </Button>
+          </div>
+          <DialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
             Search for verses, phrases, or topics
           </DialogDescription>
         </DialogHeader>
