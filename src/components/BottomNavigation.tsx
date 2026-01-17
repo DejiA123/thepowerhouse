@@ -17,14 +17,14 @@ const BottomNavigation = () => {
       className="w-full fixed bottom-0 left-0 right-0 z-50 rounded-none border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
       <div
-        className="w-full flex justify-around touch-none select-none items-start pt-1.5"
+        className="w-full flex justify-around touch-none select-none items-start pt-3 pb-2"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -34,17 +34,17 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-start py-0 px-4 min-w-0 flex-1 touch-none group h-full"
+              className="flex flex-col items-center justify-start py-1 px-4 min-w-0 flex-1 touch-none group h-full"
               draggable="false"
             >
               <Icon
-                className={`w-[21px] h-[21px] transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[26px] h-[26px] transition-colors duration-200 mb-1 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
               />
               <span
-                className={`text-[10px] transition-colors duration-200 ${isActive
+                className={`text-[11px] transition-colors duration-200 ${isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
