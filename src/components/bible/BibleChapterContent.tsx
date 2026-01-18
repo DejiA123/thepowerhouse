@@ -1022,7 +1022,7 @@ export const BibleChapterContent = ({
           "fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]"
-            : "bottom-[calc(env(safe-area-inset-bottom)+2rem)]"
+            : "bottom-[calc(env(safe-area-inset-bottom)+0.75rem)]"
         )}
       >
         <div className="flex items-center justify-between px-8 pointer-events-auto max-w-lg mx-auto">
