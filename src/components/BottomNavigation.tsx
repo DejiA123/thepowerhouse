@@ -24,7 +24,7 @@ const BottomNavigation = () => {
       draggable="false"
     >
       <div
-        className="w-full flex justify-around touch-none select-none items-start pt-1"
+        className="w-full flex justify-around touch-none select-none items-start pt-[2px]"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -38,7 +38,7 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-[26px] h-[26px] transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[25px] h-[25px] transition-colors duration-200 mb-[1px] ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
