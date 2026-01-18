@@ -879,11 +879,11 @@ const BibleNotesPage = () => {
                                     return (
                                         <div
                                             key={note.id}
-                                            className="group relative bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer"
+                                            className="group relative bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-md md:hover:shadow-2xl transition-all duration-500 md:hover:-translate-y-2 cursor-pointer"
                                             onClick={() => { setSelectedNote(note); setShowNoteDialog(true); }}
                                         >
                                             {/* Category Accent Line - Partially visible by default for mobile parity */}
-                                            <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-blue-600 to-transparent opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                                            <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-blue-600 to-transparent opacity-60 md:group-hover:opacity-100 transition-opacity"></div>
 
                                             <div className="p-7">
                                                 <div className="flex items-center justify-between mb-4">
@@ -891,13 +891,13 @@ const BibleNotesPage = () => {
                                                         <Button
                                                             size="icon"
                                                             variant="ghost"
-                                                            className={`h-8 w-8 rounded-full transition-all ${note.is_favorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}
+                                                            className={`h-8 w-8 rounded-full transition-all ${note.is_favorite ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'text-gray-400 md:opacity-0 md:group-hover:opacity-100'}`}
                                                             onClick={(e) => { e.stopPropagation(); toggleFavoriteNote(note); }}
                                                         >
                                                             <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
                                                         </Button>
                                                     </div>
-                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                         <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-gray-400 hover:text-amber-500" onClick={(e) => { e.stopPropagation(); editNote(note); }}>
                                                             <Edit3 className="w-4 h-4" />
                                                         </Button>
@@ -907,7 +907,7 @@ const BibleNotesPage = () => {
                                                     </div>
                                                 </div>
 
-                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 line-clamp-1 md:group-hover:text-blue-600 transition-colors">
                                                     {note.title || getNoteTitleFallback(note.note_text)}
                                                 </h3>
 
