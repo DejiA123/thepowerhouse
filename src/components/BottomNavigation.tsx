@@ -14,10 +14,11 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full fixed bottom-[-130px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[180px]"
+      className="w-full fixed left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        paddingBottom: '130px'
+        bottom: 0,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
