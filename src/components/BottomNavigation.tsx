@@ -17,9 +17,8 @@ const BottomNavigation = () => {
       className="w-full fixed left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        bottom: '-50px',
-        height: 'calc(50px + env(safe-area-inset-bottom, 0px) + 50px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 50px)'
+        bottom: 0,
+        paddingBottom: '100px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
