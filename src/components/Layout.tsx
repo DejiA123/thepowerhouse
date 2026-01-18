@@ -195,7 +195,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <div className={cn(
           "min-h-full",
-          showChrome && location.pathname !== '/group-chats' ? "pb-[40px]" : (location.pathname === '/group-chats' ? "h-full" : "")
+          showChrome && location.pathname !== '/group-chats' ? "pb-[35px]" : (location.pathname === '/group-chats' ? "h-full" : "")
         )}>
           {children}
         </div>
