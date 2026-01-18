@@ -331,7 +331,10 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none p-0 overflow-hidden [&>button]:hidden">
+      <DialogContent
+        className="w-full h-[100dvh] max-w-none m-0 rounded-none flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none p-0 overflow-hidden [&>button]:hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="flex-shrink-0 pb-6 pt-[calc(1rem+env(safe-area-inset-top))] px-8 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
@@ -360,7 +363,6 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
                   placeholder="Search verses, phrases, or topics..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
                   className="flex-1"
                 />
                 <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
