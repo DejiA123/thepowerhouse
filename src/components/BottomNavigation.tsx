@@ -14,17 +14,17 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full fixed bottom-[-50px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[95px]"
+      className="w-full fixed bottom-[-70px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[110px]"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        paddingBottom: '0px'
+        paddingBottom: '70px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
       <div
-        className="w-full h-[45px] flex justify-around touch-none select-none items-center"
+        className="w-full h-[40px] flex justify-around touch-none select-none items-center"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
