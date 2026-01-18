@@ -75,15 +75,17 @@
       }
     }
 
-    /* Force dark theme when dark class is applied */
+    /* Force dark theme when dark class is applied - slam background to absolute dark */
     html.dark,
-    html.dark body {
+    html.dark body,
+    html.dark #root {
       background-color: #0a0a0a !important;
     }
 
-    /* Force light theme when light class is applied */
+    /* Force light theme when light class is applied - strictly white floor */
     html.light,
-    html.light body {
+    html.light body,
+    html.light #root {
       background-color: #ffffff !important;
     }
 

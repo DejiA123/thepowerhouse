@@ -65,10 +65,13 @@ const Layout = ({ children }: LayoutProps) => {
       const foregroundColor = computedStyles.getPropertyValue('--foreground');
 
       if (backgroundColor && foregroundColor) {
-        body.style.backgroundColor = `hsl(${backgroundColor})`;
+        const bgValue = `hsl(${backgroundColor})`;
+        body.style.backgroundColor = bgValue;
         body.style.color = `hsl(${foregroundColor})`;
-        root.style.backgroundColor = `hsl(${backgroundColor})`;
+        root.style.backgroundColor = bgValue;
         root.style.color = `hsl(${foregroundColor})`;
+        // Also ensure html is covered for absolute grounding
+        document.body.parentElement!.style.backgroundColor = bgValue;
       }
 
       // Dynamically update iOS status bar style for PWA
@@ -195,7 +198,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <div className={cn(
           "min-h-full",
-          showChrome && location.pathname !== '/group-chats' ? "pb-[50px]" : (location.pathname === '/group-chats' ? "h-full" : "")
+          showChrome && location.pathname !== '/group-chats' ? "pb-[35px]" : (location.pathname === '/group-chats' ? "h-full" : "")
         )}>
           {children}
         </div>
