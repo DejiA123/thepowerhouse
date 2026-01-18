@@ -1025,7 +1025,7 @@ export const BibleChapterContent = ({
             : "bottom-[calc(env(safe-area-inset-bottom)+0.75rem)]"
         )}
       >
-        <div className="flex items-center justify-between px-8 pointer-events-auto max-w-lg mx-auto">
+        <div className="flex items-end justify-between px-8 pointer-events-auto max-w-lg mx-auto">
           <button
             onClick={handlePreviousChapter}
             disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
