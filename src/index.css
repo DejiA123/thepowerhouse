@@ -1593,4 +1593,16 @@ body.modal-open {
     height: 415px !important;
     padding-bottom: 355px !important;
   }
+
+  /* Override Bible page offsets for PWA to be closer to bottom bar */
+  :root {
+    --bible-audio-bottom-offset: 3.5rem;
+    --bible-selection-bottom-offset: 4rem;
+  }
+}
+
+/* Default Bible page offsets (Browser/Safari) - Higher positions */
+:root {
+  --bible-audio-bottom-offset: 5.5rem;
+  --bible-selection-bottom-offset: 6rem;
 }
