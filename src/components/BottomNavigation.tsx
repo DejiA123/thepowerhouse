@@ -14,10 +14,14 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full fixed bottom-[-180px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[230px]"
+      className="w-full fixed left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        paddingBottom: '180px'
+        // PWA mode: ultra-deep sink to bypass iOS home indicator
+        // Safari mode: standard deep sink
+        bottom: window.matchMedia('(display-mode: standalone)').matches ? '-220px' : '-180px',
+        height: window.matchMedia('(display-mode: standalone)').matches ? '270px' : '230px',
+        paddingBottom: window.matchMedia('(display-mode: standalone)').matches ? '220px' : '180px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
