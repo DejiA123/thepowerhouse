@@ -1590,8 +1590,8 @@ body.modal-open {
 /* PWA-Specific Ultra-Deep Grounding: Bypass iOS home indicator in standalone mode */
 @media (display-mode: standalone) {
   #bottom-nav-bar.bottom-nav-bar {
-    bottom: -285px !important;
-    height: 345px !important;
-    padding-bottom: 285px !important;
+    bottom: -315px !important;
+    height: 375px !important;
+    padding-bottom: 315px !important;
   }
 }
