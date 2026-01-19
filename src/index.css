@@ -695,8 +695,7 @@
 }
 
 .bible-main-content-full {
-  @apply flex-1 bg-background pb-40 overflow-y-auto;
-  padding-top: 1rem;
+  @apply flex-1 bg-background pb-40;
 }
 
 @media (display-mode: standalone) {
