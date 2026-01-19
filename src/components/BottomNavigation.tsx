@@ -14,14 +14,11 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      className="w-full fixed left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
+      id="bottom-nav-bar"
+      className="bottom-nav-bar w-full fixed bottom-[-180px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[230px]"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // PWA mode: ultra-deep sink to bypass iOS home indicator
-        // Safari mode: standard deep sink
-        bottom: window.matchMedia('(display-mode: standalone)').matches ? '-220px' : '-180px',
-        height: window.matchMedia('(display-mode: standalone)').matches ? '270px' : '230px',
-        paddingBottom: window.matchMedia('(display-mode: standalone)').matches ? '220px' : '180px'
+        paddingBottom: '180px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -42,7 +39,7 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-[30px] h-[30px] transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[26px] h-[26px] transition-colors duration-200 mb-0.5 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
