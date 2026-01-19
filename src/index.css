@@ -1602,7 +1602,7 @@ body::after {
 @media (display-mode: standalone) {
   #bottom-nav-bar.bottom-nav-bar {
     bottom: -265px !important;
-    height: 300px !important;
+    height: 325px !important;
     padding-bottom: 265px !important;
   }
 }
