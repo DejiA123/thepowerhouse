@@ -15,6 +15,7 @@ const BottomNavigation = () => {
   return (
     <nav
       id="bottom-nav-bar"
+      data-version="v2-fix-pwa-grounding"
       className="bottom-nav-bar w-full fixed bottom-[-200px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[250px]"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
