@@ -1585,18 +1585,7 @@ body.modal-open {
   display: none !important;
 }
 
-/* Absolute Grounding Safety Floor: Ensures no white gaps at the very bottom edge of PWA */
-body::after {
-  content: "";
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 100px;
-  background-color: hsl(var(--background));
-  z-index: -1;
-  pointer-events: none;
-}
+
 
 /* PWA-Specific Ultra-Deep Grounding: Bypass iOS home indicator in standalone mode */
 @media (display-mode: standalone) {
