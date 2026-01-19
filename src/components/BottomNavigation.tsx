@@ -15,8 +15,8 @@ const BottomNavigation = () => {
   return (
     <nav
       id="bottom-nav-bar"
-      data-version="v3-deep-sink"
-      className="bottom-nav-bar w-full fixed bottom-[-220px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[250px]"
+      data-version="v4-text-visible"
+      className="bottom-nav-bar w-full fixed bottom-[-220px] left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg h-[280px]"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
         paddingBottom: '220px'
@@ -26,7 +26,7 @@ const BottomNavigation = () => {
       draggable="false"
     >
       <div
-        className="w-full h-[55px] flex justify-around touch-none select-none items-start pt-3"
+        className="w-full h-[60px] flex justify-around touch-none select-none items-start pt-2"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -40,7 +40,7 @@ const BottomNavigation = () => {
               draggable="false"
             >
               <Icon
-                className={`w-[26px] h-[26px] transition-colors duration-200 mb-0.5 ${isActive
+                className={`w-[22px] h-[22px] transition-colors duration-200 mb-1 ${isActive
                   ? "text-primary shadow-sm"
                   : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
                   }`}
