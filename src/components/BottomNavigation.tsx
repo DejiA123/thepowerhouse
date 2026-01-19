@@ -26,7 +26,7 @@ const BottomNavigation = () => {
       draggable="false"
     >
       <div
-        className="w-full h-[45px] flex justify-around touch-none select-none items-end pt-3"
+        className="w-full h-[55px] flex justify-around touch-none select-none items-start pt-3"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
