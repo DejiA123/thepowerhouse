@@ -71,7 +71,7 @@
     --radius: 1rem;
     --bible-audio-bottom-offset: 4.5rem;
     --bible-audio-bottom-offset-v2: 4rem;
-    --bible-selection-bottom-offset: -0.5rem;
+    --bible-selection-bottom-offset: 5rem;
   }
 
   .light {

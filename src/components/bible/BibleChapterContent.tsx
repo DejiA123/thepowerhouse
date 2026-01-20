@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X, Copy } from "lucide-react";
+import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X, Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
@@ -959,6 +959,14 @@ export const BibleChapterContent = ({
                 />
               ))}
               <button
+                onClick={() => setShowHighlightDialog(true)}
+                className="w-8 h-8 flex items-center justify-center bg-blue-50 dark:bg-blue-900/40 rounded-full border-2 border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all hover:scale-110 ml-1"
+                title="More Colors"
+              >
+                <Palette className="w-4 h-4" />
+              </button>
+              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
+              <button
                 onClick={async () => {
                   try {
                     const highlightsToRemove = selectedVerses.map(verseNum => getHighlightForVerse(verseNum)).filter(Boolean);
@@ -976,7 +984,7 @@ export const BibleChapterContent = ({
                 className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-full border-2 border-slate-100 dark:border-slate-600 text-slate-400 hover:text-red-500 transition-all hover:scale-110"
                 title="Remove Highlights"
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
 

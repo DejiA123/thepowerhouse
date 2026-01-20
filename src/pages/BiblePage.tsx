@@ -573,7 +573,7 @@ const BiblePage = () => {
 
         {/* Highlights List Dialog (Lifted from BibleChapterContent) */}
         <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="fixed inset-0 w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1rem+env(safe-area-inset-top,0px))]">
+          <DialogContent className="fixed w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1rem+env(safe-area-inset-top,0px))]">
             <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-4">
               <div className="flex items-center justify-between">
                 <DialogTitle className="flex items-center gap-2 text-xl font-bold">
