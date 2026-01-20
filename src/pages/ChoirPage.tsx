@@ -146,9 +146,51 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
     );
 };
 
+interface ScheduleItem {
+    id: string;
+    day: string;
+    time: string;
+    title: string;
+    description: string;
+    color?: string;
+}
+
+const DEFAULT_GALWAY_SCHEDULE: ScheduleItem[] = [
+    {
+        id: "1",
+        day: "Thu",
+        time: "6:00 PM",
+        title: "Choir Practice",
+        description: "Main weekly rehearsal. New songs are introduced here. Please verify keys and parts beforehand.",
+        color: "purple"
+    },
+    {
+        id: "2",
+        day: "Fri",
+        time: "5:40 PM",
+        title: "Choir Practice",
+        description: "Final run-through for Sunday service. Focused on transitions and flow.",
+        color: "blue"
+    },
+    {
+        id: "3",
+        day: "Sun",
+        time: "9:30 AM",
+        title: "Soundcheck",
+        description: "Mandatory soundcheck for all serving members. Please be on time.",
+        color: "orange"
+    }
+];
+
+const DEFAULT_GALWAY_PRAISE_ROSTER = ["Rekky", "Kido", "YP Sodiq", "Merit", "RP Zainab"];
+const DEFAULT_GALWAY_PRAYER_ROSTER = ["Pastor Deji", "Rekky", "Kido", "YP Sodiq", "Merit", "RP Zainab"];
+
 const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (course: any) => void }) => {
     return (
-        <Card className="group overflow-hidden border-none shadow-xl bg-white dark:bg-slate-800 hover:shadow-2xl transition-all duration-500 rounded-[2rem]">
+        <Card
+            className="group overflow-hidden border-none shadow-xl bg-white dark:bg-slate-800 hover:shadow-2xl transition-all duration-500 rounded-[2rem] cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            onClick={() => onAccess(course)}
+        >
             <div className="relative h-48 overflow-hidden">
                 <img
                     src={course.image}
@@ -179,7 +221,6 @@ const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (cours
                 </p>
                 <Button
                     className="w-full bg-slate-900 hover:bg-blue-600 text-white dark:bg-slate-700 dark:hover:bg-blue-600 py-6 h-auto rounded-2xl shadow-lg transition-all duration-300 font-bold group-hover:translate-y-[-2px]"
-                    onClick={() => onAccess(course)}
                 >
                     Access Course <PlayCircle className="w-4 h-4 ml-2" />
                 </Button>
@@ -560,6 +601,12 @@ const ChoirPage = () => {
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
     const [isRosterOpen, setIsRosterOpen] = useState(false);
 
+    // Dynamic Schedule State
+    const [weeklySchedule, setWeeklySchedule] = useState<ScheduleItem[]>([]);
+    const [isEditScheduleOpen, setIsEditScheduleOpen] = useState(false);
+    const [newScheduleItem, setNewScheduleItem] = useState({ day: "", time: "", title: "", description: "", color: "blue" });
+    const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+
     // Dynamic Instrumental Resources from Supabase
     const [instrResources, setInstrResources] = useState<any[]>([]);
 
@@ -637,6 +684,12 @@ const ChoirPage = () => {
     const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
     const [importFolderText, setImportFolderText] = useState("");
 
+    // Team Roster States
+    const [praiseRoster, setPraiseRoster] = useState<string[]>([]);
+    const [prayerRoster, setPrayerRoster] = useState<string[]>([]);
+    const [isEditRosterMode, setIsEditRosterMode] = useState(false);
+    const [newRosterName, setNewRosterName] = useState("");
+
     // Unified YouTube ID extractor
     const extractYoutubeId = (url?: string) => {
         if (!url) return null;
@@ -700,9 +753,13 @@ const ChoirPage = () => {
                         console.log("New week detected! Clearing setlists...");
                         await choirService.clearWeeklySetlist(locationId);
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+                        await choirService.updateSetlistInfo('learning_song_title', "", locationId);
+                        await choirService.updateSetlistInfo('learning_song_url', "", locationId);
                         setSetlistDate(currentMonday);
                         setPraiseSet([]);
                         setWorshipSet([]);
+                        setLearningSongTitle("");
+                        setLearningSongUrl("");
                     } else {
                         setSetlistDate(dbDate);
                     }
@@ -711,6 +768,42 @@ const ChoirPage = () => {
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
                 if (fetchedInfo['learning_song_title']) setLearningSongTitle(fetchedInfo['learning_song_title']);
                 if (fetchedInfo['learning_song_url']) setLearningSongUrl(fetchedInfo['learning_song_url']);
+
+                // Fetch Weekly Schedule
+                if (fetchedInfo['weekly_schedule']) {
+                    try {
+                        setWeeklySchedule(JSON.parse(fetchedInfo['weekly_schedule']));
+                    } catch (e) {
+                        console.error("Error parsing schedule:", e);
+                        setWeeklySchedule(locationId === 'galway' ? DEFAULT_GALWAY_SCHEDULE : []);
+                    }
+                } else {
+                    setWeeklySchedule(locationId === 'galway' ? DEFAULT_GALWAY_SCHEDULE : []);
+                }
+
+                // Fetch Praise Roster
+                if (fetchedInfo['praise_roster']) {
+                    try {
+                        setPraiseRoster(JSON.parse(fetchedInfo['praise_roster']));
+                    } catch (e) {
+                        console.error("Error parsing praise roster:", e);
+                        setPraiseRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
+                    }
+                } else {
+                    setPraiseRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
+                }
+
+                // Fetch Prayer Roster
+                if (fetchedInfo['prayer_roster']) {
+                    try {
+                        setPrayerRoster(JSON.parse(fetchedInfo['prayer_roster']));
+                    } catch (e) {
+                        console.error("Error parsing prayer roster:", e);
+                        setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
+                    }
+                } else {
+                    setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
+                }
 
             } catch (error) {
                 console.error("Error fetching choir data:", error);
@@ -737,9 +830,13 @@ const ChoirPage = () => {
                         console.log("Week transition detected in real-time! Clearing...");
                         await choirService.clearWeeklySetlist(locationId);
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+                        await choirService.updateSetlistInfo('learning_song_title', "", locationId);
+                        await choirService.updateSetlistInfo('learning_song_url', "", locationId);
                         setPraiseSet([]);
                         setWorshipSet([]);
-                        toast.info("New week started: Setlists cleared.");
+                        setLearningSongTitle("");
+                        setLearningSongUrl("");
+                        toast.info("New week started: Focus song and setlists cleared.");
                     })();
                     return currentMonday;
                 }
@@ -774,7 +871,7 @@ const ChoirPage = () => {
         if (isAddToSetOpen) {
             const refreshLibrary = async () => {
                 try {
-                    const fetchedFolders = await choirService.getFolders();
+                    const fetchedFolders = await choirService.getFolders(locationId!);
                     setFolders(fetchedFolders as any);
                 } catch (error) {
                     console.error("Error refreshing folders:", error);
@@ -1277,6 +1374,93 @@ const ChoirPage = () => {
         }
     };
 
+    // -- Handlers for Weekly Schedule --
+    const handleSaveSchedule = async (updatedSchedule: ScheduleItem[]) => {
+        if (!locationId) return;
+        try {
+            await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId);
+            setWeeklySchedule(updatedSchedule);
+            toast.success("Schedule updated successfully");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to save schedule");
+        }
+    };
+
+    const handleAddScheduleItem = async () => {
+        if (!newScheduleItem.day || !newScheduleItem.title || !newScheduleItem.time) {
+            toast.error("Please fill in Day, Time, and Title");
+            return;
+        }
+
+        const newItem: ScheduleItem = {
+            id: crypto.randomUUID(),
+            ...newScheduleItem
+        };
+
+        const updatedSchedule = [...weeklySchedule, newItem];
+        await handleSaveSchedule(updatedSchedule);
+        setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
+        setIsEditScheduleOpen(false);
+    };
+
+    const handleDeleteScheduleItem = async (id: string) => {
+        const updatedSchedule = weeklySchedule.filter(item => item.id !== id);
+        await handleSaveSchedule(updatedSchedule);
+    };
+
+    const handleUpdateScheduleItem = async () => {
+        if (!editingScheduleId) return;
+        const updatedSchedule = weeklySchedule.map(item =>
+            item.id === editingScheduleId ? { ...item, ...newScheduleItem } : item
+        );
+        await handleSaveSchedule(updatedSchedule);
+        setEditingScheduleId(null);
+        setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
+        setIsEditScheduleOpen(false);
+    };
+
+    const startEditScheduleItem = (item: ScheduleItem) => {
+        setEditingScheduleId(item.id);
+        setNewScheduleItem({
+            day: item.day,
+            time: item.time,
+            title: item.title,
+            description: item.description,
+            color: item.color || "blue"
+        });
+        setIsEditScheduleOpen(true);
+    };
+
+    // -- Handlers for Team Roster --
+    const handleSaveRoster = async (rosterType: 'praise' | 'prayer', updatedRoster: string[]) => {
+        if (!locationId) return;
+        try {
+            const infoKey = rosterType === 'praise' ? 'praise_roster' : 'prayer_roster';
+            await choirService.updateSetlistInfo(infoKey, JSON.stringify(updatedRoster), locationId);
+            if (rosterType === 'praise') setPraiseRoster(updatedRoster);
+            else setPrayerRoster(updatedRoster);
+            toast.success("Roster updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to save roster");
+        }
+    };
+
+    const handleAddRosterMember = (rosterType: 'praise' | 'prayer') => {
+        if (!newRosterName.trim()) return;
+        const currentRoster = rosterType === 'praise' ? praiseRoster : prayerRoster;
+        const updatedRoster = [...currentRoster, newRosterName.trim()];
+        handleSaveRoster(rosterType, updatedRoster);
+        setNewRosterName("");
+    };
+
+    const handleRemoveRosterMember = (rosterType: 'praise' | 'prayer', index: number) => {
+        const currentRoster = rosterType === 'praise' ? praiseRoster : prayerRoster;
+        const updatedRoster = currentRoster.filter((_, i) => i !== index);
+        handleSaveRoster(rosterType, updatedRoster);
+    };
+
     const playVideo = (url: string) => {
         try {
             const videoId = extractYoutubeId(url);
@@ -1330,50 +1514,82 @@ const ChoirPage = () => {
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             Choir Schedule
                         </DialogTitle>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:bg-blue-50 font-bold mr-8"
+                            onClick={() => {
+                                setEditingScheduleId(null);
+                                setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
+                                setIsEditScheduleOpen(true);
+                            }}
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Item
+                        </Button>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
-                        {/* Thursday Card */}
-                        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-3xl flex gap-4 items-start border border-blue-100/50 dark:border-blue-800/30">
-                            <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center shrink-0">
-                                <span className="text-blue-600 dark:text-blue-400 font-bold text-sm uppercase">Thu</span>
+                        {weeklySchedule.length > 0 ? (
+                            weeklySchedule.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className={cn(
+                                        "p-5 rounded-3xl flex gap-4 items-start border transition-all group relative",
+                                        item.color === 'purple' ? "bg-purple-50/50 dark:bg-purple-900/10 border-purple-100/50 dark:border-purple-800/30" :
+                                            item.color === 'blue' ? "bg-blue-50/50 dark:bg-blue-900/10 border-blue-100/50 dark:border-blue-800/30" :
+                                                item.color === 'orange' ? "bg-orange-50/50 dark:bg-orange-900/10 border-orange-100/50 dark:border-orange-800/30" :
+                                                    item.color === 'green' ? "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100/50 dark:border-emerald-800/30" :
+                                                        "bg-slate-50/50 dark:bg-slate-900/10 border-slate-100/50 dark:border-slate-800/30"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-full flex items-center justify-center shrink-0",
+                                        item.color === 'purple' ? "bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400" :
+                                            item.color === 'blue' ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400" :
+                                                item.color === 'orange' ? "bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400" :
+                                                    item.color === 'green' ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" :
+                                                        "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                                    )}>
+                                        <span className="font-bold text-sm uppercase">{item.day}</span>
+                                    </div>
+                                    <div className="space-y-1 flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{item.title}</h3>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditScheduleItem(item)}>
+                                                    <Edit3 className="w-4 h-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" onClick={() => handleDeleteScheduleItem(item.id)}>
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <p className={cn(
+                                            "text-lg font-bold",
+                                            item.color === 'purple' ? "text-purple-600 dark:text-purple-400" :
+                                                item.color === 'blue' ? "text-blue-600 dark:text-blue-400" :
+                                                    item.color === 'orange' ? "text-orange-600 dark:text-orange-400" :
+                                                        item.color === 'green' ? "text-emerald-600 dark:text-emerald-400" :
+                                                            "text-slate-600 dark:text-slate-400"
+                                        )}>{item.time}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1 whitespace-pre-wrap">
+                                            {item.description}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-20 space-y-4">
+                                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                                    <CalendarIcon className="w-10 h-10" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">No Schedule Set</p>
+                                    <p className="text-slate-500 max-w-xs mx-auto text-sm">Tap the "Add Item" button to start building your choir's weekly schedule.</p>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h3>
-                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">6:00 PM</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
-                                    Main weekly rehearsal. New songs are introduced here. Please verify keys and parts beforehand.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Friday Card */}
-                        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-3xl flex gap-4 items-start border border-blue-100/50 dark:border-blue-800/30">
-                            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                                <span className="text-blue-600 dark:text-blue-400 font-bold text-sm uppercase">Fri</span>
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h3>
-                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">5:40 PM</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
-                                    Final run-through for Sunday service. Focused on transitions and flow.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Sunday Card */}
-                        <div className="bg-orange-50/50 dark:bg-orange-900/10 p-5 rounded-3xl flex gap-4 items-start border border-orange-100/50 dark:border-orange-800/30">
-                            <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
-                                <span className="text-orange-600 dark:text-orange-400 font-bold text-sm uppercase">Sun</span>
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Soundcheck</h3>
-                                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">9:30 AM</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
-                                    Mandatory soundcheck for all serving members. Please be on time.
-                                </p>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="p-8 md:px-20 max-w-4xl mx-auto w-full">
@@ -1388,6 +1604,84 @@ const ChoirPage = () => {
             </Dialog>
 
 
+
+            {/* Edit Schedule Item Dialog */}
+            <Dialog open={isEditScheduleOpen} onOpenChange={setIsEditScheduleOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingScheduleId ? 'Edit Schedule Item' : 'Add Schedule Item'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Day (e.g. Thu)</Label>
+                                <Input
+                                    placeholder="Thu"
+                                    value={newScheduleItem.day}
+                                    onChange={(e) => setNewScheduleItem({ ...newScheduleItem, day: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Time (e.g. 6:00 PM)</Label>
+                                <Input
+                                    placeholder="6:00 PM"
+                                    value={newScheduleItem.time}
+                                    onChange={(e) => setNewScheduleItem({ ...newScheduleItem, time: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Title</Label>
+                            <Input
+                                placeholder="Choir Practice"
+                                value={newScheduleItem.title}
+                                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, title: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Description (Optional)</Label>
+                            <Textarea
+                                placeholder="Details about this rehearsal..."
+                                value={newScheduleItem.description}
+                                onChange={(e) => setNewScheduleItem({ ...newScheduleItem, description: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Color Coordinator</Label>
+                            <div className="grid grid-cols-5 gap-2">
+                                {[
+                                    { name: 'purple', bg: 'bg-purple-500' },
+                                    { name: 'blue', bg: 'bg-blue-500' },
+                                    { name: 'orange', bg: 'bg-orange-500' },
+                                    { name: 'green', bg: 'bg-emerald-500' },
+                                    { name: 'gray', bg: 'bg-slate-500' },
+                                ].map((c) => (
+                                    <button
+                                        key={c.name}
+                                        type="button"
+                                        className={cn(
+                                            "h-8 rounded-lg border-2 transition-all",
+                                            newScheduleItem.color === c.name ? "border-slate-900 dark:border-white scale-110" : "border-transparent"
+                                        )}
+                                        onClick={() => setNewScheduleItem({ ...newScheduleItem, color: c.name })}
+                                    >
+                                        <div className={cn("w-full h-full rounded-md", c.bg)} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditScheduleOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={editingScheduleId ? handleUpdateScheduleItem : handleAddScheduleItem}
+                            className="bg-blue-600 text-white"
+                        >
+                            {editingScheduleId ? 'Update Item' : 'Add Item'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Add / Edit Event Dialog */}
             <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
@@ -1471,86 +1765,161 @@ const ChoirPage = () => {
             </Dialog>
 
             {/* Team Roster Modal */}
-            <Dialog open={isRosterOpen} onOpenChange={setIsRosterOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col">
-                    <DialogHeader className="pt-[calc(1.5rem+env(safe-area-inset-top))] px-6">
-                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+            <Dialog open={isRosterOpen} onOpenChange={(open) => {
+                setIsRosterOpen(open);
+                if (!open) setIsEditRosterMode(false);
+            }}>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <Users className="w-6 h-6 text-blue-600" />
                             Team Roster
                         </DialogTitle>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:bg-blue-50 font-bold"
+                            onClick={() => setIsEditRosterMode(!isEditRosterMode)}
+                        >
+                            <Edit3 className="w-4 h-4 mr-2" />
+                            {isEditRosterMode ? 'Finish Editing' : 'Edit Roster'}
+                        </Button>
                     </DialogHeader>
-                    <div className="flex-1 overflow-y-auto py-6 space-y-8 px-4 md:px-20 max-w-4xl mx-auto w-full">
+
+                    <div className="flex-1 overflow-y-auto py-8 space-y-12 px-4 md:px-20 max-w-4xl mx-auto w-full">
 
                         {/* Praise & Worship Roster */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 border-b border-purple-100 dark:border-purple-800 pb-2">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600">
-                                    <Mic className="w-5 h-5" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Praise & Worship</h3>
-                            </div>
-                            <div className="grid gap-3">
-                                {[
-                                    { name: "Rekky" },
-                                    { name: "Kido" },
-                                    { name: "YP Sodiq" },
-                                    { name: "Merit" },
-                                    { name: "RP Zainab" }
-                                ].map((member, i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-sm">
-                                        <div className="flex items-center gap-4">
-                                            <span className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
-                                                {i + 1}
-                                            </span>
-                                            <span className="font-medium text-slate-700 dark:text-slate-200">{member.name}</span>
-                                        </div>
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-purple-100 dark:border-purple-800 pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-xl text-purple-600">
+                                        <Mic className="w-6 h-6" />
                                     </div>
-                                ))}
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Praise & Worship</h3>
+                                </div>
+                            </div>
+
+                            {isEditRosterMode && (
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Add name..."
+                                        value={newRosterName}
+                                        onChange={(e) => setNewRosterName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddRosterMember('praise')}
+                                        className="rounded-xl border-blue-100 focus:ring-blue-500 h-12"
+                                    />
+                                    <Button onClick={() => handleAddRosterMember('praise')} className="bg-blue-600 rounded-xl h-12 px-6">
+                                        <Plus className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            <div className="grid gap-3">
+                                {praiseRoster.length > 0 ? (
+                                    praiseRoster.map((name, i) => (
+                                        <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                                            <div className="flex items-center gap-5">
+                                                <span className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-black">
+                                                    {i + 1}
+                                                </span>
+                                                <span className="font-bold text-lg text-slate-700 dark:text-slate-200">{name}</span>
+                                            </div>
+                                            {isEditRosterMode && (
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
+                                                    onClick={() => handleRemoveRosterMember('praise', i)}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-center py-8 text-slate-400 italic bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                        No members added to this list yet.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                         {/* Prayer Roster */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-800 pb-2">
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-800 pb-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600">
-                                        <Calendar className="w-5 h-5" />
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl text-blue-600">
+                                        <Calendar className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Tuesday Prayer</h3>
-                                        <p className="text-xs text-blue-600 font-medium">5:30 PM • Zoom</p>
+                                        <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Tuesday Prayer</h3>
+                                        <p className="text-sm text-blue-600 font-bold uppercase tracking-wider">5:30 PM • Zoom</p>
                                     </div>
                                 </div>
-                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => window.open("https://us04web.zoom.us/j/77218043569?pwd=6Aj4q1LLCjKio3x7HMod2tStiH0g7s.1", "_blank")}>
+                                <Button
+                                    size="sm"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 rounded-xl font-bold"
+                                    onClick={() => window.open("https://us04web.zoom.us/j/77218043569?pwd=6Aj4q1LLCjKio3x7HMod2tStiH0g7s.1", "_blank")}
+                                >
                                     <Video className="w-4 h-4 mr-2" />
                                     Join Zoom
                                 </Button>
                             </div>
+
+                            {isEditRosterMode && (
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Add name..."
+                                        value={newRosterName}
+                                        onChange={(e) => setNewRosterName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddRosterMember('prayer')}
+                                        className="rounded-xl border-blue-100 focus:ring-blue-500 h-12"
+                                    />
+                                    <Button onClick={() => handleAddRosterMember('prayer')} className="bg-blue-600 rounded-xl h-12 px-6">
+                                        <Plus className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            )}
+
                             <div className="grid gap-3">
-                                {[
-                                    { name: "Pastor Deji" },
-                                    { name: "Rekky" },
-                                    { name: "Kido" },
-                                    { name: "YP Sodiq" },
-                                    { name: "Merit" },
-                                    { name: "RP Zainab" }
-                                ].map((member, i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-sm">
-                                        <div className="flex items-center gap-4">
-                                            <span className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
-                                                {i + 1}
-                                            </span>
-                                            <span className="font-medium text-slate-700 dark:text-slate-200">{member.name}</span>
+                                {prayerRoster.length > 0 ? (
+                                    prayerRoster.map((name, i) => (
+                                        <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                                            <div className="flex items-center gap-5">
+                                                <span className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-black">
+                                                    {i + 1}
+                                                </span>
+                                                <span className="font-bold text-lg text-slate-700 dark:text-slate-200">{name}</span>
+                                            </div>
+                                            {isEditRosterMode && (
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
+                                                    onClick={() => handleRemoveRosterMember('prayer', i)}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                ) : (
+                                    <p className="text-center py-8 text-slate-400 italic bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                        No members added to this list yet.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                     </div>
-                    <DialogFooter className="md:justify-center pb-8">
-                        <Button size="lg" onClick={() => setIsRosterOpen(false)} className="w-full md:w-auto px-12">Close Roster</Button>
-                    </DialogFooter>
+                    <div className="p-8 md:px-20 max-w-4xl mx-auto w-full">
+                        <Button
+                            onClick={() => setIsRosterOpen(false)}
+                            className="w-full bg-slate-900 hover:bg-black text-white rounded-2xl py-6 text-lg font-bold shadow-xl transition-all"
+                        >
+                            Close Roster
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
@@ -1975,35 +2344,37 @@ const ChoirPage = () => {
                                 <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
                                 <CardContent className="relative z-10 p-8 md:p-10">
-                                    <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                                        <div className="flex-1 text-center md:text-left space-y-4">
-                                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase">
-                                                Learning Challenge
-                                            </Badge>
-                                            <div>
-                                                <h3 className="text-3xl md:text-4xl font-black text-white leading-tight">
-                                                    {learningSongTitle || "What are we learning next?"}
-                                                </h3>
-                                                <p className="text-blue-100/80 mt-2 text-lg font-medium">
-                                                    Listen, practice, and master this song before practice!
-                                                </p>
+                                    <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8">
+                                        <div className="flex-1 text-center lg:text-left space-y-6 flex flex-col justify-center">
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h3 className="text-3xl md:text-5xl font-black text-white leading-tight">
+                                                        {learningSongTitle || "What are we learning next?"}
+                                                    </h3>
+                                                    <p className="text-blue-100/80 mt-2 text-lg md:text-xl font-medium">
+                                                        Listen, practice, and master this song before practice!
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            {learningSongUrl ? (
-                                                <Button
-                                                    size="lg"
-                                                    className="bg-white text-blue-700 hover:bg-blue-50 shadow-xl shadow-black/20 rounded-full px-10 py-8 text-xl font-black transition-all hover:scale-105 active:scale-95 group"
-                                                    onClick={() => playVideo(learningSongUrl)}
-                                                >
-                                                    <PlayCircle className="w-8 h-8 mr-3 fill-blue-600 text-white group-hover:scale-110 transition-transform" />
-                                                    Listen Now
-                                                </Button>
+                                        <div className="w-full lg:w-[450px] shrink-0">
+                                            {learningSongUrl && extractYoutubeId(learningSongUrl) ? (
+                                                <div className="relative aspect-video rounded-[1.5rem] overflow-hidden shadow-2xl ring-4 ring-white/10 group">
+                                                    <iframe
+                                                        src={`https://www.youtube.com/embed/${extractYoutubeId(learningSongUrl)}`}
+                                                        title="New Song Focus Preview"
+                                                        className="absolute inset-0 w-full h-full"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                    />
+                                                </div>
                                             ) : (
-                                                <div className="p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center">
-                                                    <Music className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                                                    <p className="font-bold">No song set yet</p>
+                                                <div className="h-full min-h-[200px] flex items-center justify-center p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center bg-white/5 backdrop-blur-sm">
+                                                    <div className="space-y-4">
+                                                        <Music className="w-16 h-16 mx-auto mb-2 opacity-30" />
+                                                        <p className="font-bold text-xl uppercase tracking-wider">No song set yet</p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -2568,35 +2939,37 @@ const ChoirPage = () => {
                                 <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
                                 <CardContent className="relative z-10 p-8 md:p-10">
-                                    <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                                        <div className="flex-1 text-center md:text-left space-y-4">
-                                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase">
-                                                Band Priority
-                                            </Badge>
-                                            <div>
-                                                <h3 className="text-3xl md:text-4xl font-black text-white leading-tight">
-                                                    {learningSongTitle || "What are we learning next?"}
-                                                </h3>
-                                                <p className="text-blue-100/80 mt-2 text-lg font-medium">
-                                                    Master this song before rehearsal! Check the chord charts below.
-                                                </p>
+                                    <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8">
+                                        <div className="flex-1 text-center lg:text-left space-y-6 flex flex-col justify-center">
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h3 className="text-3xl md:text-5xl font-black text-white leading-tight">
+                                                        {learningSongTitle || "What are we learning next?"}
+                                                    </h3>
+                                                    <p className="text-blue-100/80 mt-2 text-lg md:text-xl font-medium">
+                                                        Master this song before rehearsal! Check the chord charts below.
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-4">
-                                            {learningSongUrl ? (
-                                                <Button
-                                                    size="lg"
-                                                    className="bg-white text-blue-700 hover:bg-blue-50 shadow-xl shadow-black/20 rounded-full px-10 py-8 text-xl font-black transition-all hover:scale-105 active:scale-95 group"
-                                                    onClick={() => playVideo(learningSongUrl)}
-                                                >
-                                                    <PlayCircle className="w-8 h-8 mr-3 fill-blue-600 text-white group-hover:scale-110 transition-transform" />
-                                                    Listen Now
-                                                </Button>
+                                        <div className="w-full lg:w-[450px] shrink-0">
+                                            {learningSongUrl && extractYoutubeId(learningSongUrl) ? (
+                                                <div className="relative aspect-video rounded-[1.5rem] overflow-hidden shadow-2xl ring-4 ring-white/10 group">
+                                                    <iframe
+                                                        src={`https://www.youtube.com/embed/${extractYoutubeId(learningSongUrl)}`}
+                                                        title="New Song Focus Preview"
+                                                        className="absolute inset-0 w-full h-full"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                    />
+                                                </div>
                                             ) : (
-                                                <div className="p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center">
-                                                    <Music className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                                                    <p className="font-bold">No song set yet</p>
+                                                <div className="h-full min-h-[200px] flex items-center justify-center p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center bg-white/5 backdrop-blur-sm">
+                                                    <div className="space-y-4">
+                                                        <Music className="w-16 h-16 mx-auto mb-2 opacity-30" />
+                                                        <p className="font-bold text-xl uppercase tracking-wider">No song set yet</p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

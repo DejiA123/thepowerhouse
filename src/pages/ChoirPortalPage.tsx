@@ -16,18 +16,18 @@ const ChoirPortalPage = () => {
             icon: <Star className="w-6 h-6" />
         },
         {
-            id: "athlone",
-            name: "Athlone Choir",
-            location: "Athlone",
-            color: "from-emerald-500 to-teal-600",
-            icon: <Mic2 className="w-6 h-6" />
-        },
-        {
             id: "kildare",
             name: "Kildare Choir",
             location: "Kildare",
             color: "from-amber-500 to-orange-600",
             icon: <Music className="w-6 h-6" />
+        },
+        {
+            id: "athlone",
+            name: "Athlone Choir",
+            location: "Athlone",
+            color: "from-emerald-500 to-teal-600",
+            icon: <Mic2 className="w-6 h-6" />
         },
         {
             id: "dublin",
@@ -59,14 +59,14 @@ const ChoirPortalPage = () => {
                     {branches.map((branch) => (
                         <Card
                             key={branch.id}
-                            className="group relative overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer bg-white dark:bg-gray-800 rounded-3xl"
+                            className="group relative overflow-hidden border-0 shadow-sm cursor-pointer bg-white dark:bg-gray-800 rounded-3xl"
                             onClick={() => navigate(`/groups/choir/${branch.id}`)}
                         >
                             <CardContent className="p-0">
                                 <div className={`h-2 w-full bg-gradient-to-r ${branch.color}`} />
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
-                                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${branch.color} text-white shadow-lg shadow-gray-200 dark:shadow-black/20 group-hover:scale-110 transition-transform duration-500`}>
+                                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${branch.color} text-white shadow-lg shadow-gray-200 dark:shadow-black/20`}>
                                             {branch.icon}
                                         </div>
                                         <div className="flex items-center text-xs font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
@@ -75,7 +75,7 @@ const ChoirPortalPage = () => {
                                         </div>
                                     </div>
 
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 group-hover:text-primary transition-colors">
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                                         {branch.name}
                                     </h3>
 
@@ -83,14 +83,14 @@ const ChoirPortalPage = () => {
                                         <span className="text-xs font-bold text-primary dark:text-blue-400 flex items-center">
                                             Access Portal
                                         </span>
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                                             <ChevronRight className="w-4 h-4" />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Background Decorative element */}
-                                <div className={`absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br ${branch.color} opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-700`} />
+                                <div className={`absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br ${branch.color} opacity-[0.03] rounded-full`} />
                             </CardContent>
                         </Card>
                     ))}
