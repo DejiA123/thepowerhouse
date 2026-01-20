@@ -627,6 +627,12 @@ const ChoirPage = () => {
     const [importText, setImportText] = useState("");
     const [importSetType, setImportSetType] = useState<'praise' | 'worship' | null>(null);
 
+    // Learning Focus States
+    const [learningSongTitle, setLearningSongTitle] = useState("");
+    const [learningSongUrl, setLearningSongUrl] = useState("");
+    const [isEditLearningFocusOpen, setIsEditLearningFocusOpen] = useState(false);
+    const [tempLearningFocus, setTempLearningFocus] = useState({ title: "", url: "" });
+
     // UI States for Import Folder Songs
     const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
     const [importFolderText, setImportFolderText] = useState("");
@@ -703,6 +709,8 @@ const ChoirPage = () => {
                 }
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
+                if (fetchedInfo['learning_song_title']) setLearningSongTitle(fetchedInfo['learning_song_title']);
+                if (fetchedInfo['learning_song_url']) setLearningSongUrl(fetchedInfo['learning_song_url']);
 
             } catch (error) {
                 console.error("Error fetching choir data:", error);
@@ -1246,6 +1254,28 @@ const ChoirPage = () => {
         }
     };
 
+    // -- Handlers for Learning Focus --
+    const openEditLearningFocus = () => {
+        setTempLearningFocus({ title: learningSongTitle, url: learningSongUrl });
+        setIsEditLearningFocusOpen(true);
+    };
+
+    const handleSaveLearningFocus = async () => {
+        if (!locationId) return;
+        try {
+            await Promise.all([
+                choirService.updateSetlistInfo('learning_song_title', tempLearningFocus.title, locationId),
+                choirService.updateSetlistInfo('learning_song_url', tempLearningFocus.url, locationId)
+            ]);
+            setLearningSongTitle(tempLearningFocus.title);
+            setLearningSongUrl(tempLearningFocus.url);
+            setIsEditLearningFocusOpen(false);
+            toast.success("Learning Focus updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update Learning Focus");
+        }
+    };
 
     const playVideo = (url: string) => {
         try {
@@ -1788,6 +1818,59 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog >
 
+            {/* Edit Learning Focus Dialog */}
+            <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
+                    <DialogHeader className="p-8 border-b border-slate-100 dark:border-slate-800">
+                        <DialogTitle className="text-3xl font-black flex items-center gap-4 text-slate-900 dark:text-white">
+                            <Music className="w-8 h-8 text-blue-600" />
+                            Update New Song Focus
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto py-12 px-6 md:px-20 max-w-4xl mx-auto w-full space-y-10">
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <Label className="text-sm font-black uppercase tracking-widest text-slate-400">Song Title</Label>
+                                <Input
+                                    placeholder="e.g. Goodness of God"
+                                    className="h-16 text-xl px-6 rounded-2xl border-blue-100 dark:border-blue-900/50 focus:ring-blue-500 bg-blue-50/30 dark:bg-blue-900/10 font-bold"
+                                    value={tempLearningFocus.title}
+                                    onChange={(e) => setTempLearningFocus({ ...tempLearningFocus, title: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <Label className="text-sm font-black uppercase tracking-widest text-slate-400">YouTube Video URL</Label>
+                                <Input
+                                    placeholder="https://youtube.com/..."
+                                    className="h-16 text-xl px-6 rounded-2xl border-blue-100 dark:border-blue-900/50 focus:ring-blue-500 bg-blue-50/30 dark:bg-blue-900/10 font-bold"
+                                    value={tempLearningFocus.url}
+                                    onChange={(e) => setTempLearningFocus({ ...tempLearningFocus, url: e.target.value })}
+                                />
+                                <p className="text-xs text-slate-500 font-medium pl-2 italic">Copy and paste the full YouTube URL here.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4 pt-10 pb-20">
+                            <Button
+                                onClick={handleSaveLearningFocus}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 text-xl font-black shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                            >
+                                Save Learning Focus
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsEditLearningFocusOpen(false)}
+                                className="rounded-2xl py-6 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto px-8"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Hero Header */}
             < div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0" > {/* Adjusted height/padding for mobile */}
                 < div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-500 opacity-90" ></div >
@@ -1867,6 +1950,67 @@ const ChoirPage = () => {
                     </div>
 
                     <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                        {/* LEARNING FOCUS SECTION */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                    <Music className="w-6 h-6 mr-3 text-blue-600" />
+                                    New Song Focus
+                                </h2>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-600 hover:bg-blue-50 font-bold"
+                                    onClick={openEditLearningFocus}
+                                >
+                                    <Edit3 className="w-4 h-4 mr-2" />
+                                    {learningSongTitle ? 'Update Focus' : 'Set Focus'}
+                                </Button>
+                            </div>
+
+                            <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-900 rounded-[2.5rem]">
+                                {/* Decorative elements */}
+                                <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                                <CardContent className="relative z-10 p-8 md:p-10">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                                        <div className="flex-1 text-center md:text-left space-y-4">
+                                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase">
+                                                Learning Challenge
+                                            </Badge>
+                                            <div>
+                                                <h3 className="text-3xl md:text-4xl font-black text-white leading-tight">
+                                                    {learningSongTitle || "What are we learning next?"}
+                                                </h3>
+                                                <p className="text-blue-100/80 mt-2 text-lg font-medium">
+                                                    Listen, practice, and master this song before practice!
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            {learningSongUrl ? (
+                                                <Button
+                                                    size="lg"
+                                                    className="bg-white text-blue-700 hover:bg-blue-50 shadow-xl shadow-black/20 rounded-full px-10 py-8 text-xl font-black transition-all hover:scale-105 active:scale-95 group"
+                                                    onClick={() => playVideo(learningSongUrl)}
+                                                >
+                                                    <PlayCircle className="w-8 h-8 mr-3 fill-blue-600 text-white group-hover:scale-110 transition-transform" />
+                                                    Listen Now
+                                                </Button>
+                                            ) : (
+                                                <div className="p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center">
+                                                    <Music className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="font-bold">No song set yet</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
 
 
 
@@ -2407,70 +2551,128 @@ const ChoirPage = () => {
 
                     </TabsContent>
 
-                    <TabsContent value="instrumentalists" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Tutorials & Resources</h2>
-                            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsAddInstrOpen(true)}>
-                                <Plus className="w-4 h-4 mr-2" /> Add Resource
-                            </Button>
-                        </div>
+                    <TabsContent value="instrumentalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {instrResources.length === 0 ? (
-                                <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                    <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                    <p>No resources yet. Add tutorials for the band!</p>
-                                </div>
-                            ) : (
-                                instrResources.map((resource) => (
-                                    <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
-                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                                        <MoreVertical className="w-4 h-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent>
-                                                    <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
-                                                        <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
-                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                        {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                    <Music className="w-6 h-6 mr-3 text-blue-600" />
+                                    New Song Focus
+                                </h2>
+                            </div>
+
+                            <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-900 rounded-[2.5rem]">
+                                {/* Decorative elements */}
+                                <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                                <CardContent className="relative z-10 p-8 md:p-10">
+                                    <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                                        <div className="flex-1 text-center md:text-left space-y-4">
+                                            <Badge className="bg-white/20 hover:bg-white/30 text-white border-white/40 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase">
+                                                Band Priority
+                                            </Badge>
+                                            <div>
+                                                <h3 className="text-3xl md:text-4xl font-black text-white leading-tight">
+                                                    {learningSongTitle || "What are we learning next?"}
+                                                </h3>
+                                                <p className="text-blue-100/80 mt-2 text-lg font-medium">
+                                                    Master this song before rehearsal! Check the chord charts below.
+                                                </p>
+                                            </div>
                                         </div>
 
-                                        <div
-                                            className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
-                                            onClick={() => resource.url && playVideo(resource.url)}
-                                        >
-                                            {getYTThumbnail(resource.url) ? (
-                                                <div className="w-full h-full relative">
-                                                    <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                                                    <div className="absolute inset-0 flex items-center justify-center">
-                                                        <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
-                                                    </div>
-                                                </div>
+                                        <div className="flex items-center gap-4">
+                                            {learningSongUrl ? (
+                                                <Button
+                                                    size="lg"
+                                                    className="bg-white text-blue-700 hover:bg-blue-50 shadow-xl shadow-black/20 rounded-full px-10 py-8 text-xl font-black transition-all hover:scale-105 active:scale-95 group"
+                                                    onClick={() => playVideo(learningSongUrl)}
+                                                >
+                                                    <PlayCircle className="w-8 h-8 mr-3 fill-blue-600 text-white group-hover:scale-110 transition-transform" />
+                                                    Listen Now
+                                                </Button>
                                             ) : (
-                                                <Video className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                <div className="p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center">
+                                                    <Music className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="font-bold">No song set yet</p>
+                                                </div>
                                             )}
                                         </div>
-                                        <CardContent className="p-4">
-                                            <Badge variant="secondary" className="mb-2 text-xs font-normal">
-                                                {resource.type}
-                                            </Badge>
-                                            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
-                                                {resource.title}
-                                            </h3>
-                                            <p className="text-xs text-slate-500">
-                                                {new Date(resource.created_at).toLocaleDateString()}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+                                    <Video className="w-6 h-6 text-blue-600" />
+                                    Tutorials & Resources
+                                </h2>
+                                <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsAddInstrOpen(true)}>
+                                    <Plus className="w-4 h-4 mr-2" /> Add Resource
+                                </Button>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {instrResources.length === 0 ? (
+                                    <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                        <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                        <p>No resources yet. Add tutorials for the band!</p>
+                                    </div>
+                                ) : (
+                                    instrResources.map((resource) => (
+                                        <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
+                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                                            <MoreVertical className="w-4 h-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
+                                                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+
+                                            <div
+                                                className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
+                                                onClick={() => resource.url && playVideo(resource.url)}
+                                            >
+                                                {getYTThumbnail(resource.url) ? (
+                                                    <div className="w-full h-full relative">
+                                                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <Video className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                )}
+                                            </div>
+                                            <CardContent className="p-4">
+                                                <Badge variant="secondary" className="mb-2 text-xs font-normal">
+                                                    {resource.type}
+                                                </Badge>
+                                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                                                    {resource.title}
+                                                </h3>
+                                                <p className="text-xs text-slate-500">
+                                                    {new Date(resource.created_at).toLocaleDateString()}
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
+                            </div>
                         </div>
 
                         {/* Band Weekly Setlist Section */}
