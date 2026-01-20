@@ -831,7 +831,7 @@ const ChoirPage = () => {
     }, [folders]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-slate-900 dark:via-purple-900/10 dark:to-blue-900/10">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50 dark:from-slate-900 dark:via-blue-900/10 dark:to-slate-900">
 
             {/* Video Player Modal */}
             <Dialog open={!!currentVideoUrl} onOpenChange={(open) => !open && setCurrentVideoUrl(null)}>
@@ -860,20 +860,20 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
                     <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                            <CalendarIcon className="w-6 h-6 text-purple-600" />
+                            <CalendarIcon className="w-6 h-6 text-blue-600" />
                             Choir Schedule
                         </DialogTitle>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
                         {/* Thursday Card */}
-                        <div className="bg-purple-50/50 dark:bg-purple-900/10 p-5 rounded-3xl flex gap-4 items-start border border-purple-100/50 dark:border-purple-800/30">
+                        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-3xl flex gap-4 items-start border border-blue-100/50 dark:border-blue-800/30">
                             <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center shrink-0">
-                                <span className="text-purple-600 dark:text-purple-400 font-bold text-sm uppercase">Thu</span>
+                                <span className="text-blue-600 dark:text-blue-400 font-bold text-sm uppercase">Thu</span>
                             </div>
                             <div className="space-y-1">
                                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Choir Practice</h3>
-                                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">6:00 PM</p>
+                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">6:00 PM</p>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
                                     Main weekly rehearsal. New songs are introduced here. Please verify keys and parts beforehand.
                                 </p>
@@ -927,7 +927,7 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
                     <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                            <CalendarIcon className="w-6 h-6 text-purple-600" />
+                            <CalendarIcon className="w-6 h-6 text-blue-600" />
                             {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
                         </DialogTitle>
                     </DialogHeader>
@@ -970,7 +970,7 @@ const ChoirPage = () => {
                                         className={cn(
                                             "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all",
                                             newEvent.color === c.name
-                                                ? "bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700 ring-1 ring-purple-500/20 shadow-sm"
+                                                ? "bg-slate-100 border-slate-200 dark:bg-slate-800 dark:border-slate-700 ring-1 ring-blue-500/20 shadow-sm"
                                                 : "border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                         )}
                                         onClick={() => setNewEvent({ ...newEvent, color: c.name })}
@@ -988,7 +988,7 @@ const ChoirPage = () => {
                     <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-10">
                         <Button
                             onClick={editingEvent ? handleUpdateCalendarEvent : handleAddCalendarEvent}
-                            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-4 text-sm font-bold shadow-lg shadow-purple-500/20"
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-sm font-bold shadow-lg shadow-blue-500/20"
                         >
                             {editingEvent ? 'Save Changes' : 'Add Note'}
                         </Button>
@@ -1008,7 +1008,7 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                            <Users className="w-6 h-6 text-purple-600" />
+                            <Users className="w-6 h-6 text-blue-600" />
                             Team Roster
                         </DialogTitle>
                     </DialogHeader>
@@ -1017,7 +1017,7 @@ const ChoirPage = () => {
                         {/* Praise & Worship Roster */}
                         <div className="space-y-4">
                             <div className="flex items-center gap-3 border-b border-purple-100 dark:border-purple-800 pb-2">
-                                <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg text-purple-600">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600">
                                     <Mic className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Praise & Worship</h3>
@@ -1032,7 +1032,7 @@ const ChoirPage = () => {
                                 ].map((member, i) => (
                                     <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-sm">
                                         <div className="flex items-center gap-4">
-                                            <span className="w-6 h-6 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs font-bold">
+                                            <span className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
                                                 {i + 1}
                                             </span>
                                             <span className="font-medium text-slate-700 dark:text-slate-200">{member.name}</span>
@@ -1104,7 +1104,7 @@ const ChoirPage = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={saveSetInfo} className="bg-purple-600 text-white">Save</Button>
+                        <Button onClick={saveSetInfo} className="bg-blue-600 text-white">Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
@@ -1199,7 +1199,7 @@ const ChoirPage = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAddSetSong} className="bg-purple-600 text-white">Add to Set</Button>
+                        <Button onClick={handleAddSetSong} className="bg-blue-600 text-white">Add to Set</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
@@ -1209,7 +1209,7 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
                     <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                            <Download className="w-6 h-6 text-purple-600" />
+                            <Download className="w-6 h-6 text-blue-600" />
                             Import from Notes
                         </DialogTitle>
                     </DialogHeader>
@@ -1230,7 +1230,7 @@ const ChoirPage = () => {
                         <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
                             <Button
                                 onClick={handleImportSetlist}
-                                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-purple-500/20"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
                                 disabled={!importText.trim()}
                             >
                                 Import {importText.split('\n').filter(l => l.trim()).length} Songs
@@ -1290,7 +1290,7 @@ const ChoirPage = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleSaveEditSetSong} className="bg-purple-600 text-white">Save Changes</Button>
+                        <Button onClick={handleSaveEditSetSong} className="bg-blue-600 text-white">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
@@ -1346,14 +1346,14 @@ const ChoirPage = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleSaveEditSong} className="bg-purple-600 text-white">Save Changes</Button>
+                        <Button onClick={handleSaveEditSong} className="bg-blue-600 text-white">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
 
             {/* Hero Header */}
             < div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0" > {/* Adjusted height/padding for mobile */}
-                < div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-90" ></div >
+                < div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-500 opacity-90" ></div >
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516280440614-6697288d5d38?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-black/20"></div>
 
@@ -1374,21 +1374,21 @@ const ChoirPage = () => {
                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
                                 The Power House Choir
                             </h1>
-                            <p className="text-purple-100 text-lg md:text-xl font-medium max-w-2xl">
+                            <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl">
                                 Leading the congregation in spirit and truth.
                             </p>
                         </div>
 
                         <div className="flex flex-wrap gap-3"> {/* Buttons visible on all screens */}
                             <Button
-                                className="bg-white text-purple-600 hover:bg-purple-50 hover:text-purple-700 shadow-lg border-none flex-1 md:flex-none font-bold"
+                                className="bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-lg border-none flex-1 md:flex-none font-bold"
                                 onClick={() => setIsScheduleOpen(true)}
                             >
                                 <Calendar className="w-4 h-4 mr-2" />
                                 Schedule
                             </Button>
                             <Button
-                                className="bg-purple-500/30 text-white hover:bg-purple-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
+                                className="bg-blue-500/30 text-white hover:bg-blue-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
                                 onClick={() => setIsRosterOpen(true)}
                             >
                                 <Users className="w-4 h-4 mr-2" />
@@ -1403,10 +1403,10 @@ const ChoirPage = () => {
             < div id="main-content" className="container mx-auto px-4 py-8 -mt-6 relative z-10" >
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex justify-center mb-8">
-                        <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full shadow-lg border border-purple-100 dark:border-purple-900/30 h-auto">
+                        <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto">
                             <TabsTrigger
                                 value="vocalists"
-                                className="rounded-full px-8 py-3 text-sm font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md"
+                                className="rounded-full px-8 py-3 text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md"
                             >
                                 <Mic className="w-4 h-4 mr-2" />
                                 Vocalists
@@ -1430,7 +1430,7 @@ const ChoirPage = () => {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <ListMusic className="w-6 h-6 mr-3 text-purple-600" />
+                                    <ListMusic className="w-6 h-6 mr-3 text-blue-600" />
                                     This Week's Setlist
                                 </h2>
 
@@ -1440,7 +1440,7 @@ const ChoirPage = () => {
                                         <Button
                                             variant="outline"
                                             className={cn(
-                                                "h-12 rounded-2xl border-purple-200 text-purple-600 bg-purple-50/50 hover:bg-purple-100 pl-4 text-left font-bold shadow-sm",
+                                                "h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 pl-4 text-left font-bold shadow-sm",
                                                 !setlistDate && "text-muted-foreground"
                                             )}
                                         >
@@ -1465,10 +1465,10 @@ const ChoirPage = () => {
 
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* Praise Set */}
-                                <Card className="border-none shadow-lg bg-orange-50/50 dark:bg-orange-900/10 border-t-4 border-orange-500">
+                                <Card className="border-none shadow-lg bg-blue-50/50 dark:bg-blue-900/10 border-t-4 border-blue-500">
                                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                                         <div className="space-y-1">
-                                            <CardTitle className="text-orange-700 dark:text-orange-400 flex items-center">
+                                            <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center">
                                                 <PlayCircle className="w-5 h-5 mr-2" />
                                                 {praiseInfo.title}
                                             </CardTitle>
@@ -1495,14 +1495,14 @@ const ChoirPage = () => {
                                         {praiseSet.map((song, i) => (
                                             <div key={song.id} className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group">
                                                 <div className="flex items-center gap-3">
-                                                    <span className="text-orange-500 font-bold w-4">{i + 1}</span>
+                                                    <span className="text-blue-500 font-bold w-4">{i + 1}</span>
                                                     <div>
                                                         <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                                                             {song.title}
                                                             {song.url && (
                                                                 <Badge
                                                                     variant="secondary"
-                                                                    className="bg-orange-100 text-orange-600 hover:bg-orange-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
+                                                                    className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         playVideo(song.url!);
@@ -1516,7 +1516,7 @@ const ChoirPage = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                                                         {song.key}
                                                     </Badge>
                                                     <DropdownMenu>
@@ -1628,7 +1628,7 @@ const ChoirPage = () => {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <BookOpen className="w-6 h-6 mr-3 text-purple-600" />
+                                    <BookOpen className="w-6 h-6 mr-3 text-blue-600" />
                                     Vocalist Library
                                 </h2>
                             </div>
@@ -1636,19 +1636,19 @@ const ChoirPage = () => {
                             <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col">
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
                                     <div className="flex items-center gap-2">
-                                        <FolderOpen className="w-5 h-5 text-purple-500" />
+                                        <FolderOpen className="w-5 h-5 text-blue-500" />
                                         {activeFolderId ? (
                                             <div className="flex items-center gap-1 overflow-hidden">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => setActiveFolderId(null)}
-                                                    className="text-slate-500 hover:text-purple-600 h-7 px-2 text-xs"
+                                                    className="text-slate-500 hover:text-blue-600 h-7 px-2 text-xs"
                                                 >
                                                     Library
                                                 </Button>
                                                 <span className="text-slate-300">/</span>
-                                                <span className="font-semibold text-purple-600 truncate max-w-[150px]">{activeFolder?.name}</span>
+                                                <span className="font-semibold text-blue-600 truncate max-w-[150px]">{activeFolder?.name}</span>
                                             </div>
                                         ) : (
                                             <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">Folders</span>
@@ -1658,7 +1658,7 @@ const ChoirPage = () => {
                                     <div className="flex gap-2 shrink-0">
                                         <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
                                             <DialogTrigger asChild>
-                                                <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                                <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
                                                     <Folder className="w-4 h-4 sm:mr-2" />
                                                     <span className="hidden sm:inline">New Folder</span>
                                                 </Button>
@@ -1677,7 +1677,7 @@ const ChoirPage = () => {
                                                     />
                                                 </div>
                                                 <DialogFooter>
-                                                    <Button onClick={handleCreateFolder} className="bg-purple-600 text-white">Create</Button>
+                                                    <Button onClick={handleCreateFolder} className="bg-blue-600 text-white">Create</Button>
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
@@ -1686,7 +1686,7 @@ const ChoirPage = () => {
                                             <div className="flex gap-2">
                                                 <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
                                                     <DialogTrigger asChild>
-                                                        <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                                                        <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
                                                             <Download className="w-4 h-4 sm:mr-2" />
                                                             <span className="hidden sm:inline">Import</span>
                                                         </Button>
@@ -1694,7 +1694,7 @@ const ChoirPage = () => {
                                                     <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
                                                         <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
                                                             <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                                                                <Download className="w-6 h-6 text-purple-600" />
+                                                                <Download className="w-6 h-6 text-blue-600" />
                                                                 Import Songs to Folder
                                                             </DialogTitle>
                                                         </DialogHeader>
@@ -1706,7 +1706,7 @@ const ChoirPage = () => {
                                                                 </p>
                                                                 <Textarea
                                                                     placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
-                                                                    className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
+                                                                    className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-blue-100 dark:border-blue-800/50 focus-visible:ring-blue-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
                                                                     value={importFolderText}
                                                                     onChange={(e) => setImportFolderText(e.target.value)}
                                                                 />
@@ -1715,7 +1715,7 @@ const ChoirPage = () => {
                                                             <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
                                                                 <Button
                                                                     onClick={handleImportFolderSongs}
-                                                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-purple-500/20"
+                                                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
                                                                     disabled={!importFolderText.trim()}
                                                                 >
                                                                     Import {importFolderText.split('\n').filter(l => l.trim()).length} Songs
@@ -1734,7 +1734,7 @@ const ChoirPage = () => {
 
                                                 <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
                                                     <DialogTrigger asChild>
-                                                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white shadow-md">
+                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
                                                             <Plus className="w-4 h-4 sm:mr-2" />
                                                             <span className="hidden sm:inline">Add Song</span>
                                                         </Button>
@@ -1788,7 +1788,7 @@ const ChoirPage = () => {
                                                             </div>
                                                         </div>
                                                         <DialogFooter>
-                                                            <Button onClick={handleAddSong} className="bg-purple-600 text-white">Save Song</Button>
+                                                            <Button onClick={handleAddSong} className="bg-blue-600 text-white">Save Song</Button>
                                                         </DialogFooter>
                                                     </DialogContent>
                                                 </Dialog>
@@ -1805,9 +1805,9 @@ const ChoirPage = () => {
                                                 <div
                                                     key={folder.id}
                                                     onClick={() => setActiveFolderId(folder.id)}
-                                                    className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
+                                                    className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
                                                 >
-                                                    <div className="w-16 h-16 bg-purple-50 dark:bg-purple-900/20 rounded-full flex items-center justify-center text-purple-300 group-hover:text-purple-600 group-hover:bg-purple-100 transition-colors">
+                                                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-300 group-hover:text-blue-600 group-hover:bg-blue-100 transition-colors">
                                                         <FolderOpen className="w-8 h-8" />
                                                     </div>
                                                     <div>
@@ -1852,9 +1852,9 @@ const ChoirPage = () => {
                                                             <div
                                                                 key={folder.id}
                                                                 onClick={() => setActiveFolderId(folder.id)}
-                                                                className="bg-purple-50/50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
+                                                                className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
                                                             >
-                                                                <FolderOpen className="w-8 h-8 text-purple-400 group-hover:text-purple-600" />
+                                                                <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
                                                                 <div>
                                                                     <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{folder.name}</h3>
                                                                     <p className="text-[10px] text-slate-400">
@@ -2039,7 +2039,7 @@ const ChoirPage = () => {
                             <div className="grid lg:grid-cols-2 gap-6">
                                 {/* Praise Set for Band */}
                                 <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
-                                    <div className="bg-orange-500 p-4 text-white">
+                                    <div className="bg-blue-600 p-4 text-white">
                                         <h3 className="font-bold flex items-center gap-2">
                                             <Zap className="w-5 h-5 fill-current" /> Praise Set
                                         </h3>
@@ -2057,7 +2057,7 @@ const ChoirPage = () => {
 
                                 {/* Worship Set for Band */}
                                 <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
-                                    <div className="bg-indigo-600 p-4 text-white">
+                                    <div className="bg-indigo-700 p-4 text-white">
                                         <h3 className="font-bold flex items-center gap-2">
                                             <Waves className="w-5 h-5" /> Worship Set
                                         </h3>
@@ -2096,7 +2096,7 @@ const ChoirPage = () => {
                                     setNewEvent({ title: "", description: "", color: "purple" });
                                     setIsAddEventOpen(true);
                                 }}
-                                className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl px-8 py-6 h-auto shadow-xl shadow-purple-500/20 font-bold"
+                                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-8 py-6 h-auto shadow-xl shadow-blue-500/20 font-bold"
                             >
                                 <Plus className="w-5 h-5 mr-2" /> Add New Note
                             </Button>
