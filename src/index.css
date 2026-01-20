@@ -70,6 +70,7 @@
     --ring: 217 91% 60%;
     --radius: 1rem;
     --bible-audio-bottom-offset: -2rem;
+    --bible-audio-bottom-offset-v2: -2rem;
     --bible-selection-bottom-offset: -0.5rem;
   }
 
@@ -1599,7 +1600,7 @@ body.modal-open {
   /* Override Bible page offsets for PWA to be closer to bottom bar */
   :root {
     --bible-audio-bottom-offset: -6.5rem;
-    --bible-audio-bottom-offset-v2: -9rem;
+    --bible-audio-bottom-offset-v2: -7.5rem;
     --bible-selection-bottom-offset: -0.5rem;
   }
 }
