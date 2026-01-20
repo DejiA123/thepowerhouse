@@ -973,7 +973,7 @@ export const BibleChapterContent = ({
           "fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Keeping high clear when verse selection is active
-            : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset))]" // Using variable for responsive PWA/Browser positioning
+            : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))]" // Using variable for responsive PWA/Browser positioning
         )}
       >
         <div className="flex items-end justify-between px-8 pointer-events-auto max-w-lg mx-auto">
