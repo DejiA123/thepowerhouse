@@ -218,7 +218,7 @@ const SearchDialog = ({ searchOpen, setSearchOpen }: SearchDialogProps) => {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search 'Sodiq', 'Events', 'Choir'..."
+              placeholder="Search 'Events', 'Choir', 'Bible'..."
               className="border-none shadow-none focus-visible:ring-0 px-0 text-xl md:text-2xl font-medium bg-transparent placeholder:text-slate-300 dark:placeholder:text-slate-600 h-auto py-2"
               autoFocus
             />

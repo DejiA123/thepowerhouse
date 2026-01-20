@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Phone, Mail, MessageCircle, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 
 const LocationsSection = () => {
   const locations = [
@@ -72,9 +72,7 @@ const LocationsSection = () => {
               <MapPin className="w-6 h-6" />
               <span className="tracking-wide font-bold">Our Locations</span>
             </div>
-            <Badge variant="outline" className="text-indigo-600 border-indigo-200 bg-indigo-50">
-              4 Campuses
-            </Badge>
+
           </CardTitle>
         </CardHeader>
 

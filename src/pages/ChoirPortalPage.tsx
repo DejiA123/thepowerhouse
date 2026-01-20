@@ -1,0 +1,104 @@
+
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Music, MapPin, ChevronRight, Users, Mic2, Star } from "lucide-react";
+
+const ChoirPortalPage = () => {
+    const navigate = useNavigate();
+
+    const branches = [
+        {
+            id: "galway",
+            name: "Galway Choir",
+            location: "Galway",
+            color: "from-blue-600 to-indigo-700",
+            icon: <Star className="w-6 h-6" />
+        },
+        {
+            id: "athlone",
+            name: "Athlone Choir",
+            location: "Athlone",
+            color: "from-emerald-500 to-teal-600",
+            icon: <Mic2 className="w-6 h-6" />
+        },
+        {
+            id: "kildare",
+            name: "Kildare Choir",
+            location: "Kildare",
+            color: "from-amber-500 to-orange-600",
+            icon: <Music className="w-6 h-6" />
+        },
+        {
+            id: "dublin",
+            name: "Dublin Choir",
+            location: "Dublin",
+            color: "from-rose-500 to-pink-600",
+            icon: <Users className="w-6 h-6" />
+        }
+    ];
+
+    return (
+        <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-32">
+            {/* Header section with safe area padding */}
+            <div className="relative bg-primary pt-[calc(3rem+env(safe-area-inset-top))] pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 opacity-95" />
+                <div className="absolute inset-0 bg-[url('/patterns/circuit.svg')] opacity-10" />
+
+                <div className="relative z-10 max-w-lg mx-auto text-center">
+                    <div className="inline-flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
+                        <Music className="w-6 h-6 text-blue-100" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Choir Portal</h1>
+                    <p className="text-blue-100/80 text-sm font-medium">Select your branch to access setlists and resources</p>
+                </div>
+            </div>
+
+            <div className="px-4 -mt-10 relative z-20 max-w-4xl mx-auto space-y-4 pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {branches.map((branch) => (
+                        <Card
+                            key={branch.id}
+                            className="group relative overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer bg-white dark:bg-gray-800 rounded-3xl"
+                            onClick={() => navigate(`/groups/choir/${branch.id}`)}
+                        >
+                            <CardContent className="p-0">
+                                <div className={`h-2 w-full bg-gradient-to-r ${branch.color}`} />
+                                <div className="p-6">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${branch.color} text-white shadow-lg shadow-gray-200 dark:shadow-black/20 group-hover:scale-110 transition-transform duration-500`}>
+                                            {branch.icon}
+                                        </div>
+                                        <div className="flex items-center text-xs font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
+                                            <MapPin className="w-3 h-3 mr-1" />
+                                            {branch.location}
+                                        </div>
+                                    </div>
+
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 group-hover:text-primary transition-colors">
+                                        {branch.name}
+                                    </h3>
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700/50">
+                                        <span className="text-xs font-bold text-primary dark:text-blue-400 flex items-center">
+                                            Access Portal
+                                        </span>
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                                            <ChevronRight className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Background Decorative element */}
+                                <div className={`absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br ${branch.color} opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-700`} />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+export default ChoirPortalPage;

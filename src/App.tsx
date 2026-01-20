@@ -40,6 +40,7 @@ import NewHerePage from "@/pages/NewHerePage";
 import ServePage from "@/pages/ServePage";
 import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
 import ChoirPage from "@/pages/ChoirPage";
+import ChoirPortalPage from "@/pages/ChoirPortalPage";
 import ManagementTeamPage from "@/pages/ManagementTeamPage";
 import UsheringPage from "@/pages/UsheringPage";
 import EvangelismPage from "@/pages/EvangelismPage";
@@ -252,7 +253,8 @@ const AppRoutes = () => {
             <Route path="/new-here" element={<NewHerePage />} />
             <Route path="/serve" element={<ServePage />} />
             <Route path="/building-campaign" element={<BuildingCampaignPage />} />
-            <Route path="/groups/choir" element={<ChoirPage />} />
+            <Route path="/groups/choir" element={<ChoirPortalPage />} />
+            <Route path="/groups/choir/:locationId" element={<ChoirPage />} />
             <Route path="/groups/management" element={<ManagementTeamPage />} />
             <Route path="/groups/ushering" element={<UsheringPage />} />
             <Route path="/groups/evangelism" element={<EvangelismPage />} />

@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, Play, Loader2, Video } from "lucide-react";
+import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VideoData {
   id: string;
@@ -17,39 +17,91 @@ const PowerHouseVideos = () => {
   const channelUrl = `https://www.youtube.com/channel/${channelId}`;
 
   const [videos, setVideos] = useState<VideoData[]>([]);
-  const [activeVideo, setActiveVideo] = useState<VideoData | null>(null);
+  const [activeVideo, setActiveVideo] = useState<(VideoData & { isLive?: boolean }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiveNow, setIsLiveNow] = useState(false);
+  const [liveServiceInfo, setLiveServiceInfo] = useState<any>(null);
+
+  const checkLiveStatus = async () => {
+    try {
+      // 1. Check Supabase for manually marked live services
+      const { data: liveData } = await supabase
+        .from('live_services')
+        .select('*')
+        .eq('is_live', true)
+        .maybeSingle();
+
+      if (liveData) {
+        setIsLiveNow(true);
+        setLiveServiceInfo(liveData);
+        return { isLive: true, videoId: liveData.youtube_video_id, title: liveData.title };
+      }
+
+      // 2. Time-based simulation (fallback)
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentDay = now.getDay();
+      const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 13;
+      const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
+
+      if (isSundayService || isWednesdayService) {
+        setIsLiveNow(true);
+        return { isLive: true, channelId };
+      }
+
+      setIsLiveNow(false);
+      return { isLive: false };
+    } catch (err) {
+      console.error("Error checking live status:", err);
+      return { isLive: false };
+    }
+  };
+
+  const fetchVideos = async () => {
+    try {
+      const liveStatus = await checkLiveStatus();
+
+      const response = await fetch(
+        `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.youtube.com%2Ffeeds%2Fvideos.xml%3Fchannel_id%3D${channelId}`
+      );
+      const data = await response.json();
+
+      if (data.items) {
+        const formattedVideos = data.items.map((item: any) => ({
+          id: item.guid.split(":")[2],
+          title: item.title,
+          thumbnail: `https://i.ytimg.com/vi/${item.guid.split(":")[2]}/mqdefault.jpg`,
+          pubDate: new Date(item.pubDate).toLocaleDateString(),
+          link: item.link
+        }));
+
+        setVideos(formattedVideos);
+
+        // Priority: 1. Active Live Stream, 2. Latest Video
+        if (liveStatus.isLive) {
+          setActiveVideo({
+            id: liveStatus.videoId || "live_stream", // special ID for channel live embed
+            title: liveStatus.title || "Live Service",
+            thumbnail: formattedVideos[0]?.thumbnail || "",
+            pubDate: "LIVE NOW",
+            link: channelUrl,
+            isLive: true
+          });
+        } else if (formattedVideos.length > 0) {
+          setActiveVideo(formattedVideos[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching videos:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchVideos = async () => {
-      try {
-        const response = await fetch(
-          `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.youtube.com%2Ffeeds%2Fvideos.xml%3Fchannel_id%3D${channelId}`
-        );
-        const data = await response.json();
-
-        if (data.items) {
-          const formattedVideos = data.items.map((item: any) => ({
-            id: item.guid.split(":")[2],
-            title: item.title,
-            thumbnail: `https://i.ytimg.com/vi/${item.guid.split(":")[2]}/mqdefault.jpg`,
-            pubDate: new Date(item.pubDate).toLocaleDateString(),
-            link: item.link
-          }));
-
-          setVideos(formattedVideos);
-          if (formattedVideos.length > 0) {
-            setActiveVideo(formattedVideos[0]);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching videos:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchVideos();
+    const interval = setInterval(checkLiveStatus, 60000); // Check live status every minute
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -101,7 +153,10 @@ const PowerHouseVideos = () => {
                     {activeVideo && (
                       <iframe
                         className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${activeVideo.id}?autoplay=0`}
+                        src={activeVideo.id === "live_stream"
+                          ? `https://www.youtube.com/embed/live_stream?channel=${channelId}&autoplay=0`
+                          : `https://www.youtube.com/embed/${activeVideo.id}?autoplay=0`
+                        }
                         title={activeVideo.title}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -115,8 +170,17 @@ const PowerHouseVideos = () => {
                   <div className="px-2">
                     <h3 className="text-2xl font-black text-gray-900 leading-tight line-clamp-2 mb-2">{activeVideo.title}</h3>
                     <div className="flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                      <p className="text-sm font-bold text-indigo-500">{activeVideo.pubDate}</p>
+                      {activeVideo.isLive ? (
+                        <div className="flex items-center space-x-2 px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black uppercase tracking-widest animate-pulse">
+                          <Radio className="w-3 h-3" />
+                          <span>Live Now</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                          <p className="text-sm font-bold text-indigo-500">{activeVideo.pubDate}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -131,8 +195,8 @@ const PowerHouseVideos = () => {
                       key={video.id}
                       onClick={() => setActiveVideo(video)}
                       className={`flex gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-300 group border ${activeVideo?.id === video.id
-                          ? "bg-indigo-50 border-indigo-200 shadow-sm"
-                          : "bg-white border-transparent hover:border-indigo-100 hover:shadow-md"
+                        ? "bg-indigo-50 border-indigo-200 shadow-sm"
+                        : "bg-white border-transparent hover:border-indigo-100 hover:shadow-md"
                         }`}
                     >
                       <div className="relative w-28 flex-shrink-0 aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-indigo-100 transition-all">

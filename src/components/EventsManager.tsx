@@ -29,8 +29,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
     event_time: "",
     location: "",
     event_type: "general",
-    priority: "medium",
-    is_featured: false
+    priority: "medium"
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -114,7 +113,6 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
         location: newEvent.location || null,
         event_type: newEvent.event_type,
         priority: newEvent.priority,
-        is_featured: newEvent.is_featured,
         created_by: user.id
       })
       .select();
@@ -128,8 +126,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
         event_time: "",
         location: "",
         event_type: "general",
-        priority: "medium",
-        is_featured: false
+        priority: "medium"
       });
       setIsDialogOpen(false);
       await fetchEvents();
@@ -153,8 +150,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
         event_time: editEvent.event_time,
         location: editEvent.location,
         event_type: editEvent.event_type,
-        priority: editEvent.priority,
-        is_featured: editEvent.is_featured
+        priority: editEvent.priority
       })
       .eq('id', editEvent.id);
     setEditLoading(false);
@@ -257,7 +253,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
                 </div>
                 <div>
                   <DialogTitle className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">Create Event</DialogTitle>
-                  <p className="text-xs sm:text-sm font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">Schedule a new highlight</p>
+                  <p className="text-xs sm:text-sm font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">Schedule a new event</p>
                 </div>
               </div>
             </div>
@@ -342,16 +338,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
                     </Select>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
-                  <input
-                    type="checkbox"
-                    id="featured"
-                    checked={newEvent.is_featured}
-                    onChange={(e) => setNewEvent(prev => ({ ...prev, is_featured: e.target.checked }))}
-                    className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
-                  />
-                  <label htmlFor="featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
-                </div>
+
               </div>
             </div>
             <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}>
@@ -376,13 +363,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
             key={event.id}
             className="group relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 overflow-hidden"
           >
-            {event.is_featured && (
-              <div className="absolute top-0 right-0 p-6">
-                <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-2 rounded-xl border border-amber-200/50 dark:border-amber-800/50 shadow-sm animate-pulse">
-                  <Star className="w-5 h-5 fill-current" />
-                </div>
-              </div>
-            )}
+
 
             <div className="space-y-5">
               <div className="flex items-center gap-2">
@@ -566,16 +547,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
                     </Select>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/20">
-                  <input
-                    type="checkbox"
-                    id="edit-featured"
-                    checked={editEvent.is_featured}
-                    onChange={(e) => setEditEvent(prev => prev ? { ...prev, is_featured: e.target.checked } : null)}
-                    className="w-5 h-5 rounded-lg border-2 border-indigo-300 dark:border-indigo-800 text-indigo-600 focus:ring-indigo-500 transition-colors"
-                  />
-                  <label htmlFor="edit-featured" className="text-sm font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Feature in News Banner</label>
-                </div>
+
               </div>
             </div>
           )}

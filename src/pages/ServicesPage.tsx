@@ -32,21 +32,37 @@ const ServicesPage = () => {
   useEffect(() => {
     fetchLiveServices();
 
-    const checkLiveStatus = () => {
-      // Simulate live status - in production, this would check YouTube API
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentDay = now.getDay();
+    const checkLiveStatus = async () => {
+      try {
+        // 1. Check Supabase for manually marked live services
+        const { data: liveData } = await supabase
+          .from('live_services')
+          .select('*')
+          .eq('is_live', true)
+          .maybeSingle();
 
-      // Sunday 10 AM or Wednesday 7 PM
-      const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 12;
-      const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
+        if (liveData) {
+          setIsLiveStreamActive(true);
+          return;
+        }
 
-      setIsLiveStreamActive(isSundayService || isWednesdayService);
+        // 2. Time-based simulation (fallback)
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentDay = now.getDay();
+
+        // Sunday 10 AM or Wednesday 7 PM
+        const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 13;
+        const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
+
+        setIsLiveStreamActive(isSundayService || isWednesdayService);
+      } catch (err) {
+        console.error("Error checking live status in ServicesPage:", err);
+      }
     };
 
     checkLiveStatus();
-    const interval = setInterval(checkLiveStatus, 30000);
+    const interval = setInterval(checkLiveStatus, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -308,8 +324,10 @@ const ServicesPage = () => {
         </CardContent>
       </Card>
 
-      {/* Power House YouTube Videos */}
-      <PowerHouseVideos />
+      {/* Power House YouTube Videos (Latest Sermons) */}
+      <div className="pt-4">
+        <PowerHouseVideos />
+      </div>
 
       <VideoModal
         isOpen={isModalOpen}

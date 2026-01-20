@@ -14,7 +14,8 @@ import {
   Heart,
   ChevronRight,
   PlayCircle,
-  MessageCircle
+  MessageCircle,
+  Music
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -161,6 +162,13 @@ const ResourcesPage = () => {
       color: "from-blue-400 to-blue-600",
       shadow: "shadow-blue-400/20",
       onClick: () => setShowPrayerRequest(true)
+    },
+    {
+      title: "Choir Portal",
+      icon: Music,
+      color: "from-indigo-500 to-purple-600",
+      shadow: "shadow-indigo-500/20",
+      onClick: () => navigate("/groups/choir")
     },
     {
       title: "Events",

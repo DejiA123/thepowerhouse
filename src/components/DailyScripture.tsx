@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Book, ExternalLink, RefreshCw, Play } from "lucide-react";
+import { Book } from "lucide-react";
 import { getTodaysScripture } from "@/utils/dailyScriptureUtils";
 
 const DailyScripture = () => {
@@ -51,18 +51,8 @@ const DailyScripture = () => {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-gray-900 leading-tight">Today's Scripture</h3>
-                <p className="text-xs text-indigo-500 font-medium">Daily Inspiration</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={refreshVideo}
-              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-full h-8 text-xs font-semibold px-3"
-            >
-              <RefreshCw className="w-3 h-3 mr-1.5" />
-              New Video
-            </Button>
           </div>
         </CardHeader>
 
@@ -94,16 +84,7 @@ const DailyScripture = () => {
               </div>
             </div>
 
-            <div className="mt-6">
-              <Button
-                variant="outline"
-                onClick={() => window.open(`https://www.youtube.com/channel/${channelId}`, '_blank')}
-                className="rounded-full border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition-all duration-300"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Visit Channel
-              </Button>
-            </div>
+
           </div>
         </CardContent>
       </Card>

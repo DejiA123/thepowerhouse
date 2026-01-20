@@ -29,9 +29,8 @@ const NewsPage = () => {
     }
   }, [user]);
 
-  const displayFeatured = useMemo(() => {
-    const featured = events.filter(e => e.is_featured);
-    return featured.length > 0 ? featured : (events.length > 0 ? [events[0]] : []);
+  const displayEvents = useMemo(() => {
+    return events;
   }, [events]);
 
   const checkAdminStatus = async () => {
@@ -138,21 +137,18 @@ const NewsPage = () => {
       <div className="container mx-auto px-6 lg:px-8 space-y-16">
 
         {/* Featured Events Vertical List */}
-        {displayFeatured.length > 0 && (
+        {displayEvents.length > 0 && (
           <div className="animate-in slide-in-from-bottom-8 duration-700 delay-200 flex flex-col gap-8">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Featured Highlights</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Upcoming Events</h2>
             </div>
-            {displayFeatured.map((event) => (
+            {displayEvents.map((event) => (
               <Card key={event.id} className="group border-none bg-slate-900 text-white overflow-hidden shadow-2xl relative min-h-[450px] flex flex-col justify-end transition-all hover:shadow-blue-500/10">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2073')] bg-cover bg-center brightness-50 group-hover:scale-105 transition-transform duration-1000" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent z-0" />
 
                 <div className="relative z-10 p-8 sm:p-12 space-y-6 max-w-3xl">
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-amber-500 text-white border-transparent px-3 py-1 text-xs uppercase tracking-widest font-black">
-                      Featured Event
-                    </Badge>
                     <span className="text-white/60 text-sm font-medium flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-400" />
                       {formatDate(event.event_date).full}

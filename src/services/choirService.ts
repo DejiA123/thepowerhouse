@@ -60,20 +60,21 @@ export interface ChoirCalendarEvent {
 
 export const choirService = {
     // --- Instrumental Resources ---
-    async getInstrumentalResources(): Promise<InstrumentalResource[]> {
+    async getInstrumentalResources(location: string): Promise<InstrumentalResource[]> {
         const { data, error } = await supabase
             .from('choir_instrumental_resources' as any)
             .select('*')
+            .eq('location', location)
             .order('created_at', { ascending: true });
 
         if (error) throw error;
         return (data || []) as unknown as InstrumentalResource[];
     },
 
-    async addInstrumentalResource(resource: Omit<InstrumentalResource, 'id' | 'created_at'>): Promise<InstrumentalResource> {
+    async addInstrumentalResource(resource: Omit<InstrumentalResource, 'id' | 'created_at'>, location: string): Promise<InstrumentalResource> {
         const { data, error } = await supabase
             .from('choir_instrumental_resources' as any)
-            .insert([resource])
+            .insert([{ ...resource, location }])
             .select()
             .single();
 
@@ -81,7 +82,7 @@ export const choirService = {
         return data as unknown as InstrumentalResource;
     },
 
-    async updateInstrumentalResource(id: string, updates: Partial<InstrumentalResource>): Promise<InstrumentalResource> {
+    async updateInstrumentalResource(id: string, updates: Partial<InstrumentalResource>) {
         const { data, error } = await supabase
             .from('choir_instrumental_resources' as any)
             .update(updates)
@@ -103,18 +104,20 @@ export const choirService = {
     },
 
     // --- Folders ---
-    async getFolders(): Promise<ChoirFolder[]> {
+    async getFolders(location: string): Promise<ChoirFolder[]> {
         const { data: folders, error: foldersError } = await supabase
             .from('choir_folders' as any)
             .select('*')
+            .eq('location', location)
             .order('created_at', { ascending: true });
 
         if (foldersError) throw foldersError;
 
-        // Fetch songs for all folders
+        // Fetch songs for all folders in this location
         const { data: songs, error: songsError } = await supabase
             .from('choir_songs' as any)
             .select('*')
+            .eq('location', location)
             .order('created_at', { ascending: true });
 
         if (songsError) throw songsError;
@@ -129,10 +132,10 @@ export const choirService = {
         }));
     },
 
-    async createFolder(name: string, parent_id?: string | null): Promise<ChoirFolder> {
+    async createFolder(name: string, location: string, parent_id?: string | null): Promise<ChoirFolder> {
         const { data, error } = await supabase
             .from('choir_folders' as any)
-            .insert([{ name, parent_id }])
+            .insert([{ name, parent_id, location }])
             .select()
             .single();
         if (error) throw error;
@@ -156,10 +159,10 @@ export const choirService = {
     },
 
     // --- Songs in Folders ---
-    async addSongToFolder(song: Omit<ChoirSong, 'id' | 'created_at'>) {
+    async addSongToFolder(song: Omit<ChoirSong, 'id' | 'created_at'>, location: string) {
         const { data, error } = await supabase
             .from('choir_songs' as any)
-            .insert([song])
+            .insert([{ ...song, location }])
             .select()
             .single();
         if (error) throw error;
@@ -186,20 +189,21 @@ export const choirService = {
     },
 
     // --- Weekly Setlists ---
-    async getWeeklySetlist(type: 'praise' | 'worship') {
+    async getWeeklySetlist(type: 'praise' | 'worship', location: string) {
         const { data, error } = await supabase
             .from('choir_weekly_set_songs' as any)
             .select('*')
             .eq('set_type', type)
+            .eq('location', location)
             .order('created_at', { ascending: true });
         if (error) throw error;
         return data;
     },
 
-    async addWeeklySong(song: Omit<WeeklySetSong, 'id' | 'created_at'>) {
+    async addWeeklySong(song: Omit<WeeklySetSong, 'id' | 'created_at'>, location: string) {
         const { data, error } = await supabase
             .from('choir_weekly_set_songs' as any)
-            .insert([song])
+            .insert([{ ...song, location }])
             .select()
             .single();
         if (error) throw error;
@@ -225,42 +229,44 @@ export const choirService = {
         if (error) throw error;
     },
 
-    async clearWeeklySetlist() {
+    async clearWeeklySetlist(location: string) {
         const { error } = await supabase
             .from('choir_weekly_set_songs' as any)
             .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete everything
+            .eq('location', location);
         if (error) throw error;
     },
 
     // --- Setlist Info (Date & Descriptions) ---
-    async getSetlistInfo(infoType: string) {
+    async getSetlistInfo(infoType: string, location: string) {
         const { data, error } = await supabase
             .from('choir_setlist_info' as any)
             .select('*')
             .eq('info_type', infoType)
+            .eq('location', location)
             .single();
 
         if (error && error.code !== 'PGRST116') throw error;
         return data;
     },
 
-    async updateSetlistInfo(infoType: string, value: string) {
-        // Upsert mechanism
+    async updateSetlistInfo(infoType: string, value: string, location: string) {
+        // Upsert mechanism with location
         const { data, error } = await supabase
             .from('choir_setlist_info' as any)
-            .upsert({ info_type: infoType, value }, { onConflict: 'info_type' })
+            .upsert({ info_type: infoType, value, location }, { onConflict: 'info_type,location' })
             .select()
             .single();
         if (error) throw error;
         return data;
     },
 
-    // Helper to get all info at once
-    async getAllSetlistInfo() {
+    // Helper to get all info at once for a location
+    async getAllSetlistInfo(location: string) {
         const { data, error } = await supabase
             .from('choir_setlist_info' as any)
-            .select('*');
+            .select('*')
+            .eq('location', location);
 
         if (error) throw error;
 
@@ -272,20 +278,21 @@ export const choirService = {
     },
 
     // --- Calendar Events ---
-    async getCalendarEvents(): Promise<ChoirCalendarEvent[]> {
+    async getCalendarEvents(location: string): Promise<ChoirCalendarEvent[]> {
         const { data, error } = await supabase
             .from('choir_calendar_events' as any)
             .select('*')
+            .eq('location', location)
             .order('event_date', { ascending: true });
 
         if (error) throw error;
         return (data || []) as unknown as ChoirCalendarEvent[];
     },
 
-    async addCalendarEvent(event: Omit<ChoirCalendarEvent, 'id' | 'created_at'>): Promise<ChoirCalendarEvent> {
+    async addCalendarEvent(event: Omit<ChoirCalendarEvent, 'id' | 'created_at'>, location: string): Promise<ChoirCalendarEvent> {
         const { data, error } = await supabase
             .from('choir_calendar_events' as any)
-            .insert([event])
+            .insert([{ ...event, location }])
             .select()
             .single();
 
@@ -293,7 +300,7 @@ export const choirService = {
         return data as unknown as ChoirCalendarEvent;
     },
 
-    async updateCalendarEvent(id: string, updates: Partial<ChoirCalendarEvent>): Promise<ChoirCalendarEvent> {
+    async updateCalendarEvent(id: string, updates: Partial<ChoirCalendarEvent>) {
         const { data, error } = await supabase
             .from('choir_calendar_events' as any)
             .update(updates)

@@ -38,7 +38,7 @@ import {
     PlusCircle,
     Clock
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -300,7 +300,7 @@ const ChoirPage = () => {
                     duration: "3.5 Hours",
                     level: "All Levels",
                     description: "Learn the art of ear training to create seamless choral textures and perfect blend.",
-                    image: "/assets/academy/vocal_harmony_blending_v2.jpg",
+                    image: "/assets/academy/vocal_harmony_uploaded_v2.jpg",
                     modules: [
                         {
                             title: "Interval Ear Training",
@@ -535,12 +535,21 @@ const ChoirPage = () => {
     };
 
     const navigate = useNavigate();
+    const { locationId } = useParams(); // Get the location (galway, athlone, etc.)
     const [searchParams] = useSearchParams(); // Added for deep linking
     const { user } = useAuth();
+
+    // Helper to get formatted location name
+    const locationName = useMemo(() => {
+        if (!locationId) return "Choir";
+        return locationId.charAt(0).toUpperCase() + locationId.slice(1);
+    }, [locationId]);
+
     const [activeTab, setActiveTab] = useState("vocalists");
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // ... (rest of states remain the same) ...
     // State for YouTube Player
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
@@ -657,15 +666,17 @@ const ChoirPage = () => {
     // Initial Data Fetch
     useEffect(() => {
         const fetchData = async () => {
+            if (!locationId) return;
+
             try {
                 setLoading(true);
                 const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
-                    choirService.getFolders(),
-                    choirService.getWeeklySetlist('praise'),
-                    choirService.getWeeklySetlist('worship'),
-                    choirService.getAllSetlistInfo(),
-                    choirService.getInstrumentalResources(),
-                    choirService.getCalendarEvents()
+                    choirService.getFolders(locationId),
+                    choirService.getWeeklySetlist('praise', locationId),
+                    choirService.getWeeklySetlist('worship', locationId),
+                    choirService.getAllSetlistInfo(locationId),
+                    choirService.getInstrumentalResources(locationId),
+                    choirService.getCalendarEvents(locationId)
                 ]);
 
                 setFolders(fetchedFolders as any);
@@ -674,12 +685,6 @@ const ChoirPage = () => {
                 setInstrResources(fetchedInstr);
                 setCalendarEvents(fetchedEvents);
 
-                console.log("Choir Data Loaded:", {
-                    folders: fetchedFolders,
-                    songsTotal: fetchedFolders.reduce((acc, f) => acc + (f.songs?.length || 0), 0),
-                    folderDetails: fetchedFolders.map(f => ({ name: f.name, songCount: f.songs?.length || 0, songs: f.songs }))
-                });
-
                 if (fetchedInfo['date']) {
                     const dbDate = new Date(fetchedInfo['date']);
                     const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -687,8 +692,8 @@ const ChoirPage = () => {
                     // 🚨 NEW WEEK DETECTION
                     if (currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
                         console.log("New week detected! Clearing setlists...");
-                        await choirService.clearWeeklySetlist();
-                        await choirService.updateSetlistInfo('date', currentMonday.toISOString());
+                        await choirService.clearWeeklySetlist(locationId);
+                        await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
                         setSetlistDate(currentMonday);
                         setPraiseSet([]);
                         setWorshipSet([]);
@@ -710,6 +715,7 @@ const ChoirPage = () => {
 
         // 🔄 Real-time date update: Check every minute if the week has changed
         const dateInterval = setInterval(async () => {
+            if (!locationId) return;
             const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
 
             setSetlistDate(prevDate => {
@@ -721,8 +727,8 @@ const ChoirPage = () => {
                     // Trigger async clearing in the background
                     (async () => {
                         console.log("Week transition detected in real-time! Clearing...");
-                        await choirService.clearWeeklySetlist();
-                        await choirService.updateSetlistInfo('date', currentMonday.toISOString());
+                        await choirService.clearWeeklySetlist(locationId);
+                        await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
                         setPraiseSet([]);
                         setWorshipSet([]);
                         toast.info("New week started: Setlists cleared.");
@@ -734,7 +740,7 @@ const ChoirPage = () => {
         }, 60000);
 
         return () => clearInterval(dateInterval);
-    }, []);
+    }, [locationId]);
 
     // Sync state with URL params (Deep Linking)
     useEffect(() => {
@@ -783,7 +789,7 @@ const ChoirPage = () => {
         if (!editingSetInfoType) return;
         try {
             const key = editingSetInfoType === 'praise' ? 'praise_desc' : 'worship_desc';
-            await choirService.updateSetlistInfo(key, tempSetInfo.desc);
+            await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!);
 
             if (editingSetInfoType === 'praise') {
                 setPraiseInfo(prev => ({ ...prev, desc: tempSetInfo.desc }));
@@ -804,7 +810,7 @@ const ChoirPage = () => {
         try {
             const mondayOfSelectedWeek = startOfWeek(date, { weekStartsOn: 1 });
             setSetlistDate(mondayOfSelectedWeek);
-            await choirService.updateSetlistInfo('date', mondayOfSelectedWeek.toISOString());
+            await choirService.updateSetlistInfo('date', mondayOfSelectedWeek.toISOString(), locationId!);
         } catch (e) {
             console.error(e);
             toast.error("Failed to save date");
@@ -816,7 +822,7 @@ const ChoirPage = () => {
         if (!newFolderName.trim()) return;
         try {
             // If activeFolderId is set, this is a subfolder
-            const newFolder = await choirService.createFolder(newFolderName, activeFolderId);
+            const newFolder = await choirService.createFolder(newFolderName, locationId!, activeFolderId);
             setFolders([...folders, newFolder]);
             setNewFolderName("");
             setIsNewFolderOpen(false);
@@ -837,7 +843,7 @@ const ChoirPage = () => {
                 artist: newSong.artist,
                 url: newSong.url,
                 notes: newSong.notes
-            });
+            }, locationId!);
 
             setFolders(folders.map(f => {
                 if (f.id === activeFolderId) {
@@ -945,7 +951,7 @@ const ChoirPage = () => {
                 artist: newSetSong.artist,
                 url: newSetSong.url,
                 library_song_id: newSetSong.library_song_id
-            });
+            }, locationId!);
 
             if (activeSetType === 'praise') {
                 setPraiseSet([...praiseSet, addedSong] as any);
@@ -1053,7 +1059,7 @@ const ChoirPage = () => {
                 };
 
                 if (match) matchedCount++;
-                return choirService.addWeeklySong(songData);
+                return choirService.addWeeklySong(songData, locationId!);
             }));
 
             const newSongs = results as unknown as WeeklySetSong[];
@@ -1082,6 +1088,7 @@ const ChoirPage = () => {
 
         try {
             const results = await Promise.all(lines.map(async (line) => {
+                if (!locationId) return null;
                 // Try to match with lyrics in other folders to pre-fill details
                 // Exclude current folder to avoid self-match if we were editing (but we are adding new so it's fine)
                 const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
@@ -1105,7 +1112,7 @@ const ChoirPage = () => {
                 return choirService.addSongToFolder({
                     folder_id: activeFolderId,
                     ...songDetails
-                });
+                }, locationId);
             }));
 
             const newSongs = results as any[]; // Type assertion for the song object
@@ -1131,7 +1138,7 @@ const ChoirPage = () => {
     const handleAddInstrResource = async () => {
         if (!newInstr.title.trim()) return;
         try {
-            const added = await choirService.addInstrumentalResource(newInstr);
+            const added = await choirService.addInstrumentalResource(newInstr, locationId!);
             setInstrResources([...instrResources, added]);
             setNewInstr({ title: "", type: "Tutorial", url: "" });
             setIsAddInstrOpen(false);
@@ -1197,7 +1204,7 @@ const ChoirPage = () => {
                 description: newEvent.description,
                 event_date: setlistDate.toISOString().split('T')[0],
                 color: newEvent.color
-            });
+            }, locationId!);
             setCalendarEvents([...calendarEvents, added]);
             setNewEvent({ title: "", description: "", color: "purple" });
             setIsAddEventOpen(false);
@@ -1802,7 +1809,7 @@ const ChoirPage = () => {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"> {/* Mobile Responsive Layout */}
                         <div>
                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-                                The Power House Choir
+                                {locationName} Choir Portal
                             </h1>
                             <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl">
                                 Leading the congregation in spirit and truth.
@@ -2579,7 +2586,7 @@ const ChoirPage = () => {
                                     <ArrowLeft className="w-5 h-5" />
                                 </Button>
                                 <div>
-                                    <h3 className="font-black uppercase tracking-tight text-sm text-blue-600">The Power House Choir Academy</h3>
+                                    <h3 className="font-black uppercase tracking-tight text-sm text-blue-600">{locationName} Choir Academy</h3>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedCourse?.title}</p>
                                 </div>
                             </div>
