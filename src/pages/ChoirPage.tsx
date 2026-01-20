@@ -1821,7 +1821,7 @@ const ChoirPage = () => {
             {/* Edit Learning Focus Dialog */}
             <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-8 border-b border-slate-100 dark:border-slate-800">
+                    <DialogHeader className="p-8 pt-[calc(2rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-3xl font-black flex items-center gap-4 text-slate-900 dark:text-white">
                             <Music className="w-8 h-8 text-blue-600" />
                             Update New Song Focus
