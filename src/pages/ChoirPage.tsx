@@ -220,7 +220,6 @@ const ChoirPage = () => {
                         {
                             title: "Postural Alignment (Alexander Technique)",
                             content: "Your body is your instrument. Alignment between the head, neck, and spine is critical. Ensure your chin is parallel to the ground, shoulders are relaxed (not rolled forward), and your chest is naturally 'noble' (expanded but not forced). This reduces tension in the extrinsic laryngeal muscles, allowing for free vocal fold vibration.",
-                            videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
                             exercises: [
                                 {
                                     type: "posture-check",
@@ -271,7 +270,6 @@ const ChoirPage = () => {
                         {
                             title: "Vocal Agility: Runs and Riffs",
                             content: "Agility requires localized muscle control. Practice the pentatonic and blues scales at slow tempos (60 BPM), focusing on hitting every note with individual clarity (staccato) before smoothing them into rapid 'runs' (legato). Precision over speed is the professional standard.",
-                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
                             exercises: [
                                 {
                                     type: "scale-practice",
@@ -2590,7 +2588,7 @@ const ChoirPage = () => {
                             </Badge>
                         </div>
 
-                        <div id="course-modal-content" className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div id="course-modal-content" className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                             {selectedCourse && (
                                 <div className="max-w-6xl mx-auto flex flex-col pb-20">
                                     {/* Modal Header/Banner */}
@@ -2758,18 +2756,6 @@ const ChoirPage = () => {
                                                                                 controls
                                                                                 className="w-full"
                                                                                 src={module.audioUrl}
-                                                                            />
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Video Embed */}
-                                                                    {module.videoUrl && (
-                                                                        <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-purple-200 dark:border-purple-800">
-                                                                            <iframe
-                                                                                src={module.videoUrl}
-                                                                                className="w-full h-full"
-                                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                                allowFullScreen
                                                                             />
                                                                         </div>
                                                                     )}
