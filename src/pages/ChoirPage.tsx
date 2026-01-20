@@ -1844,72 +1844,74 @@ const ChoirPage = () => {
                             </div>
                         </div>
 
-                        {/* Prayer Roster */}
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-800 pb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl text-blue-600">
-                                        <Calendar className="w-6 h-6" />
+                        {/* Prayer Roster - Only for Galway */}
+                        {locationId === 'galway' && (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-800 pb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-xl text-blue-600">
+                                            <Calendar className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Tuesday Prayer</h3>
+                                            <p className="text-sm text-blue-600 font-bold uppercase tracking-wider">5:30 PM • Zoom</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Tuesday Prayer</h3>
-                                        <p className="text-sm text-blue-600 font-bold uppercase tracking-wider">5:30 PM • Zoom</p>
-                                    </div>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 rounded-xl font-bold"
-                                    onClick={() => window.open("https://us04web.zoom.us/j/77218043569?pwd=6Aj4q1LLCjKio3x7HMod2tStiH0g7s.1", "_blank")}
-                                >
-                                    <Video className="w-4 h-4 mr-2" />
-                                    Join Zoom
-                                </Button>
-                            </div>
-
-                            {isEditRosterMode && (
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Add name..."
-                                        value={newRosterName}
-                                        onChange={(e) => setNewRosterName(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddRosterMember('prayer')}
-                                        className="rounded-xl border-blue-100 focus:ring-blue-500 h-12"
-                                    />
-                                    <Button onClick={() => handleAddRosterMember('prayer')} className="bg-blue-600 rounded-xl h-12 px-6">
-                                        <Plus className="w-5 h-5" />
+                                    <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 rounded-xl font-bold"
+                                        onClick={() => window.open("https://us04web.zoom.us/j/77218043569?pwd=6Aj4q1LLCjKio3x7HMod2tStiH0g7s.1", "_blank")}
+                                    >
+                                        <Video className="w-4 h-4 mr-2" />
+                                        Join Zoom
                                     </Button>
                                 </div>
-                            )}
 
-                            <div className="grid gap-3">
-                                {prayerRoster.length > 0 ? (
-                                    prayerRoster.map((name, i) => (
-                                        <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md transition-all group">
-                                            <div className="flex items-center gap-5">
-                                                <span className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-black">
-                                                    {i + 1}
-                                                </span>
-                                                <span className="font-bold text-lg text-slate-700 dark:text-slate-200">{name}</span>
-                                            </div>
-                                            {isEditRosterMode && (
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
-                                                    onClick={() => handleRemoveRosterMember('prayer', i)}
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-center py-8 text-slate-400 italic bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                                        No members added to this list yet.
-                                    </p>
+                                {isEditRosterMode && (
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Add name..."
+                                            value={newRosterName}
+                                            onChange={(e) => setNewRosterName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddRosterMember('prayer')}
+                                            className="rounded-xl border-blue-100 focus:ring-blue-500 h-12"
+                                        />
+                                        <Button onClick={() => handleAddRosterMember('prayer')} className="bg-blue-600 rounded-xl h-12 px-6">
+                                            <Plus className="w-5 h-5" />
+                                        </Button>
+                                    </div>
                                 )}
+
+                                <div className="grid gap-3">
+                                    {prayerRoster.length > 0 ? (
+                                        prayerRoster.map((name, i) => (
+                                            <div key={i} className="flex items-center justify-between p-5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                                                <div className="flex items-center gap-5">
+                                                    <span className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-black">
+                                                        {i + 1}
+                                                    </span>
+                                                    <span className="font-bold text-lg text-slate-700 dark:text-slate-200">{name}</span>
+                                                </div>
+                                                {isEditRosterMode && (
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
+                                                        onClick={() => handleRemoveRosterMember('prayer', i)}
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-center py-8 text-slate-400 italic bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                            No members added to this list yet.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                     </div>
                     <div className="p-8 md:px-20 max-w-4xl mx-auto w-full">
