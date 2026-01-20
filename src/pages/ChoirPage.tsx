@@ -206,15 +206,42 @@ const ChoirPage = () => {
                     modules: [
                         {
                             title: "Diaphragmatic Breathing Mastery",
-                            content: "The foundation of all great singing is the breath. Diaphragmatic breathing involve engaging the transverse abdominis and the diaphragm to create a stable column of air. Practice the 'Siss' exercise: inhale for 4 counts, exhale on a steady 'S' sound for 16, 24, then 32 counts to build lung capacity and air management precision."
+                            content: "The foundation of all great singing is the breath. Diaphragmatic breathing involves engaging the transverse abdominis and the diaphragm to create a stable column of air. Practice the 'Siss' exercise: inhale for 4 counts, exhale on a steady 'S' sound for 16, 24, then 32 counts to build lung capacity and air management precision.",
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                            exercises: [
+                                {
+                                    type: "breath-timer",
+                                    title: "Siss Exercise Timer",
+                                    instructions: "Follow the visual timer: Inhale for 4 counts, then exhale on 'S' sound",
+                                    durations: [16, 24, 32]
+                                }
+                            ]
                         },
                         {
                             title: "Postural Alignment (Alexander Technique)",
-                            content: "Your body is your instrument. Alignment between the head, neck, and spine is critical. Ensure your chin is parallel to the ground, shoulders are relaxed (not rolled forward), and your chest is naturally 'noble' (expanded but not forced). This reduces tension in the extrinsic laryngeal muscles, allowing for free vocal fold vibration."
+                            content: "Your body is your instrument. Alignment between the head, neck, and spine is critical. Ensure your chin is parallel to the ground, shoulders are relaxed (not rolled forward), and your chest is naturally 'noble' (expanded but not forced). This reduces tension in the extrinsic laryngeal muscles, allowing for free vocal fold vibration.",
+                            videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                            exercises: [
+                                {
+                                    type: "posture-check",
+                                    title: "Alignment Self-Assessment",
+                                    instructions: "Stand in front of a mirror and check: chin parallel, shoulders relaxed, chest naturally expanded",
+                                    checkpoints: ["Chin Position", "Shoulder Relaxation", "Chest Expansion"]
+                                }
+                            ]
                         },
                         {
                             title: "The Mechanics of Resonance",
-                            content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting."
+                            content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting.",
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+                            exercises: [
+                                {
+                                    type: "vowel-practice",
+                                    title: "Vowel Shaping Exercise",
+                                    instructions: "Sing each vowel (A-E-I-O-U) on a comfortable pitch, focusing on soft palate lift",
+                                    vowels: ["A", "E", "I", "O", "U"]
+                                }
+                            ]
                         }
                     ]
                 },
@@ -229,11 +256,38 @@ const ChoirPage = () => {
                     modules: [
                         {
                             title: "Mixed Voice & Bridge Navigation",
-                            content: "Mastering the transition between chest voice and head voice (the 'passaggio') is what defines a pro. Learn to use the 'cry' or 'ng' placement to thin out the vocal folds as you move higher, creating a seamless, powerful 'mixed' sound that is safe and resonant."
+                            content: "Mastering the transition between chest voice and head voice (the 'passaggio') is what defines a pro. Learn to use the 'cry' or 'ng' placement to thin out the vocal folds as you move higher, creating a seamless, powerful 'mixed' sound that is safe and resonant.",
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+                            exercises: [
+                                {
+                                    type: "pitch-glide",
+                                    title: "Passaggio Transition Practice",
+                                    instructions: "Slowly glide from chest voice to head voice on 'ng' sound, focusing on smooth transition",
+                                    startNote: "C3",
+                                    endNote: "C5"
+                                }
+                            ]
                         },
                         {
                             title: "Vocal Agility: Runs and Riffs",
-                            content: "Agility requires localized muscle control. Practice the pentatonic and blues scales at slow tempos (60 BPM), focusing on hitting every note with individual clarity (staccato) before smoothing them into rapid 'runs' (legato). Precision over speed is the professional standard."
+                            content: "Agility requires localized muscle control. Practice the pentatonic and blues scales at slow tempos (60 BPM), focusing on hitting every note with individual clarity (staccato) before smoothing them into rapid 'runs' (legato). Precision over speed is the professional standard.",
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+                            exercises: [
+                                {
+                                    type: "scale-practice",
+                                    title: "Pentatonic Scale Drill",
+                                    instructions: "Practice the pentatonic scale at 60 BPM. Start staccato, then move to legato",
+                                    scale: "Pentatonic",
+                                    tempo: 60,
+                                    variations: ["Staccato", "Legato"]
+                                },
+                                {
+                                    type: "metronome",
+                                    title: "Interactive Metronome",
+                                    instructions: "Practice with adjustable tempo from 40-120 BPM",
+                                    tempoRange: [40, 120]
+                                }
+                            ]
                         },
                         {
                             title: "Performance Stamina & Health",
@@ -445,6 +499,14 @@ const ChoirPage = () => {
 
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+    const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
+    const [currentAudio, setCurrentAudio] = useState<{ playing: boolean, url: string, speed: number } | null>(null);
+    const [activeExercise, setActiveExercise] = useState<any>(null);
+    const [metronomeBPM, setMetronomeBPM] = useState(60);
+    const [metronomeActive, setMetronomeActive] = useState(false);
+    const [breathTimerActive, setBreathTimerActive] = useState(false);
+    const [breathPhase, setBreathPhase] = useState<'inhale' | 'exhale' | 'rest'>('rest');
+    const [breathCount, setBreathCount] = useState(0);
 
     const handleAccessCourse = (course: any) => {
         toast.info(`Registering user for ${course.title}...`);
@@ -2573,6 +2635,44 @@ const ChoirPage = () => {
                                             </p>
                                         </section>
 
+                                        {/* Progress Tracker */}
+                                        {selectedCourse.modules && (
+                                            <section className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-6 rounded-[2rem] border-2 border-emerald-300 dark:border-emerald-700 shadow-lg">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-emerald-600 rounded-full flex items-center justify-center">
+                                                            <span className="text-white font-black text-xl">
+                                                                {Math.round((Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length / selectedCourse.modules.length) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-lg font-black text-emerald-900 dark:text-emerald-100 uppercase">Your Progress</h3>
+                                                            <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+                                                                {Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length} of {selectedCourse.modules.length} modules completed
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length === selectedCourse.modules.length && (
+                                                        <Badge className="bg-yellow-400 text-yellow-900 border-none px-4 py-2 text-sm font-black animate-pulse">
+                                                            🏆 COURSE MASTERED!
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="relative h-4 bg-white dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                                    <div
+                                                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 rounded-full flex items-center justify-end pr-2"
+                                                        style={{ width: `${(Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length / selectedCourse.modules.length) * 100}%` }}
+                                                    >
+                                                        {Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length > 0 && (
+                                                            <span className="text-white font-black text-[10px]">
+                                                                {Array.from(completedModules).filter(id => id.startsWith(selectedCourse.id)).length}/{selectedCourse.modules.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        )}
+
                                         {/* Lecture Notes Section */}
                                         <section className="space-y-12 bg-slate-50 dark:bg-slate-800/50 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-inner">
                                             <div className="flex items-center justify-between">
@@ -2586,36 +2686,222 @@ const ChoirPage = () => {
                                             </div>
 
                                             <div className="prose prose-slate dark:prose-invert max-w-none space-y-12">
-                                                {selectedCourse.modules?.map((module: any, mIdx: number) => (
-                                                    <div key={mIdx} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
-                                                        <div className="flex items-start gap-4">
-                                                            <span className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/20">
-                                                                {String(mIdx + 1).padStart(2, '0')}
-                                                            </span>
-                                                            <div className="space-y-4">
-                                                                <h5 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none pt-2">
-                                                                    {module.title}
-                                                                </h5>
-                                                                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                                                                    {module.content}
-                                                                </p>
-                                                                <div className="flex gap-4 pt-2">
-                                                                    <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
-                                                                        <Zap className="w-4 h-4 text-blue-600" />
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Technical Insight</span>
+                                                {selectedCourse.modules?.map((module: any, mIdx: number) => {
+                                                    const moduleId = `${selectedCourse.id}-${mIdx}`;
+                                                    const isCompleted = completedModules.has(moduleId);
+
+                                                    return (
+                                                        <div key={mIdx} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="relative">
+                                                                    <span className={`w-10 h-10 rounded-2xl ${isCompleted ? 'bg-emerald-600' : 'bg-blue-600'} text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/20 transition-all duration-300`}>
+                                                                        {isCompleted ? '✓' : String(mIdx + 1).padStart(2, '0')}
+                                                                    </span>
+                                                                    {isCompleted && (
+                                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                                                                            <span className="text-[10px]">⭐</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="space-y-4 flex-1">
+                                                                    <div className="flex items-start justify-between">
+                                                                        <h5 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none pt-2">
+                                                                            {module.title}
+                                                                        </h5>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant={isCompleted ? "outline" : "default"}
+                                                                            onClick={() => {
+                                                                                const newSet = new Set(completedModules);
+                                                                                if (isCompleted) {
+                                                                                    newSet.delete(moduleId);
+                                                                                } else {
+                                                                                    newSet.add(moduleId);
+                                                                                    toast.success('Module completed! 🎉');
+                                                                                }
+                                                                                setCompletedModules(newSet);
+                                                                            }}
+                                                                            className="text-xs"
+                                                                        >
+                                                                            {isCompleted ? 'Undo' : 'Mark Complete'}
+                                                                        </Button>
                                                                     </div>
-                                                                    <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
-                                                                        <Clock className="w-4 h-4 text-emerald-600" />
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">45m Session</span>
+                                                                    <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                                                        {module.content}
+                                                                    </p>
+
+                                                                    {/* Audio Player */}
+                                                                    {module.audioUrl && (
+                                                                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+                                                                            <div className="flex items-center justify-between mb-4">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <Music className="w-5 h-5 text-blue-600" />
+                                                                                    <span className="font-bold text-blue-900 dark:text-blue-100">Practice Audio</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-xs text-slate-600 dark:text-slate-400">Speed:</span>
+                                                                                    {[0.5, 0.75, 1, 1.25].map(speed => (
+                                                                                        <button
+                                                                                            key={speed}
+                                                                                            onClick={() => setCurrentAudio(prev => prev ? { ...prev, speed } : null)}
+                                                                                            className={`px-2 py-1 rounded text-xs font-bold transition-all ${currentAudio?.speed === speed
+                                                                                                ? 'bg-blue-600 text-white'
+                                                                                                : 'bg-white dark:bg-slate-800 text-blue-600 hover:bg-blue-100'
+                                                                                                }`}
+                                                                                        >
+                                                                                            {speed}x
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                            <audio
+                                                                                controls
+                                                                                className="w-full"
+                                                                                src={module.audioUrl}
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Video Embed */}
+                                                                    {module.videoUrl && (
+                                                                        <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-purple-200 dark:border-purple-800">
+                                                                            <iframe
+                                                                                src={module.videoUrl}
+                                                                                className="w-full h-full"
+                                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                                allowFullScreen
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Interactive Exercises */}
+                                                                    {module.exercises?.map((exercise: any, eIdx: number) => (
+                                                                        <div key={eIdx} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-6 rounded-2xl border-2 border-amber-300 dark:border-amber-700 shadow-xl">
+                                                                            <div className="flex items-center gap-3 mb-4">
+                                                                                <Zap className="w-6 h-6 text-amber-600" />
+                                                                                <h6 className="text-xl font-black text-amber-900 dark:text-amber-100 uppercase">
+                                                                                    {exercise.title}
+                                                                                </h6>
+                                                                            </div>
+                                                                            <p className="text-sm text-amber-800 dark:text-amber-200 mb-4 font-medium">
+                                                                                {exercise.instructions}
+                                                                            </p>
+
+                                                                            {/* Breath Timer Exercise */}
+                                                                            {exercise.type === 'breath-timer' && (
+                                                                                <div className="space-y-4">
+                                                                                    <div className="flex gap-2">
+                                                                                        {exercise.durations.map((duration: number) => (
+                                                                                            <Button
+                                                                                                key={duration}
+                                                                                                onClick={() => {
+                                                                                                    setBreathTimerActive(true);
+                                                                                                    setBreathPhase('inhale');
+                                                                                                    setBreathCount(duration);
+                                                                                                    toast.success(`Starting ${duration}-count exercise!`);
+                                                                                                }}
+                                                                                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                                                            >
+                                                                                                {duration} Counts
+                                                                                            </Button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                    {breathTimerActive && (
+                                                                                        <div className="text-center p-6 bg-white dark:bg-slate-800 rounded-xl">
+                                                                                            <div className="text-6xl font-black mb-2">{breathCount}</div>
+                                                                                            <div className="text-2xl font-bold text-amber-600 uppercase">{breathPhase}</div>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Metronome Exercise */}
+                                                                            {exercise.type === 'metronome' && (
+                                                                                <div className="space-y-4">
+                                                                                    <div className="flex items-center gap-4">
+                                                                                        <span className="font-bold">BPM:</span>
+                                                                                        <input
+                                                                                            type="range"
+                                                                                            min={exercise.tempoRange[0]}
+                                                                                            max={exercise.tempoRange[1]}
+                                                                                            value={metronomeBPM}
+                                                                                            onChange={(e) => setMetronomeBPM(Number(e.target.value))}
+                                                                                            className="flex-1"
+                                                                                        />
+                                                                                        <span className="font-black text-2xl text-blue-600">{metronomeBPM}</span>
+                                                                                    </div>
+                                                                                    <Button
+                                                                                        onClick={() => {
+                                                                                            setMetronomeActive(!metronomeActive);
+                                                                                            toast.success(metronomeActive ? 'Metronome stopped' : 'Metronome started!');
+                                                                                        }}
+                                                                                        className={`w-full ${metronomeActive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-4`}
+                                                                                    >
+                                                                                        {metronomeActive ? '⏹ Stop' : '▶ Start'} Metronome
+                                                                                    </Button>
+                                                                                    {metronomeActive && (
+                                                                                        <div className="flex justify-center gap-2">
+                                                                                            {[0, 1, 2, 3].map(i => (
+                                                                                                <div
+                                                                                                    key={i}
+                                                                                                    className="w-4 h-4 rounded-full bg-blue-600 animate-pulse"
+                                                                                                    style={{ animationDelay: `${i * (60 / metronomeBPM)}s` }}
+                                                                                                />
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Posture Check Exercise */}
+                                                                            {exercise.type === 'posture-check' && exercise.checkpoints && (
+                                                                                <div className="space-y-2">
+                                                                                    {exercise.checkpoints.map((checkpoint: string, cIdx: number) => (
+                                                                                        <div key={cIdx} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg">
+                                                                                            <input type="checkbox" className="w-5 h-5" />
+                                                                                            <span className="font-medium">{checkpoint}</span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Vowel Practice Exercise */}
+                                                                            {exercise.type === 'vowel-practice' && exercise.vowels && (
+                                                                                <div className="grid grid-cols-5 gap-2">
+                                                                                    {exercise.vowels.map((vowel: string) => (
+                                                                                        <button
+                                                                                            key={vowel}
+                                                                                            className="aspect-square bg-gradient-to-br from-pink-500 to-purple-600 text-white text-3xl font-black rounded-2xl hover:scale-110 transition-transform shadow-lg"
+                                                                                            onClick={() => toast.success(`Practice vowel: ${vowel}`)}
+                                                                                        >
+                                                                                            {vowel}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+
+                                                                    <div className="flex gap-4 pt-2">
+                                                                        <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                            <Zap className="w-4 h-4 text-blue-600" />
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                                                {module.exercises ? 'Interactive Practice' : 'Technical Insight'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                            <Clock className="w-4 h-4 text-emerald-600" />
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">45m Session</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            {mIdx < selectedCourse.modules.length - 1 && (
+                                                                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50" />
+                                                            )}
                                                         </div>
-                                                        {mIdx < selectedCourse.modules.length - 1 && (
-                                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50" />
-                                                        )}
-                                                    </div>
-                                                ))}
+                                                    )
+                                                })}
                                             </div>
                                         </section>
 
