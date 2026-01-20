@@ -1508,8 +1508,8 @@ const ChoirPage = () => {
 
             {/* Choir Schedule Modal */}
             <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             Choir Schedule
@@ -1517,7 +1517,7 @@ const ChoirPage = () => {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-blue-600 hover:bg-blue-50 font-bold mr-8"
+                            className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
                             onClick={() => {
                                 setEditingScheduleId(null);
                                 setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
@@ -1685,8 +1685,8 @@ const ChoirPage = () => {
 
             {/* Add / Edit Event Dialog */}
             <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
@@ -1769,8 +1769,8 @@ const ChoirPage = () => {
                 setIsRosterOpen(open);
                 if (!open) setIsEditRosterMode(false);
             }}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <Users className="w-6 h-6 text-blue-600" />
                             Team Roster
@@ -1778,7 +1778,7 @@ const ChoirPage = () => {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-blue-600 hover:bg-blue-50 font-bold"
+                            className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
                             onClick={() => setIsEditRosterMode(!isEditRosterMode)}
                         >
                             <Edit3 className="w-4 h-4 mr-2" />
@@ -2044,8 +2044,8 @@ const ChoirPage = () => {
 
             {/* Import Setlist Dialog */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800">
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <Download className="w-6 h-6 text-blue-600" />
                             Import from Notes
@@ -2191,8 +2191,8 @@ const ChoirPage = () => {
 
             {/* Edit Learning Focus Dialog */}
             <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-8 pt-[calc(2rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800">
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-8">
+                    <DialogHeader className="p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-3xl font-black flex items-center gap-4 text-slate-900 dark:text-white">
                             <Music className="w-8 h-8 text-blue-600" />
                             Update New Song Focus
@@ -2332,7 +2332,7 @@ const ChoirPage = () => {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-blue-600 hover:bg-blue-50 font-bold"
+                                    className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
                                     onClick={openEditLearningFocus}
                                 >
                                     <Edit3 className="w-4 h-4 mr-2" />
@@ -2653,8 +2653,8 @@ const ChoirPage = () => {
                                                             <span className="hidden sm:inline">Import</span>
                                                         </Button>
                                                     </DialogTrigger>
-                                                    <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                                                        <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
+                                                    <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                        <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                                                             <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                                                                 <Download className="w-6 h-6 text-blue-600" />
                                                                 Import Songs to Folder
@@ -3155,9 +3155,9 @@ const ChoirPage = () => {
 
                 {/* Course Detail Modal */}
                 <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-                    <DialogContent className="max-w-none w-screen h-screen m-0 p-0 border-none bg-white dark:bg-slate-900 rounded-none shadow-2xl overflow-hidden flex flex-col">
+                    <DialogContent className="max-w-none w-screen h-screen m-0 p-0 border-none bg-white dark:bg-slate-900 rounded-none shadow-2xl overflow-hidden flex flex-col [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                         {/* Custom Header for Full Screen Modal */}
-                        <div className="flex items-center justify-between p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+                        <div className="flex items-center justify-between p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
                             <div className="flex items-center gap-4">
                                 <Button variant="ghost" size="sm" onClick={() => setIsCourseModalOpen(false)} className="rounded-full h-10 w-10 p-0">
                                     <ArrowLeft className="w-5 h-5" />
@@ -3167,7 +3167,7 @@ const ChoirPage = () => {
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedCourse?.title}</p>
                                 </div>
                             </div>
-                            <Badge className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-none px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">
+                            <Badge className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-none px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase mr-12">
                                 {selectedCourse?.modules?.length || 0} ADVANCED MODULES
                             </Badge>
                         </div>
