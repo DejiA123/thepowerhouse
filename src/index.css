@@ -69,6 +69,8 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 217 91% 60%;
     --radius: 1rem;
+    --bible-audio-bottom-offset: -2rem;
+    --bible-selection-bottom-offset: -0.5rem;
   }
 
   .light {
@@ -1596,7 +1598,7 @@ body.modal-open {
 
   /* Override Bible page offsets for PWA to be closer to bottom bar */
   :root {
-    --bible-audio-bottom-offset: -5.5rem;
+    --bible-audio-bottom-offset: -6.5rem;
     --bible-selection-bottom-offset: -0.5rem;
   }
 }
