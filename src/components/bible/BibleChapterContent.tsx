@@ -111,6 +111,11 @@ export const BibleChapterContent = ({
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
+  // Swipe handlers state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
   // Scroll header state
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -546,8 +551,38 @@ export const BibleChapterContent = ({
     return null;
   };
 
+  // Swipe handlers
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      console.log('Swipe Left Detected - Next Chapter');
+      handleNextChapter();
+    } else if (isRightSwipe) {
+      console.log('Swipe Right Detected - Previous Chapter');
+      handlePreviousChapter();
+    }
+  };
+
   return (
-    <div className="bible-page-full">
+    <div
+      className="bible-page-full"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Header Bar */}
       <div className="flex items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] bg-white/95 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-100/50">
         {/* Left Side: Book/Chapter and Version Pills */}
@@ -970,7 +1005,7 @@ export const BibleChapterContent = ({
       {/* Bible Navigation Controls */}
       <div
         className={cn(
-          "fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out pointer-events-none",
+          "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Keeping high clear when verse selection is active
             : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))]" // Using variable for responsive PWA/Browser positioning
