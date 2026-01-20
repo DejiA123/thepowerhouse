@@ -1589,15 +1589,15 @@ body.modal-open {
 /* PWA-Specific Ultra-Deep Grounding: Bypass iOS home indicator in standalone mode */
 @media (display-mode: standalone) {
   #bottom-nav-bar.bottom-nav-bar {
-    bottom: -465px !important;
-    height: 510px !important;
-    padding-bottom: 465px !important;
+    bottom: -485px !important;
+    height: 530px !important;
+    padding-bottom: 485px !important;
   }
 
   /* Override Bible page offsets for PWA to be closer to bottom bar */
   :root {
-    --bible-audio-bottom-offset: -0.5rem;
-    --bible-selection-bottom-offset: 0rem;
+    --bible-audio-bottom-offset: -1.5rem;
+    --bible-selection-bottom-offset: -0.5rem;
   }
 }
 
