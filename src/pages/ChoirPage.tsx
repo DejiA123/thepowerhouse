@@ -1228,7 +1228,7 @@ const ChoirPage = () => {
             {/* Choir Schedule Modal */}
             <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             Choir Schedule
@@ -1295,7 +1295,7 @@ const ChoirPage = () => {
             {/* Add / Edit Event Dialog */}
             <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
@@ -1376,7 +1376,7 @@ const ChoirPage = () => {
             {/* Team Roster Modal */}
             <Dialog open={isRosterOpen} onOpenChange={setIsRosterOpen}>
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col">
-                    <DialogHeader>
+                    <DialogHeader className="pt-[calc(1.5rem+env(safe-area-inset-top))] px-6">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                             <Users className="w-6 h-6 text-blue-600" />
                             Team Roster
@@ -1577,7 +1577,7 @@ const ChoirPage = () => {
             {/* Import Setlist Dialog */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden">
-                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <Download className="w-6 h-6 text-blue-600" />
                             Import from Notes
@@ -2513,7 +2513,7 @@ const ChoirPage = () => {
                 <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
                     <DialogContent className="max-w-none w-screen h-screen m-0 p-0 border-none bg-white dark:bg-slate-900 rounded-none shadow-2xl overflow-hidden flex flex-col">
                         {/* Custom Header for Full Screen Modal */}
-                        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+                        <div className="flex items-center justify-between p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
                             <div className="flex items-center gap-4">
                                 <Button variant="ghost" size="sm" onClick={() => setIsCourseModalOpen(false)} className="rounded-full h-10 w-10 p-0">
                                     <ArrowLeft className="w-5 h-5" />
