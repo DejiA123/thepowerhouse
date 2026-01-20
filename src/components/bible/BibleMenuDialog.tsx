@@ -67,8 +67,8 @@ export const BibleMenuDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none">
-        <DialogHeader className="flex-shrink-0 pb-6 pt-10 px-8 border-b border-slate-200 dark:border-slate-700">
+      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
+        <DialogHeader className="flex-shrink-0 pb-6 pt-12 px-8 border-b border-slate-200 dark:border-slate-700">
           <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
             <Settings className="w-6 h-6 text-primary" />
             Bible Settings
