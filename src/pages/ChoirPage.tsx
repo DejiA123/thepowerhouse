@@ -207,7 +207,7 @@ const ChoirPage = () => {
                         {
                             title: "Diaphragmatic Breathing Mastery",
                             content: "The foundation of all great singing is the breath. Diaphragmatic breathing involves engaging the transverse abdominis and the diaphragm to create a stable column of air. Practice the 'Siss' exercise: inhale for 4 counts, exhale on a steady 'S' sound for 16, 24, then 32 counts to build lung capacity and air management precision.",
-                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
                             exercises: [
                                 {
                                     type: "breath-timer",
@@ -232,7 +232,7 @@ const ChoirPage = () => {
                         {
                             title: "The Mechanics of Resonance",
                             content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting.",
-                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
                             exercises: [
                                 {
                                     type: "vowel-practice",
@@ -256,7 +256,7 @@ const ChoirPage = () => {
                         {
                             title: "Mixed Voice & Bridge Navigation",
                             content: "Mastering the transition between chest voice and head voice (the 'passaggio') is what defines a pro. Learn to use the 'cry' or 'ng' placement to thin out the vocal folds as you move higher, creating a seamless, powerful 'mixed' sound that is safe and resonant.",
-                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
                             exercises: [
                                 {
                                     type: "pitch-glide",
@@ -2621,7 +2621,7 @@ const ChoirPage = () => {
 
 
                                     {/* Modal Body */}
-                                    <div className="p-8 md:p-12 space-y-12">
+                                    <div className="p-5 md:p-12 space-y-10 md:space-y-12">
                                         {/* Introduction */}
                                         <section className="space-y-4">
                                             <div className="flex items-center gap-3 text-blue-600">
@@ -2672,13 +2672,15 @@ const ChoirPage = () => {
                                         )}
 
                                         {/* Lecture Notes Section */}
-                                        <section className="space-y-12 bg-slate-50 dark:bg-slate-800/50 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-inner">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3 text-slate-800 dark:text-slate-100">
-                                                    <BookOpen className="w-6 h-6 text-blue-600" />
-                                                    <h4 className="text-2xl font-black uppercase tracking-tight">Professional Curriculum</h4>
+                                        <section className="space-y-12 bg-slate-50 dark:bg-slate-800/50 p-5 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-inner">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-8">
+                                                <div className="space-y-1">
+                                                    <h4 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                                                        Professional Curriculum
+                                                    </h4>
+                                                    <p className="text-slate-500 font-bold text-sm">Follow the modules below to complete the course.</p>
                                                 </div>
-                                                <Badge className="bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 text-[10px] font-black tracking-widest px-3 py-1 rounded-full shadow-sm">
+                                                <Badge className="bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 text-[10px] font-black tracking-widest px-3 py-1 rounded-full shadow-sm w-fit">
                                                     ACADEMY STANDARD • 2026
                                                 </Badge>
                                             </div>
@@ -2689,204 +2691,203 @@ const ChoirPage = () => {
                                                     const isCompleted = completedModules.has(moduleId);
 
                                                     return (
-                                                        <div key={mIdx} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
-                                                            <div className="flex items-start gap-4">
-                                                                <div className="relative">
-                                                                    <span className={`w-10 h-10 rounded-2xl ${isCompleted ? 'bg-emerald-600' : 'bg-blue-600'} text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/20 transition-all duration-300`}>
-                                                                        {isCompleted ? '✓' : String(mIdx + 1).padStart(2, '0')}
-                                                                    </span>
-                                                                    {isCompleted && (
-                                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                                                                            <span className="text-[10px]">⭐</span>
+                                                        <div key={mIdx}>
+                                                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
+                                                                <div className="flex flex-col gap-4">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="relative">
+                                                                            <span className={`w-10 h-10 rounded-2xl ${isCompleted ? 'bg-emerald-600' : 'bg-blue-600'} text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/20 transition-all duration-300`}>
+                                                                                {isCompleted ? '✓' : String(mIdx + 1).padStart(2, '0')}
+                                                                            </span>
+                                                                            {isCompleted && (
+                                                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                                                                                    <span className="text-[10px]">⭐</span>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="space-y-4 flex-1">
-                                                                    <div className="flex items-start justify-between">
-                                                                        <h5 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none pt-2">
+                                                                        <h5 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none pt-1">
                                                                             {module.title}
                                                                         </h5>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant={isCompleted ? "outline" : "default"}
-                                                                            onClick={() => {
-                                                                                const newSet = new Set(completedModules);
-                                                                                if (isCompleted) {
-                                                                                    newSet.delete(moduleId);
-                                                                                } else {
-                                                                                    newSet.add(moduleId);
-                                                                                    toast.success('Module completed! 🎉');
-                                                                                }
-                                                                                setCompletedModules(newSet);
-                                                                            }}
-                                                                            className="text-xs"
-                                                                        >
-                                                                            {isCompleted ? 'Undo' : 'Mark Complete'}
-                                                                        </Button>
                                                                     </div>
-                                                                    <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                                                                        {module.content}
-                                                                    </p>
-
-                                                                    {/* Audio Player */}
-                                                                    {module.audioUrl && (
-                                                                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
-                                                                            <div className="flex items-center justify-between mb-4">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <Music className="w-5 h-5 text-blue-600" />
-                                                                                    <span className="font-bold text-blue-900 dark:text-blue-100">Practice Audio</span>
-                                                                                </div>
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-xs text-slate-600 dark:text-slate-400">Speed:</span>
-                                                                                    {[0.5, 0.75, 1, 1.25].map(speed => (
-                                                                                        <button
-                                                                                            key={speed}
-                                                                                            onClick={() => setCurrentAudio(prev => prev ? { ...prev, speed } : null)}
-                                                                                            className={`px-2 py-1 rounded text-xs font-bold transition-all ${currentAudio?.speed === speed
-                                                                                                ? 'bg-blue-600 text-white'
-                                                                                                : 'bg-white dark:bg-slate-800 text-blue-600 hover:bg-blue-100'
-                                                                                                }`}
-                                                                                        >
-                                                                                            {speed}x
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                            <audio
-                                                                                controls
-                                                                                className="w-full"
-                                                                                src={module.audioUrl}
-                                                                            />
+                                                                    <div className="space-y-4">
+                                                                        <div className="flex flex-col sm:flex-row gap-2">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant={isCompleted ? "outline" : "default"}
+                                                                                onClick={() => {
+                                                                                    const newSet = new Set(completedModules);
+                                                                                    if (isCompleted) {
+                                                                                        newSet.delete(moduleId);
+                                                                                    } else {
+                                                                                        newSet.add(moduleId);
+                                                                                        toast.success('Module completed! 🎉');
+                                                                                    }
+                                                                                    setCompletedModules(newSet);
+                                                                                }}
+                                                                                className="text-xs shrink-0 w-full sm:w-auto font-black tracking-widest uppercase py-4 sm:py-2"
+                                                                            >
+                                                                                {isCompleted ? 'Undo Completion' : 'Mark Module Complete'}
+                                                                            </Button>
                                                                         </div>
-                                                                    )}
+                                                                        <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                                                            {module.content}
+                                                                        </p>
 
-                                                                    {/* Interactive Exercises */}
-                                                                    {module.exercises?.map((exercise: any, eIdx: number) => (
-                                                                        <div key={eIdx} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-6 rounded-2xl border-2 border-amber-300 dark:border-amber-700 shadow-xl">
-                                                                            <div className="flex items-center gap-3 mb-4">
-                                                                                <Zap className="w-6 h-6 text-amber-600" />
-                                                                                <h6 className="text-xl font-black text-amber-900 dark:text-amber-100 uppercase">
-                                                                                    {exercise.title}
-                                                                                </h6>
-                                                                            </div>
-                                                                            <p className="text-sm text-amber-800 dark:text-amber-200 mb-4 font-medium">
-                                                                                {exercise.instructions}
-                                                                            </p>
-
-                                                                            {/* Breath Timer Exercise */}
-                                                                            {exercise.type === 'breath-timer' && (
-                                                                                <div className="space-y-4">
-                                                                                    <div className="flex gap-2">
-                                                                                        {exercise.durations.map((duration: number) => (
-                                                                                            <Button
-                                                                                                key={duration}
-                                                                                                onClick={() => {
-                                                                                                    setBreathTimerActive(true);
-                                                                                                    setBreathPhase('inhale');
-                                                                                                    setBreathCount(duration);
-                                                                                                    toast.success(`Starting ${duration}-count exercise!`);
-                                                                                                }}
-                                                                                                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                                        {module.audioUrl && (
+                                                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+                                                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Music className="w-5 h-5 text-blue-600" />
+                                                                                        <span className="font-bold text-blue-900 dark:text-blue-100">Practice Audio</span>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-1 flex-wrap">
+                                                                                        <span className="text-xs text-slate-600 dark:text-slate-400">Speed:</span>
+                                                                                        {[0.5, 0.75, 1, 1.25].map(speed => (
+                                                                                            <button
+                                                                                                key={speed}
+                                                                                                onClick={() => setCurrentAudio(prev => prev ? { ...prev, speed } : null)}
+                                                                                                className={`px-2 py-1 rounded text-xs font-bold transition-all ${currentAudio?.speed === speed
+                                                                                                    ? 'bg-blue-600 text-white'
+                                                                                                    : 'bg-white dark:bg-slate-800 text-blue-600 hover:bg-blue-100'
+                                                                                                    }`}
                                                                                             >
-                                                                                                {duration} Counts
-                                                                                            </Button>
+                                                                                                {speed}x
+                                                                                            </button>
                                                                                         ))}
                                                                                     </div>
-                                                                                    {breathTimerActive && (
-                                                                                        <div className="text-center p-6 bg-white dark:bg-slate-800 rounded-xl">
-                                                                                            <div className="text-6xl font-black mb-2">{breathCount}</div>
-                                                                                            <div className="text-2xl font-bold text-amber-600 uppercase">{breathPhase}</div>
-                                                                                        </div>
-                                                                                    )}
                                                                                 </div>
-                                                                            )}
+                                                                                <audio
+                                                                                    controls
+                                                                                    className="w-full"
+                                                                                    src={module.audioUrl}
+                                                                                />
+                                                                            </div>
+                                                                        )}
 
-                                                                            {/* Metronome Exercise */}
-                                                                            {exercise.type === 'metronome' && (
-                                                                                <div className="space-y-4">
-                                                                                    <div className="flex items-center gap-4">
-                                                                                        <span className="font-bold">BPM:</span>
-                                                                                        <input
-                                                                                            type="range"
-                                                                                            min={exercise.tempoRange[0]}
-                                                                                            max={exercise.tempoRange[1]}
-                                                                                            value={metronomeBPM}
-                                                                                            onChange={(e) => setMetronomeBPM(Number(e.target.value))}
-                                                                                            className="flex-1"
-                                                                                        />
-                                                                                        <span className="font-black text-2xl text-blue-600">{metronomeBPM}</span>
-                                                                                    </div>
-                                                                                    <Button
-                                                                                        onClick={() => {
-                                                                                            setMetronomeActive(!metronomeActive);
-                                                                                            toast.success(metronomeActive ? 'Metronome stopped' : 'Metronome started!');
-                                                                                        }}
-                                                                                        className={`w-full ${metronomeActive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-4`}
-                                                                                    >
-                                                                                        {metronomeActive ? '⏹ Stop' : '▶ Start'} Metronome
-                                                                                    </Button>
-                                                                                    {metronomeActive && (
-                                                                                        <div className="flex justify-center gap-2">
-                                                                                            {[0, 1, 2, 3].map(i => (
-                                                                                                <div
-                                                                                                    key={i}
-                                                                                                    className="w-4 h-4 rounded-full bg-blue-600 animate-pulse"
-                                                                                                    style={{ animationDelay: `${i * (60 / metronomeBPM)}s` }}
-                                                                                                />
+                                                                        {/* Interactive Exercises */}
+                                                                        {module.exercises?.map((exercise: any, eIdx: number) => (
+                                                                            <div key={eIdx} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-6 rounded-2xl border-2 border-amber-300 dark:border-amber-700 shadow-xl">
+                                                                                <div className="flex items-center gap-3 mb-4">
+                                                                                    <Zap className="w-6 h-6 text-amber-600" />
+                                                                                    <h6 className="text-xl font-black text-amber-900 dark:text-amber-100 uppercase">
+                                                                                        {exercise.title}
+                                                                                    </h6>
+                                                                                </div>
+                                                                                <p className="text-sm text-amber-800 dark:text-amber-200 mb-4 font-medium">
+                                                                                    {exercise.instructions}
+                                                                                </p>
+
+                                                                                {exercise.type === 'breath-timer' && (
+                                                                                    <div className="space-y-4">
+                                                                                        <div className="flex gap-2">
+                                                                                            {exercise.durations.map((duration: number) => (
+                                                                                                <Button
+                                                                                                    key={duration}
+                                                                                                    onClick={() => {
+                                                                                                        setBreathTimerActive(true);
+                                                                                                        setBreathPhase('inhale');
+                                                                                                        setBreathCount(duration);
+                                                                                                        toast.success(`Starting ${duration}-count exercise!`);
+                                                                                                    }}
+                                                                                                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                                                                >
+                                                                                                    {duration} Counts
+                                                                                                </Button>
                                                                                             ))}
                                                                                         </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
+                                                                                        {breathTimerActive && (
+                                                                                            <div className="text-center p-6 bg-white dark:bg-slate-800 rounded-xl">
+                                                                                                <div className="text-6xl font-black mb-2">{breathCount}</div>
+                                                                                                <div className="text-2xl font-bold text-amber-600 uppercase">{breathPhase}</div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
 
-                                                                            {/* Posture Check Exercise */}
-                                                                            {exercise.type === 'posture-check' && exercise.checkpoints && (
-                                                                                <div className="space-y-2">
-                                                                                    {exercise.checkpoints.map((checkpoint: string, cIdx: number) => (
-                                                                                        <div key={cIdx} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg">
-                                                                                            <input type="checkbox" className="w-5 h-5" />
-                                                                                            <span className="font-medium">{checkpoint}</span>
+                                                                                {exercise.type === 'metronome' && (
+                                                                                    <div className="space-y-4">
+                                                                                        <div className="flex items-center gap-4">
+                                                                                            <span className="font-bold">BPM:</span>
+                                                                                            <input
+                                                                                                type="range"
+                                                                                                min={exercise.tempoRange[0]}
+                                                                                                max={exercise.tempoRange[1]}
+                                                                                                value={metronomeBPM}
+                                                                                                onChange={(e) => setMetronomeBPM(Number(e.target.value))}
+                                                                                                className="flex-1"
+                                                                                            />
+                                                                                            <span className="font-black text-2xl text-blue-600">{metronomeBPM}</span>
                                                                                         </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* Vowel Practice Exercise */}
-                                                                            {exercise.type === 'vowel-practice' && exercise.vowels && (
-                                                                                <div className="grid grid-cols-5 gap-2">
-                                                                                    {exercise.vowels.map((vowel: string) => (
-                                                                                        <button
-                                                                                            key={vowel}
-                                                                                            className="aspect-square bg-gradient-to-br from-pink-500 to-purple-600 text-white text-3xl font-black rounded-2xl hover:scale-110 transition-transform shadow-lg"
-                                                                                            onClick={() => toast.success(`Practice vowel: ${vowel}`)}
+                                                                                        <Button
+                                                                                            onClick={() => {
+                                                                                                setMetronomeActive(!metronomeActive);
+                                                                                                toast.success(metronomeActive ? 'Metronome stopped' : 'Metronome started!');
+                                                                                            }}
+                                                                                            className={`w-full ${metronomeActive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-4`}
                                                                                         >
-                                                                                            {vowel}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ))}
+                                                                                            {metronomeActive ? '⏹ Stop' : '▶ Start'} Metronome
+                                                                                        </Button>
+                                                                                        {metronomeActive && (
+                                                                                            <div className="flex justify-center gap-2">
+                                                                                                {[0, 1, 2, 3].map(i => (
+                                                                                                    <div
+                                                                                                        key={i}
+                                                                                                        className="w-4 h-4 rounded-full bg-blue-600 animate-pulse"
+                                                                                                        style={{ animationDelay: `${i * (60 / metronomeBPM)}s` }}
+                                                                                                    />
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
 
-                                                                    <div className="flex gap-4 pt-2">
-                                                                        <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
-                                                                            <Zap className="w-4 h-4 text-blue-600" />
-                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                                                {module.exercises ? 'Interactive Practice' : 'Technical Insight'}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
-                                                                            <Clock className="w-4 h-4 text-emerald-600" />
-                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">45m Session</span>
+                                                                                {exercise.type === 'posture-check' && exercise.checkpoints && (
+                                                                                    <div className="space-y-2">
+                                                                                        {exercise.checkpoints.map((checkpoint: string, cIdx: number) => (
+                                                                                            <div key={cIdx} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg">
+                                                                                                <input type="checkbox" className="w-5 h-5" />
+                                                                                                <span className="font-medium">{checkpoint}</span>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {exercise.type === 'vowel-practice' && exercise.vowels && (
+                                                                                    <div className="grid grid-cols-5 gap-2">
+                                                                                        {exercise.vowels.map((vowel: string) => (
+                                                                                            <button
+                                                                                                key={vowel}
+                                                                                                className="aspect-square bg-gradient-to-br from-pink-500 to-purple-600 text-white text-3xl font-black rounded-2xl hover:scale-110 transition-transform shadow-lg"
+                                                                                                onClick={() => toast.success(`Practice vowel: ${vowel}`)}
+                                                                                            >
+                                                                                                {vowel}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+
+                                                                        <div className="flex gap-4 pt-2">
+                                                                            <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                                <Zap className="w-4 h-4 text-blue-600" />
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                                                    {module.exercises ? 'Interactive Practice' : 'Technical Insight'}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                                <Clock className="w-4 h-4 text-emerald-600" />
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">45m Session</span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
+                                                                {mIdx < selectedCourse.modules.length - 1 && (
+                                                                    <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50 my-12" />
+                                                                )}
                                                             </div>
-                                                            {mIdx < selectedCourse.modules.length - 1 && (
-                                                                <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50" />
-                                                            )}
                                                         </div>
-                                                    )
+                                                    );
                                                 })}
                                             </div>
                                         </section>
@@ -2911,7 +2912,7 @@ const ChoirPage = () => {
                 </Dialog>
 
                 {/* SHARED STRATEGIC PLANNER SECTION */}
-                <div className="mt-20 pt-12 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                < div className="mt-20 pt-12 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-8 duration-700" >
                     <section className="space-y-8">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="space-y-1">
@@ -3152,7 +3153,7 @@ const ChoirPage = () => {
                             </div>
                         </Card>
                     </section>
-                </div>
+                </div >
             </div >
 
             {/* Dialogs for Instrumental Resources */}
