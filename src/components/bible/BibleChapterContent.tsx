@@ -148,6 +148,15 @@ export const BibleChapterContent = ({
     setForceUpdate(prev => prev + 1);
   }, [menuSettingsVersion, selectedBook, selectedChapter]);
 
+  // Scroll to top when chapter or book changes
+  useEffect(() => {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      console.log('📜 BibleChapterContent: Scrolling to top of main-content due to chapter/book change');
+      mainContent.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [selectedBook, selectedChapter]);
+
   // Update CSS custom property for immediate font size changes
   useEffect(() => {
     document.documentElement.style.setProperty('--bible-font-size', `${displayFontSize}px`);
