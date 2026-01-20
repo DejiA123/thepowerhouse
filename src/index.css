@@ -1596,7 +1596,7 @@ body.modal-open {
 
   /* Override Bible page offsets for PWA to be closer to bottom bar */
   :root {
-    --bible-audio-bottom-offset: -3.5rem;
+    --bible-audio-bottom-offset: -5.5rem;
     --bible-selection-bottom-offset: -0.5rem;
   }
 }
