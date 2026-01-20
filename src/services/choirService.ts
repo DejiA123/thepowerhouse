@@ -225,6 +225,14 @@ export const choirService = {
         if (error) throw error;
     },
 
+    async clearWeeklySetlist() {
+        const { error } = await supabase
+            .from('choir_weekly_set_songs' as any)
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete everything
+        if (error) throw error;
+    },
+
     // --- Setlist Info (Date & Descriptions) ---
     async getSetlistInfo(infoType: string) {
         const { data, error } = await supabase

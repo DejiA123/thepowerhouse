@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
     Music,
@@ -146,7 +146,334 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
     );
 };
 
+const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (course: any) => void }) => {
+    return (
+        <Card className="group overflow-hidden border-none shadow-xl bg-white dark:bg-slate-800 hover:shadow-2xl transition-all duration-500 rounded-[2rem]">
+            <div className="relative h-48 overflow-hidden">
+                <img
+                    src={course.image}
+                    alt={course.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
+                <Badge className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white border-white/30 text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded-full">
+                    {course.category}
+                </Badge>
+                <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                        <Clock className="w-3 h-3" />
+                        {course.duration}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                        <Zap className="w-3 h-3 text-amber-400" />
+                        {course.level}
+                    </div>
+                </div>
+            </div>
+            <CardContent className="p-6">
+                <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-2 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">
+                    {course.title}
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-6 font-medium leading-relaxed italic">
+                    {course.description}
+                </p>
+                <Button
+                    className="w-full bg-slate-900 hover:bg-blue-600 text-white dark:bg-slate-700 dark:hover:bg-blue-600 py-6 h-auto rounded-2xl shadow-lg transition-all duration-300 font-bold group-hover:translate-y-[-2px]"
+                    onClick={() => onAccess(course)}
+                >
+                    Access Course <PlayCircle className="w-4 h-4 ml-2" />
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
 const ChoirPage = () => {
+    const academyCourses = useMemo(() => [
+        {
+            title: "Vocal Mastery",
+            icon: <Mic className="w-6 h-6" />,
+            description: "Refining the voice as a sacred instrument of worship.",
+            courses: [
+                {
+                    id: "vocal-101",
+                    title: "Vocal Lessons 101",
+                    category: "Foundations",
+                    duration: "4.5 Hours",
+                    level: "Beginner",
+                    description: "Master breath control, posture, and resonance to build a healthy vocal foundation.",
+                    image: "/assets/academy/vocal_lessons_101.png",
+                    modules: [
+                        {
+                            title: "Diaphragmatic Breathing Mastery",
+                            content: "The foundation of all great singing is the breath. Diaphragmatic breathing involve engaging the transverse abdominis and the diaphragm to create a stable column of air. Practice the 'Siss' exercise: inhale for 4 counts, exhale on a steady 'S' sound for 16, 24, then 32 counts to build lung capacity and air management precision."
+                        },
+                        {
+                            title: "Postural Alignment (Alexander Technique)",
+                            content: "Your body is your instrument. Alignment between the head, neck, and spine is critical. Ensure your chin is parallel to the ground, shoulders are relaxed (not rolled forward), and your chest is naturally 'noble' (expanded but not forced). This reduces tension in the extrinsic laryngeal muscles, allowing for free vocal fold vibration."
+                        },
+                        {
+                            title: "The Mechanics of Resonance",
+                            content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting."
+                        }
+                    ]
+                },
+                {
+                    id: "vocal-pro",
+                    title: "Professional Vocal Training",
+                    category: "Technique",
+                    duration: "6 Hours",
+                    level: "Intermediate",
+                    description: "Advanced exercises for agility, range expansion, and pitch precision.",
+                    image: "/assets/academy/professional_vocal_training.png",
+                    modules: [
+                        {
+                            title: "Mixed Voice & Bridge Navigation",
+                            content: "Mastering the transition between chest voice and head voice (the 'passaggio') is what defines a pro. Learn to use the 'cry' or 'ng' placement to thin out the vocal folds as you move higher, creating a seamless, powerful 'mixed' sound that is safe and resonant."
+                        },
+                        {
+                            title: "Vocal Agility: Runs and Riffs",
+                            content: "Agility requires localized muscle control. Practice the pentatonic and blues scales at slow tempos (60 BPM), focusing on hitting every note with individual clarity (staccato) before smoothing them into rapid 'runs' (legato). Precision over speed is the professional standard."
+                        },
+                        {
+                            title: "Performance Stamina & Health",
+                            content: "Professional training includes voice preservation. Learn about vocal hygiene (hydration, rest, and avoiding irritants) and 'cool-down' exercises like the 'lip trill' or straw phonation to reset the vocal folds after a high-intensity service."
+                        }
+                    ]
+                },
+                {
+                    id: "vocal-harmony",
+                    title: "Vocal Harmony & Blending",
+                    category: "Performance",
+                    duration: "3.5 Hours",
+                    level: "All Levels",
+                    description: "Learn the art of ear training to create seamless choral textures and perfect blend.",
+                    image: "/assets/academy/vocal_harmony_blending_v2.jpg",
+                    modules: [
+                        {
+                            title: "Interval Ear Training",
+                            content: "Harmony is the distance between notes. Learn to identify and sing major thirds, perfect fifths, and dominant sevenths by ear. This allows you to 'find your part' instantly when a new song is introduced, even without sheet music."
+                        },
+                        {
+                            title: "The Art of Vocal Blending",
+                            content: "A choir should sound like 'one voice.' This requires matching vowel shapes and vibrato speeds with the singers around you. Practice 'vowel matching'—ensuring everyone's 'O' is equally tall and dark to create a thick, unified choral texture."
+                        },
+                        {
+                            title: "Dynamic Sensitivity in Groups",
+                            content: "Harmony is ineffective if it's not balanced. Learn 'The Pyramid of Sound'—where the lower parts (Basses/Tenors) provide a foundation for the higher parts (Altos/Sopranos). Learn to adjust your volume to serve the overall texture, not to stand out."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Ensemble & Unity",
+            icon: <Users className="w-6 h-6" />,
+            description: "Building a cohesive team that moves together in spiritual and technical sync.",
+            courses: [
+                {
+                    id: "ensemble-unity",
+                    title: "Singing in Unity",
+                    category: "Spiritual",
+                    duration: "2 Hours",
+                    level: "Essential",
+                    description: "Exploring the biblical foundation of corporate worship and ensemble dynamics.",
+                    image: "/assets/academy/singing_in_unity.png",
+                    modules: [
+                        {
+                            title: "The Theology of One Voice",
+                            content: "Worship is not a solo performance; it is a corporate response to God's glory. Study Psalm 133 and the 'sound of many waters' in Revelation. Unity in the choir is a spiritual weapon that creates an atmosphere for the miraculous."
+                        },
+                        {
+                            title: "Technical Sync: Attack & Release",
+                            content: "Unity is heard in the precision of the group. Practice 'unison attacks' (starting the first vowel exactly together) and 'releases' (consonants finishing at the same microsecond). Use the 'Siss' technique to align the group's rhythmic heartbeat."
+                        },
+                        {
+                            title: "The Horizontal Connection",
+                            content: "Beyond the music, unity requires relationship. Learn how to maintain a heart of service toward your team. This module focuses on resolving conflict and supporting one another, which translates into a more powerful spiritual atmosphere on stage."
+                        }
+                    ]
+                },
+                {
+                    id: "worship-leading",
+                    title: "Worship Leading Excellence",
+                    category: "Leadership",
+                    duration: "5 Hours",
+                    level: "Advanced",
+                    description: "Guidance for leaders on song selection, flow, and congregation engagement.",
+                    image: "/assets/academy/worship_leading_excellence.png",
+                    modules: [
+                        {
+                            title: "Spiritual Authority & Preparation",
+                            content: "A worship leader leads from a place of personal encounter. This module explores the importance of the 'Secret Place'—private worship that builds the authority needed to lead a public congregation. It's about 'being' before 'doing'."
+                        },
+                        {
+                            title: "Crafting a Journey (The Flow)",
+                            content: "Worship is a journey into the Holy of Holies. Learn to curate a setlist that moves through 'The Outer Courts' (Praise) into 'The Holy Place' (Intimacy). Master the art of spontaneous singing and instrumental 'selahs' to let the Spirit breathe."
+                        },
+                        {
+                            title: "Congregational Engagement & Empathy",
+                            content: "Leadership is about serving the people. Learn to read the room and provide clear, simple vertical directions. This includes 'pastoring the moment'—knowing when to push, when to wait, and how to use scripture to unlock the hearts of the congregation."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Instrumental Masterclasses",
+            icon: <Music className="w-6 h-6" />,
+            description: "Technical excellence for EVERY section of the band.",
+            courses: [
+                {
+                    id: "piano-mastery",
+                    title: "Worship Piano Mastery",
+                    category: "Keys",
+                    duration: "8 Hours",
+                    level: "Inter/Adv",
+                    description: "Chord voicings, pads, and rhythmic patterns for piano and keyboards.",
+                    image: "https://images.unsplash.com/photo-1552422535-c45813c61732?q=80&w=2000&auto=format&fit=crop",
+                    modules: [
+                        {
+                            title: "Modern Worship Voicings",
+                            content: "Move beyond standard triads. Learn to use 'Add2', 'Sus4', and open-voiced '9ths' to create the lush, expansive sound found in modern worship music. This module covers 'Inversion Theory' to ensure smooth transitions between chords with minimal hand movement."
+                        },
+                        {
+                            title: "Layering & Pad Integration",
+                            content: "In a modern set, the piano often serves as a foundation for digital pads. Learn how to 'play to the pad'—using sparse, intentional note selection to avoid frequency clutter. Master the use of the sustain pedal for ambient 'wash' without losing rhythmic clarity."
+                        },
+                        {
+                            title: "Rhythmic Flow & Syncopation",
+                            content: "Worship piano is largely about 'propulsion.' Learn 8th-note and 16th-note rhythmic patterns that drive the song forward. This module includes syncopated 'diamond' patterns and how to build dynamics by moving from low-octave 'power' notes to high-register melodic fills."
+                        }
+                    ]
+                },
+                {
+                    id: "modern-drumming",
+                    title: "Modern Drumming & Rhythms",
+                    category: "Drums",
+                    duration: "7 Hours",
+                    level: "All Levels",
+                    description: "Timekeeping, dynamics, and click-track precision for the church stage.",
+                    image: "https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?q=80&w=2000&auto=format&fit=crop",
+                    modules: [
+                        {
+                            title: "Pocket Playing & Time Mastery",
+                            content: "The drummer's primary role is 'The Clock.' Practice playing 'in the pocket'—slightly behind or exactly on the beat to create a sense of weight and stability. This module includes rigorous click-track exercises to ensure perfect timing even across tempo changes."
+                        },
+                        {
+                            title: "Dynamic Gradation: The Build",
+                            content: "Worship songs often follow a 'Crescendo Architecture.' Learn to master the 1-10 dynamic scale—from subtle cross-stick and shaker work to massive, 16th-note floor tom builds. Proper cymbal selection and 'wash technique' are also covered."
+                        },
+                        {
+                            title: "Instrumental Narratives",
+                            content: "A drummer 'pastors' the rhythm. Learn to use 'ghost notes' and fills that serve the lyric, not the ego. This module focuses on how to support a worship leader by listening for spiritual cues and providing the rhythmic energy they need."
+                        }
+                    ]
+                },
+                {
+                    id: "guitar-electric",
+                    title: "Guitar: Electric & Acoustic",
+                    category: "Guitar",
+                    duration: "6.5 Hours",
+                    level: "Intermediate",
+                    description: "Tone shaping, pedalboard management, and strumming patterns.",
+                    image: "https://images.unsplash.com/photo-1525201548942-d8732f6617a0?q=80&w=2000&auto=format&fit=crop",
+                    modules: [
+                        {
+                            title: "The Architecture of Tone",
+                            content: "For electric guitarists, tone is an instrument in itself. Master the 'Gain Stage'—the interaction between overdrive, reverb, and delay. Learn to dial in the 'ambient wash' that provides the atmospheric bed for worship transitions."
+                        },
+                        {
+                            title: "Acoustic Percussive Strumming",
+                            content: "The acoustic guitar is the rhythmic glue of the band. Learn advanced percussive strumming techniques that emphasize the 2 and 4. This module covers 'Open Tuning and Capo Theory' to maximize resonance and harmonic richness."
+                        },
+                        {
+                            title: "Lead Guitar: Melodic Narrative",
+                            content: "Lead guitar in worship is about 'hooks' and 'swells.' Learn to use volume pedals for seamless swells and how to play melodic lines that echo the song's vocal melody without being repetitive."
+                        }
+                    ]
+                },
+                {
+                    id: "bass-guitar",
+                    title: "The Low End: Bass Guitar",
+                    category: "Bass",
+                    duration: "4 Hours",
+                    level: "Beginner",
+                    description: "Locking with the kick, groove theory, and fundamental scales.",
+                    image: "/assets/academy/bass_guitar_mastery.png",
+                    modules: [
+                        {
+                            title: "The Foundation: Kick and Bass",
+                            content: "Unity begins in the low end. Learn the 'Kick-Bass Connection'—how to align your rhythmic accents 1:1 with the drummer's kick drum. This creates a solid 'foundation' that the rest of the band can build upon safely."
+                        },
+                        {
+                            title: "Groove Theory & Harmonic Support",
+                            content: "Bass is both rhythmic and melodic. Study how to use passing notes (non-chordal tones) to create some movement between root notes. Learn when to 'play the groove' and when to sit simply on the root for maximum impact."
+                        },
+                        {
+                            title: "Active Listening & Frequency Space",
+                            content: "A pro bass player knows how to 'leave space.' Learn to listen for the frequencies of the piano and electric guitar to ensure your notes have 'air' and clarity. This module includes basic EQ settings for a clean, punchy church tone."
+                        }
+                    ]
+                },
+                {
+                    id: "saxophone-mastery",
+                    title: "The Breath: Saxophone",
+                    category: "Wind",
+                    duration: "5.5 Hours",
+                    level: "Intermediate",
+                    description: "Phrasing, intonation, and improvisational skills for worship.",
+                    image: "/assets/academy/saxophone_mastery_v2.jpg",
+                    modules: [
+                        {
+                            title: "Phrasing & Breath Expression",
+                            content: "The saxophone is the closest instrument to the human voice. Learn to 'sing through the horn' using intentional phrasing and breath support. This module covers the use of 'subtone' for intimate sections and 'altissimo' for climactic moments."
+                        },
+                        {
+                            title: "Intonation & Harmonic Tuning",
+                            content: "Wind instruments require constant adjustment. Develop your 'internal ear' to tune to the keyboard and band live. Practice playing with 'dead-on' intonation across the entire range of the instrument, especially in the high register."
+                        },
+                        {
+                            title: "Spiritual Improvisation",
+                            content: "Improvisation in worship is about 'prophetic echo.' Learn to take the vocal melody and expand it with tasteful riffs and fills that respond to the Spirit's flow. Focus on 'Pentatonic Mastery' and 'Blues Inflections' to add soul and depth to your play."
+                        }
+                    ]
+                }
+            ]
+        }
+    ], []);
+
+    const [selectedCourse, setSelectedCourse] = useState<any>(null);
+    const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+
+    const handleAccessCourse = (course: any) => {
+        toast.info(`Registering user for ${course.title}...`);
+        setTimeout(() => {
+            setSelectedCourse(course);
+            setIsCourseModalOpen(true);
+        }, 1000);
+    };
+
+    const handleNextLesson = () => {
+        if (!selectedCourse) return;
+
+        // Flatten all courses to find the next one
+        const flatCourses = academyCourses.flatMap(section => section.courses);
+        const currentIndex = flatCourses.findIndex(c => c.id === selectedCourse.id);
+
+        if (currentIndex !== -1 && currentIndex < flatCourses.length - 1) {
+            const nextCourse = flatCourses[currentIndex + 1];
+            toast.success(`Loading next lesson: ${nextCourse.title}`);
+            setSelectedCourse(nextCourse);
+
+            // Scroll to top of modal
+            const modalElement = document.getElementById('course-modal-content');
+            if (modalElement) modalElement.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            toast.info("You've reached the end of the current curriculum track!");
+        }
+    };
+
     const navigate = useNavigate();
     const [searchParams] = useSearchParams(); // Added for deep linking
     const { user } = useAuth();
@@ -158,7 +485,7 @@ const ChoirPage = () => {
     const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
     // State for Setlist Date
-    const [setlistDate, setSetlistDate] = useState<Date | undefined>(new Date());
+    const [setlistDate, setSetlistDate] = useState<Date | undefined>(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
     // State for Header Modals
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
@@ -293,7 +620,22 @@ const ChoirPage = () => {
                     folderDetails: fetchedFolders.map(f => ({ name: f.name, songCount: f.songs?.length || 0, songs: f.songs }))
                 });
 
-                if (fetchedInfo['date']) setSetlistDate(new Date(fetchedInfo['date']));
+                if (fetchedInfo['date']) {
+                    const dbDate = new Date(fetchedInfo['date']);
+                    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+                    // 🚨 NEW WEEK DETECTION
+                    if (currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
+                        console.log("New week detected! Clearing setlists...");
+                        await choirService.clearWeeklySetlist();
+                        await choirService.updateSetlistInfo('date', currentMonday.toISOString());
+                        setSetlistDate(currentMonday);
+                        setPraiseSet([]);
+                        setWorshipSet([]);
+                    } else {
+                        setSetlistDate(dbDate);
+                    }
+                }
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
 
@@ -305,6 +647,33 @@ const ChoirPage = () => {
             }
         };
         fetchData();
+
+        // 🔄 Real-time date update: Check every minute if the week has changed
+        const dateInterval = setInterval(async () => {
+            const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+            setSetlistDate(prevDate => {
+                if (!prevDate) return currentMonday;
+
+                const prevMonday = startOfWeek(prevDate, { weekStartsOn: 1 });
+
+                if (currentMonday.getTime() > prevMonday.getTime()) {
+                    // Trigger async clearing in the background
+                    (async () => {
+                        console.log("Week transition detected in real-time! Clearing...");
+                        await choirService.clearWeeklySetlist();
+                        await choirService.updateSetlistInfo('date', currentMonday.toISOString());
+                        setPraiseSet([]);
+                        setWorshipSet([]);
+                        toast.info("New week started: Setlists cleared.");
+                    })();
+                    return currentMonday;
+                }
+                return prevDate;
+            });
+        }, 60000);
+
+        return () => clearInterval(dateInterval);
     }, []);
 
     // Sync state with URL params (Deep Linking)
@@ -373,8 +742,9 @@ const ChoirPage = () => {
     const handleDateSelect = async (date: Date | undefined) => {
         if (!date) return;
         try {
-            setSetlistDate(date);
-            await choirService.updateSetlistInfo('date', date.toISOString());
+            const mondayOfSelectedWeek = startOfWeek(date, { weekStartsOn: 1 });
+            setSetlistDate(mondayOfSelectedWeek);
+            await choirService.updateSetlistInfo('date', mondayOfSelectedWeek.toISOString());
         } catch (e) {
             console.error(e);
             toast.error("Failed to save date");
@@ -1418,6 +1788,13 @@ const ChoirPage = () => {
                                 <Music className="w-4 h-4 mr-2" />
                                 Instrumentalists
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="academy"
+                                className="rounded-full px-8 py-3 text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md"
+                            >
+                                <BookOpen className="w-4 h-4 mr-2" />
+                                Academy
+                            </TabsTrigger>
 
                         </TabsList>
                     </div>
@@ -1458,6 +1835,7 @@ const ChoirPage = () => {
                                             selected={setlistDate}
                                             onSelect={handleDateSelect}
                                             initialFocus
+                                            disabled={(date) => date.getDay() !== 1}
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -2074,10 +2452,191 @@ const ChoirPage = () => {
                                 </Card>
                             </div>
                         </div>
+                    </TabsContent>
 
+                    <TabsContent value="academy" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Academy Header */}
+                        <div className="relative overflow-hidden rounded-[3rem] bg-slate-900 border border-slate-800 p-8 md:p-12 shadow-2xl">
+                            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/20 to-transparent pointer-events-none" />
+                            <div className="relative z-10 max-w-2xl">
+                                <Badge className="bg-blue-600 text-white border-blue-500 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-1.5 rounded-full mb-6">
+                                    Introducing High Excellence
+                                </Badge>
+                                <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight leading-none">
+                                    The Power House <span className="text-blue-500">Choir Academy</span>
+                                </h2>
+                                <p className="text-slate-400 text-lg font-medium leading-relaxed italic pr-8 mb-8 border-l-2 border-blue-600 pl-6">
+                                    Elevating our worship through professional training, spiritual alignment, and technical mastery.
+                                </p>
+                                <div className="flex flex-wrap gap-4">
+                                    <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
+                                        <Users className="w-4 h-4 text-blue-500" />
+                                        <span className="text-sm font-bold">12+ Professional Courses</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
+                                        <Zap className="w-4 h-4 text-amber-500" />
+                                        <span className="text-sm font-bold">Expert Instructors</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Course Sections */}
+                        {academyCourses.map((section, idx) => (
+                            <div key={idx} className="space-y-8">
+                                <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3 text-blue-600 dark:text-blue-500">
+                                            {section.icon}
+                                            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                                                {section.title}
+                                            </h3>
+                                        </div>
+                                        <p className="text-slate-500 font-medium italic">{section.description}</p>
+                                    </div>
+                                    <Badge variant="outline" className="w-fit text-[10px] font-black tracking-widest uppercase border-blue-100 text-blue-500 bg-blue-50/30 px-4 py-1 rounded-full">
+                                        Professional Track
+                                    </Badge>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {section.courses.map((course, cIdx) => (
+                                        <AcademyCourseCard key={cIdx} course={course} onAccess={handleAccessCourse} />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </TabsContent>
 
                 </Tabs>
+
+                {/* Course Detail Modal */}
+                <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
+                    <DialogContent className="max-w-none w-screen h-screen m-0 p-0 border-none bg-white dark:bg-slate-900 rounded-none shadow-2xl overflow-hidden flex flex-col">
+                        {/* Custom Header for Full Screen Modal */}
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" size="sm" onClick={() => setIsCourseModalOpen(false)} className="rounded-full h-10 w-10 p-0">
+                                    <ArrowLeft className="w-5 h-5" />
+                                </Button>
+                                <div>
+                                    <h3 className="font-black uppercase tracking-tight text-sm text-blue-600">The Power House Choir Academy</h3>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedCourse?.title}</p>
+                                </div>
+                            </div>
+                            <Badge className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-none px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase">
+                                {selectedCourse?.modules?.length || 0} ADVANCED MODULES
+                            </Badge>
+                        </div>
+
+                        <div id="course-modal-content" className="flex-1 overflow-y-auto custom-scrollbar">
+                            {selectedCourse && (
+                                <div className="max-w-6xl mx-auto flex flex-col pb-20">
+                                    {/* Modal Header/Banner */}
+                                    <div className="relative h-64 md:h-[50vh] w-full overflow-hidden mt-6 rounded-[3rem] shadow-2xl">
+                                        <img
+                                            src={selectedCourse.image}
+                                            alt={selectedCourse.title}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent" />
+                                        <div className="absolute bottom-12 left-12 right-12">
+                                            <Badge className="bg-blue-600 text-white border-blue-500 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-2 rounded-full mb-6 shadow-lg shadow-blue-500/20">
+                                                {selectedCourse.category} • {selectedCourse.level}
+                                            </Badge>
+                                            <h2 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
+                                                {selectedCourse.title}
+                                            </h2>
+                                            <div className="flex items-center gap-6 text-slate-200">
+                                                <div className="flex items-center gap-2 text-base font-bold">
+                                                    <Clock className="w-5 h-5 text-blue-400" />
+                                                    {selectedCourse.duration}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-base font-bold border-l border-white/20 pl-6">
+                                                    <Users className="w-5 h-5 text-emerald-400" />
+                                                    1,200+ Students enrolled
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    {/* Modal Body */}
+                                    <div className="p-8 md:p-12 space-y-12">
+                                        {/* Introduction */}
+                                        <section className="space-y-4">
+                                            <div className="flex items-center gap-3 text-blue-600">
+                                                <Zap className="w-6 h-6" />
+                                                <h3 className="text-xl font-black uppercase tracking-tight">Executive Summary</h3>
+                                            </div>
+                                            <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed italic border-l-4 border-blue-600/30 pl-6">
+                                                {selectedCourse.description} This course is designed to transition you from technical competence to spiritual and professional mastery.
+                                            </p>
+                                        </section>
+
+                                        {/* Lecture Notes Section */}
+                                        <section className="space-y-12 bg-slate-50 dark:bg-slate-800/50 p-8 md:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-inner">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3 text-slate-800 dark:text-slate-100">
+                                                    <BookOpen className="w-6 h-6 text-blue-600" />
+                                                    <h4 className="text-2xl font-black uppercase tracking-tight">Professional Curriculum</h4>
+                                                </div>
+                                                <Badge className="bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 text-[10px] font-black tracking-widest px-3 py-1 rounded-full shadow-sm">
+                                                    ACADEMY STANDARD • 2026
+                                                </Badge>
+                                            </div>
+
+                                            <div className="prose prose-slate dark:prose-invert max-w-none space-y-12">
+                                                {selectedCourse.modules?.map((module: any, mIdx: number) => (
+                                                    <div key={mIdx} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
+                                                        <div className="flex items-start gap-4">
+                                                            <span className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-blue-500/20">
+                                                                {String(mIdx + 1).padStart(2, '0')}
+                                                            </span>
+                                                            <div className="space-y-4">
+                                                                <h5 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none pt-2">
+                                                                    {module.title}
+                                                                </h5>
+                                                                <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                                                    {module.content}
+                                                                </p>
+                                                                <div className="flex gap-4 pt-2">
+                                                                    <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                        <Zap className="w-4 h-4 text-blue-600" />
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Technical Insight</span>
+                                                                    </div>
+                                                                    <div className="bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-2">
+                                                                        <Clock className="w-4 h-4 text-emerald-600" />
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">45m Session</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {mIdx < selectedCourse.modules.length - 1 && (
+                                                            <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50" />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+
+                                        {/* Action Footer */}
+                                        <div className="flex flex-col md:flex-row gap-6 pt-8">
+                                            <Button
+                                                onClick={handleNextLesson}
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-10 h-auto rounded-[2rem] shadow-2xl shadow-blue-500/30 font-black text-xl group transition-all duration-300"
+                                            >
+                                                CONTINUE TO NEXT LESSON <PlayCircle className="w-8 h-8 ml-4 group-hover:scale-125 transition-transform duration-500" />
+                                            </Button>
+                                            <Button variant="outline" className="md:w-64 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 py-10 h-auto rounded-[2rem] font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-lg">
+                                                GET PDF NOTES <Download className="w-6 h-6 ml-3" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* SHARED STRATEGIC PLANNER SECTION */}
                 <div className="mt-20 pt-12 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-8 duration-700">
