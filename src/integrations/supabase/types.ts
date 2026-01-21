@@ -355,6 +355,7 @@ export type Database = {
           description: string | null
           event_date: string
           id: string
+          location: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -365,6 +366,7 @@ export type Database = {
           description?: string | null
           event_date: string
           id?: string
+          location?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -375,6 +377,7 @@ export type Database = {
           description?: string | null
           event_date?: string
           id?: string
+          location?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -385,18 +388,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          location: string | null
           name: string
           parent_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          location?: string | null
           name: string
           parent_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          location?: string | null
           name?: string
           parent_id?: string | null
         }
@@ -414,6 +420,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          location: string | null
           title: string
           type: string
           url: string | null
@@ -421,6 +428,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          location?: string | null
           title: string
           type: string
           url?: string | null
@@ -428,6 +436,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          location?: string | null
           title?: string
           type?: string
           url?: string | null
@@ -438,18 +447,21 @@ export type Database = {
         Row: {
           id: string
           info_type: string
+          location: string | null
           updated_at: string
           value: string | null
         }
         Insert: {
           id?: string
           info_type: string
+          location?: string | null
           updated_at?: string
           value?: string | null
         }
         Update: {
           id?: string
           info_type?: string
+          location?: string | null
           updated_at?: string
           value?: string | null
         }
@@ -462,6 +474,7 @@ export type Database = {
           folder_id: string
           id: string
           key: string | null
+          location: string | null
           notes: string | null
           title: string
           url: string | null
@@ -472,6 +485,7 @@ export type Database = {
           folder_id: string
           id?: string
           key?: string | null
+          location?: string | null
           notes?: string | null
           title: string
           url?: string | null
@@ -482,6 +496,7 @@ export type Database = {
           folder_id?: string
           id?: string
           key?: string | null
+          location?: string | null
           notes?: string | null
           title?: string
           url?: string | null
@@ -505,6 +520,7 @@ export type Database = {
           instrumental_url: string | null
           key: string | null
           library_song_id: string | null
+          location: string | null
           set_type: string
           title: string
           url: string | null
@@ -517,6 +533,7 @@ export type Database = {
           instrumental_url?: string | null
           key?: string | null
           library_song_id?: string | null
+          location?: string | null
           set_type: string
           title: string
           url?: string | null
@@ -529,6 +546,7 @@ export type Database = {
           instrumental_url?: string | null
           key?: string | null
           library_song_id?: string | null
+          location?: string | null
           set_type?: string
           title?: string
           url?: string | null
