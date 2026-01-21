@@ -171,14 +171,7 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/groups"
-              element={
-                <ProtectedRoute>
-                  <GroupsPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/groups" element={<GroupsPage />} />
             <Route path="/give" element={<GivePage />} />
             <Route path="/resources" element={<ResourcesPage />} />
             <Route
