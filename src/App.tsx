@@ -148,7 +148,7 @@ const AppRoutes = () => {
         <Layout>
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
-            <Route path="/" element={loading ? <LoadingSpinner /> : (user ? <HomePage /> : <Navigate to="/intro" replace />)} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
             <Route
@@ -180,14 +180,7 @@ const AppRoutes = () => {
               }
             />
             <Route path="/give" element={<GivePage />} />
-            <Route
-              path="/resources"
-              element={
-                <ProtectedRoute>
-                  <ResourcesPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/resources" element={<ResourcesPage />} />
             <Route
               path="/group-chats"
               element={

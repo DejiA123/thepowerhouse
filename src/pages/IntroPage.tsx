@@ -11,7 +11,7 @@ const IntroPage = () => {
 
   const handleGetStarted = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate("/auth");
+    navigate("/");
   };
 
   const handleContainerClick = () => {
