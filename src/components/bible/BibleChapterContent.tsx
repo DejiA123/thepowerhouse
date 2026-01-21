@@ -1029,7 +1029,7 @@ export const BibleChapterContent = ({
         className={cn(
           "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
-            ? "bottom-[calc(env(safe-area-inset-bottom)+11rem)]" // Reduced from 14rem for better PWA positioning
+            ? "bottom-[calc(env(safe-area-inset-bottom)+10rem)]" // Optimized for PWA positioning
             : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))]" // Using variable for responsive PWA/Browser positioning
         )}
       >
