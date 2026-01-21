@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface BiblePreferences {
   preferredTranslation: string;
@@ -37,7 +37,7 @@ const STORAGE_KEY = 'bible-preferences';
 // Migration logic for updating old Bible Brain IDs to API.Bible format
 const migrateTranslationPreference = (stored: BiblePreferences): BiblePreferences => {
   console.log('🔍 Migration check: Current translation =', stored.preferredTranslation);
-  
+
   // Map old Bible Brain IDs to API.Bible IDs
   const migrationMap: Record<string, string> = {
     'EN1ESV': 'de4e12af7f28f599-02', // KJV fallback
@@ -68,7 +68,7 @@ const migrateTranslationPreference = (stored: BiblePreferences): BiblePreference
     'UNKNOWN': 'de4e12af7f28f599-02', // KJV fallback
     'INVALID': 'de4e12af7f28f599-02', // KJV fallback
   };
-  
+
   const newTranslation = migrationMap[stored.preferredTranslation];
   if (newTranslation) {
     console.log(`🔄 Migrating translation '${stored.preferredTranslation}' to API.Bible format: '${newTranslation}'`);
@@ -77,14 +77,14 @@ const migrateTranslationPreference = (stored: BiblePreferences): BiblePreference
       preferredTranslation: newTranslation
     };
   }
-  
+
   return stored;
 };
 
 export const useBiblePreferences = () => {
   const [preferences, setPreferences] = useState<BiblePreferences>(DEFAULT_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
-  
+
   // Generate a unique ID for this hook instance to track multiple instances
   const hookId = Math.random().toString(36).substr(2, 9);
   console.log(`🔍 useBiblePreferences: Hook instance ${hookId} created`);
@@ -99,19 +99,19 @@ export const useBiblePreferences = () => {
         if (stored) {
           let parsed = JSON.parse(stored) as BiblePreferences;
           console.log(`🔍 useBiblePreferences [${hookId}]: Parsed preferences:`, parsed);
-          
+
           // Apply migration
           parsed = migrateTranslationPreference(parsed);
-          
+
           // Merge with defaults to ensure all properties exist
           const merged = { ...DEFAULT_PREFERENCES, ...parsed };
           console.log(`🔍 useBiblePreferences [${hookId}]: Merged preferences:`, merged);
           console.log(`🔍 useBiblePreferences [${hookId}]: Font size in loaded preferences:`, merged.fontSize);
           console.log(`🔍 useBiblePreferences [${hookId}]: Raw stored data:`, stored);
           console.log(`🔍 useBiblePreferences [${hookId}]: About to set preferences with fontSize:`, merged.fontSize);
-          
+
           setPreferences(merged);
-          
+
           // Save back if migration occurred
           if (parsed.preferredTranslation !== JSON.parse(stored).preferredTranslation) {
             try {
@@ -140,6 +140,24 @@ export const useBiblePreferences = () => {
       setIsLoaded(true);
     }
   }, []);
+
+  // Update preferences from localStorage when it changes in other tabs/instances
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue) as BiblePreferences;
+          setPreferences(prev => ({ ...prev, ...parsed }));
+          console.log(`🔄 useBiblePreferences [${hookId}]: Synced from storage event`);
+        } catch (error) {
+          console.warn('⚠️ Could not sync preferences from storage event:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [hookId]);
 
   // Save preferences to localStorage whenever they change
   useEffect(() => {
@@ -177,17 +195,36 @@ export const useBiblePreferences = () => {
     console.log(`🔍 useBiblePreferences [${hookId}]: Preferences state changed:`, preferences);
   }, [preferences, hookId]);
 
-  const setPreferredTranslation = (translation: string) => {
+  const setPreferredTranslation = useCallback((translation: string) => {
     setPreferences(prev => ({ ...prev, preferredTranslation: translation }));
-  };
+  }, []);
 
-  const setPreferredBook = (book: string) => {
-    setPreferences(prev => ({ ...prev, preferredBook: book }));
-  };
+  const setPreferredBook = useCallback((book: string) => {
+    setPreferences(prev => {
+      const next = { ...prev, preferredBook: book };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
 
-  const setPreferredChapter = (chapter: number) => {
-    setPreferences(prev => ({ ...prev, preferredChapter: chapter }));
-  };
+  const setPreferredChapter = useCallback((chapter: number) => {
+    setPreferences(prev => {
+      const next = { ...prev, preferredChapter: chapter };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { }
+      return next;
+    });
+  }, []);
+
+  const setReadingPosition = useCallback((book: string, chapter: number) => {
+    setPreferences(prev => {
+      const next = { ...prev, preferredBook: book, preferredChapter: chapter };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        console.log(`💾 useBiblePreferences: Saved reading position: ${book} ${chapter}`);
+      } catch { }
+      return next;
+    });
+  }, []);
 
   const setAutoPlayNext = (autoPlay: boolean) => {
     setPreferences(prev => ({ ...prev, autoPlayNext: autoPlay }));
@@ -202,10 +239,10 @@ export const useBiblePreferences = () => {
     console.log(`🎯 useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
     console.log(`🎯 useBiblePreferences [${hookId}]: Current fontSize in preferences:`, preferences.fontSize);
     console.log(`🎯 useBiblePreferences [${hookId}]: About to update preferences with fontSize:`, fontSize);
-    
+
     const oldFontSize = preferences.fontSize;
     const newPrefs = { ...preferences, fontSize: fontSize };
-    
+
     // Immediately update localStorage to prevent race conditions
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newPrefs));
@@ -213,7 +250,7 @@ export const useBiblePreferences = () => {
     } catch (error) {
       console.warn('⚠️ Failed to immediately save font size to localStorage:', error);
     }
-    
+
     setPreferences(newPrefs);
     console.log(`🎯 useBiblePreferences [${hookId}]: Font size change - from ${oldFontSize} to ${fontSize}`);
     console.log(`🎯 useBiblePreferences [${hookId}]: New preferences after change:`, newPrefs);
@@ -259,6 +296,7 @@ export const useBiblePreferences = () => {
     setPreferredTranslation,
     setPreferredBook,
     setPreferredChapter,
+    setReadingPosition,
     setAutoPlayNext,
     setLoopChapter,
     setFontSize,

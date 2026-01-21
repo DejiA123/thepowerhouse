@@ -96,6 +96,7 @@ const BibleNotesPage = () => {
 
     const { user } = useAuth();
     const { toast } = useToast();
+    const { preferences } = useBiblePreferences();
     const navigate = useNavigate();
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
@@ -574,7 +575,11 @@ const BibleNotesPage = () => {
                         <div className="flex items-center justify-between">
                             <Button
                                 variant="ghost"
-                                onClick={() => navigate('/bible')}
+                                onClick={() => {
+                                    const book = preferences.preferredBook || 'genesis';
+                                    const chapter = preferences.preferredChapter || 1;
+                                    navigate(`/bible?book=${book}&chapter=${chapter}`);
+                                }}
                                 className="group flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-2xl px-5 py-2.5 font-semibold transition-all duration-300 hover:scale-105 active:scale-95"
                             >
                                 <ArrowLeft className="w-5 h-5 text-indigo-600 transition-transform group-hover:-translate-x-1" />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import type { BibleChapter } from "@/types/bible";
@@ -47,6 +47,7 @@ const BiblePage = () => {
     setPreferredTranslation,
     setPreferredBook,
     setPreferredChapter,
+    setReadingPosition,
     setAutoPlayNext,
   } = useBiblePreferences();
 
@@ -142,12 +143,17 @@ const BiblePage = () => {
   const handleBookSelect = (bookApiName: string) => {
     const normalized = normalizeBookApiName(bookApiName);
     setSelectedBook(normalized);
-    setPreferredBook(normalized);
+    // Explicitly update preferences if we have a chapter
+    if (selectedChapter) {
+      setReadingPosition(normalized, selectedChapter);
+    }
   };
 
   const handleChapterSelect = (chapter: number) => {
     setSelectedChapter(chapter);
-    setPreferredChapter(chapter);
+    if (selectedBook) {
+      setReadingPosition(selectedBook, chapter);
+    }
     setShouldAutoPlay(false); // Don't auto-play on manual chapter select
     loadChapter(selectedBook!, chapter);
     // Add to reading history
@@ -160,7 +166,6 @@ const BiblePage = () => {
     console.log(`🔄 BiblePage: handleChapterChange called with chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
     console.log(`🔄 BiblePage: Current preferences.fontSize before change:`, preferences.fontSize);
     setSelectedChapter(chapter);
-    setPreferredChapter(chapter);
     // Enable auto-play if this is an auto-play transition
     // When a chapter change is triggered by auto-play, ensure the next chapter will also auto-play
     if (isAutoPlay) {
@@ -172,19 +177,19 @@ const BiblePage = () => {
     }
     // Use the current selectedBook for chapter changes
     if (selectedBook) {
+      setReadingPosition(selectedBook, chapter);
       await loadChapter(normalizeBookApiName(selectedBook), chapter);
     } else {
       console.error('❌ BiblePage: No selectedBook available for chapter change');
     }
-  }, [selectedBook, preferences.fontSize, setPreferredChapter, loadChapter]);
+  }, [selectedBook, loadChapter]);
 
   const handleBookChange = useCallback(async (bookApiName: string, chapter: number, isAutoPlay = false) => {
     console.log(`📚 BiblePage: handleBookChange called with book=${bookApiName}, chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
     const normalized = normalizeBookApiName(bookApiName);
     setSelectedBook(normalized);
     setSelectedChapter(chapter);
-    setPreferredBook(bookApiName);
-    setPreferredChapter(chapter);
+    setReadingPosition(normalized, chapter);
     // Enable auto-play if this is an auto-play transition
     if (isAutoPlay) {
       console.log(`✅ BiblePage: Setting shouldAutoPlay to true for auto-play book transition`);
@@ -204,7 +209,7 @@ const BiblePage = () => {
     }
     // Use the new bookApiName parameter for book changes
     await loadChapter(normalized, chapter);
-  }, [setPreferredBook, setPreferredChapter, loadChapter, toast]);
+  }, [loadChapter, toast]);
 
   // Set up GlobalAudioContext callbacks for auto-advancement - moved after function definitions
   useEffect(() => {
@@ -229,55 +234,115 @@ const BiblePage = () => {
   }, [isLoaded, preferences.autoPlayNext]);
 
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Flag to track if we've already done the initial data load for this mount
+  const hasInitialized = useRef(false);
+
+  // Sync selection to URL and Preferences whenever it changes
+  useEffect(() => {
+    if (isLoaded && selectedBook && selectedChapter) {
+      // 1. Sync to URL
+      const currentBookInUrl = searchParams.get('book');
+      const currentChapterInUrl = searchParams.get('chapter');
+
+      if (currentBookInUrl !== selectedBook || currentChapterInUrl !== selectedChapter.toString()) {
+        console.log(`🔗 BiblePage: Syncing URL search params to ${selectedBook} ${selectedChapter}`);
+        setSearchParams({ book: selectedBook, chapter: selectedChapter.toString() }, { replace: true });
+      }
+
+      // 2. Sync to Preferences (Persistence) - Use atomic update
+      // We normalize both for a fair comparison
+      const prefBook = normalizeBookApiName(preferences.preferredBook);
+      const prefChapter = preferences.preferredChapter;
+
+      if (prefBook !== selectedBook || prefChapter !== selectedChapter) {
+        console.log(`💾 BiblePage: Syncing preferences: ${prefBook}:${prefChapter} -> ${selectedBook}:${selectedChapter}`);
+        setReadingPosition(selectedBook, selectedChapter);
+      }
+    }
+  }, [selectedBook, selectedChapter, isLoaded, preferences.preferredBook, preferences.preferredChapter, setSearchParams, searchParams, setReadingPosition]);
 
   // Set selectedBook and selectedChapter from URL query params (highest priority), location state, or preferences
   useEffect(() => {
-    // Priority 1: URL query parameters (e.g., ?book=Psalm&chapter=1)
+    console.log('🔄 BiblePage: Initialization effect running', {
+      isLoaded,
+      hasInitialized: hasInitialized.current,
+      searchParams: Object.fromEntries(searchParams.entries()),
+      locationState: location.state,
+      prefBook: preferences.preferredBook,
+      prefChapter: preferences.preferredChapter
+    });
+
+    // Priority 1: URL query parameters (highest priority, always respect)
     const queryBook = searchParams.get('book');
     const queryChapter = searchParams.get('chapter');
 
     if (queryBook && queryChapter) {
-      console.log(`🎯 Loading from URL query params: ${queryBook} chapter ${queryChapter}`);
       const normalizedBook = normalizeBookApiName(queryBook.toLowerCase().replace(/\s+/g, '-'));
       const chapterNum = parseInt(queryChapter);
+
+      // Only update state if it differs from URL (initial load or browser navigation)
+      // AND we haven't manually changed it yet in this mount (unless browser nav)
+      if (!hasInitialized.current) {
+        console.log(`🎯 Initializing from URL: ${normalizedBook} ${chapterNum}`);
+        setSelectedBook(normalizedBook);
+        setSelectedChapter(chapterNum);
+        setPreferredBook(normalizedBook);
+        setPreferredChapter(chapterNum);
+        loadChapter(normalizedBook, chapterNum);
+        hasInitialized.current = true;
+        return;
+      }
+    }
+
+    // Priority 2: Navigation state (from internal app links)
+    if (location.state && location.state.book && location.state.chapter && !hasInitialized.current) {
+      const normalizedBook = normalizeBookApiName(location.state.book);
+      const chapterNum = location.state.chapter;
+
+      console.log(`🎯 Initializing from navigation state: ${normalizedBook} chapter ${chapterNum}`);
       setSelectedBook(normalizedBook);
       setSelectedChapter(chapterNum);
       setPreferredBook(normalizedBook);
       setPreferredChapter(chapterNum);
       loadChapter(normalizedBook, chapterNum);
+      hasInitialized.current = true;
       return;
     }
 
-    // Priority 2: Navigation state
-    if (location.state && location.state.book && location.state.chapter) {
-      console.log(`🎯 Loading from navigation state: ${location.state.book} chapter ${location.state.chapter}`);
-      const normalizedBook = normalizeBookApiName(location.state.book);
-      setSelectedBook(normalizedBook);
-      setSelectedChapter(location.state.chapter);
-      setPreferredBook(normalizedBook);
-      setPreferredChapter(location.state.chapter);
-      loadChapter(normalizedBook, location.state.chapter);
+    // Priority 3: User preferences (Sync with last saved location)
+    if (isLoaded && preferences.preferredBook && preferences.preferredChapter && !hasInitialized.current) {
+      const prefBook = normalizeBookApiName(preferences.preferredBook);
+      const prefChapter = preferences.preferredChapter;
+
+      console.log(`🎯 Initializing from preferred: ${prefBook} chapter ${prefChapter}`);
+      setSelectedBook(prefBook);
+      setSelectedChapter(prefChapter);
+      loadChapter(prefBook, prefChapter);
+      hasInitialized.current = true;
       return;
     }
 
-    // Priority 3: User preferences (only on initial load when isLoaded becomes true)
-    if (isLoaded && preferences.preferredBook && preferences.preferredChapter) {
-      console.log(`🎯 Loading preferred: ${preferences.preferredBook} chapter ${preferences.preferredChapter}`);
-      setSelectedBook(normalizeBookApiName(preferences.preferredBook));
-      setSelectedChapter(preferences.preferredChapter);
-      loadChapter(normalizeBookApiName(preferences.preferredBook), preferences.preferredChapter);
-      return;
-    }
-
-    // Priority 4: Defaults (only on initial load when isLoaded becomes true)
-    if (isLoaded) {
-      console.log(`🎯 Loading defaults: Genesis chapter 1`);
+    // Priority 4: Defaults (Final fallback)
+    if (isLoaded && !hasInitialized.current && !selectedBook && !selectedChapter) {
+      console.log(`🎯 Initializing from defaults: Genesis chapter 1`);
       setSelectedBook('genesis');
       setSelectedChapter(1);
+      setPreferredBook('genesis');
+      setPreferredChapter(1);
       loadChapter('genesis', 1);
+      hasInitialized.current = true;
     }
-  }, [searchParams, location.state, isLoaded]);
+  }, [
+    isLoaded,
+    loadChapter,
+    setPreferredBook,
+    setPreferredChapter,
+    preferences.preferredBook,
+    preferences.preferredChapter
+    // searchParams and location.state are still excluded to prevent loops, 
+    // but preferences are included to ensure we catch the correct initial values.
+  ]);
 
   // Reload chapter when selected version changes
   useEffect(() => {
@@ -321,11 +386,11 @@ const BiblePage = () => {
   };
 
   const handleSearchNavigate = (book: string, chapter: number, verse?: number) => {
-    setSelectedBook(normalizeBookApiName(book));
+    const normalized = normalizeBookApiName(book);
+    setSelectedBook(normalized);
     setSelectedChapter(chapter);
-    setPreferredBook(normalizeBookApiName(book));
-    setPreferredChapter(chapter);
-    loadChapter(normalizeBookApiName(book), chapter);
+    setReadingPosition(normalized, chapter);
+    loadChapter(normalized, chapter);
     setShowSearch(false);
     // Add to reading history
     addToBibleHistory(book, chapter);
@@ -353,8 +418,7 @@ const BiblePage = () => {
   const handleHistoryNavigate = (book: string, chapter: number) => {
     setSelectedBook(book);
     setSelectedChapter(chapter);
-    setPreferredBook(book);
-    setPreferredChapter(chapter);
+    setReadingPosition(book, chapter);
     loadChapter(book, chapter);
     setShowHistory(false);
     // Add to reading history (move to top)
