@@ -631,7 +631,12 @@ export const BibleChapterContent = ({
 
           <button
             className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
-            onClick={() => navigate('/bible-notes')}
+            onClick={() => navigate('/bible-notes', {
+              state: {
+                returnBook: selectedBook,
+                returnChapter: selectedChapter
+              }
+            })}
           >
             <FileText className="w-5 h-5" />
           </button>

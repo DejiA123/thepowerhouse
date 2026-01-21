@@ -15,7 +15,7 @@ import DOMPurify from 'dompurify';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { bibleBooks } from "@/components/bible/BibleBookList";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import RichTextEditor, { RichTextEditorHandle } from "@/components/bible/RichTextEditor";
 import { bibleNotesService, BibleNoteFolder } from "@/services/bibleNotesService";
@@ -98,6 +98,7 @@ const BibleNotesPage = () => {
     const { toast } = useToast();
     const { preferences } = useBiblePreferences();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
     const [isScrolled, setIsScrolled] = useState(false);
@@ -576,8 +577,10 @@ const BibleNotesPage = () => {
                             <Button
                                 variant="ghost"
                                 onClick={() => {
-                                    const book = preferences.preferredBook || 'genesis';
-                                    const chapter = preferences.preferredChapter || 1;
+                                    // Prioritize navigation state over preferences
+                                    const returnState = location.state as { returnBook?: string; returnChapter?: number } | null;
+                                    const book = returnState?.returnBook || preferences.preferredBook || 'genesis';
+                                    const chapter = returnState?.returnChapter || preferences.preferredChapter || 1;
                                     navigate(`/bible?book=${book}&chapter=${chapter}`);
                                 }}
                                 className="group flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-2xl px-5 py-2.5 font-semibold transition-all duration-300 hover:scale-105 active:scale-95"
