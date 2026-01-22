@@ -163,13 +163,7 @@ const ResourcesPage = () => {
       shadow: "shadow-blue-400/20",
       onClick: () => setShowPrayerRequest(true)
     },
-    {
-      title: "Choir Portal",
-      icon: Music,
-      color: "from-indigo-500 to-purple-600",
-      shadow: "shadow-indigo-500/20",
-      onClick: () => navigate("/groups/choir")
-    },
+
     {
       title: "Events",
       icon: Calendar,

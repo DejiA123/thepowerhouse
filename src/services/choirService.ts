@@ -261,6 +261,36 @@ export const choirService = {
         return data;
     },
 
+    // --- Learning Focus (JSON Storage) ---
+    async getLearningSongs(location: string): Promise<WeeklySetSong[]> {
+        const { data, error } = await supabase
+            .from('choir_setlist_info' as any)
+            .select('value')
+            .eq('info_type', 'learning_songs_json')
+            .eq('location', location)
+            .maybeSingle();
+
+        if (error) {
+            // PGRST116 is "no rows found" from .single(), but maybeSingle handles it returning null data without error
+            // However if we used .single() before and got 406, it means we must use maybeSingle or handle it.
+            console.error("Error fetching learning songs", error);
+            return [];
+        }
+
+        if (!data || !data.value) return [];
+
+        try {
+            return JSON.parse(data.value);
+        } catch (e) {
+            console.error("Failed to parse learning songs JSON", e);
+            return [];
+        }
+    },
+
+    async saveLearningSongs(songs: WeeklySetSong[], location: string) {
+        return this.updateSetlistInfo('learning_songs_json', JSON.stringify(songs), location);
+    },
+
     // Helper to get all info at once for a location
     async getAllSetlistInfo(location: string) {
         const { data, error } = await supabase

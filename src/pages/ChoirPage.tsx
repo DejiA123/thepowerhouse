@@ -36,7 +36,8 @@ import {
     Zap,
     Waves,
     PlusCircle,
-    Clock
+    Clock,
+    Sparkles
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -625,6 +626,7 @@ const ChoirPage = () => {
     const [folders, setFolders] = useState<ChoirFolder[]>([]);
     const [praiseSet, setPraiseSet] = useState<WeeklySetSong[]>([]);
     const [worshipSet, setWorshipSet] = useState<WeeklySetSong[]>([]);
+    const [learningSet, setLearningSet] = useState<WeeklySetSong[]>([]);
 
     // Setlist Descriptions State
     const [praiseInfo, setPraiseInfo] = useState({ title: "Praise Set", desc: "" });
@@ -648,7 +650,7 @@ const ChoirPage = () => {
 
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
-    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | null>(null);
+    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | null>(null);
     const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, library_song_id?: string }>({
         title: "",
         key: "",
@@ -672,13 +674,7 @@ const ChoirPage = () => {
     // UI States for Import Setlist
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [importText, setImportText] = useState("");
-    const [importSetType, setImportSetType] = useState<'praise' | 'worship' | null>(null);
-
-    // Learning Focus States
-    const [learningSongTitle, setLearningSongTitle] = useState("");
-    const [learningSongUrl, setLearningSongUrl] = useState("");
-    const [isEditLearningFocusOpen, setIsEditLearningFocusOpen] = useState(false);
-    const [tempLearningFocus, setTempLearningFocus] = useState({ title: "", url: "" });
+    const [importSetType, setImportSetType] = useState<'praise' | 'worship' | 'learning' | null>(null);
 
     // UI States for Import Folder Songs
     const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
@@ -729,10 +725,11 @@ const ChoirPage = () => {
 
             try {
                 setLoading(true);
-                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
+                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(locationId),
                     choirService.getWeeklySetlist('praise', locationId),
                     choirService.getWeeklySetlist('worship', locationId),
+                    choirService.getLearningSongs(locationId),
                     choirService.getAllSetlistInfo(locationId),
                     choirService.getInstrumentalResources(locationId),
                     choirService.getCalendarEvents(locationId)
@@ -741,6 +738,7 @@ const ChoirPage = () => {
                 setFolders(fetchedFolders as any);
                 setPraiseSet(fetchedPraise as any);
                 setWorshipSet(fetchedWorship as any);
+                setLearningSet(fetchedLearning as any);
                 setInstrResources(fetchedInstr);
                 setCalendarEvents(fetchedEvents);
 
@@ -758,16 +756,36 @@ const ChoirPage = () => {
                         setSetlistDate(currentMonday);
                         setPraiseSet([]);
                         setWorshipSet([]);
-                        setLearningSongTitle("");
-                        setLearningSongUrl("");
+                        setLearningSet([]);
                     } else {
                         setSetlistDate(dbDate);
                     }
                 }
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
-                if (fetchedInfo['learning_song_title']) setLearningSongTitle(fetchedInfo['learning_song_title']);
-                if (fetchedInfo['learning_song_url']) setLearningSongUrl(fetchedInfo['learning_song_url']);
+
+                // MIGRATION CHECK: If old learning song exists but new set is empty, add it to new set
+                if (fetchedInfo['learning_song_title'] && (!fetchedLearning || fetchedLearning.length === 0)) {
+                    console.log("Migrating old learning focus...");
+                    try {
+                        const migratedSong: WeeklySetSong = {
+                            id: crypto.randomUUID(),
+                            set_type: 'praise', // JSON storage
+                            title: fetchedInfo['learning_song_title'],
+                            key: "",
+                            artist: "",
+                            url: fetchedInfo['learning_song_url'] || "",
+                            created_at: new Date().toISOString()
+                        };
+                        const newSet = [migratedSong];
+                        await choirService.saveLearningSongs(newSet, locationId);
+                        setLearningSet(newSet);
+
+                        // Clear old keys to prevent re-migration
+                        await choirService.updateSetlistInfo('learning_song_title', "", locationId);
+                        await choirService.updateSetlistInfo('learning_song_url', "", locationId);
+                    } catch (e) { console.error("Migration failed", e); }
+                }
 
                 // Fetch Weekly Schedule
                 if (fetchedInfo['weekly_schedule']) {
@@ -834,8 +852,7 @@ const ChoirPage = () => {
                         await choirService.updateSetlistInfo('learning_song_url', "", locationId);
                         setPraiseSet([]);
                         setWorshipSet([]);
-                        setLearningSongTitle("");
-                        setLearningSongUrl("");
+                        setLearningSet([]);
                         toast.info("New week started: Focus song and setlists cleared.");
                     })();
                     return currentMonday;
@@ -906,6 +923,29 @@ const ChoirPage = () => {
         } catch (e) {
             console.error(e);
             toast.error("Failed to update description");
+        }
+    };
+
+    const handleClearSetlist = async () => {
+        if (!locationId) return;
+        try {
+            await Promise.all([
+                choirService.clearWeeklySetlist(locationId),
+                choirService.updateSetlistInfo('praise_desc', "", locationId),
+                choirService.updateSetlistInfo('worship_desc', "", locationId),
+                choirService.saveLearningSongs([], locationId) // Clear learning JSON
+            ]);
+
+            setPraiseSet([]);
+            setWorshipSet([]);
+            setLearningSet([]);
+            setPraiseInfo(prev => ({ ...prev, desc: "" }));
+            setWorshipInfo(prev => ({ ...prev, desc: "" }));
+
+            toast.success("New week started - setlists cleared");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to clear setlists");
         }
     };
 
@@ -1040,28 +1080,53 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Setlists --
-    const openAddSetSong = (type: 'praise' | 'worship') => {
+    const openAddSetSong = (type: 'praise' | 'worship' | 'learning') => {
         setActiveSetType(type);
         setNewSetSong({ title: "", key: "", artist: "", url: "" });
         setIsAddToSetOpen(true);
     };
 
     const handleAddSetSong = async () => {
-        if (!newSetSong.title.trim() || !activeSetType) return;
-        try {
-            const addedSong = await choirService.addWeeklySong({
-                set_type: activeSetType,
-                title: newSetSong.title,
-                key: newSetSong.key,
-                artist: newSetSong.artist,
-                url: newSetSong.url,
-                library_song_id: newSetSong.library_song_id
-            }, locationId!);
+        // Validation logic
+        if (activeSetType === 'learning') {
+            if (!newSetSong.url?.trim() && !newSetSong.title?.trim()) {
+                toast.error("Please provide a Title or URL");
+                return;
+            }
+        } else {
+            if (!newSetSong.title.trim() || !activeSetType) return;
+        }
 
-            if (activeSetType === 'praise') {
-                setPraiseSet([...praiseSet, addedSong] as any);
+        try {
+            if (activeSetType === 'learning') {
+                const newSong: WeeklySetSong = {
+                    id: crypto.randomUUID(),
+                    set_type: 'praise', // stored as JSON, type doesn't matter
+                    title: newSetSong.title?.trim() || "",
+                    key: newSetSong.key,
+                    artist: newSetSong.artist,
+                    url: newSetSong.url,
+                    library_song_id: newSetSong.library_song_id,
+                    created_at: new Date().toISOString()
+                };
+                const updatedList = [...learningSet, newSong];
+                await choirService.saveLearningSongs(updatedList, locationId!);
+                setLearningSet(updatedList);
             } else {
-                setWorshipSet([...worshipSet, addedSong] as any);
+                const addedSong = await choirService.addWeeklySong({
+                    set_type: activeSetType,
+                    title: newSetSong.title,
+                    key: newSetSong.key,
+                    artist: newSetSong.artist,
+                    url: newSetSong.url,
+                    library_song_id: newSetSong.library_song_id
+                }, locationId!);
+
+                if (activeSetType === 'praise') {
+                    setPraiseSet([...praiseSet, addedSong] as any);
+                } else if (activeSetType === 'worship') {
+                    setWorshipSet([...worshipSet, addedSong] as any);
+                }
             }
 
             setIsAddToSetOpen(false);
@@ -1072,13 +1137,19 @@ const ChoirPage = () => {
         }
     };
 
-    const removeSetSong = async (type: 'praise' | 'worship', id: string) => {
+    const removeSetSong = async (type: 'praise' | 'worship' | 'learning', id: string) => {
         try {
-            await choirService.deleteWeeklySong(id);
-            if (type === 'praise') {
-                setPraiseSet(praiseSet.filter(s => s.id !== id));
+            if (type === 'learning') {
+                const updatedList = learningSet.filter(s => s.id !== id);
+                await choirService.saveLearningSongs(updatedList, locationId!);
+                setLearningSet(updatedList);
             } else {
-                setWorshipSet(worshipSet.filter(s => s.id !== id));
+                await choirService.deleteWeeklySong(id);
+                if (type === 'praise') {
+                    setPraiseSet(praiseSet.filter(s => s.id !== id));
+                } else if (type === 'worship') {
+                    setWorshipSet(worshipSet.filter(s => s.id !== id));
+                }
             }
             toast.success("Song removed from setlist");
         } catch (e) {
@@ -1088,8 +1159,13 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Edit Setlist Song --
-    const startEditSetSong = (type: 'praise' | 'worship', song: WeeklySetSong) => {
-        setActiveSetType(type);
+    const startEditSetSong = (song: WeeklySetSong) => {
+        // Map deprecated or JSON 'learning' type effectively
+        // The song object from JSON has some set_type but implementation ignores it for JSON.
+        // We need to know which list it came from to update correctly.
+        // The edit dialog doesn't know the type implicitly unless we pass it or infer it.
+        // However, startEditSetSong just sets state.
+        // We will infer modification target by checking which list contains the ID in handleSaveEditSong
         setEditingSetSongId(song.id);
         setEditingSetlistSongData({
             title: song.title,
@@ -1103,26 +1179,43 @@ const ChoirPage = () => {
     };
 
     const handleSaveEditSetSong = async () => {
-        if (!editingSetlistSongData.title.trim() || !activeSetType || !editingSetSongId) return;
+        // Determine if it's in learning set
+        const isLearning = learningSet.find(s => s.id === editingSetSongId);
+
+        if (!editingSetSongId || (!isLearning && !editingSetlistSongData.title.trim())) return;
 
         try {
-            const updatedSong = await choirService.updateWeeklySong(editingSetSongId, {
-                title: editingSetlistSongData.title,
-                key: editingSetlistSongData.key,
-                artist: editingSetlistSongData.artist,
-                url: editingSetlistSongData.url,
-                instrumental_url: editingSetlistSongData.instrumental_url,
-                instrumental_notes: editingSetlistSongData.instrumental_notes
-            });
 
-            const updateList = (list: WeeklySetSong[]) => list.map(s =>
-                s.id === editingSetSongId ? updatedSong : s
-            );
-
-            if (activeSetType === 'praise') {
-                setPraiseSet(updateList(praiseSet) as any);
+            if (isLearning) {
+                const updatedList = learningSet.map(s => {
+                    if (s.id === editingSetSongId) {
+                        return {
+                            ...s,
+                            title: editingSetlistSongData.title,
+                            key: editingSetlistSongData.key,
+                            artist: editingSetlistSongData.artist,
+                            url: editingSetlistSongData.url,
+                            instrumental_url: editingSetlistSongData.instrumental_url,
+                            instrumental_notes: editingSetlistSongData.instrumental_notes
+                        };
+                    }
+                    return s;
+                });
+                await choirService.saveLearningSongs(updatedList, locationId!);
+                setLearningSet(updatedList);
             } else {
-                setWorshipSet(updateList(worshipSet) as any);
+                // Must be Praise or Worship (DB)
+                await choirService.updateWeeklySong(editingSetSongId, {
+                    title: editingSetlistSongData.title,
+                    key: editingSetlistSongData.key,
+                    artist: editingSetlistSongData.artist,
+                    url: editingSetlistSongData.url,
+                    instrumental_url: editingSetlistSongData.instrumental_url,
+                    instrumental_notes: editingSetlistSongData.instrumental_notes
+                });
+
+                setPraiseSet(praiseSet.map(s => s.id === editingSetSongId ? { ...s, ...editingSetlistSongData } : s));
+                setWorshipSet(worshipSet.map(s => s.id === editingSetSongId ? { ...s, ...editingSetlistSongData } : s));
             }
 
             setIsEditSetSongOpen(false);
@@ -1140,43 +1233,72 @@ const ChoirPage = () => {
         const lines = importText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         if (lines.length === 0) return;
 
-        let addedCount = 0;
         let matchedCount = 0;
 
         try {
-            const results = await Promise.all(lines.map(async (line) => {
-                // Try to match with library
-                const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+            if (importSetType === 'learning') {
+                const newSongs: WeeklySetSong[] = lines.map(line => {
+                    const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+                    if (match) matchedCount++;
+                    return match ? {
+                        id: crypto.randomUUID(),
+                        set_type: 'praise', // JSON, type ignored
+                        title: match.title,
+                        key: match.key,
+                        artist: match.artist || "",
+                        url: match.url || "",
+                        library_song_id: match.id,
+                        created_at: new Date().toISOString()
+                    } : {
+                        id: crypto.randomUUID(),
+                        set_type: 'praise',
+                        title: line,
+                        key: "??",
+                        artist: "",
+                        url: "",
+                        created_at: new Date().toISOString()
+                    };
+                });
 
-                const songData = match ? {
-                    set_type: importSetType,
-                    title: match.title,
-                    key: match.key,
-                    artist: match.artist || "",
-                    url: match.url || "",
-                    library_song_id: match.id
-                } : {
-                    set_type: importSetType,
-                    title: line,
-                    key: "??",
-                    artist: "",
-                    url: ""
-                };
+                const updatedList = [...learningSet, ...newSongs];
+                await choirService.saveLearningSongs(updatedList, locationId!);
+                setLearningSet(updatedList);
 
-                if (match) matchedCount++;
-                return choirService.addWeeklySong(songData, locationId!);
-            }));
-
-            const newSongs = results as unknown as WeeklySetSong[];
-            if (importSetType === 'praise') {
-                setPraiseSet(prev => [...prev, ...newSongs]);
+                setIsImportOpen(false);
+                setImportText("");
+                toast.success(`Imported ${newSongs.length} songs to Learning Focus (${matchedCount} matched)`);
             } else {
-                setWorshipSet(prev => [...prev, ...newSongs]);
-            }
+                const results = await Promise.all(lines.map(async (line) => {
+                    const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+                    const songData = match ? {
+                        set_type: importSetType,
+                        title: match.title,
+                        key: match.key,
+                        artist: match.artist || "",
+                        url: match.url || "",
+                        library_song_id: match.id
+                    } : {
+                        set_type: importSetType,
+                        title: line,
+                        key: "??",
+                        artist: "",
+                        url: ""
+                    };
+                    if (match) matchedCount++;
+                    return choirService.addWeeklySong(songData, locationId!);
+                }));
 
-            setIsImportOpen(false);
-            setImportText("");
-            toast.success(`Imported ${newSongs.length} songs (${matchedCount} matched from library)`);
+                const newSongs = results as unknown as WeeklySetSong[];
+                if (importSetType === 'praise') {
+                    setPraiseSet(prev => [...prev, ...newSongs]);
+                } else {
+                    setWorshipSet(prev => [...prev, ...newSongs]);
+                }
+
+                setIsImportOpen(false);
+                setImportText("");
+                toast.success(`Imported ${newSongs.length} songs (${matchedCount} matched from library)`);
+            }
         } catch (e) {
             console.error(e);
             toast.error("Failed to import some songs");
@@ -1292,6 +1414,7 @@ const ChoirPage = () => {
             const sync = (list: any[]) => list.map(s => s.id === songId ? { ...s, ...updates } : s);
             setPraiseSet(prev => sync(prev));
             setWorshipSet(prev => sync(prev));
+            setLearningSet(prev => sync(prev));
             toast.success("Band details updated");
         } catch (e) {
             console.error(e);
@@ -1352,28 +1475,6 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Learning Focus --
-    const openEditLearningFocus = () => {
-        setTempLearningFocus({ title: learningSongTitle, url: learningSongUrl });
-        setIsEditLearningFocusOpen(true);
-    };
-
-    const handleSaveLearningFocus = async () => {
-        if (!locationId) return;
-        try {
-            await Promise.all([
-                choirService.updateSetlistInfo('learning_song_title', tempLearningFocus.title, locationId),
-                choirService.updateSetlistInfo('learning_song_url', tempLearningFocus.url, locationId)
-            ]);
-            setLearningSongTitle(tempLearningFocus.title);
-            setLearningSongUrl(tempLearningFocus.url);
-            setIsEditLearningFocusOpen(false);
-            toast.success("Learning Focus updated");
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to update Learning Focus");
-        }
-    };
-
     // -- Handlers for Weekly Schedule --
     const handleSaveSchedule = async (updatedSchedule: ScheduleItem[]) => {
         if (!locationId) return;
@@ -1948,97 +2049,113 @@ const ChoirPage = () => {
             </Dialog >
 
             {/* Add Setlist Song Dialog */}
-            < Dialog open={isAddToSetOpen} onOpenChange={setIsAddToSetOpen} >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add to {activeSetType === 'praise' ? 'Praise' : 'Worship'} Set</DialogTitle>
+            <Dialog open={isAddToSetOpen} onOpenChange={setIsAddToSetOpen}>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
+                        <DialogTitle className="text-xl font-bold">
+                            {activeSetType === 'learning' ? 'Add Learning Focus Song' : `Add to ${activeSetType === 'praise' ? 'Praise' : 'Worship'} Set`}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Enter the details of the song you want to add to the setlist.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Select from Library (Optional)</Label>
-                            <Select
-                                onValueChange={(val) => {
-                                    console.log('Selected value:', val);
-                                    const song = allLibrarySongs.find(s => s.id === val);
-                                    if (song) {
-                                        setNewSetSong({
-                                            title: song.title,
-                                            key: song.key || "",
-                                            artist: song.artist || "",
-                                            url: song.url || "",
-                                            library_song_id: song.id
-                                        });
-                                    }
-                                }}>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder={allLibrarySongs.length === 0 ? "Library is empty" : "Quick select a song..."} />
-                                </SelectTrigger>
-                                <SelectContent position="popper" sideOffset={5} className="max-h-[300px] z-[9999] max-w-[calc(100vw-2rem)] md:max-w-md">
-                                    {allLibrarySongs.length > 0 ? (
-                                        allLibrarySongs.map(s => (
-                                            <SelectItem key={s.id} value={s.id} className="max-w-full">
-                                                <div className="flex flex-col gap-0.5 w-full overflow-hidden">
-                                                    <span className="truncate font-medium">
-                                                        {s.title} {s.artist && `(${s.artist})`}
-                                                    </span>
-                                                    <span className="truncate text-xs text-slate-500">
-                                                        {s.folderName}
-                                                    </span>
-                                                </div>
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <div className="p-4 text-center text-xs text-slate-400">
-                                            No songs found in library. Add songs to folders in the Vocalist Library section below.
-                                        </div>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
 
-                        <div className="relative py-2">
-                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100 dark:border-slate-800"></span></div>
-                            <div className="relative flex justify-center text-[10px] uppercase font-bold"><span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Or enter manually</span></div>
-                        </div>
+                    <div className="flex-1 overflow-y-auto py-8 px-4 md:px-20 max-w-4xl mx-auto w-full space-y-6">
+                        {activeSetType !== 'learning' && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Select from Library (Optional)</Label>
+                                    <Select
+                                        onValueChange={(val) => {
+                                            console.log('Selected value:', val);
+                                            const song = allLibrarySongs.find(s => s.id === val);
+                                            if (song) {
+                                                setNewSetSong({
+                                                    title: song.title,
+                                                    key: song.key || "",
+                                                    artist: song.artist || "",
+                                                    url: song.url || "",
+                                                    library_song_id: song.id
+                                                });
+                                            }
+                                        }}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder={allLibrarySongs.length === 0 ? "Library is empty" : "Quick select a song..."} />
+                                        </SelectTrigger>
+                                        <SelectContent position="popper" sideOffset={5} className="max-h-[300px] z-[9999] max-w-[calc(100vw-2rem)] md:max-w-md">
+                                            {allLibrarySongs.length > 0 ? (
+                                                allLibrarySongs.map(s => (
+                                                    <SelectItem key={s.id} value={s.id} className="max-w-full">
+                                                        <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                                                            <span className="truncate font-medium">
+                                                                {s.title} {s.artist && `(${s.artist})`}
+                                                            </span>
+                                                            <span className="truncate text-xs text-slate-500">
+                                                                {s.folderName}
+                                                            </span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))
+                                            ) : (
+                                                <div className="p-4 text-center text-xs text-slate-400">
+                                                    No songs found in library. Add songs to folders in the Vocalist Library section below.
+                                                </div>
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="relative py-2">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100 dark:border-slate-800"></span></div>
+                                    <div className="relative flex justify-center text-[10px] uppercase font-bold"><span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Or enter manually</span></div>
+                                </div>
+                            </>
+                        )}
 
                         <div className="space-y-2">
                             <Label>Song Title</Label>
                             <Input
-                                placeholder="e.g. Way Maker"
+                                placeholder={activeSetType === 'learning' ? "e.g. Goodness of God" : "e.g. Way Maker"}
                                 value={newSetSong.title}
                                 onChange={(e) => setNewSetSong({ ...newSetSong, title: e.target.value, library_song_id: undefined })}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Key</Label>
-                                <Input
-                                    placeholder="e.g. G"
-                                    value={newSetSong.key}
-                                    onChange={(e) => setNewSetSong({ ...newSetSong, key: e.target.value })}
-                                />
+
+                        {activeSetType !== 'learning' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Key</Label>
+                                    <Input
+                                        placeholder="e.g. G"
+                                        value={newSetSong.key}
+                                        onChange={(e) => setNewSetSong({ ...newSetSong, key: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Artist</Label>
+                                    <Input
+                                        placeholder="e.g. Sinach"
+                                        value={newSetSong.artist}
+                                        onChange={(e) => setNewSetSong({ ...newSetSong, artist: e.target.value })}
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Artist</Label>
-                                <Input
-                                    placeholder="e.g. Sinach"
-                                    value={newSetSong.artist}
-                                    onChange={(e) => setNewSetSong({ ...newSetSong, artist: e.target.value })}
-                                />
-                            </div>
-                        </div>
+                        )}
                         <div className="space-y-2">
-                            <Label>Video/Audio URL (Optional)</Label>
+                            <Label>Youtube video url {activeSetType === 'learning' ? <span className="text-red-500">*</span> : "(Optional)"}</Label>
                             <Input
                                 placeholder="https://youtube.com/..."
                                 value={newSetSong.url}
                                 onChange={(e) => setNewSetSong({ ...newSetSong, url: e.target.value })}
                             />
                         </div>
+
+                        <div className="pt-4">
+                            <Button onClick={handleAddSetSong} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg font-bold rounded-2xl shadow-lg transition-all">
+                                Add to Set
+                            </Button>
+                        </div>
                     </div>
-                    <DialogFooter>
-                        <Button onClick={handleAddSetSong} className="bg-blue-600 text-white">Add to Set</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog >
 
@@ -2189,58 +2306,10 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog >
 
-            {/* Edit Learning Focus Dialog */}
-            <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-8">
-                    <DialogHeader className="p-8 pt-[calc(2rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
-                        <DialogTitle className="text-3xl font-black flex items-center gap-4 text-slate-900 dark:text-white">
-                            <Music className="w-8 h-8 text-blue-600" />
-                            Update New Song Focus
-                        </DialogTitle>
-                    </DialogHeader>
-
-                    <div className="flex-1 overflow-y-auto py-12 px-6 md:px-20 max-w-4xl mx-auto w-full space-y-10">
-                        <div className="space-y-6">
-                            <div className="space-y-3">
-                                <Label className="text-sm font-black uppercase tracking-widest text-slate-400">Song Title</Label>
-                                <Input
-                                    placeholder="e.g. Goodness of God"
-                                    className="h-16 text-xl px-6 rounded-2xl border-blue-100 dark:border-blue-900/50 focus:ring-blue-500 bg-blue-50/30 dark:bg-blue-900/10 font-bold"
-                                    value={tempLearningFocus.title}
-                                    onChange={(e) => setTempLearningFocus({ ...tempLearningFocus, title: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <Label className="text-sm font-black uppercase tracking-widest text-slate-400">YouTube Video URL</Label>
-                                <Input
-                                    placeholder="https://youtube.com/..."
-                                    className="h-16 text-xl px-6 rounded-2xl border-blue-100 dark:border-blue-900/50 focus:ring-blue-500 bg-blue-50/30 dark:bg-blue-900/10 font-bold"
-                                    value={tempLearningFocus.url}
-                                    onChange={(e) => setTempLearningFocus({ ...tempLearningFocus, url: e.target.value })}
-                                />
-                                <p className="text-xs text-slate-500 font-medium pl-2 italic">Copy and paste the full YouTube URL here.</p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-4 pt-10 pb-20">
-                            <Button
-                                onClick={handleSaveLearningFocus}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 text-xl font-black shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95"
-                            >
-                                Save Learning Focus
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsEditLearningFocusOpen(false)}
-                                className="rounded-2xl py-6 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto px-8"
-                            >
-                                Cancel
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* REMOVED: Edit Learning Focus Dialog */}
+            {/* <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>...</Dialog> */}
+            {/* OLD LEARNING FOCUS DIALOG REMOVED */}
+            {/* </Dialog> */}
 
             {/* Hero Header */}
             < div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0" > {/* Adjusted height/padding for mobile */}
@@ -2291,7 +2360,7 @@ const ChoirPage = () => {
             </div >
 
             {/* Main Content */}
-            < div id="main-content" className="container mx-auto px-4 py-8 -mt-6 relative z-10" >
+            <div id="main-content" className="container mx-auto px-4 py-8 -mt-6 relative z-10">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
                         <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
@@ -2322,67 +2391,102 @@ const ChoirPage = () => {
 
                     <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                        {/* LEARNING FOCUS SECTION */}
+                        {/* LEARNING FOCUS SECTION - REFACTORED FOR MULTIPLE SONGS */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                     <Music className="w-6 h-6 mr-3 text-blue-600" />
-                                    New Song Focus
+                                    New Song{learningSet.length > 1 ? 's' : ''} Focus
                                 </h2>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
-                                    onClick={openEditLearningFocus}
+                                    className="text-blue-600 hover:bg-blue-50 font-bold mr-0"
+                                    onClick={() => openAddSetSong('learning')}
                                 >
-                                    <Edit3 className="w-4 h-4 mr-2" />
-                                    {learningSongTitle ? 'Update Focus' : 'Set Focus'}
+                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                    Add Focus Song
                                 </Button>
                             </div>
 
-                            <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-900 rounded-[2.5rem]">
-                                {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
+                            {/* Grid container for focus songs */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
+                                {learningSet.length > 0 ? (
+                                    learningSet.map((song) => {
+                                        const videoId = extractYoutubeId(song.url);
+                                        return (
+                                            <Card key={song.id} className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 flex flex-col min-h-[400px] transition-all hover:scale-[1.01] group/card">
+                                                <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/card:bg-white/20 transition-all"></div>
 
-                                <CardContent className="relative z-10 p-8 md:p-10">
-                                    <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8">
-                                        <div className="flex-1 text-center lg:text-left space-y-6 flex flex-col justify-center">
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <h3 className="text-3xl md:text-5xl font-black text-white leading-tight">
-                                                        {learningSongTitle || "What are we learning next?"}
-                                                    </h3>
-                                                    <p className="text-blue-100/80 mt-2 text-lg md:text-xl font-medium">
-                                                        Listen, practice, and master this song before practice!
-                                                    </p>
+                                                {/* ACTIONS */}
+                                                <div className="absolute top-6 right-6 z-20 flex gap-2 opacity-0 group-hover/card:opacity-100 transition-all translate-y-2 group-hover/card:translate-y-0">
+                                                    <Button size="icon" variant="secondary" className="h-10 w-10 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-2xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button size="icon" variant="secondary" className="h-10 w-10 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-2xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="w-full lg:w-[450px] shrink-0">
-                                            {learningSongUrl && extractYoutubeId(learningSongUrl) ? (
-                                                <div className="relative aspect-video rounded-[1.5rem] overflow-hidden shadow-2xl ring-4 ring-white/10 group">
-                                                    <iframe
-                                                        src={`https://www.youtube.com/embed/${extractYoutubeId(learningSongUrl)}`}
-                                                        title="New Song Focus Preview"
-                                                        className="absolute inset-0 w-full h-full"
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                        allowFullScreen
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="h-full min-h-[200px] flex items-center justify-center p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center bg-white/5 backdrop-blur-sm">
+                                                <CardContent className="relative z-10 p-6 md:p-8 flex flex-col h-full gap-6">
                                                     <div className="space-y-4">
-                                                        <Music className="w-16 h-16 mx-auto mb-2 opacity-30" />
-                                                        <p className="font-bold text-xl uppercase tracking-wider">No song set yet</p>
+                                                        <div className="inline-flex items-center px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-bold">
+                                                            <Sparkles className="w-4 h-4 mr-2" />
+                                                            What are we learning next?
+                                                        </div>
+                                                        <div>
+                                                            {song.title && (
+                                                                <h3 className="text-2xl md:text-3xl font-black text-white leading-tight line-clamp-2">
+                                                                    {song.title}
+                                                                </h3>
+                                                            )}
+                                                            <p className="text-blue-100/80 mt-2 text-lg font-medium leading-relaxed">
+                                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+
+                                                    <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40 mt-auto">
+                                                        {videoId ? (
+                                                            <iframe
+                                                                src={`https://www.youtube.com/embed/${videoId}`}
+                                                                title={song.title}
+                                                                className="w-full h-full"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            />
+                                                        ) : (
+                                                            <div className="flex h-full items-center justify-center text-white/40">
+                                                                <div className="text-center p-4">
+                                                                    <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                    No Video
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                ) : (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-[1.01] group md:col-span-2 lg:col-span-3">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                        <div className="relative z-10 space-y-6 text-center">
+                                            <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
+                                                <Sparkles className="w-10 h-10 text-white" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
+                                                <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
+                                            </div>
+                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95">
+                                                <PlusCircle className="w-5 h-5 mr-3" />
+                                                Add Your First Focus Song
+                                            </Button>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </Card>
+                                )}
+                            </div>
                         </div>
 
 
@@ -2488,7 +2592,7 @@ const ChoirPage = () => {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => startEditSetSong('praise', song)}>
+                                                            <DropdownMenuItem onClick={() => startEditSetSong(song)}>
                                                                 <Pencil className="w-4 h-4 mr-2" /> Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem className="text-red-600" onClick={() => removeSetSong('praise', song.id)}>
@@ -2567,7 +2671,7 @@ const ChoirPage = () => {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => startEditSetSong('worship', song)}>
+                                                            <DropdownMenuItem onClick={() => startEditSetSong(song)}>
                                                                 <Pencil className="w-4 h-4 mr-2" /> Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem className="text-red-600" onClick={() => removeSetSong('worship', song.id)}>
@@ -2927,57 +3031,79 @@ const ChoirPage = () => {
                     <TabsContent value="instrumentalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
                         {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
+                        {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                     <Music className="w-6 h-6 mr-3 text-blue-600" />
-                                    New Song Focus
+                                    New Song{learningSet.length > 1 ? 's' : ''} Focus
                                 </h2>
                             </div>
 
-                            <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-blue-900 rounded-[2.5rem]">
-                                {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
+                            {/* Grid container for focus songs */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
+                                {learningSet.length > 0 ? (
+                                    learningSet.map((song) => {
+                                        const videoId = extractYoutubeId(song.url);
+                                        return (
+                                            <Card key={song.id} className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-1 flex flex-col min-h-[400px] transition-all hover:scale-[1.01] group/card">
+                                                <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/card:bg-white/20 transition-all"></div>
 
-                                <CardContent className="relative z-10 p-8 md:p-10">
-                                    <div className="flex flex-col lg:flex-row items-stretch justify-between gap-8">
-                                        <div className="flex-1 text-center lg:text-left space-y-6 flex flex-col justify-center">
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <h3 className="text-3xl md:text-5xl font-black text-white leading-tight">
-                                                        {learningSongTitle || "What are we learning next?"}
-                                                    </h3>
-                                                    <p className="text-blue-100/80 mt-2 text-lg md:text-xl font-medium">
-                                                        Master this song before rehearsal! Check the chord charts below.
-                                                    </p>
-                                                </div>
+                                                <CardContent className="relative z-10 p-6 md:p-8 flex flex-col h-full gap-6">
+                                                    <div className="space-y-4">
+                                                        <div className="inline-flex items-center px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-bold">
+                                                            <Sparkles className="w-4 h-4 mr-2" />
+                                                            What are we learning next?
+                                                        </div>
+                                                        <div>
+                                                            {song.title && (
+                                                                <h3 className="text-2xl md:text-3xl font-black text-white leading-tight line-clamp-2">
+                                                                    {song.title}
+                                                                </h3>
+                                                            )}
+                                                            <p className="text-blue-100/80 mt-2 text-lg font-medium leading-relaxed">
+                                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40 mt-auto">
+                                                        {videoId ? (
+                                                            <iframe
+                                                                src={`https://www.youtube.com/embed/${videoId}`}
+                                                                title={song.title}
+                                                                className="w-full h-full"
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                allowFullScreen
+                                                            />
+                                                        ) : (
+                                                            <div className="flex h-full items-center justify-center text-white/40">
+                                                                <div className="text-center p-4">
+                                                                    <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                    No Video
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                ) : (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-[1.01] group md:col-span-2 lg:col-span-3">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                        <div className="relative z-10 space-y-6 text-center">
+                                            <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
+                                                <Sparkles className="w-10 h-10 text-white" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
+                                                <p className="text-blue-100/80 text-lg font-medium">Coming soon! Keep checking back for newest material.</p>
                                             </div>
                                         </div>
-
-                                        <div className="w-full lg:w-[450px] shrink-0">
-                                            {learningSongUrl && extractYoutubeId(learningSongUrl) ? (
-                                                <div className="relative aspect-video rounded-[1.5rem] overflow-hidden shadow-2xl ring-4 ring-white/10 group">
-                                                    <iframe
-                                                        src={`https://www.youtube.com/embed/${extractYoutubeId(learningSongUrl)}`}
-                                                        title="New Song Focus Preview"
-                                                        className="absolute inset-0 w-full h-full"
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                        allowFullScreen
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="h-full min-h-[200px] flex items-center justify-center p-8 border-2 border-dashed border-white/30 rounded-[2rem] text-white/50 text-center bg-white/5 backdrop-blur-sm">
-                                                    <div className="space-y-4">
-                                                        <Music className="w-16 h-16 mx-auto mb-2 opacity-30" />
-                                                        <p className="font-bold text-xl uppercase tracking-wider">No song set yet</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </Card>
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-6">
@@ -3741,7 +3867,7 @@ const ChoirPage = () => {
             </div >
 
             {/* Dialogs for Instrumental Resources */}
-            < Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen} >
+            <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Add Instrumental Resource</DialogTitle>
@@ -3776,6 +3902,8 @@ const ChoirPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
+
+
 
             <Dialog open={isEditInstrOpen} onOpenChange={setIsEditInstrOpen}>
                 <DialogContent className="sm:max-w-[425px]">
