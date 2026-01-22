@@ -231,6 +231,35 @@ const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (cours
 };
 
 const ChoirPage = () => {
+    // Inject Resource Hints for YouTube
+    useEffect(() => {
+        const domains = [
+            'https://www.youtube-nocookie.com',
+            'https://www.youtube.com',
+            'https://www.google.com',
+            'https://googleads.g.doubleclick.net',
+            'https://static.doubleclick.net',
+        ];
+
+        domains.forEach(domain => {
+            // Preconnect
+            const linkPreconnect = document.createElement('link');
+            linkPreconnect.rel = 'preconnect';
+            linkPreconnect.href = domain;
+            document.head.appendChild(linkPreconnect);
+
+            // DNS Prefetch
+            const linkDns = document.createElement('link');
+            linkDns.rel = 'dns-prefetch';
+            linkDns.href = domain;
+            document.head.appendChild(linkDns);
+        });
+
+        return () => {
+            // Optional: Cleanup links if needed, though usually not necessary for performance links
+        };
+    }, []);
+
     const academyCourses = useMemo(() => [
         {
             title: "Vocal Mastery",
@@ -2464,11 +2493,12 @@ const ChoirPage = () => {
                                                         <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
                                                             {videoId ? (
                                                                 <iframe
-                                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                                    src={`https://www.youtube-nocookie.com/embed/${videoId}`}
                                                                     title={song.title}
                                                                     className="w-full h-full"
                                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                     allowFullScreen
+                                                                    loading="lazy"
                                                                 />
                                                             ) : (
                                                                 <div className="flex h-full items-center justify-center text-white/40">
@@ -3094,11 +3124,12 @@ const ChoirPage = () => {
                                                         <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
                                                             {videoId ? (
                                                                 <iframe
-                                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                                    src={`https://www.youtube-nocookie.com/embed/${videoId}`}
                                                                     title={song.title}
                                                                     className="w-full h-full"
                                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                     allowFullScreen
+                                                                    loading="lazy"
                                                                 />
                                                             ) : (
                                                                 <div className="flex h-full items-center justify-center text-white/40">
