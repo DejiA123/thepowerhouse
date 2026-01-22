@@ -466,14 +466,46 @@ const BibleReadingPlans = () => {
                   <div className="min-h-full flex flex-col p-6 animate-in slide-in-from-right-10 duration-300">
                     <div className="flex-1 space-y-6 max-w-lg mx-auto w-full">
                       <div className="w-10 h-1 bg-primary/20 rounded-full mb-4" />
-                      <h3 className="text-2xl font-bold text-foreground">Prepare Your Heart</h3>
-                      <div className="prose dark:prose-invert prose-lg leading-relaxed text-muted-foreground/90">
-                        <p>Before you read today's scripture, take a moment to pause. The Bible is more than just text; it's a living invitation to know God.</p>
-                        <p className="italic border-l-4 border-primary/30 pl-4 py-1 my-6 bg-primary/5 rounded-r-lg">
-                          "Open my eyes that I may see wonderful things in your law." - Psalm 119:18
-                        </p>
-                        <p>As you read, ask yourself: What is this passage teaching me about God's character? How does it apply to my life today?</p>
-                      </div>
+
+                      {(() => {
+                        const currentDay = getCurrentDay(activePlan.id);
+                        const dayData = activePlan.dailyReadings[currentDay - 1];
+
+                        return (
+                          <>
+                            <h3 className="text-2xl font-bold text-foreground">
+                              {dayData?.teachingTitle || "Prepare Your Heart"}
+                            </h3>
+
+                            <div className="prose dark:prose-invert prose-lg leading-relaxed text-muted-foreground/90 space-y-4">
+                              {dayData?.teachingText ? (
+                                dayData.teachingText.split('\n\n').map((paragraph, pIdx) => (
+                                  <p key={pIdx}>{paragraph}</p>
+                                ))
+                              ) : (
+                                <>
+                                  <p>Before you read today's scripture, take a moment to pause. The Bible is more than just text; it's a living invitation to know God.</p>
+                                  <p className="italic border-l-4 border-primary/30 pl-4 py-1 my-6 bg-primary/5 rounded-r-lg">
+                                    "Open my eyes that I may see wonderful things in your law." - Psalm 119:18
+                                  </p>
+                                  <p>As you read, ask yourself: What is this passage teaching me about God's character? How does it apply to my life today?</p>
+                                </>
+                              )}
+
+                              {dayData?.reflectionQuestion && (
+                                <div className="mt-8 p-6 bg-primary/5 rounded-2xl border border-primary/10 space-y-3">
+                                  <h4 className="font-bold text-sm text-primary uppercase tracking-wider flex items-center gap-2">
+                                    <Heart className="w-4 h-4" /> Reflection Question
+                                  </h4>
+                                  <p className="text-foreground font-medium italic">
+                                    "{dayData.reflectionQuestion}"
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="pt-10 pb-4 sticky bottom-0 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent dark:from-black dark:via-black">
                       <Button onClick={() => setReadingStep('scripture')} className="w-full rounded-2xl h-14 text-base font-bold shadow-md">
