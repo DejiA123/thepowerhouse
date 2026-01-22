@@ -2113,7 +2113,7 @@ const ChoirPage = () => {
                         )}
 
                         <div className="space-y-2">
-                            <Label>Song Title</Label>
+                            <Label>Song Title {activeSetType === 'learning' ? '(Optional)' : ''}</Label>
                             <Input
                                 placeholder={activeSetType === 'learning' ? "e.g. Goodness of God" : "e.g. Way Maker"}
                                 value={newSetSong.title}
@@ -2142,7 +2142,7 @@ const ChoirPage = () => {
                             </div>
                         )}
                         <div className="space-y-2">
-                            <Label>Youtube video url {activeSetType === 'learning' ? <span className="text-red-500">*</span> : "(Optional)"}</Label>
+                            <Label>Youtube video URL {activeSetType === 'learning' ? <span className="text-red-500">*</span> : "(Optional)"}</Label>
                             <Input
                                 placeholder="https://youtube.com/..."
                                 value={newSetSong.url}
@@ -2203,52 +2203,60 @@ const ChoirPage = () => {
             </Dialog>
 
             {/* Edit Setlist Song Dialog */}
-            < Dialog open={isEditSetSongOpen} onOpenChange={setIsEditSetSongOpen} >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Song</DialogTitle>
+            <Dialog open={isEditSetSongOpen} onOpenChange={setIsEditSetSongOpen}>
+                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
+                        <DialogTitle className="text-xl font-bold">Edit Song</DialogTitle>
+                        <DialogDescription>
+                            Update the details of the song in the setlist.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="flex-1 overflow-y-auto py-8 px-4 md:px-20 max-w-4xl mx-auto w-full space-y-6">
                         <div className="space-y-2">
-                            <Label>Song Title</Label>
+                            <Label>Song Title {learningSet.some(s => s.id === editingSetSongId) ? '(Optional)' : ''}</Label>
                             <Input
-                                placeholder="e.g. Way Maker"
+                                placeholder={learningSet.some(s => s.id === editingSetSongId) ? "e.g. Goodness of God" : "e.g. Way Maker"}
                                 value={editingSetlistSongData.title}
                                 onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, title: e.target.value })}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Key</Label>
-                                <Input
-                                    placeholder="e.g. G"
-                                    value={editingSetlistSongData.key}
-                                    onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, key: e.target.value })}
-                                />
+                        {!learningSet.some(s => s.id === editingSetSongId) && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Key</Label>
+                                    <Input
+                                        placeholder="e.g. G"
+                                        value={editingSetlistSongData.key}
+                                        onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, key: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Artist</Label>
+                                    <Input
+                                        placeholder="e.g. Sinach"
+                                        value={editingSetlistSongData.artist}
+                                        onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, artist: e.target.value })}
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Artist</Label>
-                                <Input
-                                    placeholder="e.g. Sinach"
-                                    value={editingSetlistSongData.artist}
-                                    onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, artist: e.target.value })}
-                                />
-                            </div>
-                        </div>
+                        )}
                         <div className="space-y-2">
-                            <Label>Video/Audio URL</Label>
+                            <Label>Youtube video URL</Label>
                             <Input
                                 placeholder="https://youtube.com/..."
                                 value={editingSetlistSongData.url}
                                 onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, url: e.target.value })}
                             />
                         </div>
+
+                        <div className="pt-4">
+                            <Button onClick={handleSaveEditSetSong} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg font-bold rounded-2xl shadow-lg transition-all">
+                                Save Changes
+                            </Button>
+                        </div>
                     </div>
-                    <DialogFooter>
-                        <Button onClick={handleSaveEditSetSong} className="bg-blue-600 text-white">Save Changes</Button>
-                    </DialogFooter>
                 </DialogContent>
-            </Dialog >
+            </Dialog>
 
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
@@ -2409,84 +2417,85 @@ const ChoirPage = () => {
                                 </Button>
                             </div>
 
-                            {/* Grid container for focus songs */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
-                                {learningSet.length > 0 ? (
-                                    learningSet.map((song) => {
-                                        const videoId = extractYoutubeId(song.url);
-                                        return (
-                                            <Card key={song.id} className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 flex flex-col min-h-[400px] transition-all hover:scale-[1.01] group/card">
-                                                <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/card:bg-white/20 transition-all"></div>
+                            {/* Consolidated Hero Container for all focus songs (Vocalists) */}
+                            {learningSet.length > 0 ? (
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 transition-all hover:scale-[1.005] group/hero">
+                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20 transition-all"></div>
 
-                                                {/* ACTIONS */}
-                                                <div className="absolute top-6 right-6 z-20 flex gap-2 opacity-0 group-hover/card:opacity-100 transition-all translate-y-2 group-hover/card:translate-y-0">
-                                                    <Button size="icon" variant="secondary" className="h-10 w-10 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-2xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
-                                                        <Edit3 className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button size="icon" variant="secondary" className="h-10 w-10 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-2xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
+                                    <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
+                                        <div className="flex flex-col items-center text-center space-y-4">
+                                            <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                                What are we learning next?
+                                            </h3>
+                                            <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
+                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                            </p>
+                                        </div>
 
-                                                <CardContent className="relative z-10 p-6 md:p-8 flex flex-col h-full gap-6">
-                                                    <div className="space-y-4">
-                                                        <div className="inline-flex items-center px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-bold">
-                                                            <Sparkles className="w-4 h-4 mr-2" />
-                                                            What are we learning next?
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                            {learningSet.map((song) => {
+                                                const videoId = extractYoutubeId(song.url);
+                                                return (
+                                                    <div key={song.id} className="space-y-4 group/song relative">
+                                                        {/* ACTIONS */}
+                                                        <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
                                                         </div>
-                                                        <div>
-                                                            {song.title && (
-                                                                <h3 className="text-2xl md:text-3xl font-black text-white leading-tight line-clamp-2">
-                                                                    {song.title}
-                                                                </h3>
-                                                            )}
-                                                            <p className="text-blue-100/80 mt-2 text-lg font-medium leading-relaxed">
-                                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
-                                                            </p>
-                                                        </div>
-                                                    </div>
 
-                                                    <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40 mt-auto">
-                                                        {videoId ? (
-                                                            <iframe
-                                                                src={`https://www.youtube.com/embed/${videoId}`}
-                                                                title={song.title}
-                                                                className="w-full h-full"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                            />
-                                                        ) : (
-                                                            <div className="flex h-full items-center justify-center text-white/40">
-                                                                <div className="text-center p-4">
-                                                                    <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                                    No Video
+                                                        <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
+                                                            {videoId ? (
+                                                                <iframe
+                                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                                    title={song.title}
+                                                                    className="w-full h-full"
+                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                    allowFullScreen
+                                                                />
+                                                            ) : (
+                                                                <div className="flex h-full items-center justify-center text-white/40">
+                                                                    <div className="text-center p-4">
+                                                                        <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                        No Video
+                                                                    </div>
                                                                 </div>
-                                                            </div>
+                                                            )}
+                                                        </div>
+                                                        {song.title && (
+                                                            <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
+                                                                {song.title}
+                                                            </h3>
                                                         )}
                                                     </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })
-                                ) : (
-                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-[1.01] group md:col-span-2 lg:col-span-3">
-                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                        <div className="relative z-10 space-y-6 text-center">
-                                            <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
-                                                <Sparkles className="w-10 h-10 text-white" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
-                                                <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
-                                            </div>
-                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95">
+                                                );
+                                            })}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
+                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                    <div className="relative z-10 space-y-6 text-center">
+                                        <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
+                                            <Sparkles className="w-10 h-10 text-white" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
+                                            <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
+                                        </div>
+                                        <div className="flex justify-center">
+                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95 w-fit">
                                                 <PlusCircle className="w-5 h-5 mr-3" />
                                                 Add Your First Focus Song
                                             </Button>
                                         </div>
-                                    </Card>
-                                )}
-                            </div>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
 
 
@@ -3040,70 +3049,85 @@ const ChoirPage = () => {
                                 </h2>
                             </div>
 
-                            {/* Grid container for focus songs */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
-                                {learningSet.length > 0 ? (
-                                    learningSet.map((song) => {
-                                        const videoId = extractYoutubeId(song.url);
-                                        return (
-                                            <Card key={song.id} className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-1 flex flex-col min-h-[400px] transition-all hover:scale-[1.01] group/card">
-                                                <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/card:bg-white/20 transition-all"></div>
+                            {/* Consolidated Hero Container for all focus songs (Instrumentalists) */}
+                            {learningSet.length > 0 ? (
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-1 transition-all hover:scale-[1.005] group/hero">
+                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20 transition-all"></div>
 
-                                                <CardContent className="relative z-10 p-6 md:p-8 flex flex-col h-full gap-6">
-                                                    <div className="space-y-4">
-                                                        <div className="inline-flex items-center px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-bold">
-                                                            <Sparkles className="w-4 h-4 mr-2" />
-                                                            What are we learning next?
-                                                        </div>
-                                                        <div>
-                                                            {song.title && (
-                                                                <h3 className="text-2xl md:text-3xl font-black text-white leading-tight line-clamp-2">
-                                                                    {song.title}
-                                                                </h3>
-                                                            )}
-                                                            <p className="text-blue-100/80 mt-2 text-lg font-medium leading-relaxed">
-                                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                                    <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
+                                        <div className="flex flex-col items-center text-center space-y-4">
+                                            <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                                What are we learning next?
+                                            </h3>
+                                            <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
+                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                            </p>
+                                        </div>
 
-                                                    <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40 mt-auto">
-                                                        {videoId ? (
-                                                            <iframe
-                                                                src={`https://www.youtube.com/embed/${videoId}`}
-                                                                title={song.title}
-                                                                className="w-full h-full"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                            />
-                                                        ) : (
-                                                            <div className="flex h-full items-center justify-center text-white/40">
-                                                                <div className="text-center p-4">
-                                                                    <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                                    No Video
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                            {learningSet.map((song) => {
+                                                const videoId = extractYoutubeId(song.url);
+                                                return (
+                                                    <div key={song.id} className="space-y-4 group/song relative">
+                                                        {/* ACTIONS */}
+                                                        <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+
+                                                        <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
+                                                            {videoId ? (
+                                                                <iframe
+                                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                                    title={song.title}
+                                                                    className="w-full h-full"
+                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                    allowFullScreen
+                                                                />
+                                                            ) : (
+                                                                <div className="flex h-full items-center justify-center text-white/40">
+                                                                    <div className="text-center p-4">
+                                                                        <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                        No Video
+                                                                    </div>
                                                                 </div>
-                                                            </div>
+                                                            )}
+                                                        </div>
+                                                        {song.title && (
+                                                            <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
+                                                                {song.title}
+                                                            </h3>
                                                         )}
                                                     </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })
-                                ) : (
-                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-[1.01] group md:col-span-2 lg:col-span-3">
-                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                        <div className="relative z-10 space-y-6 text-center">
-                                            <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
-                                                <Sparkles className="w-10 h-10 text-white" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
-                                                <p className="text-blue-100/80 text-lg font-medium">Coming soon! Keep checking back for newest material.</p>
-                                            </div>
+                                                );
+                                            })}
                                         </div>
-                                    </Card>
-                                )}
-                            </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
+                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                    <div className="relative z-10 space-y-6 text-center">
+                                        <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
+                                            <Sparkles className="w-10 h-10 text-white" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
+                                            <p className="text-blue-100/80 text-lg font-medium">Coming soon! Keep checking back for newest material.</p>
+                                        </div>
+                                        <div className="flex justify-center">
+                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95 w-fit">
+                                                <PlusCircle className="w-5 h-5 mr-3" />
+                                                Add Your First Focus Song
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
 
                         <div className="space-y-6">
