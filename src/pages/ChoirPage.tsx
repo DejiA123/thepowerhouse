@@ -711,6 +711,9 @@ const ChoirPage = () => {
         return null;
     };
 
+
+
+
     // Instrumental Resource Management States
     const [isAddInstrOpen, setIsAddInstrOpen] = useState(false);
     const [isEditInstrOpen, setIsEditInstrOpen] = useState(false);
@@ -2491,9 +2494,7 @@ const ChoirPage = () => {
                                 <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
                                     <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                                     <div className="relative z-10 space-y-6 text-center">
-                                        <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
-                                            <Sparkles className="w-10 h-10 text-white" />
-                                        </div>
+
                                         <div className="space-y-2">
                                             <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
                                             <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
@@ -3068,7 +3069,7 @@ const ChoirPage = () => {
                                     <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
                                         <div className="flex flex-col items-center text-center space-y-4">
                                             <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                                                What are we learning next?
+                                                Band Priority
                                             </h3>
                                             <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
                                                 Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
@@ -3123,18 +3124,10 @@ const ChoirPage = () => {
                                 <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
                                     <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                                     <div className="relative z-10 space-y-6 text-center">
-                                        <div className="mx-auto w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center shadow-2xl ring-1 ring-white/30">
-                                            <Sparkles className="w-10 h-10 text-white" />
-                                        </div>
+
                                         <div className="space-y-2">
-                                            <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
-                                            <p className="text-blue-100/80 text-lg font-medium">Coming soon! Keep checking back for newest material.</p>
-                                        </div>
-                                        <div className="flex justify-center">
-                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95 w-fit">
-                                                <PlusCircle className="w-5 h-5 mr-3" />
-                                                Add Your First Focus Song
-                                            </Button>
+                                            <h3 className="text-3xl font-black text-white">Band Priority</h3>
+                                            <p className="text-blue-100/80 text-lg font-medium">No new song focus yet</p>
                                         </div>
                                     </div>
                                 </Card>
