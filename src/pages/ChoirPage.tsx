@@ -751,8 +751,14 @@ const ChoirPage = () => {
                         console.log("New week detected! Clearing setlists...");
                         await choirService.clearWeeklySetlist(locationId);
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+
+                        // Clear Learning Songs for the new week (Monday)
+                        await choirService.saveLearningSongs([], locationId);
+
+                        // Clear old keys to prevent migration re-triggering
                         await choirService.updateSetlistInfo('learning_song_title', "", locationId);
                         await choirService.updateSetlistInfo('learning_song_url', "", locationId);
+
                         setSetlistDate(currentMonday);
                         setPraiseSet([]);
                         setWorshipSet([]);
@@ -760,6 +766,11 @@ const ChoirPage = () => {
                     } else {
                         setSetlistDate(dbDate);
                     }
+                } else {
+                    // Initialize week start if missing
+                    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+                    await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+                    setSetlistDate(currentMonday);
                 }
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
