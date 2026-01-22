@@ -151,14 +151,36 @@ class ReadingPlanService {
   private generatePsalmsProverbsPlan(): DailyReading[] {
     const readings: DailyReading[] = [];
 
+    const wisdomTeaching = [
+      {
+        title: "The Heart of Worship",
+        text: "The Psalms are the prayer book of the Bible. They give us a language for every emotion—joy, sorrow, fear, and praise. Today, as you read Psalm 1, notice the contrast between the one who delights in the Law and the one who doesn't. Wisdom starts with where we find our delight.",
+        question: "What are you 'delighting' in today? Is it God's word or the noise of the world?"
+      },
+      {
+        title: "The Beginning of Knowledge",
+        text: "Proverbs reminds us that 'the fear of the Lord is the beginning of knowledge.' This isn't a terrifying fear, but a deep, reverent awe for who God is. When we respect God as the ultimate source of truth, our decisions begin to align with His wisdom.",
+        question: "In what decision this week do you need to seek God's 'reverent awe' more than your own logic?"
+      },
+      {
+        title: "God's Steadfast Love",
+        text: "Many Psalms reflect on God's 'hesed'—His loyal, covenant love. Even when we fail, His love remains. Wisdom is found in resting in this security, knowing that we are not defined by our performance but by His faithfulness.",
+        question: "How can you rest in God's steadfast love today instead of worrying about your mistakes?"
+      }
+    ];
+
     for (let day = 1; day <= 31; day++) {
       const psalmChapter = day <= 150 ? day : ((day - 1) % 150) + 1;
       const proverbChapter = day <= 31 ? day : ((day - 1) % 31) + 1;
+      const teaching = wisdomTeaching[day - 1];
 
       readings.push({
         day,
         readings: [`Psalm ${psalmChapter}`, `Proverbs ${proverbChapter}`],
-        description: `Day ${day}: Wisdom from Psalms and Proverbs`
+        description: `Day ${day}: Wisdom from Psalms and Proverbs`,
+        teachingTitle: teaching?.title,
+        teachingText: teaching?.text,
+        reflectionQuestion: teaching?.question
       });
     }
 
@@ -235,10 +257,10 @@ class ReadingPlanService {
 
     // Gospels structure (30 days)
     const gospelsStructure = [
-      { book: "Matthew", days: 8 },
-      { book: "Mark", days: 6 },
-      { book: "Luke", days: 8 },
-      { book: "John", days: 8 }
+      { book: "Matthew", days: 8, teaching: "Discovering the King: Matthew presents Jesus as the promised Messiah-King." },
+      { book: "Mark", days: 6, teaching: "The Suffering Servant: Mark focuses on the actions and service of Jesus." },
+      { book: "Luke", days: 8, teaching: "The Savior for All: Luke emphasizes Jesus' compassion for the marginalized." },
+      { book: "John", days: 8, teaching: "The Son of God: John reveals the divine nature and eternal identity of Jesus." }
     ];
 
     let day = 1;
@@ -255,7 +277,10 @@ class ReadingPlanService {
         readings.push({
           day,
           readings: [`${gospel.book} ${startChapter}-${endChapter}`],
-          description: `Day ${day}: ${gospel.book} reading`
+          description: `Day ${day}: ${gospel.book} reading`,
+          teachingTitle: `${gospel.book}: Chapter ${startChapter}`,
+          teachingText: `As you follow Jesus through the Gospel of ${gospel.book}, pay attention to how He interacts with people. ${gospel.teaching}\n\nToday's reading shows us Jesus starting His ministry and calling His first disciples. He didn't call the equipped; He equipped the called. This same invitation is open to you today.`,
+          reflectionQuestion: "What is Jesus asking you to 'leave behind' to follow Him more closely today?"
         });
         day++;
       }
