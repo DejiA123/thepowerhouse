@@ -31,7 +31,7 @@ const DailyScripture = () => {
   }, []);
 
   const videoId = shortsIds[randomIndex];
-  const playlistUrl = `https://www.youtube.com/embed/${videoId}`;
+  const playlistUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
 
   return (
     <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">
@@ -80,6 +80,8 @@ const DailyScripture = () => {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   referrerPolicy="strict-origin-when-cross-origin"
                   allowFullScreen
+                  loading="lazy"
+                  {...({ fetchpriority: "low" } as any)}
                 ></iframe>
               </div>
             </div>

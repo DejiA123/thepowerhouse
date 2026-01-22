@@ -424,7 +424,7 @@ const BibleReadingPlans = () => {
           {activePlan && (
             <>
               {/* Reading Header */}
-              <div className="h-16 border-b flex items-center justify-between px-4 bg-background z-20 shrink-0">
+              <div className="h-[calc(4rem+env(safe-area-inset-top))] border-b flex items-center justify-between px-4 bg-background z-20 shrink-0 pt-[env(safe-area-inset-top)]">
                 <Button variant="ghost" size="icon" onClick={() => setActiveReadingPlan(null)} className="-ml-2">
                   <X className="w-6 h-6" />
                 </Button>

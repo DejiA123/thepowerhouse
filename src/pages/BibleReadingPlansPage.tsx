@@ -529,10 +529,9 @@ const BibleReadingPlansPage = () => {
         )}
       </div>
 
-      {/* Start Plan Modal */}
       <Dialog open={showStartModal} onOpenChange={setShowStartModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="p-6 pb-0 flex-shrink-0">
+        <DialogContent className="max-w-full h-full sm:h-[90vh] sm:max-w-2xl flex flex-col p-0 border-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0 flex-shrink-0 pt-[calc(1.5rem+env(safe-area-inset-top))]">
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="w-6 h-6" />
               Start Reading Plan
@@ -727,7 +726,7 @@ const BibleReadingPlansPage = () => {
             return (
               <>
                 {/* Header */}
-                <div className="h-16 border-b flex items-center justify-between px-4 bg-background shrink-0">
+                <div className="h-[calc(4rem+env(safe-area-inset-top))] border-b flex items-center justify-between px-4 bg-background shrink-0 pt-[env(safe-area-inset-top)]">
                   <Button variant="ghost" size="icon" onClick={() => setActiveReadingPlan(null)}>
                     <X className="w-5 h-5" />
                   </Button>

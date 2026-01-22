@@ -85,29 +85,7 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
       meetings: "Bi-weekly meetings",
       leader: "Pastor David Richman",
       requirements: "Mature in faith",
-      color: "bg-blue-500"
-    },
-    {
-      id: "media",
-      name: "Media Team",
-      icon: <Camera className="w-5 h-5 text-white" />,
-      description: "Manage audio, video, and live streaming",
-      members: memberCounts["Media Team"] || 6,
-      meetings: "Sundays 8:00 AM",
-      leader: "TPH Social Team",
-      requirements: "Technical skills helpful",
-      color: "bg-orange-500"
-    },
-    {
-      id: "youth",
-      name: "Youth Ministry",
-      icon: <Users className="w-5 h-5 text-white" />,
-      description: "Minister to teenagers and young adults",
-      members: memberCounts["Youth Ministry"] || 25,
-      meetings: "Fridays 7:00 PM",
-      leader: "YP Sodiq Omoyayi",
-      requirements: "Heart for young people",
-      color: "bg-green-500"
+      color: "bg-blue-600"
     },
 
   ];
@@ -128,6 +106,8 @@ const DepartmentsDirectory = ({ onJoinDepartment }: DepartmentsDirectoryProps) =
                 navigate("/groups/ushering");
               } else if (dept.name === "Evangelism") {
                 navigate("/groups/evangelism");
+              } else if (dept.name === "Pastoral Care") {
+                navigate("/groups/pastoral");
               } else {
                 onJoinDepartment(dept.name);
               }

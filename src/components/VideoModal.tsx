@@ -11,12 +11,12 @@ interface VideoModalProps {
 }
 
 const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoModalProps) => {
-  const embedUrl = isLive 
-    ? `https://www.youtube.com/embed/live_stream?channel=${videoId}&autoplay=1&mute=1`
-    : `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+  const embedUrl = isLive
+    ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${videoId}&autoplay=1&mute=1`
+    : `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
 
   const handleExternalOpen = () => {
-    const url = isLive 
+    const url = isLive
       ? `https://www.youtube.com/@thepowerhouseintl/streams`
       : `https://www.youtube.com/watch?v=${videoId}`;
     window.open(url, '_blank');
@@ -55,6 +55,7 @@ const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoMo
             title={title}
             className="w-full h-full border-0"
             allowFullScreen
+            loading="lazy"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           />
         </div>

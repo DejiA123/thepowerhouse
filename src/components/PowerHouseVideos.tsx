@@ -154,14 +154,16 @@ const PowerHouseVideos = () => {
                       <iframe
                         className="w-full h-full"
                         src={activeVideo.id === "live_stream"
-                          ? `https://www.youtube.com/embed/live_stream?channel=${channelId}&autoplay=0`
-                          : `https://www.youtube.com/embed/${activeVideo.id}?autoplay=0`
+                          ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=0`
+                          : `https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=0`
                         }
                         title={activeVideo.title}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen
+                        loading="lazy"
+                        {...({ fetchpriority: "low" } as any)}
                       ></iframe>
                     )}
                   </div>

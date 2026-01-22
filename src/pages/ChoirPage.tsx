@@ -37,7 +37,8 @@ import {
     Waves,
     PlusCircle,
     Clock,
-    Sparkles
+    Sparkles,
+    GripVertical
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -49,6 +50,23 @@ import {
 import { choirService, ChoirFolder, WeeklySetSong, ChoirCalendarEvent } from "@/services/choirService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // --- Sub-components ---
 const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
@@ -147,6 +165,89 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
     );
 };
 
+const SortableSetSongCard = ({
+    song,
+    index,
+    onPlay,
+    onEdit,
+    onRemove
+}: {
+    song: WeeklySetSong,
+    index: number,
+    onPlay: (url: string) => void,
+    onEdit: (song: WeeklySetSong) => void,
+    onRemove: (id: string) => void
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: song.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group touch-none"
+        >
+            <div className="flex items-center gap-3">
+                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-500 transition-colors">
+                    <GripVertical className="w-4 h-4" />
+                </div>
+                <span className="text-blue-500 font-bold w-4 text-center">{index + 1}</span>
+                <div>
+                    <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        {song.title}
+                        {song.url && (
+                            <Badge
+                                variant="secondary"
+                                className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onPlay(song.url!);
+                                }}
+                            >
+                                <PlayCircle className="w-2.5 h-2.5" /> Play
+                            </Badge>
+                        )}
+                    </p>
+                    <p className="text-xs text-slate-500">{song.artist}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    {song.key}
+                </Badge>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreVertical className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => onEdit(song)}>
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => onRemove(song.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" /> Remove
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        </div>
+    );
+};
+
 interface ScheduleItem {
     id: string;
     day: string;
@@ -239,6 +340,11 @@ const ChoirPage = () => {
             'https://www.google.com',
             'https://googleads.g.doubleclick.net',
             'https://static.doubleclick.net',
+            'https://s.ytimg.com',
+            'https://i.ytimg.com',
+            'https://i9.ytimg.com',
+            'https://fonts.googleapis.com',
+            'https://fonts.gstatic.com',
         ];
 
         domains.forEach(domain => {
@@ -750,6 +856,44 @@ const ChoirPage = () => {
     const [newInstr, setNewInstr] = useState({ title: "", type: "Tutorial", url: "" });
     const [instrToEdit, setInstrToEdit] = useState({ title: "", type: "Tutorial", url: "" });
 
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handlePraiseDragEnd = (event: DragEndEvent) => handleDragEnd(event, 'praise');
+    const handleWorshipDragEnd = (event: DragEndEvent) => handleDragEnd(event, 'worship');
+
+    const handleDragEnd = async (event: DragEndEvent, type: 'praise' | 'worship') => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const set = type === 'praise' ? praiseSet : worshipSet;
+            const setSetter = type === 'praise' ? setPraiseSet : setWorshipSet;
+
+            const oldIndex = set.findIndex((song) => song.id === active.id);
+            const newIndex = set.findIndex((song) => song.id === over.id);
+
+            const newSet = arrayMove(set, oldIndex, newIndex);
+            setSetter(newSet as any);
+
+            try {
+                // Update sort_order in DB
+                const reorderData = newSet.map((song, index) => ({
+                    id: song.id,
+                    sort_order: index
+                }));
+                await choirService.reorderWeeklySet(reorderData);
+                toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} order updated`);
+            } catch (e) {
+                console.error(e);
+                toast.error("Failed to save new order");
+            }
+        }
+    };
+
     // Initial Data Fetch
     useEffect(() => {
         const fetchData = async () => {
@@ -1162,7 +1306,8 @@ const ChoirPage = () => {
                     key: newSetSong.key,
                     artist: newSetSong.artist,
                     url: newSetSong.url,
-                    library_song_id: newSetSong.library_song_id
+                    library_song_id: newSetSong.library_song_id,
+                    sort_order: activeSetType === 'praise' ? praiseSet.length : worshipSet.length
                 }, locationId!);
 
                 if (activeSetType === 'praise') {
@@ -2499,6 +2644,7 @@ const ChoirPage = () => {
                                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                     allowFullScreen
                                                                     loading="lazy"
+                                                                    {...({ fetchpriority: "low" } as any)}
                                                                 />
                                                             ) : (
                                                                 <div className="flex h-full items-center justify-center text-white/40">
@@ -2609,51 +2755,27 @@ const ChoirPage = () => {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-3 pt-4">
-                                        {praiseSet.map((song, i) => (
-                                            <div key={song.id} className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-blue-500 font-bold w-4">{i + 1}</span>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                                            {song.title}
-                                                            {song.url && (
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        playVideo(song.url!);
-                                                                    }}
-                                                                >
-                                                                    <PlayCircle className="w-2.5 h-2.5" /> Play
-                                                                </Badge>
-                                                            )}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500">{song.artist}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                                        {song.key}
-                                                    </Badge>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <MoreVertical className="w-4 h-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => startEditSetSong(song)}>
-                                                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600" onClick={() => removeSetSong('praise', song.id)}>
-                                                                <Trash2 className="w-4 h-4 mr-2" /> Remove
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </div>
-                                        ))}
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handlePraiseDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={praiseSet.map(s => s.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {praiseSet.map((song, i) => (
+                                                    <SortableSetSongCard
+                                                        key={song.id}
+                                                        song={song}
+                                                        index={i}
+                                                        onPlay={playVideo}
+                                                        onEdit={startEditSetSong}
+                                                        onRemove={(id) => removeSetSong('praise', id)}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </DndContext>
                                         {praiseSet.length === 0 && (
                                             <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
                                         )}
@@ -2688,51 +2810,27 @@ const ChoirPage = () => {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-3 pt-4">
-                                        {worshipSet.map((song, i) => (
-                                            <div key={song.id} className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-blue-500 font-bold w-4">{i + 1}</span>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                                            {song.title}
-                                                            {song.url && (
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        playVideo(song.url!);
-                                                                    }}
-                                                                >
-                                                                    <PlayCircle className="w-2.5 h-2.5" /> Play
-                                                                </Badge>
-                                                            )}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500">{song.artist}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                                        {song.key}
-                                                    </Badge>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <MoreVertical className="w-4 h-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => startEditSetSong(song)}>
-                                                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600" onClick={() => removeSetSong('worship', song.id)}>
-                                                                <Trash2 className="w-4 h-4 mr-2" /> Remove
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                            </div>
-                                        ))}
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleWorshipDragEnd}
+                                        >
+                                            <SortableContext
+                                                items={worshipSet.map(s => s.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {worshipSet.map((song, i) => (
+                                                    <SortableSetSongCard
+                                                        key={song.id}
+                                                        song={song}
+                                                        index={i}
+                                                        onPlay={playVideo}
+                                                        onEdit={startEditSetSong}
+                                                        onRemove={(id) => removeSetSong('worship', id)}
+                                                    />
+                                                ))}
+                                            </SortableContext>
+                                        </DndContext>
                                         {worshipSet.length === 0 && (
                                             <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
                                         )}
@@ -3130,6 +3228,7 @@ const ChoirPage = () => {
                                                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                                                     allowFullScreen
                                                                     loading="lazy"
+                                                                    {...({ fetchpriority: "low" } as any)}
                                                                 />
                                                             ) : (
                                                                 <div className="flex h-full items-center justify-center text-white/40">

@@ -30,6 +30,7 @@ export interface WeeklySetSong {
     instrumental_url?: string;
     instrumental_notes?: string;
     library_song_id?: string;
+    sort_order: number;
     created_at?: string;
 }
 
@@ -195,7 +196,7 @@ export const choirService = {
             .select('*')
             .eq('set_type', type)
             .eq('location', location)
-            .order('created_at', { ascending: true });
+            .order('sort_order', { ascending: true });
         if (error) throw error;
         return data;
     },
@@ -226,6 +227,21 @@ export const choirService = {
             .from('choir_weekly_set_songs' as any)
             .delete()
             .eq('id', id);
+        if (error) throw error;
+    },
+
+    async reorderWeeklySet(songs: { id: string, sort_order: number }[]) {
+        // Since Supabase doesn't have a built-in multiple update for different rows
+        // we use a series of updates. For better performance/atomicity, an RPC could be used.
+        const updates = songs.map(song =>
+            supabase
+                .from('choir_weekly_set_songs' as any)
+                .update({ sort_order: song.sort_order })
+                .eq('id', song.id)
+        );
+
+        const results = await Promise.all(updates);
+        const error = results.find(r => r.error)?.error;
         if (error) throw error;
     },
 
