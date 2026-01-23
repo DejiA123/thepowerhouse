@@ -225,9 +225,11 @@ const SortableSetSongCard = ({
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                    {song.key}
-                </Badge>
+                {song.key && song.key.trim() && song.key !== '??' && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                        {song.key}
+                    </Badge>
+                )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
