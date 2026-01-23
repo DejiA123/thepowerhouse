@@ -522,6 +522,7 @@ export type Database = {
           library_song_id: string | null
           location: string | null
           set_type: string
+          sort_order: number | null
           title: string
           url: string | null
         }
@@ -535,6 +536,7 @@ export type Database = {
           library_song_id?: string | null
           location?: string | null
           set_type: string
+          sort_order?: number | null
           title: string
           url?: string | null
         }
@@ -548,6 +550,7 @@ export type Database = {
           library_song_id?: string | null
           location?: string | null
           set_type?: string
+          sort_order?: number | null
           title?: string
           url?: string | null
         }

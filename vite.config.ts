@@ -16,8 +16,9 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB - increased for large assets
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,mp4}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'], // Exclude mp4 from precache
+        globIgnores: ['**/*.mp4'], // Explicitly ignore large video files
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

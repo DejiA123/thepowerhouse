@@ -962,6 +962,7 @@ const ChoirPage = () => {
                             key: "",
                             artist: "",
                             url: fetchedInfo['learning_song_url'] || "",
+                            sort_order: 0,
                             created_at: new Date().toISOString()
                         };
                         const newSet = [migratedSong];
@@ -1294,6 +1295,7 @@ const ChoirPage = () => {
                     artist: newSetSong.artist,
                     url: newSetSong.url,
                     library_song_id: newSetSong.library_song_id,
+                    sort_order: learningSet.length,
                     created_at: new Date().toISOString()
                 };
                 const updatedList = [...learningSet, newSong];
@@ -1425,25 +1427,27 @@ const ChoirPage = () => {
 
         try {
             if (importSetType === 'learning') {
-                const newSongs: WeeklySetSong[] = lines.map(line => {
+                const newSongs: WeeklySetSong[] = lines.map((line, index) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
                     if (match) matchedCount++;
                     return match ? {
                         id: crypto.randomUUID(),
-                        set_type: 'praise', // JSON, type ignored
+                        set_type: 'praise' as const, // JSON, type ignored
                         title: match.title,
                         key: match.key,
                         artist: match.artist || "",
                         url: match.url || "",
                         library_song_id: match.id,
+                        sort_order: learningSet.length + index,
                         created_at: new Date().toISOString()
                     } : {
                         id: crypto.randomUUID(),
-                        set_type: 'praise',
+                        set_type: 'praise' as const,
                         title: line,
                         key: "??",
                         artist: "",
                         url: "",
+                        sort_order: learningSet.length + index,
                         created_at: new Date().toISOString()
                     };
                 });
@@ -1456,21 +1460,24 @@ const ChoirPage = () => {
                 setImportText("");
                 toast.success(`Imported ${newSongs.length} songs to Learning Focus (${matchedCount} matched)`);
             } else {
-                const results = await Promise.all(lines.map(async (line) => {
+                const results = await Promise.all(lines.map(async (line, idx) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+                    const currentSetLength = importSetType === 'praise' ? praiseSet.length : worshipSet.length;
                     const songData = match ? {
-                        set_type: importSetType,
+                        set_type: importSetType as 'praise' | 'worship',
                         title: match.title,
                         key: match.key,
                         artist: match.artist || "",
                         url: match.url || "",
-                        library_song_id: match.id
+                        library_song_id: match.id,
+                        sort_order: currentSetLength + idx
                     } : {
-                        set_type: importSetType,
+                        set_type: importSetType as 'praise' | 'worship',
                         title: line,
                         key: "??",
                         artist: "",
-                        url: ""
+                        url: "",
+                        sort_order: currentSetLength + idx
                     };
                     if (match) matchedCount++;
                     return choirService.addWeeklySong(songData, locationId!);
