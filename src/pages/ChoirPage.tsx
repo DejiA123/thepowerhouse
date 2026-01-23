@@ -2563,7 +2563,7 @@ const ChoirPage = () => {
             </div >
 
             {/* Main Content */}
-            <div id="main-content" className="container mx-auto px-4 py-8 -mt-6 relative z-10">
+            <div id="main-content" className="container mx-auto px-2 sm:px-4 py-8 -mt-6 relative z-10">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
                         <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
