@@ -287,16 +287,15 @@ export const choirService = {
             .maybeSingle();
 
         if (error) {
-            // PGRST116 is "no rows found" from .single(), but maybeSingle handles it returning null data without error
-            // However if we used .single() before and got 406, it means we must use maybeSingle or handle it.
             console.error("Error fetching learning songs", error);
             return [];
         }
 
-        if (!data || !data.value) return [];
+        const record = data as unknown as { value: string } | null;
+        if (!record || !record.value) return [];
 
         try {
-            return JSON.parse(data.value);
+            return JSON.parse(record.value);
         } catch (e) {
             console.error("Failed to parse learning songs JSON", e);
             return [];
