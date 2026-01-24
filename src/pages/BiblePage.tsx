@@ -673,7 +673,7 @@ const BiblePage = () => {
 
   // Book selection or other layouts
   return (
-    <div className="h-screen bg-background overscroll-contain pt-[env(safe-area-inset-top,0px)]">
+    <div className="h-[100dvh] bg-background overscroll-contain pt-[env(safe-area-inset-top,0px)] overflow-y-auto">
       {renderContent()}
 
       {/* Bible History Dialog */}

@@ -10,6 +10,7 @@ import { FileText, Trash2, Edit3, Plus, Star, Eye, EyeOff, X } from "lucide-reac
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { formatBookDisplayName } from "./bookUtils";
 
 interface BibleNote {
   id: string;
@@ -271,11 +272,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   };
 
   const getLocationText = () => {
-    // Replace hyphens/underscores and handle title casing (e.g., 1-john -> 1 John)
-    const formattedBook = book.replace(/[-_]/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    const formattedBook = formatBookDisplayName(book);
 
     if (verse) {
       return `${formattedBook} ${chapter}:${verse}`;
@@ -286,9 +283,9 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="fixed w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
-        <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-4">
-          <DialogTitle className="flex items-center justify-center gap-2 text-center w-full">
-            <FileText className="w-5 h-5 text-blue-600" />
+        <DialogHeader className="p-4 border-none sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-4">
+          <DialogTitle className="flex items-center justify-center gap-2 text-center w-full text-sm font-semibold">
+            <FileText className="w-4 h-4 text-blue-600" />
             My Notes - {getLocationText()}
           </DialogTitle>
           <DialogDescription className="text-center">
@@ -296,9 +293,9 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 ios-scrolling-fix pb-safe">
           {/* Add New Note */}
-          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+          <div className="space-y-4 p-5 border border-slate-100 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50 shadow-sm">
             <h3 className="text-lg font-semibold">Add New Note</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -438,169 +435,172 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
             </Button>
           </div>
 
-          {/* Existing Notes */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Your Notes ({notes.length})</h3>
-            <ScrollArea className="h-[400px] border rounded-lg p-4">
-              {notes.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No notes yet for this passage</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {notes.map((note) => (
-                    <div key={note.id} className="border rounded-lg p-4 space-y-3 bg-background">
-                      {editingNote?.id === note.id ? (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-sm font-medium">Title</label>
-                              <Input
-                                value={editingNote.title || ''}
-                                onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
-                                placeholder="Note title..."
-                                className="text-center font-semibold ios-input-fix"
-                              />
-                            </div>
+          {/* Existing Notes Section */}
+          <div className="space-y-4 pt-4">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 px-1">
+              <FileText className="w-5 h-5 text-indigo-500" />
+              Your Notes ({notes.length})
+            </h3>
 
-                            <div>
-                              <label className="text-sm font-medium">Category</label>
-                              <Select
-                                value={editingNote.category || 'none'}
-                                onValueChange={(value) => setEditingNote(prev => prev ? { ...prev, category: value } : null)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">No Category</SelectItem>
-                                  {NOTE_CATEGORIES.map(category => (
-                                    <SelectItem key={category.id} value={category.id}>
-                                      {category.icon} {category.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
+            {notes.length === 0 ? (
+              <div className="text-center text-muted-foreground py-16 bg-white dark:bg-slate-900 rounded-[2.5rem] border-2 border-dashed border-slate-100 dark:border-slate-800">
+                <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                <p className="text-lg font-medium">No notes yet for this passage</p>
+                <p className="text-sm opacity-60">Your spiritual reflections will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {notes.map((note) => (
+                  <div key={note.id} className="border border-slate-100 dark:border-slate-800 rounded-[2rem] p-6 space-y-4 bg-white dark:bg-slate-900 shadow-sm md:hover:shadow-md transition-shadow">
+                    {editingNote?.id === note.id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <label className="text-sm font-medium">Note Content</label>
-                            <Textarea
-                              value={editingNote.note_text}
-                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, note_text: e.target.value } : null)}
-                              className="min-h-[80px] select-text cursor-text ios-input-fix"
+                            <label className="text-sm font-medium">Title</label>
+                            <Input
+                              value={editingNote.title || ''}
+                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
+                              placeholder="Note title..."
+                              className="text-center font-semibold ios-input-fix"
                             />
                           </div>
 
-                          <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={editingNote.is_favorite || false}
-                                onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_favorite: e.target.checked } : null)}
-                                className="rounded"
-                              />
-                              <span className="text-sm">Mark as favorite</span>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={editingNote.is_private || false}
-                                onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_private: e.target.checked } : null)}
-                                className="rounded"
-                              />
-                              <span className="text-sm">Private note</span>
-                            </label>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={updateNote}
-                              disabled={loading}
-                              size="sm"
+                          <div>
+                            <label className="text-sm font-medium">Category</label>
+                            <Select
+                              value={editingNote.category || 'none'}
+                              onValueChange={(value) => setEditingNote(prev => prev ? { ...prev, category: value } : null)}
                             >
-                              Save
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No Category</SelectItem>
+                                {NOTE_CATEGORIES.map(category => (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    {category.icon} {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium">Note Content</label>
+                          <Textarea
+                            value={editingNote.note_text}
+                            onChange={(e) => setEditingNote(prev => prev ? { ...prev, note_text: e.target.value } : null)}
+                            className="min-h-[80px] select-text cursor-text ios-input-fix"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingNote.is_favorite || false}
+                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_favorite: e.target.checked } : null)}
+                              className="rounded"
+                            />
+                            <span className="text-sm">Mark as favorite</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingNote.is_private || false}
+                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_private: e.target.checked } : null)}
+                              className="rounded"
+                            />
+                            <span className="text-sm">Private note</span>
+                          </label>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={updateNote}
+                            disabled={loading}
+                            size="sm"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setEditingNote(null)}
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1">
+                            {note.title && (
+                              <h4 className="font-medium text-foreground mb-1 text-center w-full select-text">{note.title}</h4>
+                            )}
+                            <p className="text-sm leading-relaxed text-muted-foreground select-text">{note.note_text}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleFavorite(note)}
+                              className={`h-8 w-8 p-0 ${note.is_favorite ? 'text-yellow-500' : 'text-muted-foreground'}`}
+                            >
+                              <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
                             </Button>
                             <Button
-                              variant="outline"
-                              onClick={() => setEditingNote(null)}
+                              variant="ghost"
                               size="sm"
+                              onClick={() => setEditingNote(note)}
+                              className="h-8 w-8 p-0"
                             >
-                              Cancel
+                              <Edit3 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteNote(note.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex justify-between items-start gap-3">
-                            <div className="flex-1">
-                              {note.title && (
-                                <h4 className="font-medium text-foreground mb-1 text-center w-full select-text">{note.title}</h4>
-                              )}
-                              <p className="text-sm leading-relaxed text-muted-foreground select-text">{note.note_text}</p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleFavorite(note)}
-                                className={`h-8 w-8 p-0 ${note.is_favorite ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                              >
-                                <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingNote(note)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNote(note.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            {note.category && (
-                              <Badge variant="secondary" className={getCategoryInfo(note.category).color}>
-                                {getCategoryInfo(note.category).icon} {getCategoryInfo(note.category).name}
+                        <div className="flex flex-wrap gap-2">
+                          {note.category && (
+                            <Badge variant="secondary" className={getCategoryInfo(note.category).color}>
+                              {getCategoryInfo(note.category).icon} {getCategoryInfo(note.category).name}
+                            </Badge>
+                          )}
+                          {note.tags && note.tags.map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t">
+                          <div className="flex items-center gap-2">
+                            {note.verse && (
+                              <Badge variant="secondary" className="text-xs">
+                                Verse {note.verse}
                               </Badge>
                             )}
-                            {note.tags && note.tags.map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
+                            {note.is_private && <EyeOff className="w-3 h-3" />}
                           </div>
-
-                          <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t">
-                            <div className="flex items-center gap-2">
-                              {note.verse && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Verse {note.verse}
-                                </Badge>
-                              )}
-                              {note.is_private && <EyeOff className="w-3 h-3" />}
-                            </div>
-                            <span>{formatDate(note.created_at)}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+                          <span>{formatDate(note.created_at)}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

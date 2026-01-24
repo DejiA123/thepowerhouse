@@ -23,7 +23,7 @@ export const getAllBooksFlat = (): FlatBook[] => {
 // Build a lookup map from various normalized keys to the canonical apiName
 const buildLookup = () => {
   const map = new Map<string, string>();
-  
+
   // Add common API abbreviations mapping
   const apiAbbreviations: Record<string, string> = {
     '1sa': '1-samuel', '2sa': '2-samuel', '1ki': '1-kings', '2ki': '2-kings',
@@ -32,12 +32,12 @@ const buildLookup = () => {
     '1pe': '1-peter', '2pe': '2-peter', '1jn': '1-john', '2jn': '2-john', '3jn': '3-john',
     'song': 'song-of-solomon', 'sos': 'song-of-solomon', 'eccl': 'ecclesiastes'
   };
-  
+
   // Add API abbreviations to the map
   for (const [abbrev, apiName] of Object.entries(apiAbbreviations)) {
     map.set(abbrev, apiName);
   }
-  
+
   for (const b of getAllBooksFlat()) {
     const api = b.apiName;
     const n1 = normalizeKey(api);
@@ -56,4 +56,21 @@ export const normalizeBookApiName = (input: string): string => {
   return BOOK_LOOKUP.get(key) || input.toLowerCase();
 };
 
+export const formatBookDisplayName = (input: string): string => {
+  if (!input) return input;
 
+  // Try to find the official name from the flat list first
+  const flattened = getAllBooksFlat();
+  const found = flattened.find(b =>
+    normalizeKey(b.apiName) === normalizeKey(input) ||
+    normalizeKey(b.name) === normalizeKey(input)
+  );
+
+  if (found) return found.name;
+
+  // Fallback: title case the input
+  return input.replace(/[-_]/g, " ")
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
