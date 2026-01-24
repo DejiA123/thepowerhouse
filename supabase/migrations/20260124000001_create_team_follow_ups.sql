@@ -65,4 +65,6 @@ VALUES
 ('Maycon', '2025-10-07', '083 486 5887', 'Ovo', 'Ovo', NULL),
 ('Aisha', '2025-10-07', '085 725 3227', 'Ovo', 'RP Zainab', NULL), -- Zainab -> RP Zainab
 ('Isaac', '2025-10-26', '089 970 3806', 'Benjamin', 'Golden', NULL),
-('Chantel', '2025-10-28', '0833486580', 'Min. Mercy', 'Min. Mercy', NULL);
+('Chantel', '2025-10-28', '0833486580', 'Min. Mercy', 'Min. Mercy', NULL),
+('Chinasa', NULL, '353 89 964 1666', NULL, 'Reverend Mirella', NULL),
+('Caroline', NULL, '+353 89 980 2240', NULL, 'Reverend Mirella', NULL);
