@@ -2358,7 +2358,10 @@ const ChoirPage = () => {
 
             {/* Import Setlist Dialog */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                <DialogContent
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6"
+                >
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
                             <Download className="w-6 h-6 text-blue-600" />
@@ -2366,20 +2369,22 @@ const ChoirPage = () => {
                         </DialogTitle>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                    <div className="flex-1 overflow-y-auto py-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
                         <div className="space-y-4">
                             <p className="text-slate-500 dark:text-slate-400 font-medium">
                                 Paste a list of songs from your notes app (one song per line). We'll try to find matches in your library.
                             </p>
                             <Textarea
                                 placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
-                                className="min-h-[300px] font-mono text-base p-4 rounded-2xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm"
+                                className="min-h-[400px] font-mono text-base p-4 rounded-2xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm"
                                 value={importText}
                                 onChange={(e) => setImportText(e.target.value)}
                             />
                         </div>
+                    </div>
 
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-10">
+                    <div className="p-6 md:px-20 border-t border-slate-100 dark:border-slate-800 max-w-4xl mx-auto w-full">
+                        <div className="flex flex-col sm:flex-row gap-4 pb-4">
                             <Button
                                 onClick={handleImportSetlist}
                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg shadow-blue-500/20"
