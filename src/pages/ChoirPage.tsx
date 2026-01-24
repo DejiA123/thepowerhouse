@@ -198,7 +198,7 @@ const SortableSetSongCard = ({
         <div
             ref={setNodeRef}
             style={style}
-            className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group touch-none"
+            className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group"
         >
             <div className="flex items-center gap-3">
                 <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-500 transition-colors">
