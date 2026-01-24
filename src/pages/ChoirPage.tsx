@@ -199,42 +199,42 @@ const SortableSetSongCard = ({
         <div
             ref={setNodeRef}
             style={style}
-            className="flex items-center justify-between p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group"
+            className="flex items-center justify-between p-2 sm:p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group"
         >
-            <div className="flex items-center gap-3">
-                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-3 -ml-2 text-slate-300 hover:text-slate-500 transition-colors touch-none select-none">
-                    <GripVertical className="w-5 h-5" />
+            <div className="flex items-center gap-2 sm:gap-3">
+                <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors touch-none select-none">
+                    <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <span className="text-blue-500 font-bold w-4 text-center">{index + 1}</span>
-                <div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>
+                <div className="min-w-0">
+                    <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1">
                         {song.title}
                         {song.url && (
                             <Badge
                                 variant="secondary"
-                                className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px]"
+                                className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px] shrink-0"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onPlay(song.url!);
                                 }}
                             >
-                                <PlayCircle className="w-2.5 h-2.5" /> Play
+                                <PlayCircle className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Play</span>
                             </Badge>
                         )}
                     </p>
-                    <p className="text-xs text-slate-500">{song.artist}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[120px] sm:max-w-none">{song.artist}</p>
                 </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {song.key && song.key.trim() && song.key !== '??' && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-[10px] sm:text-xs px-1.5 sm:px-2.5">
                         {song.key}
                     </Badge>
                 )}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreVertical className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
