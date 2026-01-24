@@ -179,7 +179,7 @@ export default function TeamFollowUpPage() {
                         {isLoading ? (
                             <div className="text-center py-12 text-slate-400">Loading team...</div>
                         ) : (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {teamMembers.map((name) => (
                                     <button
                                         key={name}
@@ -187,18 +187,25 @@ export default function TeamFollowUpPage() {
                                             window.scrollTo(0, 0);
                                             setSelectedMember(name);
                                         }}
-                                        className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-blue-500 transition-all group text-left"
+                                        className="group relative bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all active:scale-[0.98] md:hover:border-blue-500/50 md:hover:shadow-md text-left overflow-hidden"
                                     >
-                                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors">
-                                            <span className="font-bold text-xl text-slate-600 group-hover:text-white">{name.charAt(0)}</span>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xl group-active:bg-blue-600 group-active:text-white md:group-hover:bg-blue-600 md:group-hover:text-white transition-colors">
+                                                {name.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-slate-900 dark:text-white truncate">{name}</h3>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Team Member</p>
+                                            </div>
+                                            <div className="text-slate-300 dark:text-slate-700 md:group-hover:text-blue-500 transition-colors">
+                                                <ArrowLeft className="w-5 h-5 rotate-180" />
+                                            </div>
                                         </div>
-                                        <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">{name}</h3>
-                                        <p className="text-sm text-slate-400">View assignments &rarr;</p>
                                     </button>
                                 ))}
                                 {teamMembers.length === 0 && (
-                                    <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed">
-                                        <p className="text-slate-400">No follow-up assignments found.</p>
+                                    <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                        <p className="text-slate-400">No team members found.</p>
                                     </div>
                                 )}
                             </div>
