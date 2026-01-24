@@ -56,8 +56,8 @@ export default function TeamFollowUpPage() {
 
     useEffect(() => {
         if (selectedMember) {
-            // Instant scroll to top BEFORE loading data
-            window.scrollTo(0, 0);
+            // Force scroll to top immediately when a member is selected
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             loadAssignments(selectedMember);
         }
     }, [selectedMember]);
@@ -67,10 +67,8 @@ export default function TeamFollowUpPage() {
         try {
             const data = await followUpService.getAssignmentsFor(name);
             setAssignments(data);
-            // Double check scroll position after render
-            requestAnimationFrame(() => {
-                window.scrollTo(0, 0);
-            });
+            // Ensure we are at the top after data is loaded and rendered
+            setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior }), 0);
         } catch (error) {
             toast.error("Failed to load assignments");
         } finally {
@@ -184,7 +182,6 @@ export default function TeamFollowUpPage() {
                                     <button
                                         key={name}
                                         onClick={() => {
-                                            window.scrollTo(0, 0);
                                             setSelectedMember(name);
                                         }}
                                         className="group relative bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all active:scale-[0.98] md:hover:border-blue-500/50 md:hover:shadow-md text-left overflow-hidden"
