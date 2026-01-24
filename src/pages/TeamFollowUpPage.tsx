@@ -198,7 +198,7 @@ export default function TeamFollowUpPage() {
                                         className="group relative bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all active:scale-[0.98] md:hover:border-blue-500/50 md:hover:shadow-md text-left overflow-hidden"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xl group-active:bg-blue-600 group-active:text-white md:group-hover:bg-blue-600 md:group-hover:text-white transition-colors">
+                                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xl transition-colors">
                                                 {name.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
