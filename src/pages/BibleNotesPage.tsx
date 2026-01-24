@@ -572,7 +572,7 @@ const BibleNotesPage = () => {
             {/* Premium Sticky Navigation Bar - Between header and My Notes */}
             <div className="sticky top-0 z-50">
                 <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 shadow-lg">
-                    <div className="container mx-auto max-w-6xl px-4 py-3">
+                    <div className="container mx-auto max-w-6xl px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                         <div className="flex items-center justify-between">
                             <Button
                                 variant="ghost"
