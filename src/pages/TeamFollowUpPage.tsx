@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,8 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function TeamFollowUpPage() {
-    const topRef = useRef<HTMLDivElement>(null);
+    const topOfPageRef = useRef<HTMLDivElement>(null);
+    const assignmentsRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const [teamMembers, setTeamMembers] = useState<string[]>([]);
     const [selectedMember, setSelectedMember] = useState<string | null>(null);
@@ -54,10 +55,21 @@ export default function TeamFollowUpPage() {
         setIsLoading(false);
     }, []);
 
+    const scrollToTop = () => {
+        window.scrollTo(0, 0);
+        if (topOfPageRef.current) {
+            topOfPageRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+    };
+
+    useLayoutEffect(() => {
+        if (selectedMember) {
+            scrollToTop();
+        }
+    }, [selectedMember]);
+
     useEffect(() => {
         if (selectedMember) {
-            // Force scroll to top immediately when a member is selected
-            window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             loadAssignments(selectedMember);
         }
     }, [selectedMember]);
@@ -67,8 +79,8 @@ export default function TeamFollowUpPage() {
         try {
             const data = await followUpService.getAssignmentsFor(name);
             setAssignments(data);
-            // Ensure we are at the top after data is loaded and rendered
-            setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior }), 0);
+            // Extra delay to ensure DOM is fully rendered and browser scroll doesn't fight back
+            setTimeout(scrollToTop, 50);
         } catch (error) {
             toast.error("Failed to load assignments");
         } finally {
@@ -81,7 +93,7 @@ export default function TeamFollowUpPage() {
         try {
             await followUpService.updateNote(editingAssignment.id, newNote);
             toast.success("Note updated");
-            setIsEditOpen(false);
+            setIsEditNoteOpen(false);
             loadAssignments(selectedMember!); // Refresh list
         } catch (error) {
             toast.error("Failed to update note");
@@ -124,8 +136,6 @@ export default function TeamFollowUpPage() {
             }
             setIsAssignmentDialogOpen(false);
             loadAssignments(selectedMember!);
-            // Scroll to top of page
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (error) {
             toast.error("Failed to save assignment");
         }
@@ -143,7 +153,8 @@ export default function TeamFollowUpPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 relative">
+            <div ref={topOfPageRef} className="absolute top-0 left-0 h-0 w-0" aria-hidden="true" />
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -209,7 +220,7 @@ export default function TeamFollowUpPage() {
                     </div>
                 ) : (
                     /* VIEW 2: ASSIGNMENT LIST */
-                    <div ref={topRef} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div ref={assignmentsRef} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div className="flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
                                 Hello, <span className="text-blue-600">{selectedMember}</span>
