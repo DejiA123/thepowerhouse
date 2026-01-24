@@ -2373,16 +2373,16 @@ const ChoirPage = () => {
                             </p>
                             <Textarea
                                 placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
-                                className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
+                                className="min-h-[300px] font-mono text-base p-4 rounded-2xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm"
                                 value={importText}
                                 onChange={(e) => setImportText(e.target.value)}
                             />
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-10">
                             <Button
                                 onClick={handleImportSetlist}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg shadow-blue-500/20"
                                 disabled={!importText.trim()}
                             >
                                 Import {importText.split('\n').filter(l => l.trim()).length} Songs
@@ -2390,7 +2390,7 @@ const ChoirPage = () => {
                             <Button
                                 variant="outline"
                                 onClick={() => setIsImportOpen(false)}
-                                className="rounded-2xl py-8 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto"
+                                className="rounded-xl py-6 text-lg font-bold border-slate-200 dark:border-slate-700 h-auto"
                             >
                                 Cancel
                             </Button>
