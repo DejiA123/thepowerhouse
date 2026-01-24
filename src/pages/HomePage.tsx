@@ -284,15 +284,15 @@ const HomePage = () => {
                         <img
                           src="/lovable-uploads/believers-connect-logo.jpg"
                           alt="Believers Connect Logo"
-                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover transform md:group-hover:scale-110 transition-transform duration-500"
                         />
                       </div>
 
                       <div className="flex-1">
-                        <h4 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors text-base mb-0.5">
+                        <h4 className="font-bold text-gray-900 md:group-hover:text-indigo-600 transition-colors text-base mb-0.5">
                           {fellowship.name}
                         </h4>
-                        <p className="text-xs font-medium text-gray-500 group-hover:text-indigo-400 transition-colors">
+                        <p className="text-xs font-medium text-gray-500 md:group-hover:text-indigo-400 transition-colors">
                           {fellowship.subtitle}
                         </p>
                       </div>
