@@ -251,8 +251,8 @@ const HomePage = () => {
       {/* Campus Fellowships - Premium Redesign */}
       <div className="px-4 mb-8">
         <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">
-          {/* Animated border gradient */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 opacity-30 animate-pulse"></div>
+          {/* Animated border gradient - Restricted to desktop */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 opacity-30 hidden md:block md:animate-pulse"></div>
 
           <Card className="relative border-0 shadow-none bg-white/80 backdrop-blur-xl text-gray-800 overflow-hidden rounded-[22px]">
             {/* Background decoration */}
@@ -277,7 +277,7 @@ const HomePage = () => {
                   <div
                     key={index}
                     onClick={() => navigate("/campus-fellowships")}
-                    className="group relative overflow-hidden rounded-2xl bg-white border border-indigo-50 p-4 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 cursor-pointer"
+                    className="group relative overflow-hidden rounded-2xl bg-white border border-indigo-50 p-4 shadow-sm md:hover:shadow-md md:hover:border-indigo-300 transition-all duration-300 cursor-pointer md:hover:scale-[1.01]"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-indigo-100 shadow-sm group-hover:shadow-indigo-200 transition-shadow">
@@ -297,7 +297,7 @@ const HomePage = () => {
                         </p>
                       </div>
 
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-400 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 group-hover:bg-indigo-600 group-hover:text-white">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 items-center justify-center text-indigo-400 hidden md:flex opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 group-hover:bg-indigo-600 group-hover:text-white">
                         <ArrowLeft className="w-4 h-4 rotate-180" />
                       </div>
                     </div>
