@@ -222,7 +222,7 @@ export default function TeamFollowUpPage() {
                     /* VIEW 2: ASSIGNMENT LIST */
                     <div ref={assignmentsRef} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-white">
                                 Hello, <span className="text-blue-600">{selectedMember}</span>
                             </h2>
                             <div className="flex items-center gap-2">
