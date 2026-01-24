@@ -59,6 +59,36 @@ export interface ChoirCalendarEvent {
     created_at?: string;
 }
 
+export interface AcademyModule {
+    id: string;
+    title: string;
+    description?: string;
+    content?: string;
+    video_url?: string;
+    category: 'newcomer' | 'core' | 'leadership';
+    location: string;
+    created_at?: string;
+}
+
+export interface AcademyQuiz {
+    id: string;
+    module_id: string;
+    title: string;
+    description?: string;
+    passing_score: number;
+    created_at?: string;
+    questions?: QuizQuestion[];
+}
+
+export interface QuizQuestion {
+    id: string;
+    quiz_id: string;
+    question_text: string;
+    options: string[];
+    correct_answer_index: number;
+    created_at?: string;
+}
+
 export const choirService = {
     // --- Instrumental Resources ---
     async getInstrumentalResources(location: string): Promise<InstrumentalResource[]> {
@@ -364,5 +394,103 @@ export const choirService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    // --- Academy ---
+    async getAcademyModules(location: string, category?: string): Promise<AcademyModule[]> {
+        let query = supabase
+            .from('choir_academy_modules' as any)
+            .select('*')
+            .eq('location', location)
+            .order('created_at', { ascending: false });
+
+        if (category) {
+            query = query.eq('category', category);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []) as unknown as AcademyModule[];
+    },
+
+    async addAcademyModule(module: Omit<AcademyModule, 'id' | 'created_at'>): Promise<AcademyModule> {
+        const { data, error } = await supabase
+            .from('choir_academy_modules' as any)
+            .insert([module])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as AcademyModule;
+    },
+
+    async updateAcademyModule(id: string, updates: Partial<AcademyModule>) {
+        const { data, error } = await supabase
+            .from('choir_academy_modules' as any)
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as unknown as AcademyModule;
+    },
+
+    async deleteAcademyModule(id: string) {
+        const { error } = await supabase
+            .from('choir_academy_modules' as any)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    async getAcademyQuiz(moduleId: string): Promise<AcademyQuiz | null> {
+        const { data: quizData, error: quizError } = await supabase
+            .from('choir_academy_quizzes' as any)
+            .select('*')
+            .eq('module_id', moduleId)
+            .maybeSingle();
+
+        if (quizError) throw quizError;
+        if (!quizData) return null;
+
+        // Fetch questions
+        const { data: questionsData, error: questionsError } = await supabase
+            .from('choir_academy_questions' as any)
+            .select('*')
+            .eq('quiz_id', quizData.id);
+
+        if (questionsError) throw questionsError;
+
+        return {
+            ...quizData,
+            questions: questionsData || []
+        } as unknown as AcademyQuiz;
+    },
+
+    async saveAcademyQuiz(quiz: Omit<AcademyQuiz, 'id' | 'created_at' | 'questions'>, questions: Omit<QuizQuestion, 'id' | 'quiz_id' | 'created_at'>[]) {
+        // 1. Create/Update Quiz
+        const { data: newQuiz, error: quizError } = await supabase
+            .from('choir_academy_quizzes' as any)
+            .insert([quiz])
+            .select()
+            .single();
+
+        if (quizError) throw quizError;
+
+        // 2. Add Questions
+        const questionsWithId = questions.map(q => ({
+            ...q,
+            quiz_id: newQuiz.id
+        }));
+
+        const { error: questionsError } = await supabase
+            .from('choir_academy_questions' as any)
+            .insert(questionsWithId);
+
+        if (questionsError) throw questionsError;
+
+        return newQuiz;
     }
 };
