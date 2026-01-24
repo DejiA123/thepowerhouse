@@ -314,44 +314,45 @@ export default function TeamFollowUpPage() {
 
             {/* Note Editor */}
             <Dialog open={isEditNoteOpen} onOpenChange={setIsEditNoteOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-md h-[100dvh] sm:h-auto max-w-full sm:max-w-md top-0 sm:top-[50%] translate-y-0 sm:translate-y-[-50%] pt-16 sm:pt-6 flex flex-col p-6 rounded-none sm:rounded-2xl [&>button]:top-10 sm:[&>button]:top-4">
                     <DialogHeader>
                         <DialogTitle>Update Notes</DialogTitle>
                         <DialogDescription>
                             Add details about your interaction with {editingAssignment?.visitor_name}.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
+                    <div className="flex-1 overflow-y-auto py-4 -mx-2 px-2">
                         <Textarea
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                             placeholder="Called them today. They are doing well..."
-                            className="min-h-[150px]"
+                            className="min-h-[200px] mb-4"
                         />
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditNoteOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveNote}>Save Note</Button>
+                    <DialogFooter className="mt-auto pt-4 gap-2 border-t sm:border-t-0">
+                        <Button variant="outline" onClick={() => setIsEditNoteOpen(false)} className="flex-1 sm:flex-none">Cancel</Button>
+                        <Button onClick={handleSaveNote} className="flex-1 sm:flex-none">Save Note</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Create/Edit Assignment Dialog */}
             <Dialog open={isAssignmentDialogOpen} onOpenChange={setIsAssignmentDialogOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md h-[100dvh] sm:h-auto max-w-full sm:max-w-md top-0 sm:top-[50%] translate-y-0 sm:translate-y-[-50%] pt-16 sm:pt-6 flex flex-col p-6 rounded-none sm:rounded-2xl [&>button]:top-10 sm:[&>button]:top-4">
                     <DialogHeader>
                         <DialogTitle>{isEditing ? "Edit Assignment" : "Add New Person"}</DialogTitle>
                         <DialogDescription>
                             {isEditing ? "Update the details below" : "Add someone new to your follow-up list"}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="flex-1 overflow-y-auto py-4 -mx-2 px-2 space-y-4">
                         <div>
                             <label className="text-sm font-medium">Name *</label>
                             <Input
                                 value={assignmentForm.visitor_name}
                                 onChange={(e) => setAssignmentForm({ ...assignmentForm, visitor_name: e.target.value })}
                                 placeholder="John Doe"
+                                className="mt-1"
                             />
                         </div>
                         <div>
@@ -360,6 +361,7 @@ export default function TeamFollowUpPage() {
                                 value={assignmentForm.phone_number}
                                 onChange={(e) => setAssignmentForm({ ...assignmentForm, phone_number: e.target.value })}
                                 placeholder="089 123 4567"
+                                className="mt-1"
                             />
                         </div>
                         <div>
@@ -368,6 +370,7 @@ export default function TeamFollowUpPage() {
                                 type="date"
                                 value={assignmentForm.visit_date}
                                 onChange={(e) => setAssignmentForm({ ...assignmentForm, visit_date: e.target.value })}
+                                className="mt-1"
                             />
                         </div>
                         <div>
@@ -376,6 +379,7 @@ export default function TeamFollowUpPage() {
                                 value={assignmentForm.invited_by}
                                 onChange={(e) => setAssignmentForm({ ...assignmentForm, invited_by: e.target.value })}
                                 placeholder="Social Media"
+                                className="mt-1"
                             />
                         </div>
                         <div>
@@ -384,13 +388,13 @@ export default function TeamFollowUpPage() {
                                 value={assignmentForm.notes}
                                 onChange={(e) => setAssignmentForm({ ...assignmentForm, notes: e.target.value })}
                                 placeholder="Add any notes..."
-                                className="min-h-[100px]"
+                                className="min-h-[120px] mt-1"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAssignmentDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAssignment} disabled={!assignmentForm.visitor_name}>
+                    <DialogFooter className="mt-auto pt-4 gap-2 border-t sm:border-t-0">
+                        <Button variant="outline" onClick={() => setIsAssignmentDialogOpen(false)} className="flex-1 sm:flex-none">Cancel</Button>
+                        <Button onClick={handleSaveAssignment} disabled={!assignmentForm.visitor_name} className="flex-1 sm:flex-none">
                             {isEditing ? "Update" : "Create"}
                         </Button>
                     </DialogFooter>
