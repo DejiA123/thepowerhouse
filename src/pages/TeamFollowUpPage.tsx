@@ -194,8 +194,7 @@ export default function TeamFollowUpPage() {
                                                 {name.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="font-bold text-slate-900 dark:text-white truncate">{name}</h3>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Team Member</p>
+                                                <h3 className="font-bold text-slate-900 dark:text-white truncate text-lg">{name}</h3>
                                             </div>
                                             <div className="text-slate-300 dark:text-slate-700 md:group-hover:text-blue-500 transition-colors">
                                                 <ArrowLeft className="w-5 h-5 rotate-180" />
