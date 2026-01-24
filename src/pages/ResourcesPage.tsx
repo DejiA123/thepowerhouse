@@ -15,6 +15,7 @@ import {
   ChevronRight,
   PlayCircle,
   MessageCircle,
+  ClipboardList,
   Music
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -191,6 +192,13 @@ const ResourcesPage = () => {
       color: "from-blue-600 to-blue-800",
       shadow: "shadow-blue-600/20",
       onClick: () => navigate("/group-chats")
+    },
+    {
+      title: "Team Follow Up",
+      icon: ClipboardList,
+      color: "from-purple-600 to-indigo-600",
+      shadow: "shadow-purple-600/20",
+      onClick: () => navigate("/team-follow-up")
     }
   ];
 

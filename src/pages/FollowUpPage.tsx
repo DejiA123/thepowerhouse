@@ -84,14 +84,7 @@ const FollowUpPage = () => {
             {/* Header */}
             <div className="relative z-50 sticky top-0 backdrop-blur-xl bg-slate-900/80 border-b border-white/20">
                 <div className="max-w-3xl mx-auto px-6 py-4 flex items-center">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(-1)}
-                        className="text-white hover:bg-white/20 rounded-full"
-                    >
-                        <ArrowLeft className="h-6 w-6" />
-                    </Button>
+
                 </div>
             </div>
 
