@@ -2622,8 +2622,8 @@ const ChoirPage = () => {
 
                             {/* Consolidated Hero Container for all focus songs (Vocalists) */}
                             {learningSet.length > 0 ? (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 transition-all hover:scale-[1.005] group/hero">
-                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20 transition-all"></div>
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 group/hero">
+                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20"></div>
 
                                     <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
                                         <div className="flex flex-col items-center text-center space-y-4">
@@ -2682,7 +2682,7 @@ const ChoirPage = () => {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] group md:col-span-2 lg:col-span-3">
                                     <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                                     <div className="relative z-10 space-y-6 text-center">
 
@@ -2691,7 +2691,7 @@ const ChoirPage = () => {
                                             <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
                                         </div>
                                         <div className="flex justify-center">
-                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl transition-all hover:scale-105 active:scale-95 w-fit">
+                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
                                                 <PlusCircle className="w-5 h-5 mr-3" />
                                                 Add Your First Focus Song
                                             </Button>
