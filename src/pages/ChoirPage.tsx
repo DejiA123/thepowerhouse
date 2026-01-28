@@ -49,6 +49,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { choirService, ChoirFolder, WeeklySetSong, ChoirCalendarEvent } from "@/services/choirService";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -1089,6 +1090,268 @@ const ChoirPage = () => {
         }
     }, [isAddToSetOpen]);
 
+    // 🔄 Real-time subscriptions for all choir data
+    useEffect(() => {
+        if (!locationId) return;
+
+        const subscriptions: any[] = [];
+
+        // 1. Subscribe to choir_folders
+        const foldersChannel = supabase
+            .channel('choir_folders_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_folders',
+                filter: `location=eq.${locationId}`
+            }, async (payload) => {
+                console.log('Folder change:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    const newFolder = payload.new as any;
+                    setFolders(prev => {
+                        if (prev.some(f => f.id === newFolder.id)) return prev;
+                        return [...prev, { ...newFolder, songs: [] }] as any;
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    const updated = payload.new as any;
+                    setFolders(prev => prev.map(f =>
+                        f.id === updated.id ? { ...f, name: updated.name, parent_id: updated.parent_id } : f
+                    ) as any);
+                } else if (payload.eventType === 'DELETE') {
+                    const deleted = payload.old as any;
+                    setFolders(prev => prev.filter(f => f.id !== deleted.id) as any);
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(foldersChannel);
+
+        // 2. Subscribe to choir_songs
+        const songsChannel = supabase
+            .channel('choir_songs_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_songs',
+                filter: `location=eq.${locationId}`
+            }, (payload) => {
+                console.log('Song change:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    const newSong = payload.new as any;
+                    setFolders(prev => prev.map(f => {
+                        if (f.id === newSong.folder_id) {
+                            if (f.songs?.some(s => s.id === newSong.id)) return f;
+                            return { ...f, songs: [...(f.songs || []), newSong] };
+                        }
+                        return f;
+                    }) as any);
+                } else if (payload.eventType === 'UPDATE') {
+                    const updated = payload.new as any;
+                    setFolders(prev => prev.map(f =>
+                        f.id === updated.folder_id
+                            ? { ...f, songs: (f.songs || []).map(s => s.id === updated.id ? updated : s) }
+                            : f
+                    ) as any);
+                } else if (payload.eventType === 'DELETE') {
+                    const deleted = payload.old as any;
+                    setFolders(prev => prev.map(f => ({
+                        ...f,
+                        songs: (f.songs || []).filter(s => s.id !== deleted.id)
+                    })) as any);
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(songsChannel);
+
+        // 3. Subscribe to choir_weekly_set_songs
+        const setlistChannel = supabase
+            .channel('choir_weekly_set_songs_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_weekly_set_songs',
+                filter: `location=eq.${locationId}`
+            }, (payload) => {
+                console.log('Setlist change:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    const newSong = payload.new as any;
+                    if (newSong.set_type === 'praise') {
+                        setPraiseSet(prev => {
+                            // Prevent duplicates by checking if song already exists
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
+                    } else if (newSong.set_type === 'worship') {
+                        setWorshipSet(prev => {
+                            // Prevent duplicates by checking if song already exists
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
+                    }
+                } else if (payload.eventType === 'UPDATE') {
+                    const updated = payload.new as any;
+                    if (updated.set_type === 'praise') {
+                        setPraiseSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    } else if (updated.set_type === 'worship') {
+                        setWorshipSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    const deleted = payload.old as any;
+                    // Robust deletion handling with fallback for cases where set_type might be missing in older payloads
+                    if (deleted.set_type === 'praise') {
+                        setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
+                    } else if (deleted.set_type === 'worship') {
+                        setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
+                    } else {
+                        // Fallback: remove from both if set_type is unknown
+                        setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
+                        setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
+                    }
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(setlistChannel);
+
+        // 4. Subscribe to choir_setlist_info (for date, descriptions, learning songs, schedules, rosters)
+        const infoChannel = supabase
+            .channel('choir_setlist_info_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_setlist_info',
+                filter: `location=eq.${locationId}`
+            }, (payload) => {
+                console.log('Setlist info change:', payload);
+
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    const info = payload.new as any;
+
+                    switch (info.info_type) {
+                        case 'date':
+                            setSetlistDate(new Date(info.value));
+                            break;
+                        case 'praise_desc':
+                            setPraiseInfo(prev => ({ ...prev, desc: info.value }));
+                            break;
+                        case 'worship_desc':
+                            setWorshipInfo(prev => ({ ...prev, desc: info.value }));
+                            break;
+                        case 'learning_songs_json':
+                            try {
+                                const learningSongs = JSON.parse(info.value);
+                                setLearningSet(learningSongs);
+                            } catch (e) {
+                                console.error('Failed to parse learning songs:', e);
+                            }
+                            break;
+                        case 'weekly_schedule':
+                            try {
+                                const schedule = JSON.parse(info.value);
+                                setWeeklySchedule(schedule);
+                            } catch (e) {
+                                console.error('Failed to parse schedule:', e);
+                            }
+                            break;
+                        case 'praise_roster':
+                            try {
+                                const roster = JSON.parse(info.value);
+                                setPraiseRoster(roster);
+                            } catch (e) {
+                                console.error('Failed to parse praise roster:', e);
+                            }
+                            break;
+                        case 'prayer_roster':
+                            try {
+                                const roster = JSON.parse(info.value);
+                                setPrayerRoster(roster);
+                            } catch (e) {
+                                console.error('Failed to parse prayer roster:', e);
+                            }
+                            break;
+                    }
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(infoChannel);
+
+        // 5. Subscribe to choir_instrumental_resources
+        const instrChannel = supabase
+            .channel('choir_instrumental_resources_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_instrumental_resources',
+                filter: `location=eq.${locationId}`
+            }, (payload) => {
+                console.log('Instrumental resource change:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    const newResource = payload.new as any;
+                    setInstrResources(prev => {
+                        if (prev.some(r => r.id === newResource.id)) return prev;
+                        return [...prev, newResource];
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    const updated = payload.new as any;
+                    setInstrResources(prev => prev.map(r => r.id === updated.id ? updated : r));
+                } else if (payload.eventType === 'DELETE') {
+                    const deleted = payload.old as any;
+                    setInstrResources(prev => prev.filter(r => r.id !== deleted.id));
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(instrChannel);
+
+        // 6. Subscribe to choir_calendar_events
+        const eventsChannel = supabase
+            .channel('choir_calendar_events_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'choir_calendar_events',
+                filter: `location=eq.${locationId}`
+            }, (payload) => {
+                console.log('Calendar event change:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    const newEvent = payload.new as any;
+                    setCalendarEvents(prev => {
+                        if (prev.some(e => e.id === newEvent.id)) return prev;
+                        return [...prev, newEvent].sort((a, b) =>
+                            new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+                        );
+                    });
+                } else if (payload.eventType === 'UPDATE') {
+                    const updated = payload.new as any;
+                    setCalendarEvents(prev => prev.map(e => e.id === updated.id ? updated : e).sort((a, b) =>
+                        new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+                    ));
+                } else if (payload.eventType === 'DELETE') {
+                    const deleted = payload.old as any;
+                    setCalendarEvents(prev => prev.filter(e => e.id !== deleted.id));
+                }
+            })
+            .subscribe();
+
+        subscriptions.push(eventsChannel);
+
+        // Cleanup function
+        return () => {
+            console.log('Cleaning up choir real-time subscriptions');
+            subscriptions.forEach(sub => {
+                supabase.removeChannel(sub);
+            });
+        };
+    }, [locationId]);
+
+
 
     // -- Handlers for Setlist Info --
     const openEditSetInfo = (type: 'praise' | 'worship') => {
@@ -1103,12 +1366,6 @@ const ChoirPage = () => {
         try {
             const key = editingSetInfoType === 'praise' ? 'praise_desc' : 'worship_desc';
             await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!);
-
-            if (editingSetInfoType === 'praise') {
-                setPraiseInfo(prev => ({ ...prev, desc: tempSetInfo.desc }));
-            } else {
-                setWorshipInfo(prev => ({ ...prev, desc: tempSetInfo.desc }));
-            }
             setIsEditSetInfoOpen(false);
             toast.success("Description updated");
         } catch (e) {
@@ -1127,12 +1384,6 @@ const ChoirPage = () => {
                 choirService.saveLearningSongs([], locationId) // Clear learning JSON
             ]);
 
-            setPraiseSet([]);
-            setWorshipSet([]);
-            setLearningSet([]);
-            setPraiseInfo(prev => ({ ...prev, desc: "" }));
-            setWorshipInfo(prev => ({ ...prev, desc: "" }));
-
             toast.success("New week started - setlists cleared");
         } catch (e) {
             console.error(e);
@@ -1145,7 +1396,6 @@ const ChoirPage = () => {
         if (!date) return;
         try {
             const mondayOfSelectedWeek = startOfWeek(date, { weekStartsOn: 1 });
-            setSetlistDate(mondayOfSelectedWeek);
             await choirService.updateSetlistInfo('date', mondayOfSelectedWeek.toISOString(), locationId!);
         } catch (e) {
             console.error(e);
@@ -1158,8 +1408,7 @@ const ChoirPage = () => {
         if (!newFolderName.trim()) return;
         try {
             // If activeFolderId is set, this is a subfolder
-            const newFolder = await choirService.createFolder(newFolderName, locationId!, activeFolderId);
-            setFolders([...folders, newFolder]);
+            await choirService.createFolder(newFolderName, locationId!, activeFolderId);
             setNewFolderName("");
             setIsNewFolderOpen(false);
             toast.success(activeFolderId ? "Subfolder created" : "Folder created");
@@ -1172,7 +1421,7 @@ const ChoirPage = () => {
     const handleAddSong = async () => {
         if (!newSong.title.trim() || !activeFolderId) return;
         try {
-            const addedSong = await choirService.addSongToFolder({
+            await choirService.addSongToFolder({
                 folder_id: activeFolderId,
                 title: newSong.title,
                 key: newSong.key,
@@ -1180,13 +1429,6 @@ const ChoirPage = () => {
                 url: newSong.url,
                 notes: newSong.notes
             }, locationId!);
-
-            setFolders(folders.map(f => {
-                if (f.id === activeFolderId) {
-                    return { ...f, songs: [...(f.songs || []), addedSong] };
-                }
-                return f;
-            }) as any);
 
             setNewSong({ title: "", key: "", artist: "", url: "", notes: "" });
             setIsAddSongOpen(false);
@@ -1200,7 +1442,6 @@ const ChoirPage = () => {
     const deleteFolder = async (id: string) => {
         try {
             await choirService.deleteFolder(id);
-            setFolders(folders.filter(f => f.id !== id));
             if (activeFolderId === id) setActiveFolderId(null);
             toast.success("Folder deleted");
         } catch (e) {
@@ -1226,23 +1467,13 @@ const ChoirPage = () => {
         if (!songToEdit.title.trim() || !activeFolderId || !editingSongId) return;
 
         try {
-            const updatedSong = await choirService.updateSong(editingSongId, {
+            await choirService.updateSong(editingSongId, {
                 title: songToEdit.title,
                 key: songToEdit.key,
                 artist: songToEdit.artist,
                 url: songToEdit.url,
                 notes: songToEdit.notes
             });
-
-            setFolders(folders.map(f => {
-                if (f.id === activeFolderId) {
-                    return {
-                        ...f,
-                        songs: f.songs?.map(s => s.id === editingSongId ? updatedSong : s) || []
-                    };
-                }
-                return f;
-            }) as any);
 
             setIsEditSongOpen(false);
             setEditingSongId(null);
@@ -1257,12 +1488,6 @@ const ChoirPage = () => {
         if (!activeFolderId) return;
         try {
             await choirService.deleteSong(songId);
-            setFolders(folders.map(f => {
-                if (f.id === activeFolderId) {
-                    return { ...f, songs: f.songs?.filter(s => s.id !== songId) || [] };
-                }
-                return f;
-            }));
             toast.success("Song deleted");
         } catch (e) {
             console.error(e);
@@ -1303,9 +1528,9 @@ const ChoirPage = () => {
                 };
                 const updatedList = [...learningSet, newSong];
                 await choirService.saveLearningSongs(updatedList, locationId!);
-                setLearningSet(updatedList);
             } else {
-                const addedSong = await choirService.addWeeklySong({
+                // Add song to database - real-time subscription will update the UI
+                await choirService.addWeeklySong({
                     set_type: activeSetType,
                     title: newSetSong.title,
                     key: newSetSong.key,
@@ -1314,16 +1539,10 @@ const ChoirPage = () => {
                     library_song_id: newSetSong.library_song_id,
                     sort_order: activeSetType === 'praise' ? praiseSet.length : worshipSet.length
                 }, locationId!);
-
-                if (activeSetType === 'praise') {
-                    setPraiseSet([...praiseSet, addedSong] as any);
-                } else if (activeSetType === 'worship') {
-                    setWorshipSet([...worshipSet, addedSong] as any);
-                }
+                // Note: State update will happen via real-time subscription
             }
 
             setIsAddToSetOpen(false);
-            toast.success("Song added to setlist");
         } catch (e) {
             console.error(e);
             toast.error("Failed to add song to setlist");
@@ -1335,16 +1554,11 @@ const ChoirPage = () => {
             if (type === 'learning') {
                 const updatedList = learningSet.filter(s => s.id !== id);
                 await choirService.saveLearningSongs(updatedList, locationId!);
-                setLearningSet(updatedList);
             } else {
+                // Delete from database - real-time subscription will update the UI
                 await choirService.deleteWeeklySong(id);
-                if (type === 'praise') {
-                    setPraiseSet(praiseSet.filter(s => s.id !== id));
-                } else if (type === 'worship') {
-                    setWorshipSet(worshipSet.filter(s => s.id !== id));
-                }
+                // Note: State update will happen via real-time subscription
             }
-            toast.success("Song removed from setlist");
         } catch (e) {
             console.error(e);
             toast.error("Failed to remove song");
@@ -1395,7 +1609,6 @@ const ChoirPage = () => {
                     return s;
                 });
                 await choirService.saveLearningSongs(updatedList, locationId!);
-                setLearningSet(updatedList);
             } else {
                 // Must be Praise or Worship (DB)
                 await choirService.updateWeeklySong(editingSetSongId, {
@@ -1406,9 +1619,6 @@ const ChoirPage = () => {
                     instrumental_url: editingSetlistSongData.instrumental_url,
                     instrumental_notes: editingSetlistSongData.instrumental_notes
                 });
-
-                setPraiseSet(praiseSet.map(s => s.id === editingSetSongId ? { ...s, ...editingSetlistSongData } : s));
-                setWorshipSet(worshipSet.map(s => s.id === editingSetSongId ? { ...s, ...editingSetlistSongData } : s));
             }
 
             setIsEditSetSongOpen(false);
@@ -1487,11 +1697,6 @@ const ChoirPage = () => {
                 }));
 
                 const newSongs = results as unknown as WeeklySetSong[];
-                if (importSetType === 'praise') {
-                    setPraiseSet(prev => [...prev, ...newSongs]);
-                } else {
-                    setWorshipSet(prev => [...prev, ...newSongs]);
-                }
 
                 setIsImportOpen(false);
                 setImportText("");
@@ -1540,16 +1745,6 @@ const ChoirPage = () => {
                 }, locationId);
             }));
 
-            const newSongs = results as any[]; // Type assertion for the song object
-
-            // Update local state
-            setFolders(folders.map(f => {
-                if (f.id === activeFolderId) {
-                    return { ...f, songs: [...(f.songs || []), ...newSongs] };
-                }
-                return f;
-            }) as any);
-
             setIsImportFolderOpen(false);
             setImportFolderText("");
             toast.success(`Imported ${newSongs.length} songs to folder (${matchedCount} details matched)`);
@@ -1563,8 +1758,7 @@ const ChoirPage = () => {
     const handleAddInstrResource = async () => {
         if (!newInstr.title.trim()) return;
         try {
-            const added = await choirService.addInstrumentalResource(newInstr, locationId!);
-            setInstrResources([...instrResources, added]);
+            await choirService.addInstrumentalResource(newInstr, locationId!);
             setNewInstr({ title: "", type: "Tutorial", url: "" });
             setIsAddInstrOpen(false);
             toast.success("Resource added");
@@ -1583,8 +1777,7 @@ const ChoirPage = () => {
     const handleSaveEditInstrResource = async () => {
         if (!editingInstrId || !instrToEdit.title.trim()) return;
         try {
-            const updated = await choirService.updateInstrumentalResource(editingInstrId, instrToEdit);
-            setInstrResources(instrResources.map(r => r.id === editingInstrId ? updated : r));
+            await choirService.updateInstrumentalResource(editingInstrId, instrToEdit);
             setIsEditInstrOpen(false);
             setEditingInstrId(null);
             toast.success("Resource updated");
@@ -1597,7 +1790,6 @@ const ChoirPage = () => {
     const handleDeleteInstrResource = async (id: string) => {
         try {
             await choirService.deleteInstrumentalResource(id);
-            setInstrResources(instrResources.filter(r => r.id !== id));
             toast.success("Resource deleted");
         } catch (e) {
             console.error(e);
@@ -1608,11 +1800,6 @@ const ChoirPage = () => {
     const handleUpdateBandDetails = async (songId: string, updates: { instrumental_url?: string, instrumental_notes?: string }) => {
         try {
             await choirService.updateWeeklySong(songId, updates);
-            // Use functional updates to avoid stale closure bugs
-            const sync = (list: any[]) => list.map(s => s.id === songId ? { ...s, ...updates } : s);
-            setPraiseSet(prev => sync(prev));
-            setWorshipSet(prev => sync(prev));
-            setLearningSet(prev => sync(prev));
             toast.success("Band details updated");
         } catch (e) {
             console.error(e);
@@ -1631,7 +1818,6 @@ const ChoirPage = () => {
                 event_date: setlistDate.toISOString().split('T')[0],
                 color: newEvent.color
             }, locationId!);
-            setCalendarEvents([...calendarEvents, added]);
             setNewEvent({ title: "", description: "", color: "purple" });
             setIsAddEventOpen(false);
             toast.success("Event added to calendar");
@@ -1650,7 +1836,6 @@ const ChoirPage = () => {
                 color: newEvent.color,
                 event_date: setlistDate?.toISOString().split('T')[0]
             });
-            setCalendarEvents(calendarEvents.map(e => e.id === editingEvent.id ? updated : e));
             setEditingEvent(null);
             setNewEvent({ title: "", description: "", color: "purple" });
             setIsAddEventOpen(false);
@@ -1664,7 +1849,6 @@ const ChoirPage = () => {
     const handleDeleteCalendarEvent = async (id: string) => {
         try {
             await choirService.deleteCalendarEvent(id);
-            setCalendarEvents(calendarEvents.filter(e => e.id !== id));
             toast.success("Event deleted");
         } catch (e) {
             console.error(e);
@@ -1678,7 +1862,6 @@ const ChoirPage = () => {
         if (!locationId) return;
         try {
             await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId);
-            setWeeklySchedule(updatedSchedule);
             toast.success("Schedule updated successfully");
         } catch (e) {
             console.error(e);
@@ -1737,8 +1920,6 @@ const ChoirPage = () => {
         try {
             const infoKey = rosterType === 'praise' ? 'praise_roster' : 'prayer_roster';
             await choirService.updateSetlistInfo(infoKey, JSON.stringify(updatedRoster), locationId);
-            if (rosterType === 'praise') setPraiseRoster(updatedRoster);
-            else setPrayerRoster(updatedRoster);
             toast.success("Roster updated");
         } catch (e) {
             console.error(e);
