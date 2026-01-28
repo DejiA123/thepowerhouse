@@ -948,7 +948,6 @@ export const BibleChapterContent = ({
                       const { error } = await supabase.from('bible_highlights').upsert(highlightsData);
                       if (!error) {
                         await refetchHighlights();
-                        toast({ title: `Highlighted in ${color.name}` });
                         setSelectedVerses([]);
                         setIsMultiSelectMode(false);
                       }
@@ -979,7 +978,6 @@ export const BibleChapterContent = ({
                       const { error } = await supabase.from('bible_highlights').delete().in('id', highlightsToRemove.map(h => h!.id));
                       if (!error) {
                         await refetchHighlights();
-                        toast({ title: "Highlights Removed" });
                       }
                     }
                   } catch (error) { console.error(error); }
@@ -1144,7 +1142,6 @@ export const BibleChapterContent = ({
 
                         if (!error) {
                           await refetchHighlights();
-                          toast({ title: `Highlight${selectedVerses.length > 1 ? 's' : ''} Removed` });
                         }
                       }
                     } catch (error) {
@@ -1167,10 +1164,6 @@ export const BibleChapterContent = ({
 
                       if (!error) {
                         await refetchHighlights();
-                        toast({
-                          title: `Verse${selectedVerses.length > 1 ? 's' : ''} Highlighted`,
-                          description: `${selectedVerses.length} verse${selectedVerses.length > 1 ? 's' : ''} highlighted in ${color.name}`
-                        });
                       }
                     } catch (error) {
                       console.error('Error adding highlights:', error);
