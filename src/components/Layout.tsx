@@ -178,12 +178,12 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-x-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
       {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
-      {/* Only show for pages WITHOUT Header (like GroupChats, Intro) except Bible */}
-      {location.pathname !== '/bible' && (location.pathname === '/group-chats' || !showChrome) && (
+      {/* Only show for pages WITHOUT Header (like GroupChats, Intro, FollowUp) except Bible */}
+      {location.pathname !== '/bible' && (location.pathname === '/group-chats' || location.pathname === '/follow-up' || !showChrome) && (
         <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
       )}
 
-      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && (
+      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
         <>
           <Header />
           {/* Spacer for Fixed Header: 80px logo + 16px padding (py-2 = 0.5rem*2) + safe-area-top */}
