@@ -1,15 +1,66 @@
 # The Powerhouse App - Enterprise Edition
 
-## Tech Stack & Architecture
-This application is built with a modern, polyglot architecture to handle diverse workloads:
+## 🚀 Production-Grade Multi-Language Architecture
 
-- **Frontend**: TypeScript, React, Vite (High-performance UI)
-- **Backend Services**:
-  - **Python**: Advanced Analytics & AI Growth Projections (`backend/analytics_service`)
-  - **Java**: Enterprise Notification Dispatcher (`backend/notification_service`)
-  - **C#**: Administrative Reporting Engine (`backend/report_service`)
-- **Native Modules**:
-  - **C/C++**: High-Performance Audio DSP Kernels (`native_modules/audio_processing`)
+This application demonstrates mastery of **7 programming languages** with industry-standard, advanced implementations across a sophisticated polyglot architecture.
+
+### Tech Stack & Advanced Features
+
+#### Frontend
+- **TypeScript** (React, Vite)
+  - Advanced type system (generics, mapped types, conditional types)
+  - Custom type guards and utility types
+  - Decorator patterns
+  - Strict null safety
+
+#### Backend Services
+
+##### Python - Advanced Analytics Service
+*Location:* `backend/analytics_service/`
+- **FastAPI** REST API with async/await
+- **Type hints** and Pydantic validation
+- **Machine Learning** integration (scikit-learn)
+- **Pandas** for data analytics
+- Async database operations
+- Structured logging
+
+##### Java - Enterprise Notification Service
+*Location:* `backend/notification_service/`
+- **Modern Java 17+** features (Records, Sealed Classes)
+- **Multithreading** with ExecutorService
+- **CompletableFuture** for async operations
+- **Stream API** for functional programming
+- Spring-style dependency injection patterns
+- Observer and Factory design patterns
+
+##### C# - Report Generation Service
+*Location:* `backend/report_service/`
+- **C# 12** features (primary constructors, collection expressions)
+- **Async/await** pattern for I/O operations
+- **LINQ** for data manipulation
+- **Dependency Injection** architecture
+- Interface-based design
+- Record types for immutability
+
+##### JavaScript/Node.js - API Gateway
+*Location:* `backend/api_gateway/`
+- **Express.js** REST API
+- **ES6+** features (destructuring, spread, arrow functions)
+- Async/await with Promises
+- Middleware pattern architecture
+- Higher-order functions
+- Async generators for pagination
+
+#### Native Modules
+
+##### C/C++ - High-Performance Audio DSP
+*Location:* `native_modules/audio_processing/`
+- **Modern C++20** features (Concepts, Ranges)
+- **Template metaprogramming** for type safety
+- **Smart pointers** (unique_ptr, shared_ptr)
+- **Move semantics** and perfect forwarding
+- **RAII** pattern for resource management
+- Const correctness throughout
 
 ---
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #include "dsp_core.h"
 
 // C++ Optimization wrapper
@@ -16,7 +17,7 @@ public:
         
         // Remove noise (simple gate simulation)
         std::replace_if(stream.begin(), stream.end(), 
-            [](float s){ return std::abs(s) < 0.05f; }, 0.0f);
+            [](float s){ return std::fabs(s) < 0.05f; }, 0.0f);
 
         // Copy back
         std::copy(stream.begin(), stream.end(), data);

@@ -1,0 +1,15 @@
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\ReportGenerator.exe
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\ReportGenerator.deps.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\ReportGenerator.runtimeconfig.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\ReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\ReportGenerator.pdb
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.AssemblyInfoInputs.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.AssemblyInfo.cs
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.csproj.CoreCompileInputs.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.sourcelink.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\refint\ReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.pdb
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ReportGenerator.genruntimeconfig.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ref\ReportGenerator.dll
