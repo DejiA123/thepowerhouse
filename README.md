@@ -1,3 +1,18 @@
+# The Powerhouse App - Enterprise Edition
+
+## Tech Stack & Architecture
+This application is built with a modern, polyglot architecture to handle diverse workloads:
+
+- **Frontend**: TypeScript, React, Vite (High-performance UI)
+- **Backend Services**:
+  - **Python**: Advanced Analytics & AI Growth Projections (`backend/analytics_service`)
+  - **Java**: Enterprise Notification Dispatcher (`backend/notification_service`)
+  - **C#**: Administrative Reporting Engine (`backend/report_service`)
+- **Native Modules**:
+  - **C/C++**: High-Performance Audio DSP Kernels (`native_modules/audio_processing`)
+
+---
+
 # Supabase CLI
 
 [![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
