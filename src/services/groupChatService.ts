@@ -298,7 +298,7 @@ export class GroupChatService {
         }
 
         if (!data) return null;
-        
+
         const msg = data as any;
         return {
             ...msg,
@@ -454,7 +454,7 @@ export class GroupChatService {
                     .select('*')
                     .eq('user_id', p.user_id)
                     .maybeSingle();
-                
+
                 return {
                     ...p,
                     presence: presenceData as UserPresence | undefined
@@ -521,12 +521,19 @@ export class GroupChatService {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'chat_messages',
                     filter: `chat_id=eq.${chatId}`
                 },
                 async (payload) => {
+                    // Handle DELETE or UPDATE where is_deleted becomes true
+                    if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && (payload.new as any).is_deleted)) {
+                        // We can construct a minimal object or just pass the ID if the callback supports it. 
+                        // For now, let's fetch the data. If it's soft-deleted, we might still want to know.
+                        // But getChatMessages filters out is_deleted. 
+                    }
+
                     const { data } = await supabase
                         .from('chat_messages')
                         .select(`
@@ -537,7 +544,7 @@ export class GroupChatService {
                 user_metadata
               )
             `)
-                        .eq('id', payload.new.id)
+                        .eq('id', (payload.new as any).id)
                         .single();
 
                     if (data) {
@@ -628,6 +635,39 @@ export class GroupChatService {
             console.error('Error ending call:', error);
             throw error;
         }
+    }
+
+    /**
+     * Send a WebRTC signal (Offer, Answer, ICE Candidate, or Join Call)
+     */
+    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call', payload: any, recipientId?: string): Promise<void> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        await supabase.channel(`chat:${chatId}`).send({
+            type: 'broadcast',
+            event: 'signal',
+            payload: {
+                type,
+                payload,
+                from: user.id,
+                to: recipientId
+            }
+        });
+    }
+
+    /**
+     * Subscribe to WebRTC signals
+     */
+    static subscribeToSignals(chatId: string, callback: (signal: any) => void): RealtimeChannel {
+        const channel = supabase.channel(`chat:${chatId}`)
+            .on(
+                'broadcast',
+                { event: 'signal' },
+                (payload) => callback(payload.payload)
+            )
+            .subscribe();
+        return channel;
     }
 
     /**
