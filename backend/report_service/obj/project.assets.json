@@ -13,9 +13,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\dejia\\Desktop\\App Development\\2025 APP CHURCH APP\\thepowerhouse\\backend\\report_service\\ReportGenerator.csproj",
-      "projectName": "ReportGenerator",
-      "projectPath": "C:\\Users\\dejia\\Desktop\\App Development\\2025 APP CHURCH APP\\thepowerhouse\\backend\\report_service\\ReportGenerator.csproj",
+      "projectUniqueName": "C:\\Users\\dejia\\Desktop\\App Development\\2025 APP CHURCH APP\\thepowerhouse\\backend\\report_service\\AdvancedReportGenerator.csproj",
+      "projectName": "AdvancedReportGenerator",
+      "projectPath": "C:\\Users\\dejia\\Desktop\\App Development\\2025 APP CHURCH APP\\thepowerhouse\\backend\\report_service\\AdvancedReportGenerator.csproj",
       "packagesPath": "C:\\Users\\dejia\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\dejia\\Desktop\\App Development\\2025 APP CHURCH APP\\thepowerhouse\\backend\\report_service\\obj\\",
       "projectStyle": "PackageReference",

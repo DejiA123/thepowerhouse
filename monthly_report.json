@@ -1,0 +1,66 @@
+{
+  "title": "Batch Report",
+  "generatedAt": "2026-01-29T16:37:29.3933358+00:00",
+  "metrics": [
+    {
+      "name": "Total Tithes",
+      "value": 16500.00,
+      "unit": "USD",
+      "timestamp": "2026-01-27T16:37:29.2596406+00:00"
+    },
+    {
+      "name": "Total Tithes",
+      "value": 15000.00,
+      "unit": "USD",
+      "timestamp": "2026-01-22T16:37:29.2375998+00:00"
+    },
+    {
+      "name": "Volunteer Hours",
+      "value": 320.5,
+      "unit": "hours",
+      "timestamp": "2026-01-26T16:37:29.2596382+00:00"
+    },
+    {
+      "name": "Event Participation",
+      "value": 145,
+      "unit": "count",
+      "timestamp": "2026-01-25T16:37:29.259638+00:00"
+    },
+    {
+      "name": "Choir Attendance",
+      "value": 99.2,
+      "unit": "%",
+      "timestamp": "2026-01-28T16:37:29.2596409+00:00"
+    },
+    {
+      "name": "Choir Attendance",
+      "value": 98.5,
+      "unit": "%",
+      "timestamp": "2026-01-23T16:37:29.259632+00:00"
+    },
+    {
+      "name": "New Visitors",
+      "value": 12,
+      "unit": "count",
+      "timestamp": "2026-01-24T16:37:29.2596376+00:00"
+    }
+  ],
+  "metadata": {
+    "Summary": {
+      "totalMetrics": 7,
+      "averageValue": 4596.4571428571428571428571429,
+      "maxValue": 16500.00,
+      "minValue": 12,
+      "totalValue": 32175.20
+    },
+    "Config": {
+      "title": "Batch Report",
+      "includedSections": [
+        "Metrics",
+        "Summary"
+      ],
+      "includeTimestamp": true,
+      "includeSummary": true
+    }
+  }
+}

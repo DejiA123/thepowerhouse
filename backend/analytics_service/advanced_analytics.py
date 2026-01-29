@@ -19,7 +19,11 @@ except ImportError:
     # Graceful fallback for demo purposes
     class BaseModel:
         pass
+    def Field(*args, **kwargs):
+        return None
     FastAPI = None
+    print("⚠️  Warning: Some dependencies not installed (fastapi, pydantic, pandas, numpy, scikit-learn)")
+    print("   The demo will run with limited functionality.\n")
 
 # Configure structured logging
 logging.basicConfig(

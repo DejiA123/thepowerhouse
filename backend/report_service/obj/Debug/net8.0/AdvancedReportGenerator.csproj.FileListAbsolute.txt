@@ -1,0 +1,15 @@
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.AssemblyInfoInputs.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.AssemblyInfo.cs
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.csproj.CoreCompileInputs.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.sourcelink.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\AdvancedReportGenerator.exe
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\AdvancedReportGenerator.deps.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\AdvancedReportGenerator.runtimeconfig.json
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\AdvancedReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\bin\Debug\net8.0\AdvancedReportGenerator.pdb
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\refint\AdvancedReportGenerator.dll
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.pdb
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\AdvancedReportGenerator.genruntimeconfig.cache
+C:\Users\dejia\Desktop\App Development\2025 APP CHURCH APP\thepowerhouse\backend\report_service\obj\Debug\net8.0\ref\AdvancedReportGenerator.dll
