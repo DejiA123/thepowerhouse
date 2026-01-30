@@ -4595,7 +4595,7 @@ const ChoirPage = () => {
 
             {/* Lyrics Preview Modal */}
             <Dialog open={isPreviewLyricsOpen} onOpenChange={setIsPreviewLyricsOpen}>
-                <DialogContent className="max-w-[100vw] w-[95vw] h-[95vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-white dark:bg-slate-900">
+                <DialogContent className="max-w-[100vw] w-[95vw] h-[85vh] max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-white dark:bg-slate-900 mx-auto my-auto">
                     <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
                         <DialogTitle className="flex items-center justify-center gap-3 text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
                             <FileMusic className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
