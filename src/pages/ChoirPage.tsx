@@ -3140,7 +3140,7 @@ const ChoirPage = () => {
 
                                             <div className="space-y-2">
                                                 <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
-                                                <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
+                                                <p className="text-blue-100/80 text-lg font-medium">No new songs set yet. Add one to get started!</p>
                                             </div>
                                             <div className="flex justify-center">
                                                 <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
