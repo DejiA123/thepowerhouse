@@ -19,7 +19,7 @@ interface ThemeSettings {
 export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [settings, setSettings] = useState<ThemeSettings>({
     theme: 'system',
     colorTheme: 'default',
@@ -76,21 +76,16 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     }
 
     applyTheme(updated);
-    
-    toast({
-      title: "Theme Updated",
-      description: `Switched to ${getThemeName(updated.theme)} theme`,
-    });
   };
 
   const applyTheme = (themeSettings: ThemeSettings) => {
     const root = document.documentElement;
     const body = document.body;
-    
+
     // Remove existing theme classes from both html and body
     root.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
     body.classList.remove('light', 'dark', 'theme-blue', 'theme-green', 'theme-purple', 'theme-yellow', 'theme-red', 'theme-orange', 'theme-custom');
-    
+
     // Apply custom theme colors if selected
     if (themeSettings.colorTheme === 'custom') {
       applyCustomTheme(themeSettings);
@@ -98,7 +93,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       const colorThemeClass = `theme-${themeSettings.colorTheme}`;
       root.classList.add(colorThemeClass);
       body.classList.add(colorThemeClass);
-      
+
       // Apply the theme color as background with !important to override any other styles
       if (themeSettings.colorTheme === 'blue') {
         const color = 'hsl(210, 100%, 97%)';
@@ -137,7 +132,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       document.documentElement.style.removeProperty('background-color');
       document.documentElement.style.removeProperty('--background-color');
     }
-    
+
     // Apply light/dark theme
     if (themeSettings.theme === 'system') {
       const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -148,10 +143,10 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       root.classList.add(themeSettings.theme);
       body.classList.add(themeSettings.theme);
     }
-    
+
     // Apply background color based on selected theme
     const isDark = themeSettings.theme === 'dark' || (themeSettings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    
+
     // Adjust background color for dark mode
     if (isDark && themeSettings.colorTheme !== 'default') {
       if (themeSettings.colorTheme === 'blue') {
@@ -186,19 +181,19 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
         document.documentElement.style.setProperty('--background-color', color, 'important');
       }
     }
-    
+
     // Get the computed styles for the current theme combination
     const computedStyles = getComputedStyle(root);
     const backgroundColor = computedStyles.getPropertyValue('--background');
     const foregroundColor = computedStyles.getPropertyValue('--foreground');
-    
+
     if (backgroundColor && foregroundColor) {
       body.style.backgroundColor = `hsl(${backgroundColor})`;
       body.style.color = `hsl(${foregroundColor})`;
       root.style.backgroundColor = `hsl(${backgroundColor})`;
       root.style.color = `hsl(${foregroundColor})`;
     }
-    
+
     // Dynamically update iOS status bar style for PWA
     try {
       const statusBarMeta = document.querySelector(
@@ -207,7 +202,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       if (statusBarMeta) {
         statusBarMeta.setAttribute('content', isDark ? 'black' : 'default');
       }
-      
+
       // Also update theme-color meta tag for Android
       const themeColorMeta = document.querySelector(
         'meta[name="theme-color"]'
@@ -218,34 +213,34 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
     } catch (e) {
       console.warn('Failed to update status bar meta tags:', e);
     }
-    
+
     // Dispatch theme change event
     window.dispatchEvent(new Event('themechange'));
-    
+
     console.log('🎨 Theme applied:', themeSettings.theme, 'Color:', themeSettings.colorTheme, 'Classes:', root.className);
   };
 
   const applyCustomTheme = (themeSettings: ThemeSettings) => {
     const root = document.documentElement;
-    
+
     if (themeSettings.customPrimaryColor && themeSettings.customBackgroundColor) {
       // Convert hex to HSL for CSS variables
       const primaryHSL = hexToHSL(themeSettings.customPrimaryColor);
       const backgroundHSL = hexToHSL(themeSettings.customBackgroundColor);
-      
+
       // Apply custom CSS variables
       root.style.setProperty('--primary', primaryHSL);
       root.style.setProperty('--background', backgroundHSL);
       root.style.setProperty('--card', backgroundHSL);
       root.style.setProperty('--popover', backgroundHSL);
-      
+
       // Calculate contrasting foreground color
       const isDarkBackground = isColorDark(themeSettings.customBackgroundColor);
       const foregroundHSL = isDarkBackground ? '0 0% 95%' : '0 0% 5%';
       root.style.setProperty('--foreground', foregroundHSL);
       root.style.setProperty('--card-foreground', foregroundHSL);
       root.style.setProperty('--popover-foreground', foregroundHSL);
-      
+
       root.classList.add('theme-custom');
     }
   };
@@ -349,7 +344,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
             <Sun className="w-5 h-5" />
             Appearance
           </h2>
-          
+
           <div className="grid grid-cols-3 gap-3">
             {['light', 'dark', 'system'].map((theme) => (
               <Button
@@ -363,7 +358,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
               </Button>
             ))}
           </div>
-          
+
           <div className="text-sm text-muted-foreground mt-4">
             Choose your preferred appearance. Light theme provides a bright, clean interface, while Dark theme offers a comfortable viewing experience in low-light conditions.
           </div>
@@ -375,7 +370,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
             <Palette className="w-5 h-5" />
             Color Theme
           </h2>
-          
+
           <div className="grid grid-cols-3 gap-3">
             {['default', 'blue', 'green', 'purple', 'yellow', 'red', 'orange', 'custom'].map((colorTheme) => (
               <Button
@@ -389,7 +384,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
               </Button>
             ))}
           </div>
-          
+
           <div className="text-sm text-muted-foreground mt-4">
             Choose your preferred color scheme to personalize your experience.
           </div>
@@ -398,39 +393,39 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
           {settings.colorTheme === 'custom' && (
             <div className="space-y-4 border border-border rounded-lg p-4 bg-card">
               <h3 className="text-sm font-medium text-foreground">Custom Colors</h3>
-              
+
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Primary Color</label>
                   <div className="flex items-center gap-2">
-                    <input 
-                      type="color" 
-                      value={settings.customPrimaryColor} 
+                    <input
+                      type="color"
+                      value={settings.customPrimaryColor}
                       onChange={(e) => saveThemeSettings({ customPrimaryColor: e.target.value })}
                       className="w-8 h-8 rounded border border-border cursor-pointer"
                     />
-                    <input 
-                      type="text" 
-                      value={settings.customPrimaryColor} 
+                    <input
+                      type="text"
+                      value={settings.customPrimaryColor}
                       onChange={(e) => saveThemeSettings({ customPrimaryColor: e.target.value })}
                       className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded"
                       placeholder="#3b82f6"
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-xs text-muted-foreground block mb-1">Background Color</label>
                   <div className="flex items-center gap-2">
-                    <input 
-                      type="color" 
-                      value={settings.customBackgroundColor} 
+                    <input
+                      type="color"
+                      value={settings.customBackgroundColor}
                       onChange={(e) => saveThemeSettings({ customBackgroundColor: e.target.value })}
                       className="w-8 h-8 rounded border border-border cursor-pointer"
                     />
-                    <input 
-                      type="text" 
-                      value={settings.customBackgroundColor} 
+                    <input
+                      type="text"
+                      value={settings.customBackgroundColor}
                       onChange={(e) => saveThemeSettings({ customBackgroundColor: e.target.value })}
                       className="flex-1 px-2 py-1 text-xs bg-input border border-border rounded"
                       placeholder="#ffffff"

@@ -2,6 +2,9 @@ import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
 export default {
+	future: {
+		hoverOnlyWhenSupported: true,
+	},
 	darkMode: ["class"],
 	content: [
 		"./pages/**/*.{ts,tsx}",
