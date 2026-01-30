@@ -217,19 +217,19 @@ const SortableSetSongCard = ({
                         {song.url && (
                             <Badge
                                 variant="secondary"
-                                className="bg-blue-100 text-blue-700 hover:bg-blue-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md transition-all shadow-sm group/play"
+                                className="bg-blue-100 text-blue-700 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md shadow-sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onPlay(song.url!);
                                 }}
                             >
-                                <PlayCircle className="w-3 h-3 group-hover/play:fill-blue-700 transition-colors" /> <span className="hidden sm:inline">Play</span>
+                                <PlayCircle className="w-3 h-3" /> <span className="hidden sm:inline">Play</span>
                             </Badge>
                         )}
                         {song.lyrics && song.lyrics.trim() && (
                             <Badge
                                 variant="secondary"
-                                className="bg-purple-100 text-purple-700 hover:bg-purple-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md transition-all shadow-sm group/lyrics"
+                                className="bg-purple-100 text-purple-700 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md shadow-sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onViewLyrics(song.lyrics!, song.title);
