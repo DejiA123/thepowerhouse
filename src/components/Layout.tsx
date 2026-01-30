@@ -186,8 +186,10 @@ const Layout = ({ children }: LayoutProps) => {
       {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
         <>
           <Header />
-          {/* Spacer for Fixed Header: 80px logo + 16px padding (py-2 = 0.5rem*2) + safe-area-top */}
-          <div style={{ height: 'calc(5rem + 1rem + max(env(safe-area-inset-top), var(--sat-fallback, 0px)))' }} />
+          {/* Spacer for Fixed Header: logo + padding + safe-area-top */}
+          {/* Mobile: 64px (h-16) + 16px (pt-2 + pb-2) = 80px */}
+          {/* Desktop: 80px (h-20) + 16px (pt-2 + pb-2) = 96px */}
+          <div className="h-20 sm:h-24 shrink-0" style={{ marginTop: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
         </>
       )}
 

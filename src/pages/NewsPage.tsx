@@ -93,7 +93,7 @@ const NewsPage = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20 animate-in fade-in duration-700">
       {/* Immersive Hero Section */}
-      <div className="relative overflow-hidden bg-slate-900 py-24 sm:py-32">
+      <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-slate-900 to-slate-900 z-0" />
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-700/20 rounded-full blur-3xl opacity-50 animate-pulse" />
         <div className="absolute top-1/2 -right-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl opacity-50 animate-pulse" />

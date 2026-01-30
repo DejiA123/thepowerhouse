@@ -2970,7 +2970,7 @@ const ChoirPage = () => {
             {/* </Dialog> */}
 
             {/* Hero Header */}
-            < div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-20 md:pt-0" > {/* Adjusted height/padding for mobile */}
+            <div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-2" > {/* Removed pt-20, using pt-2 for a snug fit with global spacer */}
                 < div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-500 opacity-90" ></div >
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516280440614-6697288d5d38?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-black/20"></div>
@@ -3916,8 +3916,8 @@ const ChoirPage = () => {
 
                     <TabsContent value="academy" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                        {/* Academy Header */}
-                        <div className="relative overflow-hidden rounded-[3rem] bg-slate-900 border border-slate-800 p-8 md:p-12 shadow-2xl">
+                        {/* Immersive Hero Section */}
+                        <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32 rounded-[3rem] border border-slate-800 p-8 md:p-12 shadow-2xl">
                             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/20 to-transparent pointer-events-none" />
                             <div className="relative z-10 max-w-2xl">
                                 <Badge className="bg-blue-600 text-white border-blue-500 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-1.5 rounded-full mb-6">
