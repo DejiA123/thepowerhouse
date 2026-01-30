@@ -59,7 +59,8 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    DragEndEvent
+    DragEndEvent,
+    useDroppable
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -332,6 +333,25 @@ const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (cours
                 </Button>
             </CardContent>
         </Card>
+    );
+};
+
+const DroppableFolder = ({ id, children, onClick, className }: { id: string, children: React.ReactNode, onClick?: () => void, className?: string }) => {
+    const { isOver, setNodeRef } = useDroppable({
+        id: id,
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            onClick={onClick}
+            className={cn(
+                className,
+                isOver ? "ring-2 ring-blue-500 bg-blue-50/80 dark:bg-blue-900/40 scale-[1.02] shadow-xl" : ""
+            )}
+        >
+            {children}
+        </div>
     );
 };
 
@@ -867,18 +887,63 @@ const ChoirPage = () => {
         })
     );
 
-    const handlePraiseDragEnd = (event: DragEndEvent) => handleDragEnd(event, 'praise');
-    const handleWorshipDragEnd = (event: DragEndEvent) => handleDragEnd(event, 'worship');
+    const handlePraiseDragEnd = (event: DragEndEvent) => handleDragEnd(event);
+    const handleWorshipDragEnd = (event: DragEndEvent) => handleDragEnd(event);
 
-    const handleDragEnd = async (event: DragEndEvent, type: 'praise' | 'worship') => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
-            const set = type === 'praise' ? praiseSet : worshipSet;
-            const setSetter = type === 'praise' ? setPraiseSet : setWorshipSet;
+        if (!over) return;
+
+        // 1. Check if we dropped onto a folder
+        if (over.id.toString().startsWith('folder-')) {
+            const targetFolderId = over.id.toString().replace('folder-', '');
+
+            // Find the song being dragged. It could be in praiseSet or worshipSet.
+            let songToCopy: WeeklySetSong | undefined;
+
+            songToCopy = praiseSet.find(s => s.id === active.id);
+            if (!songToCopy) {
+                songToCopy = worshipSet.find(s => s.id === active.id);
+            }
+
+            if (songToCopy) {
+                try {
+                    await choirService.addSongToFolder({
+                        folder_id: targetFolderId,
+                        title: songToCopy.title,
+                        key: songToCopy.key || "",
+                        artist: songToCopy.artist || "",
+                        url: songToCopy.url || "",
+                        notes: ""
+                    }, locationId!);
+                    toast.success(`Added "${songToCopy.title}" to folder`);
+                } catch (e) {
+                    console.error("Failed to copy song to folder:", e);
+                    toast.error("Failed to add song to folder");
+                }
+            }
+            return;
+        }
+
+        // 2. Existing Reordering Logic
+        // Only proceed if active and over are different and NOT a folder drop
+        if (active.id !== over.id) {
+            // Determine set type
+            let targetType: 'praise' | 'worship' | null = null;
+
+            if (praiseSet.some(s => s.id === active.id)) targetType = 'praise';
+            else if (worshipSet.some(s => s.id === active.id)) targetType = 'worship';
+
+            if (!targetType) return;
+
+            const set = targetType === 'praise' ? praiseSet : worshipSet;
+            const setSetter = targetType === 'praise' ? setPraiseSet : setWorshipSet;
 
             const oldIndex = set.findIndex((song) => song.id === active.id);
             const newIndex = set.findIndex((song) => song.id === over.id);
+
+            if (oldIndex === -1 || newIndex === -1) return;
 
             const newSet = arrayMove(set, oldIndex, newIndex);
             setSetter(newSet as any);
@@ -890,7 +955,7 @@ const ChoirPage = () => {
                     sort_order: index
                 }));
                 await choirService.reorderWeeklySet(reorderData);
-                toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} order updated`);
+                toast.success(`${targetType.charAt(0).toUpperCase() + targetType.slice(1)} order updated`);
             } catch (e) {
                 console.error(e);
                 toast.error("Failed to save new order");
@@ -1134,9 +1199,10 @@ const ChoirPage = () => {
                 event: '*',
                 schema: 'public',
                 table: 'choir_songs',
+
                 filter: `location=eq.${locationId}`
             }, (payload) => {
-                console.log('Song change:', payload);
+                console.log('Song change (INSERT/UPDATE):', payload);
 
                 if (payload.eventType === 'INSERT') {
                     const newSong = payload.new as any;
@@ -1154,13 +1220,19 @@ const ChoirPage = () => {
                             ? { ...f, songs: (f.songs || []).map(s => s.id === updated.id ? updated : s) }
                             : f
                     ) as any);
-                } else if (payload.eventType === 'DELETE') {
-                    const deleted = payload.old as any;
-                    setFolders(prev => prev.map(f => ({
-                        ...f,
-                        songs: (f.songs || []).filter(s => s.id !== deleted.id)
-                    })) as any);
                 }
+            })
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'choir_songs'
+            }, (payload) => {
+                console.log('Song change (DELETE):', payload);
+                const deleted = payload.old as any;
+                setFolders(prev => prev.map(f => ({
+                    ...f,
+                    songs: (f.songs || []).filter(s => s.id !== deleted.id)
+                })) as any);
             })
             .subscribe();
 
@@ -2782,180 +2854,180 @@ const ChoirPage = () => {
                     </div>
 
                     <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
 
-                        {/* LEARNING FOCUS SECTION - REFACTORED FOR MULTIPLE SONGS */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <Music className="w-6 h-6 mr-3 text-blue-600" />
-                                    New Song{learningSet.length > 1 ? 's' : ''} Focus
-                                </h2>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-blue-600 hover:bg-blue-50 font-bold mr-0"
-                                    onClick={() => openAddSetSong('learning')}
-                                >
-                                    <PlusCircle className="w-4 h-4 mr-2" />
-                                    Add Focus Song
-                                </Button>
-                            </div>
+                            {/* LEARNING FOCUS SECTION - REFACTORED FOR MULTIPLE SONGS */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                        <Music className="w-6 h-6 mr-3 text-blue-600" />
+                                        New Song{learningSet.length > 1 ? 's' : ''} Focus
+                                    </h2>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-blue-600 hover:bg-blue-50 font-bold mr-0"
+                                        onClick={() => openAddSetSong('learning')}
+                                    >
+                                        <PlusCircle className="w-4 h-4 mr-2" />
+                                        Add Focus Song
+                                    </Button>
+                                </div>
 
-                            {/* Consolidated Hero Container for all focus songs (Vocalists) */}
-                            {learningSet.length > 0 ? (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 group/hero">
-                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20"></div>
+                                {/* Consolidated Hero Container for all focus songs (Vocalists) */}
+                                {learningSet.length > 0 ? (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 group/hero">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20"></div>
 
-                                    <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
-                                        <div className="flex flex-col items-center text-center space-y-4">
-                                            <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                                                What are we learning next?
-                                            </h3>
-                                            <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
-                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
-                                            </p>
-                                        </div>
+                                        <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
+                                            <div className="flex flex-col items-center text-center space-y-4">
+                                                <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                                    What are we learning next?
+                                                </h3>
+                                                <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
+                                                    Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                                </p>
+                                            </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {learningSet.map((song) => {
-                                                const videoId = extractYoutubeId(song.url);
-                                                return (
-                                                    <div key={song.id} className="space-y-4 group/song relative">
-                                                        {/* ACTIONS */}
-                                                        <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
-                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
-                                                                <Edit3 className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                                {learningSet.map((song) => {
+                                                    const videoId = extractYoutubeId(song.url);
+                                                    return (
+                                                        <div key={song.id} className="space-y-4 group/song relative">
+                                                            {/* ACTIONS */}
+                                                            <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                    <Edit3 className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
 
-                                                        <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
-                                                            {videoId ? (
-                                                                <iframe
-                                                                    src={`https://www.youtube-nocookie.com/embed/${videoId}`}
-                                                                    title={song.title}
-                                                                    className="w-full h-full"
-                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                    allowFullScreen
-                                                                    loading="lazy"
-                                                                    {...({ fetchpriority: "low" } as any)}
-                                                                />
-                                                            ) : (
-                                                                <div className="flex h-full items-center justify-center text-white/40">
-                                                                    <div className="text-center p-4">
-                                                                        <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                                        No Video
+                                                            <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
+                                                                {videoId ? (
+                                                                    <iframe
+                                                                        src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+                                                                        title={song.title}
+                                                                        className="w-full h-full"
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                        allowFullScreen
+                                                                        loading="lazy"
+                                                                        {...({ fetchpriority: "low" } as any)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex h-full items-center justify-center text-white/40">
+                                                                        <div className="text-center p-4">
+                                                                            <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                            No Video
+                                                                        </div>
                                                                     </div>
-                                                                </div>
+                                                                )}
+                                                            </div>
+                                                            {song.title && (
+                                                                <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
+                                                                    {song.title}
+                                                                </h3>
                                                             )}
                                                         </div>
-                                                        {song.title && (
-                                                            <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
-                                                                {song.title}
-                                                            </h3>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] group md:col-span-2 lg:col-span-3">
-                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                    <div className="relative z-10 space-y-6 text-center">
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] group md:col-span-2 lg:col-span-3">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                        <div className="relative z-10 space-y-6 text-center">
 
-                                        <div className="space-y-2">
-                                            <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
-                                            <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
-                                        </div>
-                                        <div className="flex justify-center">
-                                            <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
-                                                <PlusCircle className="w-5 h-5 mr-3" />
-                                                Add Your First Focus Song
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </Card>
-                            )}
-                        </div>
-
-
-
-                        {/* SPLIT SETLIST SECTION */}
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <ListMusic className="w-6 h-6 mr-3 text-blue-600" />
-                                    This Week's Setlist
-                                </h2>
-
-                                {/* Date Picker Popover */}
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 pl-4 text-left font-bold shadow-sm",
-                                                !setlistDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {setlistDate ? (
-                                                format(setlistDate, "do MMM yyyy")
-                                            ) : (
-                                                <span>Select Service Date</span>
-                                            )}
-                                            <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="end">
-                                        <CalendarComponent
-                                            mode="single"
-                                            selected={setlistDate}
-                                            onSelect={handleDateSelect}
-                                            initialFocus
-                                            disabled={(date) => date.getDay() !== 1}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* Praise Set */}
-                                <Card className="border-none shadow-lg bg-blue-50/50 dark:bg-blue-900/10 border-t-4 border-blue-500">
-                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                        <div className="space-y-1">
-                                            <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center">
-                                                <PlayCircle className="w-5 h-5 mr-2" />
-                                                {praiseInfo.title}
-                                            </CardTitle>
-                                            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('praise')}>
-                                                <CardDescription className="cursor-pointer group-hover:text-orange-600 transition-colors">
-                                                    {praiseInfo.desc}
-                                                </CardDescription>
-                                                <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                            <div className="space-y-2">
+                                                <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
+                                                <p className="text-blue-100/80 text-lg font-medium">No songs set yet. Add one to get started!</p>
+                                            </div>
+                                            <div className="flex justify-center">
+                                                <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
+                                                    <PlusCircle className="w-5 h-5 mr-3" />
+                                                    Add Your First Focus Song
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
-                                                setImportSetType('praise');
-                                                setIsImportOpen(true);
-                                            }}>
-                                                <Download className="w-5 h-5" />
+                                    </Card>
+                                )}
+                            </div>
+
+
+
+                            {/* SPLIT SETLIST SECTION */}
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                        <ListMusic className="w-6 h-6 mr-3 text-blue-600" />
+                                        This Week's Setlist
+                                    </h2>
+
+                                    {/* Date Picker Popover */}
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className={cn(
+                                                    "h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 pl-4 text-left font-bold shadow-sm",
+                                                    !setlistDate && "text-muted-foreground"
+                                                )}
+                                            >
+                                                {setlistDate ? (
+                                                    format(setlistDate, "do MMM yyyy")
+                                                ) : (
+                                                    <span>Select Service Date</span>
+                                                )}
+                                                <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
                                             </Button>
-                                            <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
-                                                <Plus className="w-5 h-5" />
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-4">
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handlePraiseDragEnd}
-                                        >
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="end">
+                                            <CalendarComponent
+                                                mode="single"
+                                                selected={setlistDate}
+                                                onSelect={handleDateSelect}
+                                                initialFocus
+                                                disabled={(date) => date.getDay() !== 1}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    {/* Praise Set */}
+                                    <Card className="border-none shadow-lg bg-blue-50/50 dark:bg-blue-900/10 border-t-4 border-blue-500">
+                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                            <div className="space-y-1">
+                                                <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center">
+                                                    <PlayCircle className="w-5 h-5 mr-2" />
+                                                    {praiseInfo.title}
+                                                </CardTitle>
+                                                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('praise')}>
+                                                    <CardDescription className="cursor-pointer group-hover:text-orange-600 transition-colors">
+                                                        {praiseInfo.desc}
+                                                    </CardDescription>
+                                                    <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
+                                                    setImportSetType('praise');
+                                                    setIsImportOpen(true);
+                                                }}>
+                                                    <Download className="w-5 h-5" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
+                                                    <Plus className="w-5 h-5" />
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3 pt-4">
                                             <SortableContext
                                                 items={praiseSet.map(s => s.id)}
                                                 strategy={verticalListSortingStrategy}
@@ -2971,46 +3043,40 @@ const ChoirPage = () => {
                                                     />
                                                 ))}
                                             </SortableContext>
-                                        </DndContext>
-                                        {praiseSet.length === 0 && (
-                                            <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
-                                        )}
-                                    </CardContent>
-                                </Card>
+                                            {praiseSet.length === 0 && (
+                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
 
-                                {/* Worship Set */}
-                                <Card className="border-none shadow-lg bg-blue-50/50 dark:bg-blue-900/10 border-t-4 border-blue-500">
-                                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                        <div className="space-y-1">
-                                            <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center">
-                                                <Heart className="w-5 h-5 mr-2" />
-                                                {worshipInfo.title}
-                                            </CardTitle>
-                                            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('worship')}>
-                                                <CardDescription className="cursor-pointer group-hover:text-blue-600 transition-colors">
-                                                    {worshipInfo.desc}
-                                                </CardDescription>
-                                                <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                    {/* Worship Set */}
+                                    <Card className="border-none shadow-lg bg-blue-50/50 dark:bg-blue-900/10 border-t-4 border-blue-500">
+                                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                            <div className="space-y-1">
+                                                <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center">
+                                                    <Heart className="w-5 h-5 mr-2" />
+                                                    {worshipInfo.title}
+                                                </CardTitle>
+                                                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('worship')}>
+                                                    <CardDescription className="cursor-pointer group-hover:text-blue-600 transition-colors">
+                                                        {worshipInfo.desc}
+                                                    </CardDescription>
+                                                    <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
-                                                setImportSetType('worship');
-                                                setIsImportOpen(true);
-                                            }}>
-                                                <Download className="w-5 h-5" />
-                                            </Button>
-                                            <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
-                                                <Plus className="w-5 h-5" />
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 pt-4">
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handleWorshipDragEnd}
-                                        >
+                                            <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
+                                                    setImportSetType('worship');
+                                                    setIsImportOpen(true);
+                                                }}>
+                                                    <Download className="w-5 h-5" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
+                                                    <Plus className="w-5 h-5" />
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3 pt-4">
                                             <SortableContext
                                                 items={worshipSet.map(s => s.id)}
                                                 strategy={verticalListSortingStrategy}
@@ -3026,315 +3092,320 @@ const ChoirPage = () => {
                                                     />
                                                 ))}
                                             </SortableContext>
-                                        </DndContext>
-                                        {worshipSet.length === 0 && (
-                                            <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                            {worshipSet.length === 0 && (
+                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+
+
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                        <BookOpen className="w-6 h-6 mr-3 text-blue-600" />
+                                        Vocalist Library
+                                    </h2>
+                                </div>
+
+                                <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col">
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
+                                        <div className="flex items-center gap-2">
+                                            <FolderOpen className="w-5 h-5 text-blue-500" />
+                                            {activeFolderId ? (
+                                                <div className="flex items-center gap-1 overflow-hidden">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setActiveFolderId(null)}
+                                                        className="text-slate-500 hover:text-blue-600 h-7 px-2 text-xs"
+                                                    >
+                                                        Library
+                                                    </Button>
+                                                    <span className="text-slate-300">/</span>
+                                                    <span className="font-semibold text-blue-600 truncate max-w-[150px]">{activeFolder?.name}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">Folders</span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-2 shrink-0">
+                                            <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+                                                        <Folder className="w-4 h-4 sm:mr-2" />
+                                                        <span className="hidden sm:inline">New Folder</span>
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="py-4">
+                                                        <Label>Folder Name</Label>
+                                                        <Input
+                                                            placeholder="e.g. Wedding Set"
+                                                            className="mt-2"
+                                                            value={newFolderName}
+                                                            onChange={(e) => setNewFolderName(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button onClick={handleCreateFolder} className="bg-blue-600 text-white">Create</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+
+                                            {activeFolderId && (
+                                                <div className="flex gap-2">
+                                                    <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+                                                                <Download className="w-4 h-4 sm:mr-2" />
+                                                                <span className="hidden sm:inline">Import</span>
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                            <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
+                                                                <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+                                                                    <Download className="w-6 h-6 text-blue-600" />
+                                                                    Import Songs to Folder
+                                                                </DialogTitle>
+                                                            </DialogHeader>
+
+                                                            <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                                                                <div className="space-y-4">
+                                                                    <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                                                        Paste a list of songs (one song per line). We'll try to find matches in your library to pre-fill details.
+                                                                    </p>
+                                                                    <Textarea
+                                                                        placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
+                                                                        className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-blue-100 dark:border-blue-800/50 focus-visible:ring-blue-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
+                                                                        value={importFolderText}
+                                                                        onChange={(e) => setImportFolderText(e.target.value)}
+                                                                    />
+                                                                </div>
+
+                                                                <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
+                                                                    <Button
+                                                                        onClick={handleImportFolderSongs}
+                                                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
+                                                                        disabled={!importFolderText.trim()}
+                                                                    >
+                                                                        Import {importFolderText.split('\n').filter(l => l.trim()).length} Songs
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() => setIsImportFolderOpen(false)}
+                                                                        className="rounded-2xl py-8 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto"
+                                                                    >
+                                                                        Cancel
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+
+                                                    <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+                                                                <Plus className="w-4 h-4 sm:mr-2" />
+                                                                <span className="hidden sm:inline">Add Song</span>
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
+                                                            </DialogHeader>
+                                                            <div className="space-y-4 py-4">
+                                                                <div className="space-y-2">
+                                                                    <Label>Song Title</Label>
+                                                                    <Input
+                                                                        placeholder="e.g. Goodness of God"
+                                                                        value={newSong.title}
+                                                                        onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label>Key</Label>
+                                                                        <Input
+                                                                            placeholder="e.g. A"
+                                                                            value={newSong.key}
+                                                                            onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label>Artist (Optional)</Label>
+                                                                        <Input
+                                                                            placeholder="e.g. CeCe Winans"
+                                                                            value={newSong.artist}
+                                                                            onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>YouTube/Audio Link</Label>
+                                                                    <Input
+                                                                        placeholder="https://..."
+                                                                        value={newSong.url}
+                                                                        onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>Notes</Label>
+                                                                    <Textarea
+                                                                        placeholder="Add notes about structure, harmonies, etc."
+                                                                        value={newSong.notes}
+                                                                        onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <Button onClick={handleAddSong} className="bg-blue-600 text-white">Save Song</Button>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <CardContent className="p-6 flex-1 overflow-y-auto">
+                                        {!activeFolderId ? (
+                                            // Folder Grid View (Root only)
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                {folders.filter(f => !f.parent_id).map(folder => (
+                                                    <DroppableFolder
+                                                        key={folder.id}
+                                                        id={`folder-${folder.id}`}
+                                                        onClick={() => setActiveFolderId(folder.id)}
+                                                        className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
+                                                    >
+                                                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-300 group-hover:text-blue-600 group-hover:bg-blue-100 transition-colors">
+                                                            <FolderOpen className="w-8 h-8" />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{folder.name}</h3>
+                                                            <p className="text-xs text-slate-400">
+                                                                {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button size="icon" variant="ghost" className="h-6 w-6">
+                                                                        <MoreVertical className="w-4 h-4 text-slate-400" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent>
+                                                                    <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    </DroppableFolder>
+                                                ))}
+                                                {folders.filter(f => !f.parent_id).length === 0 && (
+                                                    <div className="col-span-full py-12 text-center text-slate-400">
+                                                        <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                                        <p>No folders yet. Create one to organize your songs!</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            // Active Folder View: Show Subfolders AND Songs
+                                            <DroppableFolder
+                                                id={`folder-${activeFolderId}`}
+                                                className="space-y-6 min-h-[500px]" // Added min-h to ensure drop area exists even if empty
+                                            >
+                                                {/* Subfolders if any */}
+                                                {folders.filter(f => f.parent_id === activeFolderId).length > 0 && (
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subfolders</h4>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                            {folders.filter(f => f.parent_id === activeFolderId).map(folder => (
+                                                                <DroppableFolder
+                                                                    key={folder.id}
+                                                                    id={`folder-${folder.id}`}
+                                                                    onClick={() => setActiveFolderId(folder.id)}
+                                                                    className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
+                                                                >
+                                                                    <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
+                                                                    <div>
+                                                                        <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{folder.name}</h3>
+                                                                        <p className="text-[10px] text-slate-400">
+                                                                            {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                        <DropdownMenu>
+                                                                            <DropdownMenuTrigger asChild>
+                                                                                <Button size="icon" variant="ghost" className="h-6 w-6">
+                                                                                    <MoreVertical className="w-4 h-4 text-slate-400" />
+                                                                                </Button>
+                                                                            </DropdownMenuTrigger>
+                                                                            <DropdownMenuContent>
+                                                                                <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                                </DropdownMenuItem>
+                                                                            </DropdownMenuContent>
+                                                                        </DropdownMenu>
+                                                                    </div>
+                                                                </DroppableFolder>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Songs */}
+                                                <div className="space-y-3">
+                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Songs</h4>
+                                                    <div className="space-y-2">
+                                                        {activeFolder?.songs?.length > 0 ? (
+                                                            activeFolder.songs.map((song: any) => (
+                                                                <div key={song.id} className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors">
+                                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">
+                                                                            {song.key || "?"}
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <h4 className="font-medium text-slate-900 dark:text-slate-100 truncate">{song.title}</h4>
+                                                                            <p className="text-xs text-slate-500 truncate">{song.artist || "Unknown Artist"}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        {song.url && (
+                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => window.open(song.url, '_blank')}>
+                                                                                <PlayCircle className="w-4 h-4" />
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => startEditSong(song)}>
+                                                                            <Edit3 className="w-4 h-4" />
+                                                                        </Button>
+                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDeleteSong(song.id)}>
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <p className="text-sm text-slate-400 italic pl-2">No songs in this folder yet.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </DroppableFolder>
                                         )}
                                     </CardContent>
                                 </Card>
                             </div>
-                        </div>
 
-
-
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <BookOpen className="w-6 h-6 mr-3 text-blue-600" />
-                                    Vocalist Library
-                                </h2>
-                            </div>
-
-                            <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col">
-                                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
-                                    <div className="flex items-center gap-2">
-                                        <FolderOpen className="w-5 h-5 text-blue-500" />
-                                        {activeFolderId ? (
-                                            <div className="flex items-center gap-1 overflow-hidden">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setActiveFolderId(null)}
-                                                    className="text-slate-500 hover:text-blue-600 h-7 px-2 text-xs"
-                                                >
-                                                    Library
-                                                </Button>
-                                                <span className="text-slate-300">/</span>
-                                                <span className="font-semibold text-blue-600 truncate max-w-[150px]">{activeFolder?.name}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">Folders</span>
-                                        )}
-                                    </div>
-
-                                    <div className="flex gap-2 shrink-0">
-                                        <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
-                                            <DialogTrigger asChild>
-                                                <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-                                                    <Folder className="w-4 h-4 sm:mr-2" />
-                                                    <span className="hidden sm:inline">New Folder</span>
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
-                                                </DialogHeader>
-                                                <div className="py-4">
-                                                    <Label>Folder Name</Label>
-                                                    <Input
-                                                        placeholder="e.g. Wedding Set"
-                                                        className="mt-2"
-                                                        value={newFolderName}
-                                                        onChange={(e) => setNewFolderName(e.target.value)}
-                                                    />
-                                                </div>
-                                                <DialogFooter>
-                                                    <Button onClick={handleCreateFolder} className="bg-blue-600 text-white">Create</Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
-
-                                        {activeFolderId && (
-                                            <div className="flex gap-2">
-                                                <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
-                                                    <DialogTrigger asChild>
-                                                        <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-                                                            <Download className="w-4 h-4 sm:mr-2" />
-                                                            <span className="hidden sm:inline">Import</span>
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                                                        <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
-                                                            <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                                                                <Download className="w-6 h-6 text-blue-600" />
-                                                                Import Songs to Folder
-                                                            </DialogTitle>
-                                                        </DialogHeader>
-
-                                                        <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
-                                                            <div className="space-y-4">
-                                                                <p className="text-slate-500 dark:text-slate-400 font-medium">
-                                                                    Paste a list of songs (one song per line). We'll try to find matches in your library to pre-fill details.
-                                                                </p>
-                                                                <Textarea
-                                                                    placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
-                                                                    className="min-h-[400px] font-mono text-lg p-6 rounded-3xl border-blue-100 dark:border-blue-800/50 focus-visible:ring-blue-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-inner"
-                                                                    value={importFolderText}
-                                                                    onChange={(e) => setImportFolderText(e.target.value)}
-                                                                />
-                                                            </div>
-
-                                                            <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-20">
-                                                                <Button
-                                                                    onClick={handleImportFolderSongs}
-                                                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
-                                                                    disabled={!importFolderText.trim()}
-                                                                >
-                                                                    Import {importFolderText.split('\n').filter(l => l.trim()).length} Songs
-                                                                </Button>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    onClick={() => setIsImportFolderOpen(false)}
-                                                                    className="rounded-2xl py-8 text-xl font-bold border-slate-200 dark:border-slate-700 h-auto"
-                                                                >
-                                                                    Cancel
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
-
-                                                <Dialog open={isAddSongOpen} onOpenChange={setIsAddSongOpen}>
-                                                    <DialogTrigger asChild>
-                                                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-                                                            <Plus className="w-4 h-4 sm:mr-2" />
-                                                            <span className="hidden sm:inline">Add Song</span>
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
-                                                        </DialogHeader>
-                                                        <div className="space-y-4 py-4">
-                                                            <div className="space-y-2">
-                                                                <Label>Song Title</Label>
-                                                                <Input
-                                                                    placeholder="e.g. Goodness of God"
-                                                                    value={newSong.title}
-                                                                    onChange={(e) => setNewSong({ ...newSong, title: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-4">
-                                                                <div className="space-y-2">
-                                                                    <Label>Key</Label>
-                                                                    <Input
-                                                                        placeholder="e.g. A"
-                                                                        value={newSong.key}
-                                                                        onChange={(e) => setNewSong({ ...newSong, key: e.target.value })}
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <Label>Artist (Optional)</Label>
-                                                                    <Input
-                                                                        placeholder="e.g. CeCe Winans"
-                                                                        value={newSong.artist}
-                                                                        onChange={(e) => setNewSong({ ...newSong, artist: e.target.value })}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label>YouTube/Audio Link</Label>
-                                                                <Input
-                                                                    placeholder="https://..."
-                                                                    value={newSong.url}
-                                                                    onChange={(e) => setNewSong({ ...newSong, url: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label>Notes</Label>
-                                                                <Textarea
-                                                                    placeholder="Add notes about structure, harmonies, etc."
-                                                                    value={newSong.notes}
-                                                                    onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <DialogFooter>
-                                                            <Button onClick={handleAddSong} className="bg-blue-600 text-white">Save Song</Button>
-                                                        </DialogFooter>
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <CardContent className="p-6 flex-1 overflow-y-auto">
-                                    {!activeFolderId ? (
-                                        // Folder Grid View (Root only)
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            {folders.filter(f => !f.parent_id).map(folder => (
-                                                <div
-                                                    key={folder.id}
-                                                    onClick={() => setActiveFolderId(folder.id)}
-                                                    className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
-                                                >
-                                                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-300 group-hover:text-blue-600 group-hover:bg-blue-100 transition-colors">
-                                                        <FolderOpen className="w-8 h-8" />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-semibold text-slate-800 dark:text-slate-100">{folder.name}</h3>
-                                                        <p className="text-xs text-slate-400">
-                                                            {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button size="icon" variant="ghost" className="h-6 w-6">
-                                                                    <MoreVertical className="w-4 h-4 text-slate-400" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent>
-                                                                <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
-                                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {folders.filter(f => !f.parent_id).length === 0 && (
-                                                <div className="col-span-full py-12 text-center text-slate-400">
-                                                    <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                                    <p>No folders yet. Create one to organize your songs!</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        // Active Folder View: Show Subfolders AND Songs
-                                        <div className="space-y-6">
-                                            {/* Subfolders if any */}
-                                            {folders.filter(f => f.parent_id === activeFolderId).length > 0 && (
-                                                <div className="space-y-3">
-                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subfolders</h4>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        {folders.filter(f => f.parent_id === activeFolderId).map(folder => (
-                                                            <div
-                                                                key={folder.id}
-                                                                onClick={() => setActiveFolderId(folder.id)}
-                                                                className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
-                                                            >
-                                                                <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
-                                                                <div>
-                                                                    <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">{folder.name}</h3>
-                                                                    <p className="text-[10px] text-slate-400">
-                                                                        {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
-                                                                    </p>
-                                                                </div>
-                                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                                    <DropdownMenu>
-                                                                        <DropdownMenuTrigger asChild>
-                                                                            <Button size="icon" variant="ghost" className="h-6 w-6">
-                                                                                <MoreVertical className="w-4 h-4 text-slate-400" />
-                                                                            </Button>
-                                                                        </DropdownMenuTrigger>
-                                                                        <DropdownMenuContent>
-                                                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
-                                                                                <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                                            </DropdownMenuItem>
-                                                                        </DropdownMenuContent>
-                                                                    </DropdownMenu>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Songs */}
-                                            <div className="space-y-3">
-                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Songs</h4>
-                                                <div className="space-y-2">
-                                                    {activeFolder?.songs?.length > 0 ? (
-                                                        activeFolder.songs.map((song: any) => (
-                                                            <div key={song.id} className="group flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800 last:border-0 transition-colors">
-                                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">
-                                                                        {song.key || "?"}
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <h4 className="font-medium text-slate-900 dark:text-slate-100 truncate">{song.title}</h4>
-                                                                        <p className="text-xs text-slate-500 truncate">{song.artist || "Unknown Artist"}</p>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    {song.url && (
-                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => window.open(song.url, '_blank')}>
-                                                                            <PlayCircle className="w-4 h-4" />
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => startEditSong(song)}>
-                                                                        <Edit3 className="w-4 h-4" />
-                                                                    </Button>
-                                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => deleteSong(song.id)}>
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <p className="text-sm text-slate-400 italic pl-2">No songs in this folder yet.</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-
+                        </DndContext>
                     </TabsContent>
 
                     <TabsContent value="instrumentalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
