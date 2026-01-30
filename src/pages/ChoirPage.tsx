@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -844,7 +845,6 @@ const ChoirPage = () => {
         url: "",
         instrumental_url: "",
         instrumental_notes: "",
-        instrumental_notes: "",
         lyrics: ""
     });
 
@@ -903,6 +903,7 @@ const ChoirPage = () => {
     const [instrToEdit, setInstrToEdit] = useState({ title: "", type: "Tutorial", url: "" });
     const [uploadingFile, setUploadingFile] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
 
     const sensors = useSensors(
@@ -1501,7 +1502,7 @@ const ChoirPage = () => {
 
             // Find or create "Previous Week's Setlist" parent folder
             const parentFolderName = "Previous Week's Setlist";
-            let parentFolder = folders.find(f => f.name === parentFolderName && !f.parent_folder_id);
+            let parentFolder = folders.find(f => f.name === parentFolderName && !f.parent_id);
 
             if (!parentFolder) {
                 parentFolder = await choirService.createFolder(parentFolderName, locationId, null);
@@ -1931,7 +1932,7 @@ const ChoirPage = () => {
 
             setIsImportFolderOpen(false);
             setImportFolderText("");
-            toast.success(`Imported ${newSongs.length} songs to folder (${matchedCount} details matched)`);
+            toast.success(`Imported ${lines.length} songs to folder (${matchedCount} details matched)`);
         } catch (e) {
             console.error(e);
             toast.error("Failed to import songs to folder");
@@ -1943,42 +1944,71 @@ const ChoirPage = () => {
         if (!newInstr.title.trim()) return;
 
         setUploadingFile(true);
+        setUploadProgress(0);
         try {
             let fileUrl = newInstr.url;
 
             // If a file is selected, upload it to Supabase Storage
             if (selectedFile) {
                 const fileName = `${Date.now()}_${selectedFile.name}`;
-                const { data, error } = await supabase.storage
-                    .from('backing-tracks')
-                    .upload(fileName, selectedFile, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
 
-                if (error) {
-                    console.error('Upload error:', error);
-                    toast.error('Failed to upload file');
+                // Get auth token for direct storage upload
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    toast.error("You must be logged in to upload files");
                     setUploadingFile(false);
                     return;
                 }
 
-                // Get public URL
-                const { data: urlData } = supabase.storage
-                    .from('backing-tracks')
-                    .getPublicUrl(fileName);
+                // Use XMLHttpRequest for progress tracking
+                const promise = new Promise<string>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    const url = `https://swjzhzmhqyvwfwevijja.supabase.co/storage/v1/object/backing-tracks/${fileName}`;
 
-                fileUrl = urlData.publicUrl;
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (event.lengthComputable) {
+                            const percent = Math.round((event.loaded / event.total) * 100);
+                            setUploadProgress(percent);
+                        }
+                    });
+
+                    xhr.addEventListener('load', () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            const { data: urlData } = supabase.storage
+                                .from('backing-tracks')
+                                .getPublicUrl(fileName);
+                            resolve(urlData.publicUrl);
+                        } else {
+                            reject(new Error(`Upload failed with status ${xhr.status}`));
+                        }
+                    });
+
+                    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+
+                    xhr.open('POST', url);
+                    xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+                    xhr.setRequestHeader('apikey', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3anpoem1ocXl2d2Z3ZXZpamphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMjE4NDcsImV4cCI6MjA2NDc5Nzg0N30.M0WyKsQm_nqGCEUNKPpSOM8Au4BONv5VGlsI0YS1wBQ");
+
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+                    // Supabase Storage expects the file to be sent directly as the body or via multipart
+                    // For direct file upload:
+                    xhr.send(selectedFile);
+                });
+
+                fileUrl = await promise;
             }
 
             await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
             setNewInstr({ title: "", type: "Tutorial", url: "" });
             setSelectedFile(null);
+            setUploadProgress(null);
             setIsAddInstrOpen(false);
-            toast.success("Resource added");
+            toast.success("Resource added successfully");
         } catch (e) {
             console.error(e);
             toast.error("Failed to add resource");
+            setUploadProgress(null);
         } finally {
             setUploadingFile(false);
         }
@@ -4581,6 +4611,16 @@ const ChoirPage = () => {
                             )}
                             <p className="text-xs text-slate-500">Upload audio or video file (MP3, MP4, etc.)</p>
                         </div>
+
+                        {uploadingFile && uploadProgress !== null && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                                <div className="flex justify-between text-xs font-bold text-blue-600 uppercase tracking-widest">
+                                    <span>Uploading Track</span>
+                                    <span>{uploadProgress}%</span>
+                                </div>
+                                <Progress value={uploadProgress} className="h-2 bg-blue-100" />
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button
