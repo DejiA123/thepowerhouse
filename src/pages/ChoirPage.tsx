@@ -39,7 +39,8 @@ import {
     PlusCircle,
     Clock,
     Sparkles,
-    GripVertical
+    GripVertical,
+    Archive
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -209,7 +210,7 @@ const SortableSetSongCard = ({
                 </div>
                 <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>
                 <div className="min-w-0">
-                    <p className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1">
+                    <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1">
                         {song.title}
                         {song.url && (
                             <Badge
@@ -223,7 +224,7 @@ const SortableSetSongCard = ({
                                 <PlayCircle className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Play</span>
                             </Badge>
                         )}
-                    </p>
+                    </div>
                     <p className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[120px] sm:max-w-none">{song.artist}</p>
                 </div>
             </div>
@@ -810,11 +811,12 @@ const ChoirPage = () => {
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
     const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | null>(null);
-    const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, library_song_id?: string }>({
+    const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, lyrics?: string, library_song_id?: string }>({
         title: "",
         key: "",
         artist: "",
         url: "",
+        lyrics: "",
         library_song_id: undefined
     });
 
@@ -827,7 +829,8 @@ const ChoirPage = () => {
         artist: "",
         url: "",
         instrumental_url: "",
-        instrumental_notes: ""
+        instrumental_notes: "",
+        lyrics: ""
     });
 
     // UI States for Import Setlist
@@ -879,6 +882,9 @@ const ChoirPage = () => {
     const [editingInstrId, setEditingInstrId] = useState<string | null>(null);
     const [newInstr, setNewInstr] = useState({ title: "", type: "Tutorial", url: "" });
     const [instrToEdit, setInstrToEdit] = useState({ title: "", type: "Tutorial", url: "" });
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -1463,6 +1469,57 @@ const ChoirPage = () => {
         }
     };
 
+    const handleArchiveSetlist = async () => {
+        if (!locationId) return;
+        if (praiseSet.length === 0 && worshipSet.length === 0) {
+            toast.error("Setlists are empty - nothing to archive");
+            return;
+        }
+
+        try {
+            const dateStr = setlistDate ? format(setlistDate, "do 'of' MMMM") : 'Unknown Date';
+            const folderName = `${dateStr} Song`;
+
+            // Create main folder
+            const mainFolder = await choirService.createFolder(folderName, locationId, null);
+
+            // Create Praise Set subfolder
+            const praiseFolder = await choirService.createFolder("Praise Set", locationId, mainFolder.id);
+
+            // Create Worship Set subfolder
+            const worshipFolder = await choirService.createFolder("Worship Set", locationId, mainFolder.id);
+
+            const praisePromises = praiseSet.map(song =>
+                choirService.addSongToFolder({
+                    folder_id: praiseFolder.id,
+                    title: song.title,
+                    key: song.key,
+                    artist: song.artist,
+                    url: song.url,
+                    notes: song.instrumental_notes || ''
+                }, locationId)
+            );
+
+            const worshipPromises = worshipSet.map(song =>
+                choirService.addSongToFolder({
+                    folder_id: worshipFolder.id,
+                    title: song.title,
+                    key: song.key,
+                    artist: song.artist,
+                    url: song.url,
+                    notes: song.instrumental_notes || ''
+                }, locationId)
+            );
+
+            await Promise.all([...praisePromises, ...worshipPromises]);
+
+            toast.success(`Archived to "${folderName}" with Praise and Worship subfolders`);
+        } catch (e) {
+            console.error("Failed to archive setlist:", e);
+            toast.error("Failed to archive setlist");
+        }
+    };
+
     // -- Handlers for Date --
     const handleDateSelect = async (date: Date | undefined) => {
         if (!date) return;
@@ -1615,6 +1672,7 @@ const ChoirPage = () => {
             }
 
             setIsAddToSetOpen(false);
+            setNewSetSong({ title: "", key: "", artist: "", url: "", lyrics: "", library_song_id: undefined });
         } catch (e) {
             console.error(e);
             toast.error("Failed to add song to setlist");
@@ -1652,7 +1710,8 @@ const ChoirPage = () => {
             artist: song.artist,
             url: song.url || "",
             instrumental_url: song.instrumental_url || "",
-            instrumental_notes: song.instrumental_notes || ""
+            instrumental_notes: song.instrumental_notes || "",
+            lyrics: song.lyrics || ""
         });
         setIsEditSetSongOpen(true);
     };
@@ -1829,14 +1888,46 @@ const ChoirPage = () => {
     // -- Handlers for Instrumental Resources --
     const handleAddInstrResource = async () => {
         if (!newInstr.title.trim()) return;
+
+        setUploadingFile(true);
         try {
-            await choirService.addInstrumentalResource(newInstr, locationId!);
+            let fileUrl = newInstr.url;
+
+            // If a file is selected, upload it to Supabase Storage
+            if (selectedFile) {
+                const fileName = `${Date.now()}_${selectedFile.name}`;
+                const { data, error } = await supabase.storage
+                    .from('backing-tracks')
+                    .upload(fileName, selectedFile, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (error) {
+                    console.error('Upload error:', error);
+                    toast.error('Failed to upload file');
+                    setUploadingFile(false);
+                    return;
+                }
+
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('backing-tracks')
+                    .getPublicUrl(fileName);
+
+                fileUrl = urlData.publicUrl;
+            }
+
+            await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
             setNewInstr({ title: "", type: "Tutorial", url: "" });
+            setSelectedFile(null);
             setIsAddInstrOpen(false);
             toast.success("Resource added");
         } catch (e) {
             console.error(e);
             toast.error("Failed to add resource");
+        } finally {
+            setUploadingFile(false);
         }
     };
 
@@ -2969,34 +3060,47 @@ const ChoirPage = () => {
                                         This Week's Setlist
                                     </h2>
 
-                                    {/* Date Picker Popover */}
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 pl-4 text-left font-bold shadow-sm",
-                                                    !setlistDate && "text-muted-foreground"
-                                                )}
-                                            >
-                                                {setlistDate ? (
-                                                    format(setlistDate, "do MMM yyyy")
-                                                ) : (
-                                                    <span>Select Service Date</span>
-                                                )}
-                                                <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="end">
-                                            <CalendarComponent
-                                                mode="single"
-                                                selected={setlistDate}
-                                                onSelect={handleDateSelect}
-                                                initialFocus
-                                                disabled={(date) => date.getDay() !== 1}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
+                                    <div className="flex gap-2">
+                                        {/* Archive Button */}
+                                        <Button
+                                            variant="outline"
+                                            className="h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 px-4 font-bold shadow-sm"
+                                            onClick={handleArchiveSetlist}
+                                            title="Archive this week's songs to a folder"
+                                        >
+                                            <Archive className="w-4 h-4 mr-2" />
+                                            <span className="hidden sm:inline">Archive Week</span>
+                                        </Button>
+
+                                        {/* Date Picker Popover */}
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 pl-4 text-left font-bold shadow-sm",
+                                                        !setlistDate && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {setlistDate ? (
+                                                        format(setlistDate, "do MMM yyyy")
+                                                    ) : (
+                                                        <span>Select Service Date</span>
+                                                    )}
+                                                    <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="end">
+                                                <CalendarComponent
+                                                    mode="single"
+                                                    selected={setlistDate}
+                                                    onSelect={handleDateSelect}
+                                                    initialFocus
+                                                    disabled={(date) => date.getDay() !== 1}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-6">
@@ -3551,6 +3655,86 @@ const ChoirPage = () => {
                                             <CardContent className="p-4">
                                                 <Badge variant="secondary" className="mb-2 text-xs font-normal">
                                                     {resource.type}
+                                                </Badge>
+                                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                                                    {resource.title}
+                                                </h3>
+                                                <p className="text-xs text-slate-500">
+                                                    {new Date(resource.created_at).toLocaleDateString()}
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Backing Tracks Section */}
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+                                    <Music className="w-6 h-6 text-blue-600" />
+                                    Backing Tracks
+                                </h2>
+                                <Button
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    onClick={() => {
+                                        setNewInstr({ title: "", type: "Backing Track", url: "" });
+                                        setIsAddInstrOpen(true);
+                                    }}
+                                >
+                                    <Plus className="w-4 h-4 mr-2" /> Add Backing Track
+                                </Button>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {instrResources.filter(r => r.type === "Backing Track").length === 0 ? (
+                                    <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                        <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                        <p>No backing tracks yet. Add tracks for choir practice!</p>
+                                    </div>
+                                ) : (
+                                    instrResources.filter(r => r.type === "Backing Track").map((resource) => (
+                                        <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
+                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                                            <MoreVertical className="w-4 h-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
+                                                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+
+                                            <div
+                                                className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all cursor-pointer relative"
+                                                onClick={() => resource.url && playVideo(resource.url)}
+                                            >
+                                                {getYTThumbnail(resource.url) ? (
+                                                    <div className="w-full h-full relative">
+                                                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center">
+                                                        <Music className="w-12 h-12 text-white/80 mb-2" />
+                                                        <PlayCircle className="w-8 h-8 text-white/60" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <CardContent className="p-4">
+                                                <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
+                                                    Backing Track
                                                 </Badge>
                                                 <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
                                                     {resource.title}
@@ -4281,16 +4465,44 @@ const ChoirPage = () => {
                                     <SelectItem value="Technique">Technique</SelectItem>
                                     <SelectItem value="Resource">Resource</SelectItem>
                                     <SelectItem value="Workshop">Workshop</SelectItem>
+                                    <SelectItem value="Backing Track">Backing Track</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label>URL (YouTube/Link)</Label>
                             <Input placeholder="https://..." value={newInstr.url} onChange={e => setNewInstr({ ...newInstr, url: e.target.value })} />
+                            <p className="text-xs text-slate-500">Paste a YouTube URL or direct link</p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Or Upload File</Label>
+                            <Input
+                                type="file"
+                                accept="audio/*,video/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        setSelectedFile(file);
+                                        // Clear URL if file is selected
+                                        setNewInstr({ ...newInstr, url: "" });
+                                    }
+                                }}
+                            />
+                            {selectedFile && (
+                                <p className="text-xs text-blue-600">Selected: {selectedFile.name}</p>
+                            )}
+                            <p className="text-xs text-slate-500">Upload audio or video file (MP3, MP4, etc.)</p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button onClick={handleAddInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Add Resource</Button>
+                        <Button
+                            onClick={handleAddInstrResource}
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                            disabled={uploadingFile}
+                        >
+                            {uploadingFile ? "Uploading..." : "Add Resource"}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >

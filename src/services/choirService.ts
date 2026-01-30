@@ -29,6 +29,7 @@ export interface WeeklySetSong {
     url?: string;
     instrumental_url?: string;
     instrumental_notes?: string;
+    lyrics?: string;
     library_song_id?: string;
     sort_order: number;
     created_at?: string;
