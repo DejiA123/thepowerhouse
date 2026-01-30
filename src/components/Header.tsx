@@ -46,14 +46,14 @@ const Header = () => {
       <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-1">
-            <div className="w-20 h-20 flex items-center justify-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
               <img
                 src="/lovable-uploads/5c77f128-2db6-4b67-bfe2-b9a79664a7f1.png"
                 alt="The Power House Logo"
-                className="w-20 h-20 object-contain"
+                className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
               />
             </div>
-            <h1 className="text-xl font-bold text-foreground flex items-center h-20">
+            <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center h-16 sm:h-20 whitespace-nowrap">
               The Power House
             </h1>
           </Link>

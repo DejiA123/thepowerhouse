@@ -1722,6 +1722,30 @@ const ChoirPage = () => {
         }
     };
 
+    const clearSet = async (type: 'praise' | 'worship') => {
+        const setName = type === 'praise' ? 'Praise Set' : 'Worship Set';
+        const currentSet = type === 'praise' ? praiseSet : worshipSet;
+
+        if (currentSet.length === 0) {
+            toast.info(`${setName} is already empty`);
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to clear all ${currentSet.length} song(s) from ${setName}? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            // Delete all songs from the set
+            const deletePromises = currentSet.map(song => choirService.deleteWeeklySong(song.id));
+            await Promise.all(deletePromises);
+            toast.success(`${setName} cleared successfully`);
+        } catch (e) {
+            console.error(e);
+            toast.error(`Failed to clear ${setName}`);
+        }
+    };
+
     // -- Handlers for Edit Setlist Song --
     const startEditSetSong = (song: WeeklySetSong) => {
         // Map deprecated or JSON 'learning' type effectively
@@ -3169,6 +3193,9 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('praise')} title="Clear all songs from Praise Set">
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
                                                 <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
                                                     setImportSetType('praise');
                                                     setIsImportOpen(true);
@@ -3222,6 +3249,9 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
+                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('worship')} title="Clear all songs from Worship Set">
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
                                                 <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
                                                     setImportSetType('worship');
                                                     setIsImportOpen(true);
