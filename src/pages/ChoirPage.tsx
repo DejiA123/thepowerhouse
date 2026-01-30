@@ -174,13 +174,15 @@ const SortableSetSongCard = ({
     index,
     onPlay,
     onEdit,
-    onRemove
+    onRemove,
+    onViewLyrics
 }: {
     song: WeeklySetSong,
     index: number,
     onPlay: (url: string) => void,
     onEdit: (song: WeeklySetSong) => void,
-    onRemove: (id: string) => void
+    onRemove: (id: string) => void,
+    onViewLyrics: (lyrics: string, title: string) => void
 }) => {
     const {
         attributes,
@@ -215,13 +217,25 @@ const SortableSetSongCard = ({
                         {song.url && (
                             <Badge
                                 variant="secondary"
-                                className="bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer flex items-center gap-1 py-0 px-1.5 h-4 text-[10px] shrink-0"
+                                className="bg-blue-100 text-blue-700 hover:bg-blue-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md transition-all shadow-sm group/play"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onPlay(song.url!);
                                 }}
                             >
-                                <PlayCircle className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Play</span>
+                                <PlayCircle className="w-3 h-3 group-hover/play:fill-blue-700 transition-colors" /> <span className="hidden sm:inline">Play</span>
+                            </Badge>
+                        )}
+                        {song.lyrics && song.lyrics.trim() && (
+                            <Badge
+                                variant="secondary"
+                                className="bg-purple-100 text-purple-700 hover:bg-purple-200 hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 py-0.5 px-2 h-6 text-xs font-bold shrink-0 rounded-md transition-all shadow-sm group/lyrics"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewLyrics(song.lyrics!, song.title);
+                                }}
+                            >
+                                <FileMusic className="w-3 h-3" /> <span className="hidden sm:inline">Lyrics</span>
                             </Badge>
                         )}
                     </div>
@@ -830,8 +844,13 @@ const ChoirPage = () => {
         url: "",
         instrumental_url: "",
         instrumental_notes: "",
+        instrumental_notes: "",
         lyrics: ""
     });
+
+    // UI States for Lyrics Prevention
+    const [previewLyrics, setPreviewLyrics] = useState<{ title: string, content: string } | null>(null);
+    const [isPreviewLyricsOpen, setIsPreviewLyricsOpen] = useState(false);
 
     // UI States for Import Setlist
     const [isImportOpen, setIsImportOpen] = useState(false);
@@ -1734,7 +1753,8 @@ const ChoirPage = () => {
                             artist: editingSetlistSongData.artist,
                             url: editingSetlistSongData.url,
                             instrumental_url: editingSetlistSongData.instrumental_url,
-                            instrumental_notes: editingSetlistSongData.instrumental_notes
+                            instrumental_notes: editingSetlistSongData.instrumental_notes,
+                            lyrics: editingSetlistSongData.lyrics
                         };
                     }
                     return s;
@@ -1748,7 +1768,8 @@ const ChoirPage = () => {
                     artist: editingSetlistSongData.artist,
                     url: editingSetlistSongData.url,
                     instrumental_url: editingSetlistSongData.instrumental_url,
-                    instrumental_notes: editingSetlistSongData.instrumental_notes
+                    instrumental_notes: editingSetlistSongData.instrumental_notes,
+                    lyrics: editingSetlistSongData.lyrics
                 });
             }
 
@@ -2692,6 +2713,16 @@ const ChoirPage = () => {
                             />
                         </div>
 
+                        <div className="space-y-2">
+                            <Label>Lyrics</Label>
+                            <Textarea
+                                placeholder="Paste lyrics here..."
+                                className="min-h-[150px] font-sans"
+                                value={newSetSong.lyrics || ""}
+                                onChange={(e) => setNewSetSong({ ...newSetSong, lyrics: e.target.value })}
+                            />
+                        </div>
+
                         <div className="pt-4">
                             <Button onClick={handleAddSetSong} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg font-bold rounded-2xl shadow-lg transition-all">
                                 Add to Set
@@ -2793,6 +2824,16 @@ const ChoirPage = () => {
                                 placeholder="https://youtube.com/..."
                                 value={editingSetlistSongData.url}
                                 onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, url: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Lyrics</Label>
+                            <Textarea
+                                placeholder="Paste lyrics here..."
+                                className="min-h-[150px] font-sans"
+                                value={editingSetlistSongData.lyrics || ""}
+                                onChange={(e) => setEditingSetlistSongData({ ...editingSetlistSongData, lyrics: e.target.value })}
                             />
                         </div>
 
@@ -3144,6 +3185,10 @@ const ChoirPage = () => {
                                                         onPlay={playVideo}
                                                         onEdit={startEditSetSong}
                                                         onRemove={(id) => removeSetSong('praise', id)}
+                                                        onViewLyrics={(lyrics, title) => {
+                                                            setPreviewLyrics({ title, content: lyrics });
+                                                            setIsPreviewLyricsOpen(true);
+                                                        }}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -3193,6 +3238,10 @@ const ChoirPage = () => {
                                                         onPlay={playVideo}
                                                         onEdit={startEditSetSong}
                                                         onRemove={(id) => removeSetSong('worship', id)}
+                                                        onViewLyrics={(lyrics, title) => {
+                                                            setPreviewLyrics({ title, content: lyrics });
+                                                            setIsPreviewLyricsOpen(true);
+                                                        }}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -4541,6 +4590,23 @@ const ChoirPage = () => {
                     <DialogFooter>
                         <Button onClick={handleSaveEditInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Save Changes</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Lyrics Preview Modal */}
+            <Dialog open={isPreviewLyricsOpen} onOpenChange={setIsPreviewLyricsOpen}>
+                <DialogContent className="max-w-[100vw] w-[95vw] h-[95vh] flex flex-col p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-white dark:bg-slate-900">
+                    <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                        <DialogTitle className="flex items-center justify-center gap-3 text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+                            <FileMusic className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
+                            {previewLyrics?.title}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-slate-50 dark:bg-slate-900/50">
+                        <p className="whitespace-pre-wrap text-xl md:text-3xl leading-relaxed font-bold text-slate-700 dark:text-slate-300 font-sans max-w-4xl mx-auto text-center">
+                            {previewLyrics?.content || "No lyrics available."}
+                        </p>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div >
