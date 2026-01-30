@@ -352,15 +352,43 @@ const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (cours
     );
 };
 
-const DroppableFolder = ({ id, children, onClick, className }: { id: string, children: React.ReactNode, onClick?: () => void, className?: string }) => {
+const DroppableFolder = ({ id, children, onClick, onLongPress, className }: { id: string, children: React.ReactNode, onClick?: () => void, onLongPress?: () => void, className?: string }) => {
     const { isOver, setNodeRef } = useDroppable({
         id: id,
     });
+
+    const [timer, setTimer] = useState<number | null>(null);
+
+    const handleTouchStart = () => {
+        if (onLongPress) {
+            const timeout = window.setTimeout(() => {
+                onLongPress();
+            }, 600); // 600ms for long press
+            setTimer(timeout);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (timer) {
+            window.clearTimeout(timer);
+            setTimer(null);
+        }
+    };
+
+    const handleTouchMove = () => {
+        if (timer) {
+            window.clearTimeout(timer);
+            setTimer(null);
+        }
+    };
 
     return (
         <div
             ref={setNodeRef}
             onClick={onClick}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
             className={cn(
                 className,
                 isOver ? "ring-2 ring-blue-500 bg-blue-50/80 dark:bg-blue-900/40 scale-[1.02] shadow-xl" : ""
@@ -819,7 +847,11 @@ const ChoirPage = () => {
     const [newSong, setNewSong] = useState({ title: "", key: "", artist: "", url: "", notes: "" });
 
     // UI States for Edit Song (Library)
+    const [isIdDialogOpen, setIsIdDialogOpen] = useState(false);
     const [isEditSongOpen, setIsEditSongOpen] = useState(false);
+    const [isEditFolderOpen, setIsEditFolderOpen] = useState(false);
+    const [folderToEdit, setFolderToEdit] = useState<{ id: string, name: string } | null>(null);
+    const [editFolderName, setEditFolderName] = useState("");
     const [editingSongId, setEditingSongId] = useState<string | null>(null);
     const [songToEdit, setSongToEdit] = useState({ title: "", key: "", artist: "", url: "", notes: "" });
 
@@ -1605,6 +1637,26 @@ const ChoirPage = () => {
             console.error(e);
             toast.error("Failed to delete folder");
         }
+    };
+
+    const handleUpdateFolder = async () => {
+        if (!folderToEdit || !editFolderName.trim()) return;
+        try {
+            await choirService.updateFolder(folderToEdit.id, editFolderName);
+            setIsEditFolderOpen(false);
+            setFolderToEdit(null);
+            setEditFolderName("");
+            toast.success("Folder renamed");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to rename folder");
+        }
+    };
+
+    const startEditFolder = (folder: any) => {
+        setFolderToEdit({ id: folder.id, name: folder.name });
+        setEditFolderName(folder.name);
+        setIsEditFolderOpen(true);
     };
 
     // -- Handlers for Song Edit/Delete (Library) --
@@ -3380,6 +3432,27 @@ const ChoirPage = () => {
                                                 </DialogContent>
                                             </Dialog>
 
+                                            <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Edit Folder Name</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="py-4">
+                                                        <Label>Folder Name</Label>
+                                                        <Input
+                                                            placeholder="e.g. Wedding Set"
+                                                            className="mt-2"
+                                                            value={editFolderName}
+                                                            onChange={(e) => setEditFolderName(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <DialogFooter className="flex gap-2">
+                                                        <Button variant="outline" className="flex-1" onClick={() => setIsEditFolderOpen(false)}>Cancel</Button>
+                                                        <Button onClick={handleUpdateFolder} className="bg-blue-600 text-white flex-1">Save Changes</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+
                                             {activeFolderId && (
                                                 <div className="flex gap-2">
                                                     <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
@@ -3504,6 +3577,10 @@ const ChoirPage = () => {
                                                         key={folder.id}
                                                         id={`folder-${folder.id}`}
                                                         onClick={() => setActiveFolderId(folder.id)}
+                                                        onLongPress={() => {
+                                                            // Trigger action sheet simulation or just open dialog
+                                                            startEditFolder(folder);
+                                                        }}
                                                         className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
                                                     >
                                                         <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-300 group-hover:text-blue-600 group-hover:bg-blue-100 transition-colors">
@@ -3524,6 +3601,9 @@ const ChoirPage = () => {
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent>
+                                                                    <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
+                                                                        <Pencil className="w-4 h-4 mr-2" /> Rename
+                                                                    </DropdownMenuItem>
                                                                     <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
                                                                         <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                     </DropdownMenuItem>
@@ -3555,6 +3635,7 @@ const ChoirPage = () => {
                                                                     key={folder.id}
                                                                     id={`folder-${folder.id}`}
                                                                     onClick={() => setActiveFolderId(folder.id)}
+                                                                    onLongPress={() => startEditFolder(folder)}
                                                                     className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
                                                                 >
                                                                     <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
@@ -3572,6 +3653,9 @@ const ChoirPage = () => {
                                                                                 </Button>
                                                                             </DropdownMenuTrigger>
                                                                             <DropdownMenuContent>
+                                                                                <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
+                                                                                    <Pencil className="w-4 h-4 mr-2" /> Rename
+                                                                                </DropdownMenuItem>
                                                                                 <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
                                                                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                                 </DropdownMenuItem>

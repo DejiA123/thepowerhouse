@@ -190,6 +190,17 @@ export const choirService = {
         if (error) throw error;
     },
 
+    async updateFolder(id: string, name: string) {
+        const { data, error } = await supabase
+            .from('choir_folders' as any)
+            .update({ name })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
     // --- Songs in Folders ---
     async addSongToFolder(song: Omit<ChoirSong, 'id' | 'created_at'>, location: string) {
         const { data, error } = await supabase
