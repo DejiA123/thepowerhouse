@@ -1499,8 +1499,16 @@ const ChoirPage = () => {
             const dateStr = setlistDate ? format(setlistDate, "do 'of' MMMM") : 'Unknown Date';
             const folderName = `${dateStr} Song`;
 
-            // Create main folder
-            const mainFolder = await choirService.createFolder(folderName, locationId, null);
+            // Find or create "Previous Week's Setlist" parent folder
+            const parentFolderName = "Previous Week's Setlist";
+            let parentFolder = folders.find(f => f.name === parentFolderName && !f.parent_folder_id);
+
+            if (!parentFolder) {
+                parentFolder = await choirService.createFolder(parentFolderName, locationId, null);
+            }
+
+            // Create dated folder under parent (instead of root)
+            const mainFolder = await choirService.createFolder(folderName, locationId, parentFolder.id);
 
             // Create Praise Set subfolder
             const praiseFolder = await choirService.createFolder("Praise Set", locationId, mainFolder.id);
@@ -1532,7 +1540,7 @@ const ChoirPage = () => {
 
             await Promise.all([...praisePromises, ...worshipPromises]);
 
-            toast.success(`Archived to "${folderName}" with Praise and Worship subfolders`);
+            toast.success(`Archived to "${folderName}" in "${parentFolderName}"`);
         } catch (e) {
             console.error("Failed to archive setlist:", e);
             toast.error("Failed to archive setlist");
