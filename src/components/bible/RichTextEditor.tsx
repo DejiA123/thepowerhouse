@@ -121,7 +121,10 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, isTouchActive, pos
       {editor && (
         <BubbleMenu
           editor={editor}
-          shouldShow={({ editor }) => !isTouchActive && editor.isActive('table')}
+          shouldShow={({ editor }) => {
+            const touchActive = typeof isTouchActive !== 'undefined' ? isTouchActive : false;
+            return !touchActive && editor.isActive('table');
+          }}
           className="pointer-events-none"
         >
           <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-xl pointer-events-auto">
@@ -172,8 +175,9 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, isTouchActive, pos
       {editor && (
         <BubbleMenu
           editor={editor}
-          shouldShow={({ state }) => {
-            if (isTouchActive) return false;
+          shouldShow={({ state, editor }) => {
+            const touchActive = typeof isTouchActive !== 'undefined' ? isTouchActive : false;
+            if (touchActive) return false;
             const { selection } = state;
             return !selection.empty && !editor.isActive('table');
           }}
@@ -407,7 +411,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           class: 'task-item',
         },
       }),
-      BubbleMenuExtension,
     ],
     content: content,
     editable: true, // Always editable to allow BubbleMenu interaction
