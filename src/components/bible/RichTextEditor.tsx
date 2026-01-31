@@ -366,29 +366,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         </div>
       </BubbleMenu>
 
-      {/* Formatting Bubble Menu */}
-      <BubbleMenu
-        editor={editor}
-        shouldShow={({ state, editor }) => {
-          if (isTouchActive) return false;
-          const { selection } = state;
-          return !selection.empty && !editor.isActive('table');
-        }}
-        className="pointer-events-none"
-      >
-        <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-950/95 border border-gray-100 dark:border-gray-800 p-1.5 rounded-full shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto">
-          <ToolbarButton isActive={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold" className="h-9 w-9">
-            <Bold className="w-4 h-4" />
-          </ToolbarButton>
-          <ToolbarButton isActive={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic" className="h-9 w-9">
-            <Italic className="w-4 h-4" />
-          </ToolbarButton>
-          <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-1"></div>
-          <ToolbarButton isActive={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} activeColor="text-blue-600 bg-blue-50 dark:bg-blue-900/30" title="Add Checkbox" className="h-9 w-9">
-            <CheckSquare className="w-4 h-4" />
-          </ToolbarButton>
-        </div>
-      </BubbleMenu>
+
 
       {toolbarPosition === 'top' && !readOnly && renderMenuBar('top')}
 
