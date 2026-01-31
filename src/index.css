@@ -1728,3 +1728,113 @@ body.modal-open {
     -webkit-touch-callout: default !important;
   }
 }
+
+/* PWA-Specific iOS Text Selection Fix for TipTap/ProseMirror Editor */
+/* Fixes intermittent selection handle dragging issues in standalone PWA mode */
+@media (display-mode: standalone) {
+
+  /* Full screen dialogs in PWA need special touch handling */
+  [data-radix-dialog-content] {
+    /* Prevent any stacking context issues */
+    isolation: auto !important;
+    contain: layout !important;
+
+    /* Remove transforms that block iOS selection */
+    transform: none !important;
+  }
+
+  /* ProseMirror editor (TipTap) specific fixes for PWA */
+  .ProseMirror {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+
+    /* Critical: pan-y allows vertical scroll while enabling selection handles */
+    touch-action: pan-y !important;
+
+    /* Ensure no transform interference */
+    transform: none !important;
+    will-change: auto !important;
+
+    /* Prevent stacking context blocking */
+    isolation: isolate !important;
+
+    /* Ensure the editor is in a proper layer */
+    z-index: 1 !important;
+    position: relative !important;
+
+    /* Pointer events must be enabled */
+    pointer-events: auto !important;
+
+    /* Text selection cursor */
+    cursor: text !important;
+  }
+
+  /* Target the EditorContent wrapper in PWA */
+  .tiptap,
+  [data-radix-dialog-content] .ProseMirror,
+  [data-radix-dialog-content] [contenteditable="true"] {
+    /* Force native iOS selection behavior */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+
+    /* Key fix: use manipulation for proper handle dragging */
+    touch-action: manipulation !important;
+
+    /* Disable any hardware acceleration that might interfere */
+    -webkit-transform: none !important;
+    transform: none !important;
+    -webkit-backface-visibility: visible !important;
+    backface-visibility: visible !important;
+
+    /* Prevent containment from blocking selection UI */
+    contain: none !important;
+  }
+
+  /* Ancestor elements in the dialog - prevent interfering transforms */
+  [data-radix-dialog-content]>div,
+  [data-radix-dialog-content]>div>div {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  /* iOS PWA: Ensure text selection pointers/handles work */
+  @supports (-webkit-touch-callout: none) {
+    .ProseMirror {
+      /* Webkit-specific text selection fixes */
+      -webkit-user-select: text !important;
+      -webkit-touch-callout: default !important;
+
+      /* Prevent iOS from treating this as a non-editable region */
+      -webkit-user-modify: read-write-plaintext-only !important;
+    }
+
+    /* Ensure paragraph elements are properly selectable */
+    .ProseMirror p,
+    .ProseMirror span,
+    .ProseMirror div {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+  }
+}
+
+/* Additional fix: Ensure iOS PWA respects touch events for selection */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+
+    /* When in PWA mode on iOS */
+    body.standalone-mode .ProseMirror,
+    .ProseMirror {
+      /* Aggressive touch-action for selection handle functionality */
+      touch-action: pan-x pan-y !important;
+    }
+
+    /* Fix for nested scrollable containers */
+    [data-radix-dialog-content] [class*="overflow"] {
+      -webkit-overflow-scrolling: touch !important;
+      overscroll-behavior: contain !important;
+    }
+  }
+}
