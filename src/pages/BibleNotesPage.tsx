@@ -1178,7 +1178,12 @@ const BibleNotesPage = () => {
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <div className="flex-1 h-full relative">
                                                     {/* Dummy focus target to absorb Radix focus trap without triggering keyboard */}
-                                                    <div tabIndex={0} className="sr-only" aria-hidden="true" />
+                                                    <div
+                                                        tabIndex={0}
+                                                        className="fixed top-0 left-0 w-0 h-0 overflow-hidden outline-none opacity-0"
+                                                    >
+                                                        Editor Loading...
+                                                    </div>
                                                     <iframe
                                                         ref={iframeRef}
                                                         src="/editor-frame"

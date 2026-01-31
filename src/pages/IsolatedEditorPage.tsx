@@ -9,11 +9,25 @@ const IsolatedEditorPage = () => {
 
     // Prevent PWA auto-focus by starting read-only, then enabling interaction
     useEffect(() => {
+        // Aggressively prevent focus stealing during initialization
+        const preventFocus = () => {
+            if (!isEditable && document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+                window.blur();
+            }
+        };
+        window.addEventListener('focus', preventFocus);
+
         if (isReady) {
             const timer = setTimeout(() => setIsEditable(true), 600);
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+                window.removeEventListener('focus', preventFocus);
+            };
         }
-    }, [isReady]);
+
+        return () => window.removeEventListener('focus', preventFocus);
+    }, [isReady, isEditable]);
 
     // Communicate with parent frame
     useEffect(() => {
