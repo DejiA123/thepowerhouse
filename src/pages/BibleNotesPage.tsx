@@ -1208,7 +1208,7 @@ const BibleNotesPage = () => {
             <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden ios-input-fix select-text touch-callout-default"
+                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-hidden select-text"
                 >
                     <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
                         {/* Premium Navbar */}

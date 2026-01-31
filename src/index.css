@@ -1489,6 +1489,7 @@ select:focus {
 }
 
 /* Nuclear fix for iOS Text Selection and Scrolling */
+/* Nuclear fix for iOS Text Selection and Scrolling */
 .ios-input-fix {
   -webkit-touch-callout: default !important;
   -webkit-user-select: text !important;
@@ -1496,7 +1497,7 @@ select:focus {
   touch-action: auto !important;
   overscroll-behavior: auto !important;
   cursor: text !important;
-  transform: translateZ(0);
+  /* transform: translateZ(0); Removed as it breaks selection handles */
 }
 
 /* Global ContentEditable stability for Mobile */
