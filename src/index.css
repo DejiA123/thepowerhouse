@@ -1489,7 +1489,6 @@ select:focus {
 }
 
 /* Nuclear fix for iOS Text Selection and Scrolling */
-/* Nuclear fix for iOS Text Selection and Scrolling */
 .ios-input-fix {
   -webkit-touch-callout: default !important;
   -webkit-user-select: text !important;

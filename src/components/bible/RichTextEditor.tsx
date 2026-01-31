@@ -436,6 +436,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       },
       handleTextInput: () => readOnly, // Block text input if readOnly
       handleScrollToSelection: () => true, // Disable Tiptap scrolling to selection
+      handleDOMEvents: {
+        // Explicitly allow native iOS touch selection by not handling these events
+        touchstart: () => false,
+        touchmove: () => false,
+        touchend: () => false,
+      },
     },
   });
 
