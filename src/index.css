@@ -65,6 +65,19 @@
   .touch-callout-default {
     -webkit-touch-callout: default !important;
   }
+
+  /* Global Tippy/BubbleMenu safety to prevent touch hijacking */
+  .tippy-box {
+    pointer-events: none !important;
+  }
+
+  .tippy-content {
+    pointer-events: none !important;
+  }
+
+  .tippy-content>* {
+    pointer-events: auto !important;
+  }
 }
 
 @layer base {

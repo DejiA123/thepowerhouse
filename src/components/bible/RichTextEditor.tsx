@@ -118,7 +118,11 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
   return (
     <>
       {editor && (
-        <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('table')} className="pointer-events-none">
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ editor }) => !isTouchActive && editor.isActive('table')}
+          className="pointer-events-none"
+        >
           <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-xl pointer-events-auto">
             {/* Columns Group */}
             <div className="flex items-center gap-1 bg-gray-50/50 dark:bg-gray-900/50 p-1 rounded-lg">
@@ -165,10 +169,15 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
       )}
 
       {editor && (
-        <BubbleMenu editor={editor} shouldShow={({ state }) => {
-          const { selection } = state;
-          return !selection.empty && !editor.isActive('table');
-        }} className="pointer-events-none">
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ state }) => {
+            if (isTouchActive) return false;
+            const { selection } = state;
+            return !selection.empty && !editor.isActive('table');
+          }}
+          className="pointer-events-none"
+        >
           <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-950/95 border border-gray-100 dark:border-gray-800 p-1.5 rounded-full shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto">
             <ToolbarButton
               isActive={editor.isActive('bold')}
@@ -351,6 +360,7 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ content, onChange, placeholder, toolbarPosition = 'top', className = '', readOnly = false, compact = false }, ref) => {
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
+  const [isTouchActive, setIsTouchActive] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -435,6 +445,20 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         return false;
       },
       handleTextInput: () => readOnly,
+      handleDOMEvents: {
+        touchstart: () => {
+          setIsTouchActive(true);
+          return false;
+        },
+        touchend: () => {
+          setIsTouchActive(false);
+          return false;
+        },
+        touchcancel: () => {
+          setIsTouchActive(false);
+          return false;
+        },
+      },
     },
   });
 
