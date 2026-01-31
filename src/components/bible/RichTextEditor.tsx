@@ -201,10 +201,10 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
       )}
 
       <div className={cn(
-        "absolute left-1/2 -translate-x-1/2 z-[100] py-8",
+        "absolute left-1/2 -translate-x-1/2 z-[100] py-8 pointer-events-none",
         position === 'top' ? 'top-0' : 'bottom-0'
       )}>
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 pointer-events-auto">
           {/* Grouped Formatting Menu (Aa) */}
           {showFormattingMenu && (
             <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2.5 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex flex-wrap items-center justify-center gap-2 max-w-[90vw] md:max-w-2xl ring-1 ring-black/5 dark:ring-white/5">
