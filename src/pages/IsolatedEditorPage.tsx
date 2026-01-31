@@ -60,15 +60,21 @@ const IsolatedEditorPage = () => {
                     touch-action: manipulation !important; 
                 }
             `}</style>
-            <RichTextEditor
-                content={content}
-                onChange={handleChange}
-                placeholder="Start writing..."
-                toolbarPosition="bottom"
-                className="h-full"
-                autoFocus={false}
-                readOnly={!isEditable}
-            />
+            {isEditable ? (
+                <RichTextEditor
+                    content={content}
+                    onChange={handleChange}
+                    placeholder="Start writing..."
+                    toolbarPosition="bottom"
+                    className="h-full"
+                    autoFocus={false}
+                />
+            ) : (
+                <div
+                    className="h-full w-full p-4 overflow-y-auto prose max-w-none text-gray-900 dark:text-gray-100 text-[16px] [&_p]:my-2"
+                    dangerouslySetInnerHTML={{ __html: content || '<p class="text-gray-400">Start writing...</p>' }}
+                />
+            )}
         </div>
     );
 };
