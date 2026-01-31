@@ -117,7 +117,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       }),
     ],
     content: content,
-    editable: true,
+    editable: !readOnly,
     autofocus: autoFocus,
     onFocus: () => {
       if (typeof window !== 'undefined') {
@@ -154,6 +154,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       },
     },
   });
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {

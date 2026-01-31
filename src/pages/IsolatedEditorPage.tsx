@@ -4,7 +4,16 @@ import RichTextEditor from '@/components/bible/RichTextEditor';
 const IsolatedEditorPage = () => {
     const [content, setContent] = useState('');
     const [isReady, setIsReady] = useState(false);
+    const [isEditable, setIsEditable] = useState(false);
     const editorRef = useRef<any>(null);
+
+    // Prevent PWA auto-focus by starting read-only, then enabling interaction
+    useEffect(() => {
+        if (isReady) {
+            const timer = setTimeout(() => setIsEditable(true), 600);
+            return () => clearTimeout(timer);
+        }
+    }, [isReady]);
 
     // Communicate with parent frame
     useEffect(() => {
@@ -58,6 +67,7 @@ const IsolatedEditorPage = () => {
                 toolbarPosition="bottom"
                 className="h-full"
                 autoFocus={false}
+                readOnly={!isEditable}
             />
         </div>
     );
