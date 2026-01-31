@@ -39,13 +39,23 @@ interface RichTextEditorProps {
   className?: string;
   readOnly?: boolean;
   compact?: boolean;
+  autoFocus?: boolean;
 }
 
 export interface RichTextEditorHandle {
   insertImage: (url: string, alt?: string) => void;
 }
 
-const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ content, onChange, placeholder, toolbarPosition = 'top', className = '', readOnly = false, compact = false }, ref) => {
+const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
+  content,
+  onChange,
+  placeholder,
+  toolbarPosition = 'top',
+  className = '',
+  readOnly = false,
+  compact = false,
+  autoFocus = false
+}, ref) => {
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const [isTouchActive, setIsTouchActive] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -108,6 +118,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     ],
     content: content,
     editable: true,
+    autofocus: autoFocus,
     onFocus: () => {
       if (typeof window !== 'undefined') {
         window.scrollTo(0, 0);

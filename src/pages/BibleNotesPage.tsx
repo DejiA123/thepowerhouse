@@ -1182,6 +1182,7 @@ const BibleNotesPage = () => {
                                                         src="/editor-frame"
                                                         className="w-full h-full border-0 bg-transparent"
                                                         title="Note Editor"
+                                                        tabIndex={-1}
                                                         style={{
                                                             display: 'block',
                                                             width: '100%',

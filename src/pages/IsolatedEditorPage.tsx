@@ -57,6 +57,7 @@ const IsolatedEditorPage = () => {
                 placeholder="Start writing..."
                 toolbarPosition="bottom"
                 className="h-full"
+                autoFocus={false}
             />
         </div>
     );
