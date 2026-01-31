@@ -106,7 +106,7 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
       onClick={onClick}
       title={title}
       className={cn(
-        "h-10 w-10 p-0 rounded-full transition-all duration-200",
+        "h-10 w-10 p-0 rounded-full transition-all duration-200 pointer-events-auto",
         isActive ? activeColor : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800",
         className
       )}
@@ -414,7 +414,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         class: cn(
           'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-2 text-[16px]',
           compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-1',
-          'selection:bg-blue-100 dark:selection:bg-blue-900/30 ios-input-fix select-text touch-callout-default',
+          'ios-input-fix select-text touch-callout-default',
           '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
           '[&_table_td]:border [&_table_td]:border-gray-200 dark:[&_table_td]:border-gray-800 [&_table_td]:p-2 [&_table_td]:min-w-[100px]',
           '[&_table_th]:border [&_table_th]:border-gray-200 dark:[&_table_th]:border-gray-800 [&_table_th]:p-2 [&_table_th]:bg-gray-50 dark:[&_table_th]:bg-gray-900 [&_table_th]:font-bold',
@@ -430,18 +430,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       handleKeyDown: (view, event) => {
         // Prevent typing if readOnly is true, but allow commands (like table edits)
         if (readOnly && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
-          return true; // Return true to block the event
+          return true;
         }
         return false;
       },
-      handleTextInput: () => readOnly, // Block text input if readOnly
-      handleScrollToSelection: () => true, // Disable Tiptap scrolling to selection
-      handleDOMEvents: {
-        // Explicitly allow native iOS touch selection by not handling these events
-        touchstart: () => false,
-        touchmove: () => false,
-        touchend: () => false,
-      },
+      handleTextInput: () => readOnly,
     },
   });
 

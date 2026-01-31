@@ -992,7 +992,7 @@ const BibleNotesPage = () => {
             }}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col ios-input-fix select-text touch-callout-default"
+                    className="fixed inset-0 w-screen max-w-none p-0 overflow-visible bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col select-text"
                 >
                     {selectedNote && (
                         <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
@@ -1138,9 +1138,9 @@ const BibleNotesPage = () => {
                                 </div>
                             )}
 
-                            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-gray-950">
+                            <div className="flex-1 flex flex-col min-h-0 overflow-visible bg-white dark:bg-gray-950">
                                 <div className="flex-1 flex flex-col min-h-0">
-                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-hidden">
+                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-visible">
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <RichTextEditor
@@ -1156,7 +1156,7 @@ const BibleNotesPage = () => {
                                             </div>
                                         ) : (
                                             <div
-                                                className="flex-1 flex flex-col min-h-0 cursor-text overflow-hidden select-text touch-callout-default"
+                                                className="flex-1 flex flex-col min-h-0 cursor-text overflow-visible select-text touch-callout-default"
                                                 onClick={() => {
                                                     setNewNote({
                                                         title: selectedNote.title || '',
