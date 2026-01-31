@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,18 @@ const BibleNotesPage = () => {
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
 
     const { user } = useAuth();
+    // Listen for updates from Iframe Editor
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            const { type, payload } = event.data;
+            if (type === 'CONTENT_UPDATE') {
+                setNewNote(prev => ({ ...prev, note_text: payload }));
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
     const { toast } = useToast();
     const { preferences } = useBiblePreferences();
     const navigate = useNavigate();
@@ -1270,14 +1282,28 @@ const BibleNotesPage = () => {
                                 {/* Rich Text Editor */}
                                 <div className="px-4 md:px-6 flex-1 flex flex-col group min-h-0">
                                     <div className="flex-1 min-h-0 overflow-visible bg-transparent">
-                                        <RichTextEditor
-                                            content={newNote.note_text}
-                                            onChange={(content) => setNewNote({ ...newNote, note_text: content })}
-                                            placeholder=""
-                                            toolbarPosition="bottom"
-                                            ref={richTextEditorRef}
-                                            className="flex-1 h-full"
-                                        />
+                                        <div className="flex-1 min-h-0 overflow-hidden bg-transparent relative">
+                                            {/* IFRAME ISOLATION - The "Nuclear Option" */}
+                                            <iframe
+                                                src="/editor-frame"
+                                                className="w-full h-full border-0 block"
+                                                ref={(el) => {
+                                                    // Store iframe ref and init content when loaded
+                                                    if (el && !el.dataset.ready) {
+                                                        const handleLoad = () => {
+                                                            el.contentWindow?.postMessage({
+                                                                type: 'INIT_CONTENT',
+                                                                payload: newNote.note_text
+                                                            }, '*');
+                                                            el.dataset.ready = 'true';
+                                                        };
+                                                        el.addEventListener('load', handleLoad);
+                                                    }
+                                                }}
+                                                title="Text Editor"
+                                                style={{ touchAction: 'none' }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
