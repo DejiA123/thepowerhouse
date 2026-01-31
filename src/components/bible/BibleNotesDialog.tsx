@@ -334,6 +334,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                 onChange={(e) => setNewNote(prev => ({ ...prev, note_text: e.target.value }))}
                 placeholder="Write your note here... You can include insights, questions, prayers, applications, or any thoughts about this passage."
                 className="min-h-[100px] ios-input-fix"
+                data-ios-selection="true"
               />
             </div>
 
@@ -492,6 +493,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                             value={editingNote.note_text}
                             onChange={(e) => setEditingNote(prev => prev ? { ...prev, note_text: e.target.value } : null)}
                             className="min-h-[80px] select-text cursor-text ios-input-fix"
+                            data-ios-selection="true"
                           />
                         </div>
 

@@ -1660,3 +1660,71 @@ body.modal-open {
     --bible-selection-bottom-offset: -0.5rem;
   }
 }
+
+/* iOS Text Selection Fix for Modal Dialogs */
+/* Critical fix for iPhone text selection handle dragging in modals */
+@supports (-webkit-touch-callout: none) {
+
+  /* Target Radix UI Dialog Content */
+  [data-radix-dialog-content] {
+    /* Remove transform to prevent iOS selection handle interference */
+    isolation: auto !important;
+  }
+
+  /* Fix textareas and contenteditable within dialogs */
+  [data-radix-dialog-content] textarea,
+  [data-radix-dialog-content] [contenteditable],
+  [data-radix-dialog-content] .ios-input-fix {
+    /* Force native iOS text selection behavior */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+
+    /* Critical: Allow all touch gestures including selection handle dragging */
+    touch-action: manipulation !important;
+
+    /* Prevent any transforms from interfering */
+    transform: none !important;
+    will-change: auto !important;
+
+    /* Ensure proper stacking without blocking touch */
+    position: relative !important;
+    z-index: auto !important;
+
+    /* Smooth iOS scrolling */
+    -webkit-overflow-scrolling: touch !important;
+
+    /* Prevent overscroll interfering with selection */
+    overscroll-behavior: contain !important;
+  }
+
+  /* Specific fix for iOS selection handles dragging */
+  [data-radix-dialog-content] textarea[data-ios-selection="true"],
+  [data-radix-dialog-content] .ios-input-fix {
+    /* Ensure cursor and selection are fully functional */
+    cursor: text !important;
+
+    /* Remove any pointer event blocking */
+    pointer-events: auto !important;
+
+    /* Ensure text is selectable with handles */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
+}
+
+/* Additional iOS-specific modal text selection fixes */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Mobile touch devices (iPhone, iPad) */
+  [data-radix-dialog-content] textarea,
+  [data-radix-dialog-content] [contenteditable] {
+    /* Prioritize text selection over other touch gestures */
+    touch-action: manipulation !important;
+
+    /* Ensure handles can be dragged */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+  }
+}
