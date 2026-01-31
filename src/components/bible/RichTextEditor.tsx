@@ -118,8 +118,8 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
   return (
     <>
       {editor && (
-        <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('table')}>
-          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-xl">
+        <BubbleMenu editor={editor} shouldShow={({ editor }) => editor.isActive('table')} className="pointer-events-none">
+          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-xl pointer-events-auto">
             {/* Columns Group */}
             <div className="flex items-center gap-1 bg-gray-50/50 dark:bg-gray-900/50 p-1 rounded-lg">
               <ToolbarButton onClick={() => editor.chain().focus().addColumnBefore().run()} className="relative" title="Add Column Before">
@@ -168,8 +168,8 @@ const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }
         <BubbleMenu editor={editor} shouldShow={({ state }) => {
           const { selection } = state;
           return !selection.empty && !editor.isActive('table');
-        }}>
-          <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-950/95 border border-gray-100 dark:border-gray-800 p-1.5 rounded-full shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10">
+        }} className="pointer-events-none">
+          <div className="flex items-center gap-1.5 bg-white/95 dark:bg-gray-950/95 border border-gray-100 dark:border-gray-800 p-1.5 rounded-full shadow-2xl animate-in fade-in zoom-in duration-200 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/10 pointer-events-auto">
             <ToolbarButton
               isActive={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}
@@ -473,7 +473,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
         />
       )}
       <div className={cn(
-        "flex-1 relative overflow-y-auto min-h-0 touch-action-pan-y",
+        "flex-1 relative overflow-y-auto min-h-0 touch-action-auto",
         toolbarPosition === 'bottom' && !readOnly && "pb-36"
       )} style={{ WebkitOverflowScrolling: 'touch' }}>
         <EditorContent editor={editor} className="min-h-full" />
