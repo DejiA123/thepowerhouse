@@ -50,10 +50,11 @@ interface MenuBarProps {
   editor: any;
   isToolbarVisible: boolean;
   onToggleToolbar: () => void;
+  isTouchActive: boolean;
   position?: 'top' | 'bottom';
 }
 
-const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, position = 'top' }: MenuBarProps) => {
+const MenuBar = ({ editor, isToolbarVisible, onToggleToolbar, isTouchActive, position = 'top' }: MenuBarProps) => {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [showFormattingMenu, setShowFormattingMenu] = useState(false);
@@ -486,6 +487,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           editor={editor}
           isToolbarVisible={isToolbarVisible}
           onToggleToolbar={() => setIsToolbarVisible(!isToolbarVisible)}
+          isTouchActive={isTouchActive}
           position="top"
         />
       )}
@@ -505,6 +507,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
           editor={editor}
           isToolbarVisible={isToolbarVisible}
           onToggleToolbar={() => setIsToolbarVisible(!isToolbarVisible)}
+          isTouchActive={isTouchActive}
           position="bottom"
         />
       )}
