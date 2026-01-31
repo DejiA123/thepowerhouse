@@ -1177,6 +1177,8 @@ const BibleNotesPage = () => {
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <div className="flex-1 h-full relative">
+                                                    {/* Dummy focus target to absorb Radix focus trap without triggering keyboard */}
+                                                    <div tabIndex={0} className="sr-only" aria-hidden="true" />
                                                     <iframe
                                                         ref={iframeRef}
                                                         src="/editor-frame"
