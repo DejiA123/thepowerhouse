@@ -138,6 +138,31 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
     }
   }, [editor, content]);
 
+  // Global touch listener to hide menus during ANY touch (especially for iOS selection handles)
+  useEffect(() => {
+    const handleGlobalTouchStart = () => {
+      setIsTouchActive(true);
+    };
+
+    const handleGlobalTouchEnd = () => {
+      // Small delay to ensure the menu doesn't flash back immediately
+      setTimeout(() => {
+        setIsTouchActive(false);
+      }, 300);
+    };
+
+    // Listen for touches on the entire document
+    document.addEventListener('touchstart', handleGlobalTouchStart, { passive: true });
+    document.addEventListener('touchend', handleGlobalTouchEnd, { passive: true });
+    document.addEventListener('touchcancel', handleGlobalTouchEnd, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleGlobalTouchStart);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+      document.removeEventListener('touchcancel', handleGlobalTouchEnd);
+    };
+  }, []);
+
   useImperativeHandle(ref, () => ({
     insertImage: (url: string, alt?: string) => {
       if (!url) return;
