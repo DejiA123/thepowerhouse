@@ -78,6 +78,22 @@
   .tippy-content>* {
     pointer-events: auto !important;
   }
+
+  /* FORCE NATIVE SELECTION IN EDITOR */
+  .ProseMirror {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+    touch-action: pan-y !important;
+    /* pan-y is safer than manipulation for selection */
+    cursor: text !important;
+  }
+
+  .ProseMirror * {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    touch-action: pan-y !important;
+  }
 }
 
 @layer base {

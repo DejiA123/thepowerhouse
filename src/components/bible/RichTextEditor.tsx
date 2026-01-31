@@ -116,18 +116,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       },
       handleTextInput: () => readOnly,
       handleDOMEvents: {
-        touchstart: () => {
-          setIsTouchActive(true);
-          return false;
-        },
-        touchend: () => {
-          setIsTouchActive(false);
-          return false;
-        },
-        touchcancel: () => {
-          setIsTouchActive(false);
-          return false;
-        },
+        // No custom touch handling - let iOS handle it natively
       },
     },
   });
@@ -348,12 +337,17 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ 
       {toolbarPosition === 'top' && !readOnly && renderMenuBar('top')}
 
       <div className={cn(
-        "flex-1 relative overflow-y-auto min-h-0 touch-action-auto",
+        "flex-1 relative overflow-y-auto min-h-0",
         toolbarPosition === 'bottom' && !readOnly && "pb-36"
-      )} style={{ WebkitOverflowScrolling: 'touch' }}>
-        <EditorContent editor={editor} className="min-h-full" />
+      )} style={{
+        WebkitOverflowScrolling: 'touch',
+        isolation: 'isolate',
+        touchAction: 'pan-y'
+      }}>
+        <div className="absolute inset-0 z-0 bg-transparent min-h-full" style={{ touchAction: 'none', pointerEvents: 'none' }} />
+        <EditorContent editor={editor} className="min-h-full relative z-10" />
         {!content && editor && editor.getText().length === 0 && !readOnly && (
-          <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium">
+          <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
             {placeholder || 'Select here to write your note...'}
           </div>
         )}
