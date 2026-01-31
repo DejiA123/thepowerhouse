@@ -89,20 +89,41 @@ const BibleNotesPage = () => {
     const [showNoteDialog, setShowNoteDialog] = useState(false);
     const [selectedNote, setSelectedNote] = useState<BibleNote | null>(null);
     const richTextEditorRef = useRef<RichTextEditorHandle | null>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const noteContentRef = useRef('');
+
+    // Keep ref synced for iframe initialization
+    useEffect(() => {
+        if (selectedNote?.note_text) {
+            noteContentRef.current = selectedNote.note_text;
+        }
+    }, [selectedNote?.note_text]);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [selectedNoteForDelete, setSelectedNoteForDelete] = useState<string | null>(null);
     const [isInlineEditing, setIsInlineEditing] = useState(false);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
 
     const { user } = useAuth();
-    // Listen for updates from Iframe Editor
+    // Listen for updates from Iframe Editor (Nuclear Option for iOS PWA)
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const { type, payload } = event.data;
+
             if (type === 'CONTENT_UPDATE') {
+                // Update state to match iframe content
                 setNewNote(prev => ({ ...prev, note_text: payload }));
+                setSelectedNote(prev => prev ? { ...prev, note_text: payload } : null);
+            }
+
+            if (type === 'EDITOR_MOUNTED') {
+                // Send initial content to iframe
+                iframeRef.current?.contentWindow?.postMessage({
+                    type: 'INIT_CONTENT',
+                    payload: noteContentRef.current
+                }, '*');
             }
         };
+
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, []);
@@ -325,7 +346,7 @@ const BibleNotesPage = () => {
     };
 
     const updateNote = async () => {
-        if (!user || !editingNote || !newNote.note_text.trim()) return;
+        if (!user || !newNote.note_text.trim()) return;
 
         setLoading(true);
         try {
@@ -1155,16 +1176,19 @@ const BibleNotesPage = () => {
                                     <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-visible">
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
-                                                <RichTextEditor
-                                                    content={selectedNote?.note_text || ''}
-                                                    onChange={(content) => {
-                                                        setSelectedNote(prev => prev ? { ...prev, note_text: content } : null);
-                                                        setNewNote(prev => ({ ...prev, note_text: content }));
-                                                    }}
-                                                    placeholder=""
-                                                    toolbarPosition="bottom"
-                                                    className="flex-1 h-full"
-                                                />
+                                                <div className="flex-1 h-full relative">
+                                                    <iframe
+                                                        ref={iframeRef}
+                                                        src="/editor-frame"
+                                                        className="w-full h-full border-0 bg-transparent"
+                                                        title="Note Editor"
+                                                        style={{
+                                                            display: 'block',
+                                                            width: '100%',
+                                                            height: '100%'
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         ) : (
                                             <div

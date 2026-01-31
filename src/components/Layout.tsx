@@ -174,6 +174,11 @@ const Layout = ({ children }: LayoutProps) => {
     };
   }, []);
 
+  // Isolated Editor Frame - Return children without any layout chrome
+  if (location.pathname === '/editor-frame') {
+    return <>{children}</>;
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-x-hidden">
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
