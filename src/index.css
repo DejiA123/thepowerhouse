@@ -1493,7 +1493,7 @@ select:focus {
   -webkit-touch-callout: default !important;
   -webkit-user-select: text !important;
   user-select: text !important;
-  touch-action: manipulation !important;
+  touch-action: auto !important;
   overscroll-behavior: auto !important;
   cursor: text !important;
   transform: translateZ(0);
@@ -1504,8 +1504,15 @@ select:focus {
 .ProseMirror {
   -webkit-user-select: text;
   user-select: text;
-  touch-action: manipulation !important;
+  touch-action: auto !important;
   outline: none !important;
+}
+
+/* iOS Text Selection Handle Fix */
+.ProseMirror * {
+  -webkit-touch-callout: default !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 html,
