@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { TouchLogger } from '@/components/TouchLogger';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -1205,14 +1204,10 @@ const BibleNotesPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Premium Editor Dialog */}
-            <Dialog open={showNewNoteDialog} onOpenChange={setShowNewNoteDialog}>
-                <DialogContent
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none bg-white dark:bg-gray-950 rounded-none m-0 flex flex-col p-0 border-none translate-x-0 translate-y-0 top-0 left-0 overflow-visible select-text"
-                >
-                    <div className="flex flex-col h-[100dvh] bg-gray-50 dark:bg-black overflow-hidden relative">
-                        <TouchLogger />
+            {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
+            {showNewNoteDialog && (
+                <div className="fixed inset-0 w-full h-[100dvh] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col">
+                    <div className="flex flex-col h-full w-full relative bg-gray-50 dark:bg-black">
                         {/* Premium Navbar */}
                         <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
                             <div className="flex items-center gap-4">
@@ -1224,7 +1219,6 @@ const BibleNotesPage = () => {
                                     <ArrowLeft className="w-5 h-5 mr-2" />
                                     Back
                                 </Button>
-                                {/* Category selector removed as requested */}
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -1273,7 +1267,7 @@ const BibleNotesPage = () => {
                                     />
                                 </div>
 
-                                {/* Rich Text Editor - Now styled premium */}
+                                {/* Rich Text Editor */}
                                 <div className="px-4 md:px-6 flex-1 flex flex-col group min-h-0">
                                     <div className="flex-1 min-h-0 overflow-visible bg-transparent">
                                         <RichTextEditor
@@ -1287,11 +1281,11 @@ const BibleNotesPage = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div >
+                        </div>
                     </div>
-                </DialogContent >
-            </Dialog>
-        </div >
+                </div>
+            )}
+        </div>
     );
 };
 
