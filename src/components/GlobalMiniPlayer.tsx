@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Play, Pause, X, Music, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, useDragControls } from 'framer-motion';
 
 const GlobalMiniPlayer: React.FC = () => {
     const { audioState, pause, resume, reset } = useGlobalAudio();
@@ -36,9 +37,14 @@ const GlobalMiniPlayer: React.FC = () => {
     if (!shouldShow) return null;
 
     return (
-        <div
+        <motion.div
+            drag
+            dragConstraints={{ left: -100, right: 100, top: -600, bottom: 50 }}
+            dragElastic={0.05}
+            dragMomentum={true}
+            whileDrag={{ scale: 1.05, opacity: 0.9, zIndex: 100 }}
             className={cn(
-                "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in",
+                "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in touch-none",
                 isStandalone
                     ? (isLargeDisplay
                         ? "bottom-[calc(3.9rem+env(safe-area-inset-bottom,8px))]"
@@ -49,7 +55,7 @@ const GlobalMiniPlayer: React.FC = () => {
             )}
         >
             <div
-                className="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-3 flex items-center justify-between gap-3 text-white cursor-pointer"
+                className="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-3 flex items-center justify-between gap-3 text-white cursor-grab active:cursor-grabbing"
                 onClick={() => {
                     // Navigate to source if clicked? For now just maybe expand or do nothing specific
                     // Could navigate to Bible if isBibleMode
@@ -59,7 +65,7 @@ const GlobalMiniPlayer: React.FC = () => {
                 }}
             >
                 {/* Artwork / Icon */}
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 overflow-hidden relative">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 overflow-hidden relative pointer-events-none">
                     {audioState.trackImage && audioState.trackImage !== '/bible-icon.svg' ? (
                         <img src={audioState.trackImage} alt="Cover" className="h-full w-full object-cover" />
                     ) : (
@@ -75,7 +81,7 @@ const GlobalMiniPlayer: React.FC = () => {
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex-1 min-w-0 overflow-hidden pointer-events-none">
                     <h4 className="font-bold text-sm truncate leading-tight">
                         {audioState.trackTitle || "Loading..."}
                     </h4>
@@ -107,7 +113,7 @@ const GlobalMiniPlayer: React.FC = () => {
                     </Button>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
