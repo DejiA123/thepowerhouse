@@ -40,11 +40,12 @@ const GlobalMiniPlayer: React.FC = () => {
         <motion.div
             drag
             dragConstraints={{ left: -100, right: 100, top: -600, bottom: 50 }}
-            dragElastic={0.05}
+            dragElastic={0.2}
             dragMomentum={true}
-            whileDrag={{ scale: 1.05, opacity: 0.9, zIndex: 100 }}
+            dragTransition={{ bounceStiffness: 500, bounceDamping: 25 }}
+            whileDrag={{ scale: 1.02, opacity: 0.9, zIndex: 100 }}
             className={cn(
-                "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in touch-none",
+                "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 slide-in-from-bottom-10 animate-in fade-in touch-none",
                 isStandalone
                     ? (isLargeDisplay
                         ? "bottom-[calc(3.9rem+env(safe-area-inset-bottom,8px))]"
