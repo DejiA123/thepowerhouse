@@ -4656,7 +4656,7 @@ const ChoirPage = () => {
                     setIsMiniPlayerHidden(false);
                 }
             }}>
-                <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black border-none shadow-2xl" aria-describedby="media-player-description">
+                <DialogContent className="w-full max-w-full sm:max-w-4xl h-[calc(100svh-env(safe-area-inset-top))] sm:h-auto top-[env(safe-area-inset-top)] sm:top-1/2 translate-y-0 sm:-translate-y-1/2 p-0 overflow-hidden bg-black border-none shadow-2xl sm:rounded-2xl flex flex-col" aria-describedby="media-player-description">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Media Player</DialogTitle>
                         <DialogDescription id="media-player-description">
@@ -4664,7 +4664,7 @@ const ChoirPage = () => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="relative w-full flex flex-col items-center justify-center bg-black min-h-[300px]">
+                    <div className="relative w-full flex-1 flex flex-col items-center justify-center bg-black overflow-hidden">
                         {/* Close Button Overlay */}
                         <div className="absolute top-4 right-4 z-50">
                             <Button
@@ -4692,7 +4692,7 @@ const ChoirPage = () => {
                         )}
 
                         {currentMedia?.type === 'audio' && (
-                            <div className="w-full py-12 px-6 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-gray-900 to-black w-full h-full min-h-[400px]">
+                            <div className="w-full h-full py-12 px-6 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-gray-900 to-black overflow-y-auto">
                                 <div className="text-center space-y-4 max-w-md">
                                     <div className="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-900/20 animate-pulse">
                                         <Music className="w-24 h-24 text-white/50" />

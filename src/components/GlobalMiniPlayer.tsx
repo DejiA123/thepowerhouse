@@ -9,6 +9,17 @@ const GlobalMiniPlayer: React.FC = () => {
     const { audioState, pause, resume, reset } = useGlobalAudio();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        const checkStandalone = () => {
+            const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                (window.navigator as any).standalone ||
+                document.referrer.includes('android-app://');
+            setIsStandalone(standalone);
+        };
+        checkStandalone();
+    }, []);
 
     // Don't show on the intro page
     if (location.pathname === '/intro') return null;
@@ -22,7 +33,10 @@ const GlobalMiniPlayer: React.FC = () => {
     return (
         <div
             className={cn(
-                "fixed bottom-[calc(5rem+env(safe-area-inset-bottom,20px))] left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in",
+                "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in",
+                isStandalone
+                    ? "bottom-[calc(4.2rem+env(safe-area-inset-bottom,12px))]"
+                    : "bottom-[calc(5rem+env(safe-area-inset-bottom,20px))]",
                 // Adjust position if on desktop or pages without bottom nav
                 location.pathname === '/group-chats' ? "bottom-6" : ""
             )}
