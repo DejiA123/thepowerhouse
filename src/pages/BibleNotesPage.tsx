@@ -1062,7 +1062,7 @@ const BibleNotesPage = () => {
                                         {isInlineEditing ? 'Cancel' : 'Back'}
                                     </Button>
 
-                                    <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[40%] md:max-w-lg">
+                                    <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[70%] md:max-w-lg">
                                         {isInlineEditing ? (
                                             <Input
                                                 value={newNote.title}
@@ -1072,7 +1072,7 @@ const BibleNotesPage = () => {
                                                 className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
                                             />
                                         ) : (
-                                            <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white text-center">
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">
                                                 {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
                                             </h2>
                                         )}
