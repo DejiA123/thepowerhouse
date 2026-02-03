@@ -114,7 +114,7 @@ export const BibleChapterContent = ({
   // Swipe handlers state
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const minSwipeDistance = 50;
+  const minSwipeDistance = 120;
 
   // Scroll header state
   const scrollContainerRef = useRef<HTMLDivElement>(null);
