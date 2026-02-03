@@ -27,10 +27,20 @@ interface GlobalAudioState {
   loopChapter: boolean;
   audioUrl?: string;
   hasAudio: boolean;
+  // Generic Track Support
+  trackTitle?: string;
+  trackArtist?: string;
+  trackImage?: string;
+  isBibleMode: boolean;
+  isMiniPlayerHidden: boolean;
+  duration: number;
+  currentTime: number;
 }
 
 interface GlobalAudioContextType {
   audioState: GlobalAudioState;
+  setIsMiniPlayerHidden: (hidden: boolean) => void;
+  seek: (time: number) => void;
   playBibleChapterMP3: (book: string, chapter: number, version: string, autoPlayNext?: boolean, loopChapter?: boolean) => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -41,6 +51,7 @@ interface GlobalAudioContextType {
   goToPreviousChapter: () => void;
   setChapterChangeCallback: (callback: (chapter: number, isAutoPlay: boolean) => void) => void;
   setBookChangeCallback: (callback: (book: string, chapter: number, isAutoPlay: boolean) => void) => void;
+  playTrack: (url: string, title: string, artist: string, image?: string) => Promise<void>;
 }
 
 const GlobalAudioContext = createContext<GlobalAudioContextType | undefined>(undefined);
@@ -65,6 +76,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loopChapter: false,
     audioUrl: undefined,
     hasAudio: false,
+    trackTitle: '',
+    trackArtist: '',
+    trackImage: '',
+    isBibleMode: true,
+    isMiniPlayerHidden: false,
+    duration: 0,
+    currentTime: 0,
   });
 
   // Keep a ref to the latest state for event listeners to avoid re-binding
@@ -106,6 +124,41 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
+  const playTrack = useCallback(async (url: string, title: string, artist: string, image?: string) => {
+    setAudioState(prev => ({ ...prev, isLoading: true }));
+    try {
+      setAudioState(prev => ({
+        ...prev,
+        audioUrl: url,
+        hasAudio: true,
+        isLoading: false,
+        trackTitle: title,
+        trackArtist: artist,
+        trackImage: image,
+        isBibleMode: false,
+        isPlaying: true,
+        isPaused: false,
+        currentTime: 0,
+        duration: 0
+      }));
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: title,
+          artist: artist,
+          artwork: image ? [{ src: image, sizes: '512x512', type: 'image/jpeg' }] : undefined,
+        });
+      }
+
+      audio.src = url;
+      audio.load();
+      await audio.play();
+    } catch (error) {
+      console.error('Failed to play generic track:', error);
+      setAudioState(prev => ({ ...prev, isLoading: false, isPlaying: false }));
+    }
+  }, []);
+
   const playBibleChapterMP3 = useCallback(async (
     book: string,
     chapter: number,
@@ -116,7 +169,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      // Use prefetched URL if available and matching
       let audioUrl = null;
       if (nextChapterUrlRef.current &&
         audioStateRef.current.autoPlayNext &&
@@ -139,6 +191,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audioUrl,
         hasAudio: true,
         isLoading: false,
+        isBibleMode: true,
+        trackTitle: `${book} ${chapter}`,
+        trackArtist: `${version.toUpperCase()} Audio Bible`,
+        trackImage: '/bible-icon.svg',
+        currentTime: 0,
+        duration: 0
       }));
 
       if ('mediaSession' in navigator) {
@@ -156,7 +214,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.load();
       await audio.play();
 
-      // Update Media Session Position State
       const updatePosition = () => {
         if ('mediaSession' in navigator && audio.duration) {
           navigator.mediaSession.setPositionState({
@@ -173,7 +230,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audio.addEventListener('loadedmetadata', updatePosition, { once: true });
       }
 
-      // Start prefetching next chapter immediately after current starts
       prefetchNextChapter(book, chapter, version);
 
     } catch (error) {
@@ -192,7 +248,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (audio.src) {
       audio.play().catch(console.error);
     } else if (audioStateRef.current.currentBook) {
-      console.log('Resume requested, but src is empty. Re-fetching...');
       playBibleChapterMP3(
         audioStateRef.current.currentBook,
         audioStateRef.current.currentChapter,
@@ -224,6 +279,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       loopChapter: false,
       audioUrl: undefined,
       hasAudio: false,
+      trackTitle: '',
+      trackArtist: '',
+      trackImage: '',
+      isBibleMode: true,
+      isMiniPlayerHidden: false,
+      duration: 0,
+      currentTime: 0,
     });
   }, []);
 
@@ -260,7 +322,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     }
 
-    // Direct transition for better background performance
     setTimeout(() => {
       isAutoAdvancingRef.current = false;
     }, 1500);
@@ -269,9 +330,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const goToPreviousChapter = useCallback(() => {
     const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioStateRef.current;
-    if (!currentBook || (currentChapter <= 1 && bibleBooks['Old Testament'].findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase()) === 0)) {
-      return;
-    }
+    if (!currentBook) return;
 
     const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
     const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
@@ -297,7 +356,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   useEffect(() => {
     const handlePlay = () => {
-      console.log('🎵 Audio element event: play');
       setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
@@ -305,7 +363,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handlePause = () => {
-      console.log('🎵 Audio element event: pause');
       setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: true }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
@@ -313,16 +370,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handleEnded = () => {
-      console.log('🎵 Audio element event: ended');
       const { loopChapter, autoPlayNext, currentBook, currentChapter } = audioStateRef.current;
 
       if (loopChapter) {
         audio.currentTime = 0;
         audio.play().catch(console.error);
       } else if (autoPlayNext) {
-        console.log('🎵 Automatically advancing to next chapter');
-
-        // Notify service worker that audio ended IMMEDIATELY before transition
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
             type: 'AUDIO_ENDED',
@@ -331,7 +384,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             autoPlayNext
           });
         }
-
         goToNextChapter();
       } else {
         setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
@@ -341,24 +393,27 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     };
 
-    // Watchdog timer to ensure transition happens if 'ended' event is suppressed by OS
-    let watchdogTimer: any = null;
     const startWatchdog = () => {
-      if (watchdogTimer) clearInterval(watchdogTimer);
-      watchdogTimer = setInterval(() => {
+      const watchdogTimer = setInterval(() => {
         if (!audio.paused && audio.duration > 0) {
           const timeLeft = audio.duration - audio.currentTime;
-          // If we are within 1 second of the end and not yet moving to next chapter
           if (timeLeft < 1 && audioStateRef.current.autoPlayNext && !isAutoAdvancingRef.current) {
-            console.log('🎵 Watchdog: Audio near end, triggering transition');
             handleEnded();
           }
         }
       }, 500);
+      return watchdogTimer;
     };
 
     const handleTimeUpdate = () => {
-      // Periodic position state update for OS lock screen
+      const now = audio.currentTime;
+      setAudioState(prev => {
+        if (Math.abs(prev.currentTime - now) > 0.5) {
+          return { ...prev, currentTime: now };
+        }
+        return prev;
+      });
+
       if ('mediaSession' in navigator && audio.duration && Math.floor(audio.currentTime) % 5 === 0) {
         navigator.mediaSession.setPositionState({
           duration: audio.duration,
@@ -366,6 +421,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           position: audio.currentTime,
         });
       }
+    };
+
+    const handleLoadedMetadata = () => {
+      setAudioState(prev => ({ ...prev, duration: audio.duration }));
     };
 
     const handleError = (e: Event) => {
@@ -381,10 +440,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('timeupdate', handleTimeUpdate);
-    startWatchdog();
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    const watchdogTimer = startWatchdog();
 
     if ('mediaSession' in navigator) {
-      console.log('🎵 Setting Media Session action handlers.');
       navigator.mediaSession.setActionHandler('play', resume);
       navigator.mediaSession.setActionHandler('pause', pause);
       navigator.mediaSession.setActionHandler('stop', reset);
@@ -392,38 +451,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
     }
 
-    // Service Worker message listener
-    const handleSWMessage = (event: MessageEvent) => {
-      if (!event.data) return;
-
-      switch (event.data.type) {
-        case 'AUDIO_CONTROL':
-          console.log('🎵 Global Audio: Received control from service worker:', event.data.action);
-          if (event.data.action === 'play') resume();
-          else if (event.data.action === 'pause') pause();
-          else if (event.data.action === 'next') goToNextChapter();
-          else if (event.data.action === 'previous') goToPreviousChapter();
-          break;
-        case 'EXECUTE_NEXT_CHAPTER':
-        case 'BACKGROUND_NEXT_CHAPTER':
-          console.log('🎵 Global Audio: Received next chapter trigger from service worker');
-          goToNextChapter();
-          break;
-      }
-    };
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleSWMessage);
-    }
-
     return () => {
-      console.log('🎵 Cleaning up GlobalAudioProvider listeners.');
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
-      if (watchdogTimer) clearInterval(watchdogTimer);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      clearInterval(watchdogTimer);
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.setActionHandler('play', null);
@@ -432,31 +467,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('nexttrack', null);
         navigator.mediaSession.setActionHandler('previoustrack', null);
       }
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
-      }
     };
   }, [goToNextChapter, goToPreviousChapter, reset, pause, resume]);
 
-  // Sync state to service worker
-  useEffect(() => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      const { autoPlayNext, loopChapter, currentBook, currentChapter, isPlaying } = audioState;
-      navigator.serviceWorker.controller.postMessage({
-        type: 'AUDIO_STATE_UPDATE',
-        autoPlayNext,
-        loopChapter,
-        book: currentBook,
-        chapter: currentChapter,
-        isPlaying,
-        timestamp: Date.now()
-      });
-    }
-  }, [audioState.isPlaying, audioState.currentBook, audioState.currentChapter, audioState.autoPlayNext, audioState.loopChapter]);
-
   const stop = useCallback(() => {
-    console.log('UI: Stop requested');
     audio.pause();
     audio.currentTime = 0;
     setAudioState(prev => ({ ...prev, isPlaying: false }));
@@ -474,8 +488,21 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     bookChangeCallbackRef.current = callback;
   }, []);
 
+  const setIsMiniPlayerHidden = useCallback((hidden: boolean) => {
+    setAudioState(prev => ({ ...prev, isMiniPlayerHidden: hidden }));
+  }, []);
+
+  const seek = useCallback((time: number) => {
+    if (Number.isFinite(time)) {
+      audio.currentTime = time;
+      setAudioState(prev => ({ ...prev, currentTime: time }));
+    }
+  }, []);
+
   const contextValue: GlobalAudioContextType = {
     audioState,
+    setIsMiniPlayerHidden,
+    seek,
     playBibleChapterMP3,
     pause,
     resume,
@@ -486,6 +513,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     goToPreviousChapter,
     setChapterChangeCallback,
     setBookChangeCallback,
+    playTrack,
   };
 
   return (

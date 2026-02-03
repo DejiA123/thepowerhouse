@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
+import GlobalMiniPlayer from "./GlobalMiniPlayer";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -212,6 +213,9 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
 
       {showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && <BottomNavigation />}
+
+      {/* Global Mini Player for Background Audio */}
+      <GlobalMiniPlayer />
     </div>
   );
 };

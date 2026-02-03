@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -41,7 +42,11 @@ import {
     Clock,
     Sparkles,
     GripVertical,
-    Archive
+    Archive,
+    RotateCcw,
+    RotateCw,
+    Play,
+    Pause
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -54,6 +59,7 @@ import { choirService, ChoirFolder, WeeklySetSong, ChoirCalendarEvent } from "@/
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
     DndContext,
     closestCenter,
@@ -72,7 +78,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { SimpleAudioPlayer } from "@/components/choir/SimpleAudioPlayer";
+
 
 // --- Sub-components ---
 const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
@@ -2240,6 +2246,8 @@ const ChoirPage = () => {
         setNewRosterName("");
     };
 
+    const { playTrack, pause, resume, seek, setIsMiniPlayerHidden, audioState } = useGlobalAudio();
+
     const handleRemoveRosterMember = (rosterType: 'praise' | 'prayer', index: number) => {
         const currentRoster = rosterType === 'praise' ? praiseRoster : prayerRoster;
         const updatedRoster = currentRoster.filter((_, i) => i !== index);
@@ -2256,9 +2264,12 @@ const ChoirPage = () => {
                     title: title || 'Video Player'
                 });
             } else {
-                // Assume audio/video file if not YouTube
+                // Play audio globally (background supported)
+                playTrack(url, title || "Audio Track", "Backing Track");
+                // Open local modal AND hide mini player
+                setIsMiniPlayerHidden(true);
                 setCurrentMedia({
-                    type: 'audio', // Generic player handles both if native
+                    type: 'audio',
                     url: url,
                     title: title || 'Audio Player'
                 });
@@ -4639,7 +4650,12 @@ const ChoirPage = () => {
 
             {/* Dialogs for Instrumental Resources */}
             {/* Unified Media Player Modal */}
-            <Dialog open={!!currentMedia} onOpenChange={(open) => !open && setCurrentMedia(null)}>
+            <Dialog open={!!currentMedia} onOpenChange={(open) => {
+                if (!open) {
+                    setCurrentMedia(null);
+                    setIsMiniPlayerHidden(false);
+                }
+            }}>
                 <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black border-none shadow-2xl" aria-describedby="media-player-description">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Media Player</DialogTitle>
@@ -4655,13 +4671,16 @@ const ChoirPage = () => {
                                 size="icon"
                                 variant="secondary"
                                 className="rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-md"
-                                onClick={() => setCurrentMedia(null)}
+                                onClick={() => {
+                                    setCurrentMedia(null);
+                                    setIsMiniPlayerHidden(false);
+                                }}
                             >
                                 <div className="w-4 h-4 flex items-center justify-center font-bold">✕</div>
                             </Button>
                         </div>
 
-                        {currentMedia?.type === 'video' ? (
+                        {currentMedia?.type === 'video' && (
                             <div className="w-full aspect-video">
                                 <iframe
                                     src={currentMedia.url}
@@ -4670,19 +4689,76 @@ const ChoirPage = () => {
                                     allowFullScreen
                                 />
                             </div>
-                        ) : (
+                        )}
+
+                        {currentMedia?.type === 'audio' && (
                             <div className="w-full py-12 px-6 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-gray-900 to-black w-full h-full min-h-[400px]">
-                                <div className="w-48 h-48 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-900/20 animate-pulse">
-                                    <Music className="w-24 h-24 text-white/50" />
+                                <div className="text-center space-y-4 max-w-md">
+                                    <div className="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-900/20 animate-pulse">
+                                        <Music className="w-24 h-24 text-white/50" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white">{currentMedia?.title || "Audio Track"}</h3>
+                                        <p className="text-sm text-gray-400">Backing Track</p>
+                                    </div>
                                 </div>
-                                <div className="text-center space-y-2 max-w-md">
-                                    <h3 className="text-xl font-bold text-white">{currentMedia?.title || "Audio Track"}</h3>
-                                    <p className="text-sm text-gray-400">Now Playing</p>
+
+                                {/* Controls synced with global audio */}
+                                <div className="w-full max-w-md space-y-6">
+                                    <div className="space-y-2">
+                                        <Slider
+                                            value={[audioState.currentTime]}
+                                            max={audioState.duration || 100}
+                                            step={1}
+                                            onValueChange={(vals) => seek(vals[0])}
+                                            className="cursor-pointer"
+                                        />
+                                        <div className="flex justify-between text-xs text-gray-400 font-mono">
+                                            <span>{(() => {
+                                                const mins = Math.floor(audioState.currentTime / 60);
+                                                const secs = Math.floor(audioState.currentTime % 60);
+                                                return `${mins}:${secs.toString().padStart(2, '0')}`;
+                                            })()}</span>
+                                            <span>{(() => {
+                                                const mins = Math.floor(audioState.duration / 60);
+                                                const secs = Math.floor(audioState.duration % 60);
+                                                return `${mins}:${secs.toString().padStart(2, '0')}`;
+                                            })()}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-center gap-8">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-white/70 hover:text-white hover:bg-white/10"
+                                            onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
+                                        >
+                                            <RotateCcw className="w-6 h-6" />
+                                        </Button>
+
+                                        <Button
+                                            size="icon"
+                                            className="w-16 h-16 rounded-full bg-white text-black hover:bg-white/90 shadow-xl shadow-white/10"
+                                            onClick={audioState.isPlaying ? pause : resume}
+                                        >
+                                            {audioState.isPlaying ? (
+                                                <Pause className="w-8 h-8 fill-current" />
+                                            ) : (
+                                                <Play className="w-8 h-8 fill-current ml-1" />
+                                            )}
+                                        </Button>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-white/70 hover:text-white hover:bg-white/10"
+                                            onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                                        >
+                                            <RotateCw className="w-6 h-6" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <SimpleAudioPlayer
-                                    src={currentMedia?.url || ""}
-                                    autoPlay={true}
-                                />
                             </div>
                         )}
                     </div>
