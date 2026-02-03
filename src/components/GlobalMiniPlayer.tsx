@@ -10,6 +10,7 @@ const GlobalMiniPlayer: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isStandalone, setIsStandalone] = useState(false);
+    const [isLargeDisplay, setIsLargeDisplay] = useState(false);
 
     useEffect(() => {
         const checkStandalone = () => {
@@ -17,6 +18,10 @@ const GlobalMiniPlayer: React.FC = () => {
                 (window.navigator as any).standalone ||
                 document.referrer.includes('android-app://');
             setIsStandalone(standalone);
+
+            // iPhone 12/13/14/15 Pro Max width is typically 428-430px
+            const large = window.screen.width >= 428;
+            setIsLargeDisplay(large);
         };
         checkStandalone();
     }, []);
@@ -35,10 +40,12 @@ const GlobalMiniPlayer: React.FC = () => {
             className={cn(
                 "fixed left-0 right-0 z-40 mx-auto max-w-md px-4 transition-all duration-300 slide-in-from-bottom-10 animate-in fade-in",
                 isStandalone
-                    ? "bottom-[calc(4.2rem+env(safe-area-inset-bottom,12px))]"
+                    ? (isLargeDisplay
+                        ? "bottom-[calc(3.9rem+env(safe-area-inset-bottom,8px))]"
+                        : "bottom-[calc(4.2rem+env(safe-area-inset-bottom,12px))]")
                     : "bottom-[calc(5rem+env(safe-area-inset-bottom,20px))]",
                 // Adjust position if on desktop or pages without bottom nav
-                location.pathname === '/group-chats' ? "bottom-6" : ""
+                location.pathname === '/group-chats' || location.pathname === '/follow-up' ? "bottom-6" : ""
             )}
         >
             <div

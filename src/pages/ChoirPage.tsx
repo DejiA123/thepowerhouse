@@ -3810,7 +3810,10 @@ const ChoirPage = () => {
                                     <Video className="w-6 h-6 text-blue-600" />
                                     Tutorials
                                 </h2>
-                                <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsAddInstrOpen(true)}>
+                                <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
+                                    setNewInstr({ title: "", type: "Tutorial", url: "" });
+                                    setIsAddInstrOpen(true);
+                                }}>
                                     <Plus className="w-4 h-4 mr-2" /> Add Resource
                                 </Button>
                             </div>
@@ -3937,7 +3940,10 @@ const ChoirPage = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                            <CardContent className="p-4">
+                                            <CardContent
+                                                className="p-4 cursor-pointer"
+                                                onClick={() => resource.url && playVideo(resource.url, resource.title)}
+                                            >
                                                 <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
                                                     Backing Track
                                                 </Badge>
@@ -4765,7 +4771,7 @@ const ChoirPage = () => {
             </Dialog>
 
             <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader>
                         <DialogTitle>Add Instrumental Resource</DialogTitle>
                         <DialogDescription>Add a tutorial or technical guide for the band.</DialogDescription>
@@ -4773,28 +4779,36 @@ const ChoirPage = () => {
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Title</Label>
-                            <Input placeholder="e.g. Advanced Piano Chords" value={newInstr.title} onChange={e => setNewInstr({ ...newInstr, title: e.target.value })} />
+                            <Input
+                                placeholder={newInstr.type === 'Backing Track' ? "e.g. Here as in heaven" : "e.g. Advanced Piano Chords"}
+                                value={newInstr.title}
+                                onChange={e => setNewInstr({ ...newInstr, title: e.target.value })}
+                            />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Type</Label>
-                            <Select value={newInstr.type} onValueChange={v => setNewInstr({ ...newInstr, type: v })}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Tutorial">Tutorial</SelectItem>
-                                    <SelectItem value="Technique">Technique</SelectItem>
-                                    <SelectItem value="Resource">Resource</SelectItem>
-                                    <SelectItem value="Workshop">Workshop</SelectItem>
-                                    <SelectItem value="Backing Track">Backing Track</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>URL (YouTube/Link)</Label>
-                            <Input placeholder="https://..." value={newInstr.url} onChange={e => setNewInstr({ ...newInstr, url: e.target.value })} />
-                            <p className="text-xs text-slate-500">Paste a YouTube URL or direct link</p>
-                        </div>
+                        {newInstr.type !== 'Backing Track' && (
+                            <div className="space-y-2">
+                                <Label>Type</Label>
+                                <Select value={newInstr.type} onValueChange={v => setNewInstr({ ...newInstr, type: v })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Tutorial">Tutorial</SelectItem>
+                                        <SelectItem value="Technique">Technique</SelectItem>
+                                        <SelectItem value="Resource">Resource</SelectItem>
+                                        <SelectItem value="Workshop">Workshop</SelectItem>
+                                        <SelectItem value="Backing Track">Backing Track</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {newInstr.type !== 'Backing Track' && (
+                            <div className="space-y-2">
+                                <Label>URL (YouTube/Link)</Label>
+                                <Input placeholder="https://..." value={newInstr.url} onChange={e => setNewInstr({ ...newInstr, url: e.target.value })} />
+                                <p className="text-xs text-slate-500">Paste a YouTube URL or direct link</p>
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label>Or Upload File</Label>
@@ -4841,33 +4855,42 @@ const ChoirPage = () => {
 
 
             <Dialog open={isEditInstrOpen} onOpenChange={setIsEditInstrOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader>
                         <DialogTitle>Edit Instrumental Resource</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Title</Label>
-                            <Input placeholder="e.g. Advanced Piano Chords" value={instrToEdit.title} onChange={e => setInstrToEdit({ ...instrToEdit, title: e.target.value })} />
+                            <Input
+                                placeholder={instrToEdit.type === 'Backing Track' ? "e.g. Here as in heaven" : "e.g. Advanced Piano Chords"}
+                                value={instrToEdit.title}
+                                onChange={e => setInstrToEdit({ ...instrToEdit, title: e.target.value })}
+                            />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Type</Label>
-                            <Select value={instrToEdit.type} onValueChange={v => setInstrToEdit({ ...instrToEdit, type: v })}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Tutorial">Tutorial</SelectItem>
-                                    <SelectItem value="Technique">Technique</SelectItem>
-                                    <SelectItem value="Resource">Resource</SelectItem>
-                                    <SelectItem value="Workshop">Workshop</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>URL (YouTube/Link)</Label>
-                            <Input placeholder="https://..." value={instrToEdit.url} onChange={e => setInstrToEdit({ ...instrToEdit, url: e.target.value })} />
-                        </div>
+                        {instrToEdit.type !== 'Backing Track' && (
+                            <div className="space-y-2">
+                                <Label>Type</Label>
+                                <Select value={instrToEdit.type} onValueChange={v => setInstrToEdit({ ...instrToEdit, type: v })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Tutorial">Tutorial</SelectItem>
+                                        <SelectItem value="Technique">Technique</SelectItem>
+                                        <SelectItem value="Resource">Resource</SelectItem>
+                                        <SelectItem value="Workshop">Workshop</SelectItem>
+                                        <SelectItem value="Backing Track">Backing Track</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        {instrToEdit.type !== 'Backing Track' && (
+                            <div className="space-y-2">
+                                <Label>URL (YouTube/Link)</Label>
+                                <Input placeholder="https://..." value={instrToEdit.url} onChange={e => setInstrToEdit({ ...instrToEdit, url: e.target.value })} />
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button onClick={handleSaveEditInstrResource} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">Save Changes</Button>
