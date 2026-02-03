@@ -1150,7 +1150,7 @@ const BibleNotesPage = () => {
                                                             <div className="bg-indigo-50 p-2 rounded-lg">
                                                                 <Edit3 className="w-4 h-4 text-indigo-600" />
                                                             </div>
-                                                            <span className="font-semibold text-sm">Edit Reflection</span>
+                                                            <span className="font-semibold text-sm">Edit Note</span>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() => {
