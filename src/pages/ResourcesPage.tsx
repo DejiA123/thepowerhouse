@@ -198,7 +198,7 @@ const ResourcesPage = () => {
       icon: ClipboardList,
       color: "from-purple-600 to-indigo-600",
       shadow: "shadow-purple-600/20",
-      onClick: () => navigate("/team-follow-up")
+      onClick: () => navigate("/follow-up-team")
     }
   ];
 
