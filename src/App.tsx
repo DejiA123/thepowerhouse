@@ -272,17 +272,24 @@ const AppRoutes = () => {
 };
 
 const applyTheme = () => {
-  // Try to get theme from localStorage (set by UserPreferencesForm)
-  let theme = 'light';
-  try {
-    const userPrefs = localStorage.getItem('user_preferences');
-    if (userPrefs) {
-      const parsed = JSON.parse(userPrefs);
-      if (parsed.theme) theme = parsed.theme;
+  // Priority 1: Check new 'theme' key from UnifiedThemeSettings
+  const unifiedTheme = localStorage.getItem('theme');
+
+  // Priority 2: Check legacy 'user_preferences'
+  let theme = unifiedTheme || 'light'; // Default to light if nothing set
+
+  if (!unifiedTheme) {
+    try {
+      const userPrefs = localStorage.getItem('user_preferences');
+      if (userPrefs) {
+        const parsed = JSON.parse(userPrefs);
+        if (parsed.theme) theme = parsed.theme;
+      }
+    } catch (e) {
+      console.warn('Failed to parse user preferences:', e);
     }
-  } catch (e) {
-    console.warn('Failed to parse user preferences:', e);
   }
+
   const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const isDark = theme === 'system' ? isSystemDark : theme === 'dark';
 

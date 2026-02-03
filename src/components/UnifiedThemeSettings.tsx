@@ -34,7 +34,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
   const loadThemeSettings = async () => {
     // Load from localStorage first
     const localSettings = {
-      theme: (localStorage.getItem('theme') || 'system') as 'light' | 'dark' | 'system',
+      theme: (localStorage.getItem('theme') || 'light') as 'light' | 'dark' | 'system',
       colorTheme: (localStorage.getItem('colorTheme') || 'default') as 'default' | 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange' | 'custom',
       customPrimaryColor: localStorage.getItem('customPrimaryColor') || '#3b82f6',
       customBackgroundColor: localStorage.getItem('customBackgroundColor') || '#ffffff'
