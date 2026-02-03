@@ -5,7 +5,39 @@ const IsolatedEditorPage = () => {
     const [content, setContent] = useState('');
     const [isReady, setIsReady] = useState(false);
     const [isEditable, setIsEditable] = useState(false);
+    const [viewportHeight, setViewportHeight] = useState('100dvh');
     const editorRef = useRef<any>(null);
+
+    // Track visual viewport height to stay above keyboard
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return;
+
+        const handleViewportResize = () => {
+            const viewport = window.visualViewport;
+            if (viewport) {
+                // Use a direct pixel value for the visible area
+                setViewportHeight(`${viewport.height}px`);
+
+                // Add a small delay and scroll to cursor if needed
+                if (document.activeElement?.closest('.ProseMirror')) {
+                    setTimeout(() => {
+                        document.activeElement?.scrollIntoView({ block: 'nearest' });
+                    }, 100);
+                }
+            }
+        };
+
+        window.visualViewport.addEventListener('resize', handleViewportResize);
+        window.visualViewport.addEventListener('scroll', handleViewportResize);
+
+        // Initial call
+        handleViewportResize();
+
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleViewportResize);
+            window.visualViewport?.removeEventListener('scroll', handleViewportResize);
+        };
+    }, []);
 
     // Prevent PWA auto-focus by starting read-only, then enabling interaction
     useEffect(() => {
@@ -58,7 +90,10 @@ const IsolatedEditorPage = () => {
     if (!isReady) return <div className="p-4 text-gray-400">Loading editor...</div>;
 
     return (
-        <div className="h-screen w-screen bg-white dark:bg-gray-950 overflow-hidden">
+        <div
+            className="w-screen bg-white dark:bg-gray-950 overflow-hidden relative"
+            style={{ height: viewportHeight }}
+        >
             {/* 
                 CRITICAL CSS OVERRIDES FOR IFRAME CONTEXT
                 These ensure the editor behaves like a native text area
@@ -66,8 +101,10 @@ const IsolatedEditorPage = () => {
             <style>{`
                 body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
                 .ProseMirror { 
-                    height: 100vh !important; 
-                    padding: 1rem !important;
+                    min-height: 100% !important; 
+                    height: auto !important;
+                    padding: 1.5rem !important;
+                    padding-bottom: 200px !important; /* Space for toolbar */
                     outline: none !important;
                     -webkit-user-select: text !important;
                     user-select: text !important;

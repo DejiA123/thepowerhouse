@@ -65,27 +65,29 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState('100%');
 
-  // Detect iOS keyboard using visualViewport API
+  // Detect iOS keyboard using visualViewport API to resize container
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return;
 
-    const updateKeyboardHeight = () => {
+    const updateHeight = () => {
       const viewport = window.visualViewport;
       if (viewport) {
-        // Calculate keyboard height based on viewport difference
-        const keyboardH = window.innerHeight - viewport.height;
-        setKeyboardHeight(keyboardH > 0 ? keyboardH : 0);
+        // Set container height to match visible viewport height
+        // This pushes anything absolutely positioned at bottom: 0 
+        // to stay exactly above the keyboard.
+        setContainerHeight(`${viewport.height}px`);
       }
     };
 
-    window.visualViewport.addEventListener('resize', updateKeyboardHeight);
-    window.visualViewport.addEventListener('scroll', updateKeyboardHeight);
+    window.visualViewport.addEventListener('resize', updateHeight);
+    window.visualViewport.addEventListener('scroll', updateHeight);
+    updateHeight();
 
     return () => {
-      window.visualViewport?.removeEventListener('resize', updateKeyboardHeight);
-      window.visualViewport?.removeEventListener('scroll', updateKeyboardHeight);
+      window.visualViewport?.removeEventListener('resize', updateHeight);
+      window.visualViewport?.removeEventListener('scroll', updateHeight);
     };
   }, []);
 
@@ -215,18 +217,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       "z-[100] py-8 pointer-events-none",
       // Use fixed positioning for bottom toolbar to stay above keyboard
       position === 'bottom'
-        ? 'fixed left-0 right-0 flex justify-center'
+        ? 'absolute left-0 right-0 bottom-0 flex justify-center pb-2'
         : 'absolute left-1/2 -translate-x-1/2 top-0'
-    )}
-      style={position === 'bottom' ? {
-        // Use JavaScript-detected keyboard height (works on all iOS versions)
-        // Falls back to CSS env variable if keyboardHeight is 0
-        bottom: keyboardHeight > 0
-          ? `${keyboardHeight}px`
-          : 'max(env(keyboard-inset-height, 0px), env(safe-area-inset-bottom, 0px))',
-        paddingBottom: '0.5rem',
-        transition: 'bottom 0.1s ease-out',
-      } : undefined}>
+    )}>
       <div className="flex flex-col items-center gap-4 pointer-events-auto">
         {showFormattingMenu && (
           <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2.5 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex flex-wrap items-center justify-center gap-2 max-w-[90vw] md:max-w-2xl ring-1 ring-black/5 dark:ring-white/5">
@@ -340,7 +333,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   );
 
   return (
-    <div className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950", className)}>
+    <div
+      className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 relative overflow-hidden", className)}
+      style={{ height: containerHeight }}
+    >
       {/* Table Bubble Menu */}
       <BubbleMenu
         editor={editor}
