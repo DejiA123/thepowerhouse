@@ -3792,13 +3792,12 @@ const ChoirPage = () => {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-center min-h-[300px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
+                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-6 flex flex-col justify-center min-h-[160px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
                                     <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                    <div className="relative z-10 space-y-6 text-center">
-
-                                        <div className="space-y-2">
-                                            <h3 className="text-3xl font-black text-white">Band Priority</h3>
-                                            <p className="text-blue-100/80 text-lg font-medium">No new song focus yet</p>
+                                    <div className="relative z-10 space-y-4 text-center">
+                                        <div className="space-y-1">
+                                            <h3 className="text-2xl font-black text-white">Band Priority</h3>
+                                            <p className="text-blue-100/80 text-base font-medium">No new song focus yet</p>
                                         </div>
                                     </div>
                                 </Card>
@@ -3921,7 +3920,7 @@ const ChoirPage = () => {
                                             </div>
 
                                             <div
-                                                className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all cursor-pointer relative"
+                                                className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
                                                 onClick={() => resource.url && playVideo(resource.url, resource.title)}
                                             >
                                                 {getYTThumbnail(resource.url) ? (
@@ -3933,8 +3932,8 @@ const ChoirPage = () => {
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-center">
-                                                        <Music className="w-12 h-12 text-white/80 mb-2" />
-                                                        <PlayCircle className="w-8 h-8 text-white/60" />
+                                                        <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
+                                                        <PlayCircle className="w-8 h-8 text-white/40" />
                                                     </div>
                                                 )}
                                             </div>
@@ -4694,8 +4693,8 @@ const ChoirPage = () => {
                         {currentMedia?.type === 'audio' && (
                             <div className="w-full h-full py-12 px-6 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-gray-900 to-black overflow-y-auto">
                                 <div className="text-center space-y-4 max-w-md">
-                                    <div className="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-900/20 animate-pulse">
-                                        <Music className="w-24 h-24 text-white/50" />
+                                    <div className="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center shadow-2xl shadow-blue-900/40 animate-pulse border border-white/5">
+                                        <Music className="w-24 h-24 text-white/40" />
                                     </div>
                                     <div>
                                         <h3 className="text-2xl font-bold text-white">{currentMedia?.title || "Audio Track"}</h3>
