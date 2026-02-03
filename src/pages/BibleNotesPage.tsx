@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Card } from "@/components/ui/card";
 import {
     Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar, Trash2,
@@ -1023,227 +1024,230 @@ const BibleNotesPage = () => {
                 setShowNoteDialog(open);
                 if (!open) setIsInlineEditing(false);
             }}>
-                <DialogContent
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none p-0 overflow-visible bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col select-text duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
-                >
-                    {/* Focus Dummy Trap at the absolute top of the dialog context */}
-                    <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
-                        Focus Trap
-                    </div>
-                    {selectedNote && (
-                        <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
-                            {/* Standard Header Bar - Clean Apple Notes Style */}
-                            <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => {
-                                        if (isInlineEditing) {
-                                            // Optional: Add "Confirm discard changes" if modified
-                                            setIsInlineEditing(false);
-                                        } else {
-                                            setShowNoteDialog(false);
-                                        }
-                                    }}
-                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2 z-10"
-                                >
-                                    <ArrowLeft className="w-5 h-5" />
-                                    {isInlineEditing ? 'Cancel' : 'Back'}
-                                </Button>
-
-                                <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[40%] md:max-w-lg">
-                                    {isInlineEditing ? (
-                                        <Input
-                                            value={newNote.title}
-                                            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                            placeholder="Note Title"
-                                            autoFocus={false}
-                                            className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
-                                        />
-                                    ) : (
-                                        <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white text-center">
-                                            {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
-                                        </h2>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-2 z-10">
-                                    {isInlineEditing ? (
-                                        <Button
-                                            onClick={async () => {
-                                                // Simplified inline save
-                                                setLoading(true);
-                                                try {
-                                                    const { error } = await supabase
-                                                        .from('bible_notes')
-                                                        .update({
-                                                            note_text: newNote.note_text,
-                                                            title: newNote.title,
-                                                            folder_id: newNote.folder_id || null
-                                                        })
-                                                        .eq('id', selectedNote.id);
-                                                    if (error) throw error;
-
-                                                    selectedNote.note_text = newNote.note_text;
-                                                    selectedNote.title = newNote.title;
-                                                    selectedNote.folder_id = newNote.folder_id || null;
-                                                    setIsInlineEditing(false);
-                                                    toast({ title: "Saved", description: "Your reflection has been updated." });
-                                                    fetchNotes();
-                                                    fetchFolders(); // Refresh stats
-                                                } catch (err) {
-                                                    console.error(err);
-                                                    toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
-                                                } finally {
-                                                    setLoading(false);
-                                                }
-                                            }}
-                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold px-6 rounded-full"
-                                        >
-                                            Save
-                                        </Button>
-                                    ) : (
-                                        <>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                    setEditingNote(selectedNote);
-                                                    setNewNote({
-                                                        title: selectedNote.title || '',
-                                                        note_text: selectedNote.note_text || '',
-                                                        book: selectedNote.book || 'genesis',
-                                                        chapter: selectedNote.chapter?.toString() || '1',
-                                                        verse: selectedNote.verse?.toString() || '',
-                                                        category: selectedNote.category || 'insight',
-                                                        tags: selectedNote.tags || [],
-                                                        is_favorite: selectedNote.is_favorite || false,
-                                                        is_private: selectedNote.is_private || false,
-                                                        is_pinned: selectedNote.is_pinned || false,
-                                                        folder_id: selectedNote.folder_id || undefined
-                                                    });
-                                                    setIsInlineEditing(true);
-                                                }}
-                                                className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10"
-                                            >
-                                                <Edit3 className="w-5 h-5" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => {
-                                                    setSelectedNoteForDelete(selectedNote.id);
-                                                    deleteNote(selectedNote.id);
-                                                }}
-                                                className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full h-10 w-10"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </Button>
-                                            <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-2"></div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => setShowNoteDialog(false)}
-                                                className="text-gray-400 hover:text-gray-900 rounded-full h-10 w-10"
-                                            >
-                                                <X className="w-5 h-5" />
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Inline Editor Folder Strip */}
-                            {isInlineEditing && (
-                                <div className="px-6 py-2 bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4">
-                                    <Select
-                                        value={newNote.folder_id || 'unfiled'}
-                                        onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
+                <DialogPrimitive.Portal>
+                    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                    <DialogPrimitive.Content
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                        className="fixed inset-0 w-screen h-[100dvh] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-200"
+                    >
+                        {/* Focus Dummy Trap at the absolute top of the dialog context */}
+                        <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
+                            Focus Trap
+                        </div>
+                        {selectedNote && (
+                            <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
+                                {/* Standard Header Bar - Clean Apple Notes Style */}
+                                <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            if (isInlineEditing) {
+                                                // Optional: Add "Confirm discard changes" if modified
+                                                setIsInlineEditing(false);
+                                            } else {
+                                                setShowNoteDialog(false);
+                                            }
+                                        }}
+                                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2 z-10"
                                     >
-                                        <SelectTrigger className="w-[180px] h-8 rounded-full border-none bg-white dark:bg-gray-800 shadow-sm text-xs font-bold">
-                                            <div className="flex items-center gap-2">
-                                                <Folder className="w-3.5 h-3.5 text-indigo-500" />
-                                                <SelectValue placeholder="Folder" />
-                                            </div>
-                                        </SelectTrigger>
-                                        <SelectContent position="popper" sideOffset={5} className="z-[10000]">
-                                            <SelectItem value="unfiled">All Notes</SelectItem>
-                                            {folders.map(folder => (
-                                                <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
+                                        <ArrowLeft className="w-5 h-5" />
+                                        {isInlineEditing ? 'Cancel' : 'Back'}
+                                    </Button>
 
-                            <div className="flex-1 flex flex-col min-h-0 overflow-visible bg-white dark:bg-gray-950">
-                                <div className="flex-1 flex flex-col min-h-0">
-                                    <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-visible">
+                                    <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[40%] md:max-w-lg">
                                         {isInlineEditing ? (
-                                            <div className="flex-1 flex flex-col min-h-0">
-                                                <div className="flex-1 h-full relative">
-                                                    <iframe
-                                                        ref={iframeRef}
-                                                        src="/editor-frame"
-                                                        className="w-full h-full border-0 bg-transparent"
-                                                        title="Note Editor"
-                                                        tabIndex={-1}
-                                                        style={{
-                                                            display: 'block',
-                                                            width: '100%',
-                                                            height: '100%'
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
+                                            <Input
+                                                value={newNote.title}
+                                                onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                                placeholder="Note Title"
+                                                autoFocus={false}
+                                                className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
+                                            />
                                         ) : (
-                                            <div
-                                                className="flex-1 flex flex-col min-h-0 cursor-text overflow-visible select-text touch-callout-default"
-                                                onClick={() => {
-                                                    setNewNote({
-                                                        title: selectedNote.title || '',
-                                                        note_text: selectedNote.note_text || '',
-                                                        book: selectedNote.book || 'genesis',
-                                                        chapter: selectedNote.chapter?.toString() || '1',
-                                                        verse: selectedNote.verse?.toString() || '',
-                                                        category: selectedNote.category || 'insight',
-                                                        tags: selectedNote.tags || [],
-                                                        is_favorite: selectedNote.is_favorite || false,
-                                                        is_private: selectedNote.is_private || false,
-                                                        is_pinned: selectedNote.is_pinned || false,
-                                                        folder_id: selectedNote.folder_id || undefined
-                                                    });
-                                                    setEditingNote(selectedNote);
-                                                    setIsInlineEditing(true);
+                                            <h2 className="text-xl font-bold truncate text-gray-900 dark:text-white text-center">
+                                                {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
+                                            </h2>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 z-10">
+                                        {isInlineEditing ? (
+                                            <Button
+                                                onClick={async () => {
+                                                    // Simplified inline save
+                                                    setLoading(true);
+                                                    try {
+                                                        const { error } = await supabase
+                                                            .from('bible_notes')
+                                                            .update({
+                                                                note_text: newNote.note_text,
+                                                                title: newNote.title,
+                                                                folder_id: newNote.folder_id || null
+                                                            })
+                                                            .eq('id', selectedNote.id);
+                                                        if (error) throw error;
+
+                                                        selectedNote.note_text = newNote.note_text;
+                                                        selectedNote.title = newNote.title;
+                                                        selectedNote.folder_id = newNote.folder_id || null;
+                                                        setIsInlineEditing(false);
+                                                        toast({ title: "Saved", description: "Your reflection has been updated." });
+                                                        fetchNotes();
+                                                        fetchFolders(); // Refresh stats
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
                                                 }}
+                                                className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold px-6 rounded-full"
                                             >
-                                                <RichTextEditor
-                                                    content={selectedNote.note_text}
-                                                    readOnly={true}
-                                                    onChange={async (content) => {
-                                                        // Allow direct saving from preview (e.g. table edits)
-                                                        try {
-                                                            const { error } = await supabase
-                                                                .from('bible_notes')
-                                                                .update({ note_text: content })
-                                                                .eq('id', selectedNote.id);
-                                                            if (error) throw error;
-                                                            selectedNote.note_text = content;
-                                                            fetchNotes();
-                                                        } catch (err) {
-                                                            console.error("Preview save error:", err);
-                                                        }
+                                                Save
+                                            </Button>
+                                        ) : (
+                                            <>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setEditingNote(selectedNote);
+                                                        setNewNote({
+                                                            title: selectedNote.title || '',
+                                                            note_text: selectedNote.note_text || '',
+                                                            book: selectedNote.book || 'genesis',
+                                                            chapter: selectedNote.chapter?.toString() || '1',
+                                                            verse: selectedNote.verse?.toString() || '',
+                                                            category: selectedNote.category || 'insight',
+                                                            tags: selectedNote.tags || [],
+                                                            is_favorite: selectedNote.is_favorite || false,
+                                                            is_private: selectedNote.is_private || false,
+                                                            is_pinned: selectedNote.is_pinned || false,
+                                                            folder_id: selectedNote.folder_id || undefined
+                                                        });
+                                                        setIsInlineEditing(true);
                                                     }}
-                                                    className="max-w-none"
-                                                />
-                                            </div>
+                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10"
+                                                >
+                                                    <Edit3 className="w-5 h-5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        setSelectedNoteForDelete(selectedNote.id);
+                                                        deleteNote(selectedNote.id);
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full h-10 w-10"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                                <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-2"></div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setShowNoteDialog(false)}
+                                                    className="text-gray-400 hover:text-gray-900 rounded-full h-10 w-10"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </Button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Inline Editor Folder Strip */}
+                                {isInlineEditing && (
+                                    <div className="px-6 py-2 bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4">
+                                        <Select
+                                            value={newNote.folder_id || 'unfiled'}
+                                            onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
+                                        >
+                                            <SelectTrigger className="w-[180px] h-8 rounded-full border-none bg-white dark:bg-gray-800 shadow-sm text-xs font-bold">
+                                                <div className="flex items-center gap-2">
+                                                    <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                                                    <SelectValue placeholder="Folder" />
+                                                </div>
+                                            </SelectTrigger>
+                                            <SelectContent position="popper" sideOffset={5} className="z-[10000]">
+                                                <SelectItem value="unfiled">All Notes</SelectItem>
+                                                {folders.map(folder => (
+                                                    <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
+                                <div className="flex-1 flex flex-col min-h-0 overflow-visible bg-white dark:bg-gray-950">
+                                    <div className="flex-1 flex flex-col min-h-0">
+                                        <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-visible">
+                                            {isInlineEditing ? (
+                                                <div className="flex-1 flex flex-col min-h-0">
+                                                    <div className="flex-1 h-full relative">
+                                                        <iframe
+                                                            ref={iframeRef}
+                                                            src="/editor-frame"
+                                                            className="w-full h-full border-0 bg-transparent"
+                                                            title="Note Editor"
+                                                            tabIndex={-1}
+                                                            style={{
+                                                                display: 'block',
+                                                                width: '100%',
+                                                                height: '100%'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className="flex-1 flex flex-col min-h-0 cursor-text overflow-visible select-text touch-callout-default"
+                                                    onClick={() => {
+                                                        setNewNote({
+                                                            title: selectedNote.title || '',
+                                                            note_text: selectedNote.note_text || '',
+                                                            book: selectedNote.book || 'genesis',
+                                                            chapter: selectedNote.chapter?.toString() || '1',
+                                                            verse: selectedNote.verse?.toString() || '',
+                                                            category: selectedNote.category || 'insight',
+                                                            tags: selectedNote.tags || [],
+                                                            is_favorite: selectedNote.is_favorite || false,
+                                                            is_private: selectedNote.is_private || false,
+                                                            is_pinned: selectedNote.is_pinned || false,
+                                                            folder_id: selectedNote.folder_id || undefined
+                                                        });
+                                                        setEditingNote(selectedNote);
+                                                        setIsInlineEditing(true);
+                                                    }}
+                                                >
+                                                    <RichTextEditor
+                                                        content={selectedNote.note_text}
+                                                        readOnly={true}
+                                                        onChange={async (content) => {
+                                                            // Allow direct saving from preview (e.g. table edits)
+                                                            try {
+                                                                const { error } = await supabase
+                                                                    .from('bible_notes')
+                                                                    .update({ note_text: content })
+                                                                    .eq('id', selectedNote.id);
+                                                                if (error) throw error;
+                                                                selectedNote.note_text = content;
+                                                                fetchNotes();
+                                                            } catch (err) {
+                                                                console.error("Preview save error:", err);
+                                                            }
+                                                        }}
+                                                        className="max-w-none"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </DialogContent>
+                        )}
+                    </DialogPrimitive.Content>
+                </DialogPrimitive.Portal>
             </Dialog>
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
