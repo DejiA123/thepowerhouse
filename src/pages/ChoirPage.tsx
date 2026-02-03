@@ -72,6 +72,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { SimpleAudioPlayer } from "@/components/choir/SimpleAudioPlayer";
 
 // --- Sub-components ---
 const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
@@ -4678,14 +4679,10 @@ const ChoirPage = () => {
                                     <h3 className="text-xl font-bold text-white">{currentMedia?.title || "Audio Track"}</h3>
                                     <p className="text-sm text-gray-400">Now Playing</p>
                                 </div>
-                                <audio
-                                    controls
-                                    autoPlay
-                                    className="w-full max-w-md h-12 accent-blue-600"
-                                    src={currentMedia?.url}
-                                >
-                                    Your browser does not support the audio element.
-                                </audio>
+                                <SimpleAudioPlayer
+                                    src={currentMedia?.url || ""}
+                                    autoPlay={true}
+                                />
                             </div>
                         )}
                     </div>

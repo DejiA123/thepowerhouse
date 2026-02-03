@@ -1025,7 +1025,7 @@ const BibleNotesPage = () => {
             }}>
                 <DialogContent
                     onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="fixed inset-0 w-screen max-w-none p-0 overflow-visible bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col select-text"
+                    className="fixed inset-0 w-screen max-w-none p-0 overflow-visible bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col select-text duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none"
                 >
                     {/* Focus Dummy Trap at the absolute top of the dialog context */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
