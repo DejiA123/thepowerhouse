@@ -1044,41 +1044,42 @@ const BibleNotesPage = () => {
                         {selectedNote && (
                             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                                 {/* Standard Header Bar - Clean Apple Notes Style */}
-                                <div className="relative flex items-center justify-between px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
-                                    <Button
-                                        ref={backButtonRef}
-                                        variant="ghost"
-                                        onClick={() => {
-                                            if (isInlineEditing) {
-                                                // Optional: Add "Confirm discard changes" if modified
-                                                setIsInlineEditing(false);
-                                            } else {
-                                                setShowNoteDialog(false);
-                                            }
-                                        }}
-                                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2 z-10"
-                                    >
-                                        <ArrowLeft className="w-5 h-5" />
-                                        {isInlineEditing ? 'Cancel' : 'Back'}
-                                    </Button>
+                                <div className="relative flex items-center justify-between gap-4 px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                                    <div className="flex-none">
+                                        <Button
+                                            ref={backButtonRef}
+                                            variant="ghost"
+                                            onClick={() => {
+                                                if (isInlineEditing) {
+                                                    setIsInlineEditing(false);
+                                                } else {
+                                                    setShowNoteDialog(false);
+                                                }
+                                            }}
+                                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-4 rounded-full font-bold transition-all flex items-center gap-2"
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                            {isInlineEditing ? 'Cancel' : 'Back'}
+                                        </Button>
+                                    </div>
 
-                                    <div className="absolute left-1/2 -translate-x-1/2 flex justify-center overflow-hidden px-4 w-full max-w-[70%] md:max-w-lg">
+                                    <div className="flex-1 flex justify-center overflow-hidden px-2">
                                         {isInlineEditing ? (
                                             <Input
                                                 value={newNote.title}
                                                 onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                                                 placeholder="Note Title"
                                                 autoFocus={false}
-                                                className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
+                                                className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white w-full max-w-md"
                                             />
                                         ) : (
-                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center break-words max-h-[3rem] overflow-hidden">
                                                 {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
                                             </h2>
                                         )}
                                     </div>
 
-                                    <div className="flex items-center gap-2 z-10">
+                                    <div className="flex-none flex items-center gap-2">
                                         {isInlineEditing ? (
                                             <Button
                                                 onClick={async () => {
