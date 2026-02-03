@@ -1661,6 +1661,14 @@ body.modal-open {
   }
 }
 
+/* Mobile Safari (non-PWA) Audio Controls Adjustment */
+/* Increase spacing for mobile devices in browser mode (not PWA) */
+@media (max-width: 768px) and (display-mode: browser) {
+  :root {
+    --bible-audio-bottom-offset-v2: 80px;
+  }
+}
+
 /* iOS Text Selection Fix for Modal Dialogs */
 /* Critical fix for iPhone text selection handle dragging in modals */
 @supports (-webkit-touch-callout: none) {

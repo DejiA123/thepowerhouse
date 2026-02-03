@@ -1028,7 +1028,7 @@ export const BibleChapterContent = ({
           "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+9rem)]" // Optimized for PWA positioning
-            : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-40" // Raised higher for laptop (40 = 10rem)
+            : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Raised for laptop (80px)
         )}
       >
         <div className="flex items-end justify-between px-8 md:px-20 pointer-events-auto max-w-lg md:max-w-none mx-auto">
