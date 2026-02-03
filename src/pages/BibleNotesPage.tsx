@@ -852,7 +852,7 @@ const BibleNotesPage = () => {
                                         value={newFolderName}
                                         onChange={(e) => setNewFolderName(e.target.value)}
                                         className="h-12 rounded-xl mb-6"
-                                        autoFocus
+                                        autoFocus={false}
                                         onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
                                     />
                                     <div className="flex justify-end gap-3">
@@ -1027,6 +1027,10 @@ const BibleNotesPage = () => {
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     className="fixed inset-0 w-screen max-w-none p-0 overflow-visible bg-white dark:bg-gray-950 rounded-none border-none shadow-none m-0 translate-x-0 translate-y-0 top-0 left-0 flex flex-col select-text"
                 >
+                    {/* Focus Dummy Trap at the absolute top of the dialog context */}
+                    <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
+                        Focus Trap
+                    </div>
                     {selectedNote && (
                         <div className="flex flex-col h-[100dvh] bg-white dark:bg-gray-950">
                             {/* Standard Header Bar - Clean Apple Notes Style */}
@@ -1053,6 +1057,7 @@ const BibleNotesPage = () => {
                                             value={newNote.title}
                                             onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                                             placeholder="Note Title"
+                                            autoFocus={false}
                                             className="text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white"
                                         />
                                     ) : (
@@ -1177,13 +1182,6 @@ const BibleNotesPage = () => {
                                         {isInlineEditing ? (
                                             <div className="flex-1 flex flex-col min-h-0">
                                                 <div className="flex-1 h-full relative">
-                                                    {/* Dummy focus target to absorb Radix focus trap without triggering keyboard */}
-                                                    <div
-                                                        tabIndex={0}
-                                                        className="fixed top-0 left-0 w-0 h-0 overflow-hidden outline-none opacity-0"
-                                                    >
-                                                        Editor Loading...
-                                                    </div>
                                                     <iframe
                                                         ref={iframeRef}
                                                         src="/editor-frame"
@@ -1251,6 +1249,10 @@ const BibleNotesPage = () => {
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
                 <div className="fixed inset-0 w-full h-[100dvh] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col">
+                    {/* Focus Dummy Trap at the top of the overlay */}
+                    <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
+                        Focus Trap
+                    </div>
                     <div className="flex flex-col h-full w-full relative bg-gray-50 dark:bg-black">
                         {/* Premium Navbar */}
                         <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
@@ -1307,6 +1309,7 @@ const BibleNotesPage = () => {
                                         placeholder="Note Title"
                                         value={newNote.title}
                                         onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                        autoFocus={false}
                                         className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
                                     />
                                 </div>

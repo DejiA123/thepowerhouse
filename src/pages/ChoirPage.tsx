@@ -796,7 +796,8 @@ const ChoirPage = () => {
 
     // ... (rest of states remain the same) ...
     // State for YouTube Player
-    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+    // State for Media Player (Video or Audio)
+    const [currentMedia, setCurrentMedia] = useState<{ type: 'video' | 'audio', url: string, title?: string } | null>(null);
 
     // State for Setlist Date
     const [setlistDate, setSetlistDate] = useState<Date | undefined>(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -2002,7 +2003,8 @@ const ChoirPage = () => {
 
             // If a file is selected, upload it to Supabase Storage
             if (selectedFile) {
-                const fileName = `${Date.now()}_${selectedFile.name}`;
+                const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const fileName = `${Date.now()}_${sanitizedName}`;
 
                 // Get auth token for direct storage upload
                 const { data: { session } } = await supabase.auth.getSession();
@@ -2012,20 +2014,22 @@ const ChoirPage = () => {
                     return;
                 }
 
-                // Use XMLHttpRequest for progress tracking
-                const promise = new Promise<string>((resolve, reject) => {
+                // Upload with progress tracking using XMLHttpRequest
+                const uploadWithProgress = new Promise<string>((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
-                    const url = `https://swjzhzmhqyvwfwevijja.supabase.co/storage/v1/object/backing-tracks/${fileName}`;
 
-                    xhr.upload.addEventListener('progress', (event) => {
-                        if (event.lengthComputable) {
-                            const percent = Math.round((event.loaded / event.total) * 100);
-                            setUploadProgress(percent);
+                    // Track upload progress
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            const percentComplete = Math.round((e.loaded / e.total) * 100);
+                            setUploadProgress(percentComplete);
                         }
                     });
 
                     xhr.addEventListener('load', () => {
                         if (xhr.status >= 200 && xhr.status < 300) {
+                            setUploadProgress(100);
+                            // Get public URL after successful upload
                             const { data: urlData } = supabase.storage
                                 .from('backing-tracks')
                                 .getPublicUrl(fileName);
@@ -2035,20 +2039,22 @@ const ChoirPage = () => {
                         }
                     });
 
-                    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+                    xhr.addEventListener('error', () => {
+                        reject(new Error('Upload failed'));
+                    });
 
-                    xhr.open('POST', url);
+                    // Prepare upload URL and request
+                    const bucketUrl = `${supabase.storage.from('backing-tracks').getPublicUrl('').data.publicUrl.replace(/\/object\/public\/backing-tracks\/$/, '')}/object/backing-tracks/${fileName}`;
+
+                    xhr.open('POST', bucketUrl);
                     xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
-                    xhr.setRequestHeader('apikey', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3anpoem1ocXl2d2Z3ZXZpamphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMjE4NDcsImV4cCI6MjA2NDc5Nzg0N30.M0WyKsQm_nqGCEUNKPpSOM8Au4BONv5VGlsI0YS1wBQ");
+                    xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
+                    xhr.setRequestHeader('x-upsert', 'false');
 
-                    const formData = new FormData();
-                    formData.append('file', selectedFile);
-                    // Supabase Storage expects the file to be sent directly as the body or via multipart
-                    // For direct file upload:
                     xhr.send(selectedFile);
                 });
 
-                fileUrl = await promise;
+                fileUrl = await uploadWithProgress;
             }
 
             await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
@@ -2239,13 +2245,22 @@ const ChoirPage = () => {
         handleSaveRoster(rosterType, updatedRoster);
     };
 
-    const playVideo = (url: string) => {
+    const playVideo = (url: string, title?: string) => {
         try {
             const videoId = extractYoutubeId(url);
             if (videoId) {
-                setCurrentVideoUrl(`https://www.youtube.com/embed/${videoId}?autoplay=1`);
+                setCurrentMedia({
+                    type: 'video',
+                    url: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`,
+                    title: title || 'Video Player'
+                });
             } else {
-                window.open(url, "_blank");
+                // Assume audio/video file if not YouTube
+                setCurrentMedia({
+                    type: 'audio', // Generic player handles both if native
+                    url: url,
+                    title: title || 'Audio Player'
+                });
             }
         } catch (e) {
             window.open(url, "_blank");
@@ -2261,28 +2276,6 @@ const ChoirPage = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50 dark:from-slate-900 dark:via-blue-900/10 dark:to-slate-900">
-
-            {/* Video Player Modal */}
-            <Dialog open={!!currentVideoUrl} onOpenChange={(open) => !open && setCurrentVideoUrl(null)}>
-                <DialogContent className="sm:max-w-[800px] p-0 bg-black overflow-hidden border-none text-white">
-                    <div className="aspect-video w-full relative">
-                        {currentVideoUrl && (
-                            <iframe
-                                src={currentVideoUrl}
-                                title="Song Video"
-                                className="absolute inset-0 w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            />
-                        )}
-                    </div>
-                    <div className="p-4 flex justify-end">
-                        <Button variant="ghost" className="text-white hover:bg-white/20" onClick={() => setCurrentVideoUrl(null)}>
-                            Close Player
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
 
             {/* Choir Schedule Modal */}
             <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
@@ -3686,7 +3679,7 @@ const ChoirPage = () => {
                                                                     </div>
                                                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                         {song.url && (
-                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => window.open(song.url, '_blank')}>
+                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => song.url && playVideo(song.url, song.title)}>
                                                                                 <PlayCircle className="w-4 h-4" />
                                                                             </Button>
                                                                         )}
@@ -3804,7 +3797,7 @@ const ChoirPage = () => {
                             <div className="flex items-center justify-between">
                                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
                                     <Video className="w-6 h-6 text-blue-600" />
-                                    Tutorials & Resources
+                                    Tutorials
                                 </h2>
                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsAddInstrOpen(true)}>
                                     <Plus className="w-4 h-4 mr-2" /> Add Resource
@@ -3812,13 +3805,13 @@ const ChoirPage = () => {
                             </div>
 
                             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {instrResources.length === 0 ? (
+                                {instrResources.filter(r => r.type !== 'Backing Track').length === 0 ? (
                                     <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
                                         <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
                                         <p>No resources yet. Add tutorials for the band!</p>
                                     </div>
                                 ) : (
-                                    instrResources.map((resource) => (
+                                    instrResources.filter(r => r.type !== 'Backing Track').map((resource) => (
                                         <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
                                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                                 <DropdownMenu>
@@ -3917,7 +3910,7 @@ const ChoirPage = () => {
 
                                             <div
                                                 className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all cursor-pointer relative"
-                                                onClick={() => resource.url && playVideo(resource.url)}
+                                                onClick={() => resource.url && playVideo(resource.url, resource.title)}
                                             >
                                                 {getYTThumbnail(resource.url) ? (
                                                     <div className="w-full h-full relative">
@@ -4644,6 +4637,61 @@ const ChoirPage = () => {
             </div >
 
             {/* Dialogs for Instrumental Resources */}
+            {/* Unified Media Player Modal */}
+            <Dialog open={!!currentMedia} onOpenChange={(open) => !open && setCurrentMedia(null)}>
+                <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black border-none shadow-2xl" aria-describedby="media-player-description">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Media Player</DialogTitle>
+                        <DialogDescription id="media-player-description">
+                            Playing {currentMedia?.title}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="relative w-full flex flex-col items-center justify-center bg-black min-h-[300px]">
+                        {/* Close Button Overlay */}
+                        <div className="absolute top-4 right-4 z-50">
+                            <Button
+                                size="icon"
+                                variant="secondary"
+                                className="rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-md"
+                                onClick={() => setCurrentMedia(null)}
+                            >
+                                <div className="w-4 h-4 flex items-center justify-center font-bold">✕</div>
+                            </Button>
+                        </div>
+
+                        {currentMedia?.type === 'video' ? (
+                            <div className="w-full aspect-video">
+                                <iframe
+                                    src={currentMedia.url}
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                />
+                            </div>
+                        ) : (
+                            <div className="w-full py-12 px-6 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-gray-900 to-black w-full h-full min-h-[400px]">
+                                <div className="w-48 h-48 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-900/20 animate-pulse">
+                                    <Music className="w-24 h-24 text-white/50" />
+                                </div>
+                                <div className="text-center space-y-2 max-w-md">
+                                    <h3 className="text-xl font-bold text-white">{currentMedia?.title || "Audio Track"}</h3>
+                                    <p className="text-sm text-gray-400">Now Playing</p>
+                                </div>
+                                <audio
+                                    controls
+                                    autoPlay
+                                    className="w-full max-w-md h-12 accent-blue-600"
+                                    src={currentMedia?.url}
+                                >
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>

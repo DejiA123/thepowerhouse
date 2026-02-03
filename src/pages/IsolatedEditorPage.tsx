@@ -85,8 +85,9 @@ const IsolatedEditorPage = () => {
                 />
             ) : (
                 <div
-                    className="h-full w-full p-4 overflow-y-auto prose max-w-none text-gray-900 dark:text-gray-100 text-[16px] [&_p]:my-2"
+                    className="h-full w-full p-4 overflow-y-auto prose max-w-none text-gray-900 dark:text-gray-100 text-[16px] [&_p]:my-2 pointer-events-none"
                     dangerouslySetInnerHTML={{ __html: content || '<p class="text-gray-400">Start writing...</p>' }}
+                    tabIndex={-1}
                 />
             )}
         </div>
