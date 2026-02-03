@@ -16,24 +16,24 @@ export const followUpService = {
     // Get all follow ups
     async getAllFollowUps() {
         const { data, error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as FollowUpAssignment[];
+        return data as unknown as FollowUpAssignment[];
     },
 
     // Get unique "assigned_to" names
     async getTeamMembers() {
         const { data, error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .select('assigned_to');
 
         if (error) throw error;
 
         // Return unique names
-        const names = Array.from(new Set(data.map(d => d.assigned_to)));
+        const names = Array.from(new Set((data as any[]).map(d => d.assigned_to)));
         return names.sort();
     },
 
@@ -45,18 +45,18 @@ export const followUpService = {
         }
 
         const { data, error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .select('*')
             .eq('assigned_to', name)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as FollowUpAssignment[];
+        return data as unknown as FollowUpAssignment[];
     },
 
     async updateNote(id: string, notes: string) {
         const { error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .update({ notes })
             .eq('id', id);
 
@@ -71,13 +71,13 @@ export const followUpService = {
         };
 
         const { data, error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .insert([payload])
             .select()
             .single();
 
         if (error) throw error;
-        return data as FollowUpAssignment;
+        return data as unknown as FollowUpAssignment;
     },
 
     async updateAssignment(id: string, updates: Partial<FollowUpAssignment>) {
@@ -88,19 +88,19 @@ export const followUpService = {
         };
 
         const { data, error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .update(payload)
             .eq('id', id)
             .select()
             .single();
 
         if (error) throw error;
-        return data as FollowUpAssignment;
+        return data as unknown as FollowUpAssignment;
     },
 
     async deleteAssignment(id: string) {
         const { error } = await supabase
-            .from('team_follow_ups')
+            .from('team_follow_ups' as any)
             .delete()
             .eq('id', id);
 
