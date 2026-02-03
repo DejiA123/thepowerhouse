@@ -1116,41 +1116,56 @@ const BibleNotesPage = () => {
                                             </Button>
                                         ) : (
                                             <>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setEditingNote(selectedNote);
-                                                        setNewNote({
-                                                            title: selectedNote.title || '',
-                                                            note_text: selectedNote.note_text || '',
-                                                            book: selectedNote.book || 'genesis',
-                                                            chapter: selectedNote.chapter?.toString() || '1',
-                                                            verse: selectedNote.verse?.toString() || '',
-                                                            category: selectedNote.category || 'insight',
-                                                            tags: selectedNote.tags || [],
-                                                            is_favorite: selectedNote.is_favorite || false,
-                                                            is_private: selectedNote.is_private || false,
-                                                            is_pinned: selectedNote.is_pinned || false,
-                                                            folder_id: selectedNote.folder_id || undefined
-                                                        });
-                                                        setIsInlineEditing(true);
-                                                    }}
-                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10"
-                                                >
-                                                    <Edit3 className="w-5 h-5" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setSelectedNoteForDelete(selectedNote.id);
-                                                        deleteNote(selectedNote.id);
-                                                    }}
-                                                    className="text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full h-10 w-10"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10 flex-none"
+                                                        >
+                                                            <MoreVertical className="w-5 h-5" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2 shadow-xl border-gray-100">
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                setEditingNote(selectedNote);
+                                                                setNewNote({
+                                                                    title: selectedNote.title || '',
+                                                                    note_text: selectedNote.note_text || '',
+                                                                    book: selectedNote.book || 'genesis',
+                                                                    chapter: selectedNote.chapter?.toString() || '1',
+                                                                    verse: selectedNote.verse?.toString() || '',
+                                                                    category: selectedNote.category || 'insight',
+                                                                    tags: selectedNote.tags || [],
+                                                                    is_favorite: selectedNote.is_favorite || false,
+                                                                    is_private: selectedNote.is_private || false,
+                                                                    is_pinned: selectedNote.is_pinned || false,
+                                                                    folder_id: selectedNote.folder_id || undefined
+                                                                });
+                                                                setIsInlineEditing(true);
+                                                            }}
+                                                            className="rounded-xl focus:bg-indigo-50 cursor-pointer py-2.5 px-3 flex items-center gap-3 transition-colors"
+                                                        >
+                                                            <div className="bg-indigo-50 p-2 rounded-lg">
+                                                                <Edit3 className="w-4 h-4 text-indigo-600" />
+                                                            </div>
+                                                            <span className="font-semibold text-sm">Edit Reflection</span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                setSelectedNoteForDelete(selectedNote.id);
+                                                                deleteNote(selectedNote.id);
+                                                            }}
+                                                            className="rounded-xl focus:bg-red-50 text-red-600 focus:text-red-600 cursor-pointer py-2.5 px-3 flex items-center gap-3 transition-colors mt-1"
+                                                        >
+                                                            <div className="bg-red-50 p-2 rounded-lg">
+                                                                <Trash2 className="w-4 h-4 text-red-600" />
+                                                            </div>
+                                                            <span className="font-semibold text-sm">Delete Note</span>
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                                 <div className="w-px h-6 bg-gray-100 dark:bg-gray-800 mx-2"></div>
                                                 <Button
                                                     variant="ghost"
