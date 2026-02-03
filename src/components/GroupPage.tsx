@@ -34,7 +34,7 @@ const GroupPage = ({ departmentName, onBack }: GroupPageProps) => {
           isMember ? (
             <Button variant="destructive" size="sm" onClick={leaveGroup}>Leave</Button>
           ) : (
-            <Button variant="default" size="sm" onClick={joinGroup}>Join</Button>
+            <Button variant="default" size="sm" onClick={joinGroup}>Join Group Chat</Button>
           )
         )}
       </div>

@@ -15,15 +15,19 @@ import GroupPage from "@/components/GroupPage";
 
 const CampusFellowshipPage = () => {
   const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { toast } = useToast();
-  const [selectedCampus, setSelectedCampus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showContactForm, setShowContactForm] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedLeader, setSelectedLeader] = useState<{ name: string, contact: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [contactMessage, setContactMessage] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [joinedGroup, setJoinedGroup] = useState<string | null>(null);
 
   // Remove static members property from campusFellowships
   const campusFellowships = [
@@ -101,8 +105,6 @@ const CampusFellowshipPage = () => {
 
   // Dynamic member state
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
-  const [memberNames, setMemberNames] = useState<Record<string, string[]>>({});
-  const [joining, setJoining] = useState<string | null>(null);
 
   // Fetch member counts and names for all campus fellowships
   const fetchAllMembers = async () => {
@@ -119,44 +121,19 @@ const CampusFellowshipPage = () => {
       return;
     }
 
-    // Get all unique user IDs
-    const userIds = [...new Set(membersData.map(m => m.user_id))];
-
-    // Fetch profiles for all users
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      return;
-    }
-
-    // Create a map of profiles by user ID
-    const profilesMap = profilesData.reduce((acc, p) => {
-      acc[p.id] = p;
-      return acc;
-    }, {} as Record<string, any>);
-
     // Process the data
     const counts: Record<string, number> = {};
-    const names: Record<string, string[]> = {};
     groupNames.forEach(name => {
       counts[name] = 0;
-      names[name] = [];
     });
 
     membersData.forEach((row: any) => {
       if (counts[row.group_name] !== undefined) {
         counts[row.group_name] += 1;
-        const profile = profilesMap[row.user_id];
-        names[row.group_name].push(profile?.full_name || `User ${row.user_id.substring(0, 8)}`);
       }
     });
 
     setMemberCounts(counts);
-    setMemberNames(names);
   };
 
   useEffect(() => {
@@ -167,75 +144,6 @@ const CampusFellowshipPage = () => {
     fellowship.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     fellowship.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Join fellowship logic
-  const handleJoinFellowship = async (campusId: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to join a fellowship",
-        variant: "destructive"
-      });
-      navigate("/auth");
-      return;
-    }
-    const campus = campusFellowships.find(f => f.id === campusId);
-    if (!campus) return;
-    setJoining(campusId);
-    // Add user to group_members
-    const { error } = await supabase
-      .from('group_members')
-      .insert({ user_id: user.id, group_name: campus.name });
-    setJoining(null);
-    if (!error) {
-      toast({ title: "Joined Fellowship", description: `You joined ${campus.name}` });
-      fetchAllMembers();
-      setJoinedGroup(campus.name); // Open group chat after joining
-    } else if (error && error.code === '23505') { // Unique violation: already a member
-      // Open group chat anyway
-      setJoinedGroup(campus.name);
-    } else {
-      toast({ title: "Error", description: "Failed to join fellowship", variant: "destructive" });
-    }
-  };
-
-  const handleContactLeader = (leader: { name: string, contact: string }) => {
-    setSelectedLeader(leader);
-    setShowContactForm(true);
-  };
-
-  const handleSubmitContactForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedLeader) return;
-
-    setIsSubmitting(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      toast({
-        title: "Message Sent",
-        description: `Your message has been sent to ${selectedLeader.name}. They will get back to you soon.`
-      });
-
-      setShowContactForm(false);
-      setContactMessage("");
-      setSelectedLeader(null);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // If joinedGroup is set, show the group chat page
-  if (joinedGroup) {
-    return <GroupPage departmentName={joinedGroup} onBack={() => setJoinedGroup(null)} />;
-  }
 
   return (
     <div className="min-h-screen bg-background font-sans pb-20">
@@ -286,11 +194,8 @@ const CampusFellowshipPage = () => {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <Card
-                className={`h-full border-0 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${selectedCampus === campus.id
-                  ? 'ring-2 ring-primary ring-offset-2'
-                  : 'bg-card/50 backdrop-blur-sm shadow-lg'
-                  }`}
-                onClick={() => setSelectedCampus(campus.id === selectedCampus ? null : campus.id)}
+                className="h-full border-0 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 bg-card/50 backdrop-blur-sm shadow-lg cursor-pointer"
+                onClick={() => navigate(`/fellowship-group/${campus.id}`)}
               >
                 <div className="relative h-48 overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
@@ -324,69 +229,14 @@ const CampusFellowshipPage = () => {
                       {campus.description}
                     </p>
 
-                    {selectedCampus === campus.id && (
-                      <div className="pt-4 space-y-5 animate-in fade-in slide-in-from-top-2">
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-sm uppercase tracking-wider text-primary">Activities</h4>
-                          <div className="grid grid-cols-2 gap-2">
-                            {campus.activities.map((activity, idx) => (
-                              <div key={idx} className="flex items-center text-sm text-foreground/80">
-                                <div className="w-1.5 h-1.5 bg-primary/60 rounded-full mr-2" />
-                                {activity}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {memberNames[campus.name]?.length > 0 && (
-                          <div className="space-y-3">
-                            <h4 className="font-semibold text-sm uppercase tracking-wider text-primary">Members</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {memberNames[campus.name].slice(0, 5).map((name, idx) => (
-                                <Badge key={idx} variant="secondary" className="font-normal">
-                                  {name}
-                                </Badge>
-                              ))}
-                              {memberNames[campus.name].length > 5 && (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                  +{memberNames[campus.name].length - 5} more
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex gap-3 pt-2">
-                          <Button
-                            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
-                            onClick={e => { e.stopPropagation(); handleJoinFellowship(campus.id); }}
-                            disabled={joining === campus.id}
-                          >
-                            {joining === campus.id ? "Joining..." : "Join Group"}
-                            <ChevronRight className="w-4 h-4 ml-2" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="px-3"
-                            onClick={e => { e.stopPropagation(); handleContactLeader({ name: campus.name.split(' ')[0], contact: "Contact not available" }); }}
-                          >
-                            <Phone className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedCampus !== campus.id && (
-                      <div className="pt-2">
-                        <Button
-                          variant="link"
-                          className="w-full text-primary p-0 h-auto font-medium hover:no-underline flex items-center justify-center group-hover:translate-x-1 transition-transform"
-                          onClick={() => setSelectedCampus(campus.id)}
-                        >
-                          View Details <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="pt-2">
+                      <Button
+                        variant="ghost"
+                        className="w-full text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors"
+                      >
+                        View Group <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -394,42 +244,9 @@ const CampusFellowshipPage = () => {
           ))}
         </div>
       </div>
-
-      {/* Contact Form Dialog */}
-      <Dialog open={showContactForm} onOpenChange={setShowContactForm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Contact Leader</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmitContactForm} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
-                placeholder={`Hi ${selectedLeader?.name}, I'd like to know more about the fellowship...`}
-                value={contactMessage}
-                onChange={(e) => setContactMessage(e.target.value)}
-                required
-                className="min-h-[120px] resize-none"
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowContactForm(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Sending..." : "Send Message"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
+
 
 export default CampusFellowshipPage;
