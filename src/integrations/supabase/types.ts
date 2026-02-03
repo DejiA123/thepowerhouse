@@ -348,6 +348,109 @@ export type Database = {
           },
         ]
       }
+      choir_academy_modules: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string
+          description: string | null
+          id: string
+          location: string
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          category: string
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location: string
+          title: string
+          video_url?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          location?: string
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      choir_academy_questions: {
+        Row: {
+          correct_answer_index: number
+          created_at: string
+          id: string
+          options: Json
+          question_text: string
+          quiz_id: string | null
+        }
+        Insert: {
+          correct_answer_index: number
+          created_at?: string
+          id?: string
+          options: Json
+          question_text: string
+          quiz_id?: string | null
+        }
+        Update: {
+          correct_answer_index?: number
+          created_at?: string
+          id?: string
+          options?: Json
+          question_text?: string
+          quiz_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_academy_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "choir_academy_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      choir_academy_quizzes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          module_id: string | null
+          passing_score: number | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          module_id?: string | null
+          passing_score?: number | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          module_id?: string | null
+          passing_score?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_academy_quizzes_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "choir_academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       choir_calendar_events: {
         Row: {
           color: string | null
@@ -521,6 +624,7 @@ export type Database = {
           key: string | null
           library_song_id: string | null
           location: string | null
+          lyrics: string | null
           set_type: string
           sort_order: number | null
           title: string
@@ -535,6 +639,7 @@ export type Database = {
           key?: string | null
           library_song_id?: string | null
           location?: string | null
+          lyrics?: string | null
           set_type: string
           sort_order?: number | null
           title: string
@@ -549,6 +654,7 @@ export type Database = {
           key?: string | null
           library_song_id?: string | null
           location?: string | null
+          lyrics?: string | null
           set_type?: string
           sort_order?: number | null
           title?: string
@@ -1355,6 +1461,42 @@ export type Database = {
           file_url?: string
           id?: string
           title?: string
+        }
+        Relationships: []
+      }
+      team_follow_ups: {
+        Row: {
+          assigned_to: string
+          created_at: string
+          id: string
+          invited_by: string | null
+          notes: string | null
+          phone_number: string | null
+          status: string | null
+          visit_date: string | null
+          visitor_name: string
+        }
+        Insert: {
+          assigned_to: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          notes?: string | null
+          phone_number?: string | null
+          status?: string | null
+          visit_date?: string | null
+          visitor_name: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          notes?: string | null
+          phone_number?: string | null
+          status?: string | null
+          visit_date?: string | null
+          visitor_name?: string
         }
         Relationships: []
       }

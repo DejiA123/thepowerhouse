@@ -471,12 +471,12 @@ export const choirService = {
         const { data: questionsData, error: questionsError } = await supabase
             .from('choir_academy_questions' as any)
             .select('*')
-            .eq('quiz_id', quizData.id);
+            .eq('quiz_id', (quizData as any).id);
 
         if (questionsError) throw questionsError;
 
         return {
-            ...quizData,
+            ...(quizData as object),
             questions: questionsData || []
         } as unknown as AcademyQuiz;
     },
@@ -494,7 +494,7 @@ export const choirService = {
         // 2. Add Questions
         const questionsWithId = questions.map(q => ({
             ...q,
-            quiz_id: newQuiz.id
+            quiz_id: (newQuiz as any).id
         }));
 
         const { error: questionsError } = await supabase
