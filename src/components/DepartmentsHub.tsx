@@ -1,7 +1,8 @@
-
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Calendar, FolderOpen, ClipboardList } from "lucide-react";
+import { Users, Calendar, FolderOpen, ClipboardList, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import GroupPinDialog from "./GroupPinDialog";
 import GroupPage from "./GroupPage";
 import DepartmentsDirectory from "./departments/DepartmentsDirectory";
@@ -10,6 +11,7 @@ import SharedFiles from "./departments/SharedFiles";
 import ServiceRotas from "./departments/ServiceRotas";
 
 const DepartmentsHub = () => {
+  const navigate = useNavigate();
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pinDepartment, setPinDepartment] = useState("");
   const [joinedGroup, setJoinedGroup] = useState<string | null>(null);
@@ -31,13 +33,25 @@ const DepartmentsHub = () => {
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
-      <div className="flex items-center space-x-3 px-1">
-        <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-          <Users className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">Ministry Hub</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Connect and serve with your team</p>
+      <div className="flex flex-col space-y-4 px-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-fit h-8 px-2 -ml-2 text-slate-500 hover:text-primary transition-colors flex items-center gap-1.5"
+          onClick={() => navigate("/resources")}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-xs font-medium uppercase tracking-wider">Back to Resources</span>
+        </Button>
+
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-100 dark:border-blue-800/50">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">Ministry Hub</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Connect and serve with your team</p>
+          </div>
         </div>
       </div>
 

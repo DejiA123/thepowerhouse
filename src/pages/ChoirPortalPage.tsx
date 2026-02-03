@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, MapPin, ChevronRight, Users, Mic2, Star } from "lucide-react";
+import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft } from "lucide-react";
 
 const ChoirPortalPage = () => {
     const navigate = useNavigate();
@@ -41,16 +41,28 @@ const ChoirPortalPage = () => {
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-32">
             {/* Header section with safe area padding */}
-            <div className="relative bg-primary pt-[calc(3rem+env(safe-area-inset-top))] pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
+            <div className="relative bg-primary pt-[calc(1.5rem+env(safe-area-inset-top))] pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 opacity-95" />
                 <div className="absolute inset-0 bg-[url('/patterns/circuit.svg')] opacity-10" />
 
-                <div className="relative z-10 max-w-lg mx-auto text-center">
-                    <div className="inline-flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
-                        <Music className="w-6 h-6 text-blue-100" />
+                <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="self-start mb-6 -ml-2 text-blue-200 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
+                        onClick={() => navigate("/groups")}
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="text-xs font-medium uppercase tracking-wider">Back to Groups</span>
+                    </Button>
+
+                    <div className="text-center">
+                        <div className="inline-flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
+                            <Music className="w-6 h-6 text-blue-100" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Choir Portal</h1>
+                        <p className="text-blue-100/80 text-sm font-medium">Select your branch to access setlists and resources</p>
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Choir Portal</h1>
-                    <p className="text-blue-100/80 text-sm font-medium">Select your branch to access setlists and resources</p>
                 </div>
             </div>
 
