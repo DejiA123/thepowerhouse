@@ -89,7 +89,7 @@ const BibleNotesPage = () => {
     const [globalStats, setGlobalStats] = useState({ total: 0, favourites: 0, unfiledCount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [sortBy, setSortBy] = useState<'date' | 'book' | 'title'>('date');
+    const [sortBy, setSortBy] = useState<'date' | 'book' | 'title' | 'last_edited'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [showNewNoteDialog, setShowNewNoteDialog] = useState(false);
     const [showNoteDialog, setShowNoteDialog] = useState(false);
@@ -303,31 +303,33 @@ const BibleNotesPage = () => {
         });
 
         filtered.sort((a, b) => {
-            let aValue: any, bValue: any;
+            // First priority: Pinned notes always stay at the top
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+
+            let comparison = 0;
 
             switch (sortBy) {
                 case 'date':
-                    aValue = new Date(a.created_at);
-                    bValue = new Date(b.created_at);
+                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    break;
+                case 'last_edited':
+                    comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
                     break;
                 case 'book':
-                    aValue = a.book;
-                    bValue = b.book;
+                    comparison = a.book.localeCompare(b.book);
                     break;
-                case 'title':
-                    aValue = a.title || '';
-                    bValue = b.title || '';
+                case 'title': {
+                    const titleA = (a.title || getNoteTitleFallback(a.note_text)).trim();
+                    const titleB = (b.title || getNoteTitleFallback(b.note_text)).trim();
+                    comparison = titleA.localeCompare(titleB, undefined, { sensitivity: 'base', numeric: true });
                     break;
+                }
                 default:
-                    aValue = new Date(a.created_at);
-                    bValue = new Date(b.created_at);
+                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
             }
 
-            if (sortOrder === 'asc') {
-                return aValue > bValue ? 1 : -1;
-            } else {
-                return aValue < bValue ? 1 : -1;
-            }
+            return sortOrder === 'asc' ? comparison : -comparison;
         });
 
         setFilteredNotes(filtered);
@@ -885,25 +887,65 @@ const BibleNotesPage = () => {
                                         className="pl-12 h-14 bg-gray-50/50 dark:bg-gray-800/50 border-none rounded-2xl text-lg focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
-                                <div className="flex gap-2 w-full lg:w-auto">
-                                    {/* Category filter removed as requested */}
+                                <div className="flex flex-wrap items-center gap-3 w-full border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest px-1">
+                                        <Filter className="w-3.5 h-3.5" />
+                                        Sort By
+                                    </div>
+                                    <div className="flex gap-2 flex-1 sm:flex-none">
+                                        {[
+                                            { id: 'date', name: 'Date Created' },
+                                            { id: 'last_edited', name: 'Last Edited' },
+                                            { id: 'title', name: 'Name' }
+                                        ].map((option) => (
+                                            <Button
+                                                key={option.id}
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (sortBy === option.id) {
+                                                        setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+                                                    } else {
+                                                        setSortBy(option.id as any);
+                                                        // Default to Alphabetical (asc) for Name, Newest (desc) for dates
+                                                        setSortOrder(option.id === 'title' ? 'asc' : 'desc');
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    "h-9 px-4 rounded-xl text-xs font-bold transition-all",
+                                                    sortBy === option.id
+                                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-700"
+                                                        : "bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                )}
+                                            >
+                                                {option.name}
+                                                {sortBy === option.id && (
+                                                    <span className="ml-1 opacity-60">
+                                                        {sortOrder === 'desc' ? '↓' : '↑'}
+                                                    </span>
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
 
-                                    <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl">
+                                    <div className="flex-1"></div>
+
+                                    <div className="flex p-1 bg-gray-50 dark:bg-gray-800 rounded-xl">
                                         <Button
                                             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                                             size="icon"
                                             onClick={() => setViewMode('grid')}
-                                            className="rounded-xl h-12 w-12"
+                                            className="rounded-lg h-9 w-9"
                                         >
-                                            <Grid className="w-5 h-5" />
+                                            <Grid className="w-4 h-4" />
                                         </Button>
                                         <Button
                                             variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                                             size="icon"
                                             onClick={() => setViewMode('list')}
-                                            className="rounded-xl h-12 w-12"
+                                            className="rounded-lg h-9 w-9"
                                         >
-                                            <ListIcon className="w-5 h-5" />
+                                            <ListIcon className="w-4 h-4" />
                                         </Button>
                                     </div>
                                 </div>
