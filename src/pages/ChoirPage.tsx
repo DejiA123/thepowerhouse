@@ -707,6 +707,71 @@ const ChoirPage = () => {
     const [breathTimerActive, setBreathTimerActive] = useState(false);
     const [breathPhase, setBreathPhase] = useState<'inhale' | 'exhale' | 'rest'>('rest');
     const [breathCount, setBreathCount] = useState(0);
+    const [exhaleTarget, setExhaleTarget] = useState(16);
+
+    // Audio helper for SISS timer tick sound
+    const playTick = useCallback(() => {
+        try {
+            const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
+
+            gainNode.gain.setValueAtTime(0, context.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.1, context.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.1);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.1);
+
+            // Close context after sound finished
+            setTimeout(() => {
+                context.close();
+            }, 200);
+        } catch (e) {
+            console.error("Audio error:", e);
+        }
+    }, []);
+
+    // Diaphragmatic Breathing (Siss Exercise) Timer Logic
+    useEffect(() => {
+        let interval: any;
+
+        if (breathTimerActive) {
+            // Initial tick for the start
+            playTick();
+
+            interval = setInterval(() => {
+                setBreathCount(prev => {
+                    if (prev > 1) {
+                        playTick(); // Tick on every second decrement
+                        return prev - 1;
+                    }
+
+                    // When count reaches 1 and we tick to 0
+                    if (breathPhase === 'inhale') {
+                        setBreathPhase('exhale');
+                        playTick(); // Tick for transition
+                        return exhaleTarget; // Transition to Exhale
+                    } else {
+                        setBreathTimerActive(false);
+                        setBreathPhase('rest');
+                        toast.success("Exercise Complete! Well done.");
+                        return 0; // Stop
+                    }
+                });
+            }, 1000);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [breathTimerActive, breathPhase, exhaleTarget, playTick]);
 
     const handleAccessCourse = (course: any) => {
         setSelectedCourse(course);
@@ -4530,10 +4595,11 @@ const ChoirPage = () => {
                                                                                                 <Button
                                                                                                     key={duration}
                                                                                                     onClick={() => {
+                                                                                                        setExhaleTarget(duration);
                                                                                                         setBreathTimerActive(true);
                                                                                                         setBreathPhase('inhale');
-                                                                                                        setBreathCount(duration);
-                                                                                                        toast.success(`Starting ${duration}-count exercise!`);
+                                                                                                        setBreathCount(4);
+                                                                                                        toast.success(`Inhale for 4 counts, then exhale for ${duration}!`);
                                                                                                     }}
                                                                                                     className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
                                                                                                 >
@@ -4542,9 +4608,22 @@ const ChoirPage = () => {
                                                                                             ))}
                                                                                         </div>
                                                                                         {breathTimerActive && (
-                                                                                            <div className="text-center p-6 bg-white dark:bg-slate-800 rounded-xl">
-                                                                                                <div className="text-6xl font-black mb-2">{breathCount}</div>
-                                                                                                <div className="text-2xl font-bold text-amber-600 uppercase">{breathPhase}</div>
+                                                                                            <div className="text-center p-6 bg-white dark:bg-slate-800 rounded-xl relative overflow-hidden">
+                                                                                                <div className="absolute bottom-0 left-0 h-1 bg-amber-500 transition-all duration-1000" style={{ width: `${(breathCount / (breathPhase === 'inhale' ? 4 : exhaleTarget)) * 100}%` }} />
+                                                                                                <div className="text-6xl font-black mb-2 text-slate-900 dark:text-white">{breathCount}</div>
+                                                                                                <div className="text-2xl font-bold text-amber-600 uppercase tracking-widest">{breathPhase}</div>
+                                                                                                <Button
+                                                                                                    variant="ghost"
+                                                                                                    size="sm"
+                                                                                                    onClick={() => {
+                                                                                                        setBreathTimerActive(false);
+                                                                                                        setBreathPhase('rest');
+                                                                                                        toast.info("Timer stopped");
+                                                                                                    }}
+                                                                                                    className="mt-4 text-slate-400 hover:text-red-500 font-bold uppercase text-[10px] tracking-tighter"
+                                                                                                >
+                                                                                                    Stop Timer
+                                                                                                </Button>
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
