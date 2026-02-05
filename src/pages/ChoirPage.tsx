@@ -13,41 +13,29 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
-import { format, startOfWeek } from "date-fns";
+import { format, startOfWeek, nextSaturday } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-    Music,
-    Mic,
-    PlayCircle,
-    ListMusic,
-    FileMusic,
-    Video,
-    BookOpen,
-    Users,
-    Calendar,
-    ArrowLeft,
-    Download,
+    Music, Mic, Calendar, ArrowLeft, Download, BookOpen, Users, Video, FileMusic, ListMusic, PlayCircle,
+    Plus, PlusCircle, Trash2, Edit3, CheckCircle2,
+    Play, Pause, Volume2, VolumeX, Maximize2, Minimize2,
+    ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+    Search, Filter, SortAsc, LayoutGrid, List,
+    Settings, LogOut, Loader2, Sparkles, Clapperboard, MonitorPlay, X,
     Folder,
-    Plus,
-    MoreVertical,
-    Trash2,
     FolderOpen,
-    Heart,
+    MoreVertical,
     Pencil,
-    Edit3,
-    CalendarIcon,
-    Zap,
-    Waves,
-    PlusCircle,
     Clock,
-    Sparkles,
-    GripVertical,
-    Archive,
-    RotateCcw,
-    RotateCw,
-    Play,
-    Pause
+    Heart,
+    Copy,
+    Share2,
+    Grid,
+    List as ListIcon,
+    CalendarIcon,
+    Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check
 } from "lucide-react";
+
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     DropdownMenu,
@@ -78,6 +66,8 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+const PRAYER_TEAM = ['Rekky', 'Pastor Deji', 'RP Zainab', 'YP Sodiq', 'Borja', 'Bro Kingsley', 'Min. Mercy', 'Min. Merit', 'Kido', 'Denise'];
 
 
 // --- Sub-components ---
@@ -905,6 +895,16 @@ const ChoirPage = () => {
     const [isFolderOptionsOpen, setIsFolderOptionsOpen] = useState(false);
     const [folderForOptions, setFolderForOptions] = useState<any>(null);
 
+    // Saturday Prayer Accountability State
+    const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
+    const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
+
+    const togglePrayer = async (name: string) => {
+        const newState = { ...prayerChecklist, [name]: !prayerChecklist[name] };
+        setPrayerChecklist(newState); // Optimistic UI
+        await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
+    };
+
     // Team Roster States
     const [praiseRoster, setPraiseRoster] = useState<string[]>([]);
     const [prayerRoster, setPrayerRoster] = useState<string[]>([]);
@@ -1150,6 +1150,15 @@ const ChoirPage = () => {
                     setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
                 }
 
+                // Fetch Prayer Checklist
+                if (fetchedInfo['prayer_checklist']) {
+                    try {
+                        setPrayerChecklist(JSON.parse(fetchedInfo['prayer_checklist']));
+                    } catch (e) {
+                        console.error("Error parsing prayer checklist:", e);
+                    }
+                }
+
             } catch (error) {
                 console.error("Error fetching choir data:", error);
                 toast.error("Failed to load choir data");
@@ -1177,6 +1186,7 @@ const ChoirPage = () => {
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
                         await choirService.updateSetlistInfo('learning_song_title', "", locationId);
                         await choirService.updateSetlistInfo('learning_song_url', "", locationId);
+                        await choirService.updateSetlistInfo('prayer_checklist', '{}', locationId);
                         setPraiseSet([]);
                         setWorshipSet([]);
                         setLearningSet([]);
@@ -1389,6 +1399,14 @@ const ChoirPage = () => {
                                 setLearningSet(learningSongs);
                             } catch (e) {
                                 console.error('Failed to parse learning songs:', e);
+                            }
+                            break;
+                        case 'prayer_checklist':
+                            try {
+                                const checklist = JSON.parse(info.value);
+                                setPrayerChecklist(checklist);
+                            } catch (e) {
+                                console.error('Failed to parse prayer checklist:', e);
                             }
                             break;
                         case 'weekly_schedule':
@@ -2973,6 +2991,105 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* Saturday Prayer Accountability Modal - Galway Only */}
+            <Dialog open={isPrayerAccountabilityOpen} onOpenChange={setIsPrayerAccountabilityOpen}>
+                <DialogContent className="max-w-4xl p-0 h-[90vh] md:h-auto overflow-hidden bg-slate-900 border-none rounded-[2rem] shadow-2xl [&>button]:hidden">
+                    <div className="relative w-full h-full overflow-y-auto no-scrollbar">
+                        <Card className="bg-gradient-to-br from-indigo-900 to-blue-900 border-none shadow-none overflow-hidden relative text-white rounded-none md:rounded-[2rem]">
+
+
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setIsPrayerAccountabilityOpen(false)}
+                                className="absolute top-6 right-6 z-50 p-2 bg-black/20 hover:bg-black/40 text-white/70 hover:text-white rounded-full transition-all backdrop-blur-sm"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+
+                            <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8">
+                                <div className="space-y-1 pr-12">
+                                    <DialogTitle className="flex items-center gap-3 text-white text-3xl font-black">
+
+                                        Saturday Prayer Accountability
+                                    </DialogTitle>
+                                    <CardDescription className="text-blue-200 font-medium text-xl flex items-center gap-2 pt-2">
+                                        <Calendar className="w-5 h-5 text-blue-300" />
+                                        {format(nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
+                                    </CardDescription>
+                                </div>
+                                <div className="px-6 py-3 bg-white/10 rounded-full border border-white/20 backdrop-blur-sm w-fit">
+                                    <span className="text-base font-bold text-white flex items-center gap-2">
+                                        <Clock className="w-5 h-5 text-yellow-300" />
+                                        1 Hour Prayer
+                                    </span>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="relative z-10 pb-12 px-8">
+                                <p className="text-blue-100/70 mb-8 max-w-2xl text-lg">
+                                    Each member in the choir is required to pray for at least one hour for the choir every Saturday. Tick your name when you've completed your prayer!
+                                </p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    {PRAYER_TEAM.map(name => (
+                                        <button
+                                            key={name}
+                                            onClick={() => togglePrayer(name)}
+                                            className={cn(
+                                                "p-6 rounded-3xl border transition-all duration-300 group text-left relative overflow-hidden h-32 flex flex-col justify-between",
+                                                prayerChecklist[name]
+                                                    ? "bg-white text-indigo-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.02] z-10"
+                                                    : "bg-white/5 hover:bg-white/10 border-white/10 text-white backdrop-blur-sm hover:scale-[1.02]"
+                                            )}
+                                        >
+                                            {prayerChecklist[name] && (
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white via-indigo-50 to-blue-100 opacity-100" />
+                                            )}
+
+                                            <div className="relative z-10 flex justify-between items-start w-full">
+                                                <div className={cn(
+                                                    "w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300",
+                                                    prayerChecklist[name]
+                                                        ? "border-indigo-600 bg-indigo-600 text-white shadow-lg"
+                                                        : "border-white/30 group-hover:border-white/60"
+                                                )}>
+                                                    {prayerChecklist[name] && <Check className="w-6 h-6" strokeWidth={4} />}
+                                                </div>
+                                            </div>
+
+                                            <div className="relative z-10 space-y-1">
+                                                <span className={cn(
+                                                    "font-black text-lg block truncate transition-colors",
+                                                    prayerChecklist[name] ? "text-indigo-900" : "text-blue-100"
+                                                )}>
+                                                    {name}
+                                                </span>
+                                                <span className={cn(
+                                                    "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
+                                                    prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
+                                                )}>
+                                                    {prayerChecklist[name] ? "Completed" : "Pending"}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </CardContent>
+
+                            <div className="p-8 text-center relative z-10">
+                                <Button
+                                    onClick={() => setIsPrayerAccountabilityOpen(false)}
+                                    className="bg-white/10 hover:bg-white/20 text-white border-none rounded-2xl px-8 h-12 font-bold"
+                                >
+                                    Close Checklist
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
                 <DialogContent>
@@ -3077,6 +3194,14 @@ const ChoirPage = () => {
                                 <Users className="w-4 h-4 mr-2" />
                                 Team Roster
                             </Button>
+                            {locationId === 'galway' && (
+                                <Button
+                                    className="bg-indigo-500/30 text-white hover:bg-indigo-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
+                                    onClick={() => setIsPrayerAccountabilityOpen(true)}
+                                >
+                                    Saturday Prayer Accountability
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -3384,11 +3509,6 @@ const ChoirPage = () => {
                                         </CardContent>
                                     </Card>
                                 </div>
-                            </div>
-
-
-
-                            <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                         <BookOpen className="w-6 h-6 mr-3 text-blue-600" />
