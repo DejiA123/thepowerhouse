@@ -709,11 +709,8 @@ const ChoirPage = () => {
     const [breathCount, setBreathCount] = useState(0);
 
     const handleAccessCourse = (course: any) => {
-        toast.info(`Registering user for ${course.title}...`);
-        setTimeout(() => {
-            setSelectedCourse(course);
-            setIsCourseModalOpen(true);
-        }, 1000);
+        setSelectedCourse(course);
+        setIsCourseModalOpen(true);
     };
 
     const handleNextLesson = () => {
@@ -957,6 +954,7 @@ const ChoirPage = () => {
     const [isVocalTrainingUploadOpen, setIsVocalTrainingUploadOpen] = useState(false);
     const [newVocalTraining, setNewVocalTraining] = useState({ title: "" });
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+    const [vocalVoiceType, setVocalVoiceType] = useState<'Male' | 'Female'>('Male');
 
 
     const sensors = useSensors(
@@ -2161,7 +2159,7 @@ const ChoirPage = () => {
             console.log("[R2] Upload steps finished. Registering vocal training in database.");
             await choirService.addInstrumentalResource({
                 title: newVocalTraining.title,
-                type: 'Academy: vocal-101',
+                type: `Academy: vocal-101:${vocalVoiceType.toLowerCase()}`,
                 url: fileUrl
             }, locationId!);
             console.log("[R2] Final successfully registered.");
@@ -4701,94 +4699,216 @@ const ChoirPage = () => {
                                                                     </div>
                                                                 )}
 
-                                                                <Button
-                                                                    onClick={handleAddVocalTraining}
-                                                                    disabled={uploadingFile}
-                                                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 py-6 h-auto rounded-2xl font-black text-lg"
-                                                                >
-                                                                    {uploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : 'UPLOAD TO COURSE'}
-                                                                </Button>
+                                                                <div className="space-y-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Exercise For</Label>
+                                                                        <div className="grid grid-cols-2 gap-2">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant={vocalVoiceType === 'Male' ? 'default' : 'outline'}
+                                                                                onClick={() => setVocalVoiceType('Male')}
+                                                                                className={vocalVoiceType === 'Male' ? "bg-blue-600 text-white" : "border-slate-200 text-slate-600"}
+                                                                            >
+                                                                                Male
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant={vocalVoiceType === 'Female' ? 'default' : 'outline'}
+                                                                                onClick={() => setVocalVoiceType('Female')}
+                                                                                className={vocalVoiceType === 'Female' ? "bg-pink-600 text-white hover:bg-pink-700" : "border-slate-200 text-slate-600"}
+                                                                            >
+                                                                                Female
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <Button
+                                                                        onClick={handleAddVocalTraining}
+                                                                        disabled={uploadingFile}
+                                                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 py-6 h-auto rounded-2xl font-black text-lg"
+                                                                    >
+                                                                        {uploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : 'UPLOAD TO SELECTED FOLDER'}
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}
 
                                                     {/* Resource List */}
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                        {instrResources
-                                                            .filter(r => r.type === 'Academy: vocal-101')
-                                                            .map((resource) => (
-                                                                <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
-                                                                    <div className="flex items-center justify-between mb-4">
-                                                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
-                                                                            <Mic className="w-5 h-5 text-blue-600" />
-                                                                        </div>
-                                                                        <div className="flex gap-1 items-center">
-                                                                            {audioState.audioUrl === resource.url && (
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
-                                                                                    onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
-                                                                                >
-                                                                                    <RotateCcw className="w-3.5 h-3.5" />
-                                                                                </Button>
-                                                                            )}
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full"
-                                                                                onClick={() => {
-                                                                                    if (resource.url) {
-                                                                                        const isCurrentTrack = audioState.audioUrl === resource.url;
-                                                                                        if (isCurrentTrack) {
-                                                                                            if (audioState.isPlaying) {
-                                                                                                pause();
-                                                                                            } else {
-                                                                                                resume();
-                                                                                            }
-                                                                                        } else {
-                                                                                            playVideo(resource.url, resource.title);
-                                                                                        }
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                {audioState.audioUrl === resource.url && audioState.isPlaying ? (
-                                                                                    <Pause className="w-4 h-4" />
-                                                                                ) : (
-                                                                                    <Play className="w-4 h-4" />
-                                                                                )}
-                                                                            </Button>
-                                                                            {audioState.audioUrl === resource.url && (
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
-                                                                                    onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
-                                                                                >
-                                                                                    <RotateCw className="w-3.5 h-3.5" />
-                                                                                </Button>
-                                                                            )}
-                                                                            {user && (
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
-                                                                                    onClick={async () => {
-                                                                                        if (window.confirm("Delete this training resource?")) {
-                                                                                            await choirService.deleteInstrumentalResource(resource.id);
-                                                                                            toast.success("Resource deleted");
-                                                                                        }
-                                                                                    }}
-                                                                                >
-                                                                                    <Trash2 className="w-4 h-4" />
-                                                                                </Button>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
-                                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+                                                    <div className="space-y-12">
+                                                        {/* Male Folder */}
+                                                        <div className="space-y-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="bg-blue-600/10 p-2 rounded-lg">
+                                                                    <Folder className="w-6 h-6 text-blue-600" />
                                                                 </div>
-                                                            ))}
+                                                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Male Vocal Exercises</h3>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                                {instrResources
+                                                                    .filter(r => r.type === 'Academy: vocal-101:male' || (r.type === 'Academy: vocal-101' && r.title.toLowerCase().includes('male')))
+                                                                    .map((resource) => (
+                                                                        <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
+                                                                            <div className="flex items-center justify-between mb-4">
+                                                                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
+                                                                                    <Mic className="w-5 h-5 text-blue-600" />
+                                                                                </div>
+                                                                                <div className="flex gap-1 items-center">
+                                                                                    {audioState.audioUrl === resource.url && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
+                                                                                            onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
+                                                                                        >
+                                                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full"
+                                                                                        onClick={() => {
+                                                                                            if (resource.url) {
+                                                                                                const isCurrentTrack = audioState.audioUrl === resource.url;
+                                                                                                if (isCurrentTrack) {
+                                                                                                    if (audioState.isPlaying) {
+                                                                                                        pause();
+                                                                                                    } else {
+                                                                                                        resume();
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    playVideo(resource.url, resource.title);
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                                                                                            <Pause className="w-4 h-4" />
+                                                                                        ) : (
+                                                                                            <Play className="w-4 h-4" />
+                                                                                        )}
+                                                                                    </Button>
+                                                                                    {audioState.audioUrl === resource.url && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
+                                                                                            onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                                                                                        >
+                                                                                            <RotateCw className="w-3.5 h-3.5" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                    {user && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
+                                                                                            onClick={async () => {
+                                                                                                if (window.confirm("Delete this training resource?")) {
+                                                                                                    await choirService.deleteInstrumentalResource(resource.id);
+                                                                                                    toast.success("Resource deleted");
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
+                                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+                                                                        </div>
+                                                                    ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Female Folder */}
+                                                        <div className="space-y-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="bg-pink-600/10 p-2 rounded-lg">
+                                                                    <Folder className="w-6 h-6 text-pink-600" />
+                                                                </div>
+                                                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Female Vocal Exercises</h3>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                                {instrResources
+                                                                    .filter(r => r.type === 'Academy: vocal-101:female' || (r.type === 'Academy: vocal-101' && (r.title.toLowerCase().includes('female') || r.title.toLowerCase().includes('women'))))
+                                                                    .map((resource) => (
+                                                                        <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
+                                                                            <div className="flex items-center justify-between mb-4">
+                                                                                <div className="bg-pink-50 dark:bg-pink-900/20 p-3 rounded-xl">
+                                                                                    <Mic className="w-5 h-5 text-pink-600" />
+                                                                                </div>
+                                                                                <div className="flex gap-1 items-center">
+                                                                                    {audioState.audioUrl === resource.url && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-pink-400 hover:bg-pink-50 rounded-full"
+                                                                                            onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
+                                                                                        >
+                                                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-8 w-8 text-pink-600 hover:bg-pink-50 rounded-full"
+                                                                                        onClick={() => {
+                                                                                            if (resource.url) {
+                                                                                                const isCurrentTrack = audioState.audioUrl === resource.url;
+                                                                                                if (isCurrentTrack) {
+                                                                                                    if (audioState.isPlaying) {
+                                                                                                        pause();
+                                                                                                    } else {
+                                                                                                        resume();
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    playVideo(resource.url, resource.title);
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                                                                                            <Pause className="w-4 h-4" />
+                                                                                        ) : (
+                                                                                            <Play className="w-4 h-4" />
+                                                                                        )}
+                                                                                    </Button>
+                                                                                    {audioState.audioUrl === resource.url && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-pink-400 hover:bg-pink-50 rounded-full"
+                                                                                            onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                                                                                        >
+                                                                                            <RotateCw className="w-3.5 h-3.5" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                    {user && (
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
+                                                                                            onClick={async () => {
+                                                                                                if (window.confirm("Delete this training resource?")) {
+                                                                                                    await choirService.deleteInstrumentalResource(resource.id);
+                                                                                                    toast.success("Resource deleted");
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                        </Button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
+                                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+                                                                        </div>
+                                                                    ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
