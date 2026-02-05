@@ -404,6 +404,8 @@ const DroppableFolder = ({ id, children, onClick, onLongPress, className }: { id
     );
 };
 
+const MAX_UPLOAD_SIZE = 50 * 1024 * 1024; // 50MB for Supabase Free Plan
+
 const ChoirPage = () => {
     // Inject Resource Hints for YouTube
     useEffect(() => {
@@ -457,7 +459,6 @@ const ChoirPage = () => {
                         {
                             title: "Diaphragmatic Breathing Mastery",
                             content: "The foundation of all great singing is the breath. Diaphragmatic breathing involves engaging the transverse abdominis and the diaphragm to create a stable column of air. Practice the 'Siss' exercise: inhale for 4 counts, exhale on a steady 'S' sound for 16, 24, then 32 counts to build lung capacity and air management precision.",
-                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
                             exercises: [
                                 {
                                     type: "breath-timer",
@@ -482,7 +483,6 @@ const ChoirPage = () => {
                         {
                             title: "The Mechanics of Resonance",
                             content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting.",
-                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
                             exercises: [
                                 {
                                     type: "vowel-practice",
@@ -953,6 +953,9 @@ const ChoirPage = () => {
     const [instrToEdit, setInstrToEdit] = useState({ title: "", type: "Tutorial", url: "" });
     const [uploadingFile, setUploadingFile] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [vocalTrainingResources, setVocalTrainingResources] = useState<any[]>([]);
+    const [isVocalTrainingUploadOpen, setIsVocalTrainingUploadOpen] = useState(false);
+    const [newVocalTraining, setNewVocalTraining] = useState({ title: "" });
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
 
@@ -2048,6 +2051,42 @@ const ChoirPage = () => {
         }
     };
 
+    const uploadToR2 = async (file: File): Promise<{ publicUrl: string; key: string }> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Not logged in");
+
+        const response = await supabase.functions.invoke('get-r2-upload-url', {
+            body: { fileName: file.name, fileType: file.type }
+        });
+
+        if (response.error) throw new Error(response.error.message || "Failed to get upload URL");
+        const { uploadUrl, publicUrl, key } = response.data;
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    setUploadProgress(percentComplete);
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve({ publicUrl, key });
+                } else {
+                    reject(new Error(`Cloudflare upload failed: ${xhr.statusText}`));
+                }
+            });
+
+            xhr.addEventListener('error', () => reject(new Error('Cloudflare upload failed')));
+
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.send(file);
+        });
+    };
+
     // -- Handlers for Instrumental Resources --
     const handleAddInstrResource = async () => {
         if (!newInstr.title.trim()) return;
@@ -2057,12 +2096,115 @@ const ChoirPage = () => {
         try {
             let fileUrl = newInstr.url;
 
-            // If a file is selected, upload it to Supabase Storage
+            // If a file is selected, upload it to Supabase Storage or R2
             if (selectedFile) {
-                const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-                const fileName = `${Date.now()}_${sanitizedName}`;
+                if (selectedFile.size > MAX_UPLOAD_SIZE) {
+                    // Use Cloudflare R2 for large files
+                    const { publicUrl } = await uploadToR2(selectedFile);
+                    fileUrl = publicUrl;
+                } else {
+                    // Existing Supabase Storage logic for small files
+                    const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                    const fileName = `${Date.now()}_${sanitizedName}`;
 
-                // Get auth token for direct storage upload
+                    // Get auth token for direct storage upload
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                        toast.error("You must be logged in to upload files");
+                        setUploadingFile(false);
+                        return;
+                    }
+
+                    // Upload with progress tracking using XMLHttpRequest
+                    const uploadWithProgress = new Promise<string>((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+
+                        // Track upload progress
+                        xhr.upload.addEventListener('progress', (e) => {
+                            if (e.lengthComputable) {
+                                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                                setUploadProgress(percentComplete);
+                            }
+                        });
+
+                        xhr.addEventListener('load', () => {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                setUploadProgress(100);
+                                // Get public URL after successful upload
+                                const { data: urlData } = supabase.storage
+                                    .from('backing-tracks')
+                                    .getPublicUrl(fileName);
+                                resolve(urlData.publicUrl);
+                            } else {
+                                let errorMsg = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
+                                if (xhr.status === 413) {
+                                    errorMsg = "The file is too large for the storage provider (Max 50MB on Free Plan)";
+                                } else if (xhr.responseText) {
+                                    try {
+                                        const parsed = JSON.parse(xhr.responseText);
+                                        if (parsed.message) errorMsg += ` - ${parsed.message}`;
+                                    } catch (e) {
+                                        errorMsg += ` - ${xhr.responseText}`;
+                                    }
+                                }
+                                console.error(errorMsg);
+                                reject(new Error(errorMsg));
+                            }
+                        });
+
+                        xhr.addEventListener('error', () => {
+                            reject(new Error('Upload failed'));
+                        });
+
+                        // Prepare upload URL and request
+                        const { data: { publicUrl } } = supabase.storage.from('backing-tracks').getPublicUrl('');
+                        const bucketUrl = publicUrl.split('/object/public/')[0] + '/object/backing-tracks/' + fileName;
+
+                        xhr.open('POST', bucketUrl);
+                        xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+                        xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
+                        xhr.setRequestHeader('x-upsert', 'false');
+
+                        xhr.send(selectedFile);
+                    });
+
+                    fileUrl = await uploadWithProgress;
+                }
+            }
+
+            await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
+            setNewInstr({ title: "", type: "Tutorial", url: "" });
+            setSelectedFile(null);
+            setUploadProgress(null);
+            setIsAddInstrOpen(false);
+            toast.success("Resource added successfully");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to add resource");
+            setUploadProgress(null);
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
+    const handleAddVocalTraining = async () => {
+        if (!newVocalTraining.title.trim() || !selectedFile) {
+            toast.error("Please provide a title and select a file");
+            return;
+        }
+
+        setUploadingFile(true);
+        setUploadProgress(0);
+        try {
+            let fileUrl = "";
+
+            if (selectedFile.size > MAX_UPLOAD_SIZE) {
+                const { publicUrl } = await uploadToR2(selectedFile);
+                fileUrl = publicUrl;
+            } else {
+                const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const fileName = `vocal_training/${Date.now()}_${sanitizedName}`;
+
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) {
                     toast.error("You must be logged in to upload files");
@@ -2070,11 +2212,9 @@ const ChoirPage = () => {
                     return;
                 }
 
-                // Upload with progress tracking using XMLHttpRequest
                 const uploadWithProgress = new Promise<string>((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
-
-                    // Track upload progress
+                    // ... existing upload logic ...
                     xhr.upload.addEventListener('progress', (e) => {
                         if (e.lengthComputable) {
                             const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -2085,22 +2225,31 @@ const ChoirPage = () => {
                     xhr.addEventListener('load', () => {
                         if (xhr.status >= 200 && xhr.status < 300) {
                             setUploadProgress(100);
-                            // Get public URL after successful upload
                             const { data: urlData } = supabase.storage
                                 .from('backing-tracks')
                                 .getPublicUrl(fileName);
                             resolve(urlData.publicUrl);
                         } else {
-                            reject(new Error(`Upload failed with status ${xhr.status}`));
+                            let errorMsg = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
+                            if (xhr.status === 413) {
+                                errorMsg = "The file is too large for the storage provider (Max 50MB on Free Plan)";
+                            } else if (xhr.responseText) {
+                                try {
+                                    const parsed = JSON.parse(xhr.responseText);
+                                    if (parsed.message) errorMsg += ` - ${parsed.message}`;
+                                } catch (e) {
+                                    errorMsg += ` - ${xhr.responseText}`;
+                                }
+                            }
+                            console.error(errorMsg);
+                            reject(new Error(errorMsg));
                         }
                     });
 
-                    xhr.addEventListener('error', () => {
-                        reject(new Error('Upload failed'));
-                    });
+                    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
 
-                    // Prepare upload URL and request
-                    const bucketUrl = `${supabase.storage.from('backing-tracks').getPublicUrl('').data.publicUrl.replace(/\/object\/public\/backing-tracks\/$/, '')}/object/backing-tracks/${fileName}`;
+                    const { data: { publicUrl } } = supabase.storage.from('backing-tracks').getPublicUrl('');
+                    const bucketUrl = publicUrl.split('/object/public/')[0] + '/object/backing-tracks/' + fileName;
 
                     xhr.open('POST', bucketUrl);
                     xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
@@ -2113,15 +2262,20 @@ const ChoirPage = () => {
                 fileUrl = await uploadWithProgress;
             }
 
-            await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
-            setNewInstr({ title: "", type: "Tutorial", url: "" });
+            await choirService.addInstrumentalResource({
+                title: newVocalTraining.title,
+                type: 'Academy: vocal-101',
+                url: fileUrl
+            }, locationId!);
+
+            setNewVocalTraining({ title: "" });
             setSelectedFile(null);
             setUploadProgress(null);
-            setIsAddInstrOpen(false);
-            toast.success("Resource added successfully");
+            setIsVocalTrainingUploadOpen(false);
+            toast.success("Vocal training audio added successfully");
         } catch (e) {
             console.error(e);
-            toast.error("Failed to add resource");
+            toast.error("Failed to upload vocal training audio");
             setUploadProgress(null);
         } finally {
             setUploadingFile(false);
@@ -2346,6 +2500,9 @@ const ChoirPage = () => {
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             Choir Schedule
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            View and manage the weekly choir rehearsal and event schedule.
+                        </DialogDescription>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -2442,6 +2599,9 @@ const ChoirPage = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{editingScheduleId ? 'Edit Schedule Item' : 'Add Schedule Item'}</DialogTitle>
+                        <DialogDescription>
+                            {editingScheduleId ? 'Update the details for this schedule item.' : 'Add a new rehearsal or event to the weekly schedule.'}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -2523,6 +2683,9 @@ const ChoirPage = () => {
                             <CalendarIcon className="w-6 h-6 text-blue-600" />
                             {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            {editingEvent ? 'Update this planner note.' : 'Create a new strategy or note for the team planner.'}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto py-4 space-y-4 px-4 md:px-20 max-w-4xl mx-auto w-full">
                         <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
@@ -2607,6 +2770,9 @@ const ChoirPage = () => {
                             <Users className="w-6 h-6 text-blue-600" />
                             Team Roster
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            View the current roster for Praise & Worship and Tuesday Prayer teams.
+                        </DialogDescription>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -2762,6 +2928,9 @@ const ChoirPage = () => {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit {editingSetInfoType === 'praise' ? 'Praise' : 'Worship'} Description</DialogTitle>
+                        <DialogDescription>
+                            Update the subtitle or BPM for this section of the setlist.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -2911,6 +3080,9 @@ const ChoirPage = () => {
                             <Download className="w-6 h-6 text-blue-600" />
                             Import from Notes
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Paste a list of songs to import them into your setlist.
+                        </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
@@ -3016,7 +3188,7 @@ const ChoirPage = () => {
 
             {/* Saturday Prayer Accountability Modal - Galway Only */}
             <Dialog open={isPrayerAccountabilityOpen} onOpenChange={setIsPrayerAccountabilityOpen}>
-                <DialogContent className="max-w-4xl p-0 h-[100dvh] w-full md:h-auto overflow-hidden bg-slate-900 border-none rounded-none md:rounded-[2rem] shadow-2xl z-[201] [&>button]:hidden">
+                <DialogContent className="max-w-4xl p-0 h-[100dvh] w-full md:h-auto overflow-hidden bg-slate-900 border-none rounded-none md:rounded-[2rem] shadow-2xl z-[201] [&>button]:hidden" aria-describedby="prayer-accountability-desc">
                     <div className="relative w-full h-full overflow-y-auto no-scrollbar">
                         <Card className="bg-gradient-to-br from-indigo-900 to-blue-900 border-none shadow-none overflow-hidden relative text-white rounded-none md:rounded-[2rem] min-h-full">
 
@@ -3033,9 +3205,11 @@ const ChoirPage = () => {
                             <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 pt-[calc(2rem+env(safe-area-inset-top))]">
                                 <div className="space-y-1 pr-12">
                                     <DialogTitle className="flex items-center gap-3 text-white text-2xl md:text-3xl font-black">
-
                                         Saturday Prayer Accountability
                                     </DialogTitle>
+                                    <p id="prayer-accountability-desc" className="sr-only">
+                                        Check off your name after completing your one-hour prayer session on Saturday.
+                                    </p>
                                     <CardDescription className="text-blue-200 font-medium text-lg md:text-xl flex items-center gap-2 pt-2">
                                         <Calendar className="w-5 h-5 text-blue-300" />
                                         {format(new Date().getDay() === 6 ? new Date() : nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
@@ -4437,36 +4611,7 @@ const ChoirPage = () => {
                                                                             {module.content}
                                                                         </p>
 
-                                                                        {module.audioUrl && (
-                                                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
-                                                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <Music className="w-5 h-5 text-blue-600" />
-                                                                                        <span className="font-bold text-blue-900 dark:text-blue-100">Practice Audio</span>
-                                                                                    </div>
-                                                                                    <div className="flex items-center gap-1 flex-wrap">
-                                                                                        <span className="text-xs text-slate-600 dark:text-slate-400">Speed:</span>
-                                                                                        {[0.5, 0.75, 1, 1.25].map(speed => (
-                                                                                            <button
-                                                                                                key={speed}
-                                                                                                onClick={() => setCurrentAudio(prev => prev ? { ...prev, speed } : null)}
-                                                                                                className={`px-2 py-1 rounded text-xs font-bold transition-all ${currentAudio?.speed === speed
-                                                                                                    ? 'bg-blue-600 text-white'
-                                                                                                    : 'bg-white dark:bg-slate-800 text-blue-600 hover:bg-blue-100'
-                                                                                                    }`}
-                                                                                            >
-                                                                                                {speed}x
-                                                                                            </button>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <audio
-                                                                                    controls
-                                                                                    className="w-full"
-                                                                                    src={module.audioUrl}
-                                                                                />
-                                                                            </div>
-                                                                        )}
+
 
                                                                         {/* Interactive Exercises */}
                                                                         {module.exercises?.map((exercise: any, eIdx: number) => (
@@ -4594,6 +4739,161 @@ const ChoirPage = () => {
                                                     );
                                                 })}
                                             </div>
+
+                                            {/* Vocal Training Resources Section (Specific to Vocal Lessons 101) */}
+                                            {selectedCourse.id === 'vocal-101' && (
+                                                <div className="mt-16 space-y-6 pt-12 border-t border-slate-100 dark:border-slate-800">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="space-y-1">
+                                                            <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                                                                <Music className="w-6 h-6 text-blue-600" />
+                                                                Vocal Training Resources
+                                                            </h3>
+                                                            <p className="text-sm text-slate-500 font-medium italic">Additional practice audios and demonstrations.</p>
+                                                        </div>
+                                                        {user && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => setIsVocalTrainingUploadOpen(!isVocalTrainingUploadOpen)}
+                                                                className="rounded-full border-blue-200 text-blue-600 hover:bg-blue-50 font-bold"
+                                                            >
+                                                                {isVocalTrainingUploadOpen ? 'Cancel' : 'Upload New'}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Upload Form */}
+                                                    {isVocalTrainingUploadOpen && (
+                                                        <div className="bg-blue-50/50 dark:bg-blue-900/10 p-6 rounded-[2rem] border-2 border-dashed border-blue-200 dark:border-blue-800 mb-8 animate-in fade-in slide-in-from-top-4 duration-300">
+                                                            <div className="space-y-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold uppercase tracking-wider text-blue-900/60 dark:text-blue-100/60 ml-2">Audio Title</Label>
+                                                                        <Input
+                                                                            placeholder="e.g. Range Extension Exercise"
+                                                                            value={newVocalTraining.title}
+                                                                            onChange={(e) => setNewVocalTraining({ title: e.target.value })}
+                                                                            className="bg-white border-none shadow-sm h-12 rounded-2xl font-medium"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-xs font-bold uppercase tracking-wider text-blue-900/60 dark:text-blue-100/60 ml-2">Audio File</Label>
+                                                                        <div className="relative">
+                                                                            <input
+                                                                                type="file"
+                                                                                accept="audio/*"
+                                                                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                                                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                                                            />
+                                                                            <div className="bg-white border-none shadow-sm h-12 rounded-2xl flex items-center px-4 text-sm text-slate-500 font-medium truncate">
+                                                                                {selectedFile ? selectedFile.name : "Select Audio (.mp3, .wav...)"}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {uploadProgress !== null && (
+                                                                    <div className="space-y-2 pt-2">
+                                                                        <div className="flex justify-between text-xs font-black text-blue-600 uppercase tracking-widest">
+                                                                            <span>Uploading...</span>
+                                                                            <span>{uploadProgress}%</span>
+                                                                        </div>
+                                                                        <Progress value={uploadProgress} className="h-2 bg-white rounded-full [&>div]:bg-blue-600" />
+                                                                    </div>
+                                                                )}
+
+                                                                <Button
+                                                                    onClick={handleAddVocalTraining}
+                                                                    disabled={uploadingFile}
+                                                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 py-6 h-auto rounded-2xl font-black text-lg"
+                                                                >
+                                                                    {uploadingFile ? <Loader2 className="w-5 h-5 animate-spin" /> : 'UPLOAD TO COURSE'}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Resource List */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                        {instrResources
+                                                            .filter(r => r.type === 'Academy: vocal-101')
+                                                            .map((resource) => (
+                                                                <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
+                                                                    <div className="flex items-center justify-between mb-4">
+                                                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
+                                                                            <Mic className="w-5 h-5 text-blue-600" />
+                                                                        </div>
+                                                                        <div className="flex gap-1 items-center">
+                                                                            {audioState.audioUrl === resource.url && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
+                                                                                    onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
+                                                                                >
+                                                                                    <RotateCcw className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                            )}
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full"
+                                                                                onClick={() => {
+                                                                                    if (resource.url) {
+                                                                                        const isCurrentTrack = audioState.audioUrl === resource.url;
+                                                                                        if (isCurrentTrack) {
+                                                                                            if (audioState.isPlaying) {
+                                                                                                pause();
+                                                                                            } else {
+                                                                                                resume();
+                                                                                            }
+                                                                                        } else {
+                                                                                            playVideo(resource.url, resource.title);
+                                                                                        }
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                                                                                    <Pause className="w-4 h-4" />
+                                                                                ) : (
+                                                                                    <Play className="w-4 h-4" />
+                                                                                )}
+                                                                            </Button>
+                                                                            {audioState.audioUrl === resource.url && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
+                                                                                    onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                                                                                >
+                                                                                    <RotateCw className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                            )}
+                                                                            {user && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
+                                                                                    onClick={async () => {
+                                                                                        if (window.confirm("Delete this training resource?")) {
+                                                                                            await choirService.deleteInstrumentalResource(resource.id);
+                                                                                            toast.success("Resource deleted");
+                                                                                        }
+                                                                                    }}
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
+                                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </section>
 
                                         {/* Action Footer */}
@@ -4613,7 +4913,7 @@ const ChoirPage = () => {
                             )}
                         </div>
                     </DialogContent>
-                </Dialog>
+                </Dialog >
 
                 {/* SHARED STRATEGIC PLANNER SECTION */}
                 < div className="mt-20 pt-12 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-8 duration-700" >
@@ -5065,6 +5365,9 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader>
                         <DialogTitle>Edit Instrumental Resource</DialogTitle>
+                        <DialogDescription>
+                            Modify the details of an existing band resource.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -5113,6 +5416,9 @@ const ChoirPage = () => {
                             <FileMusic className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
                             {previewLyrics?.title}
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Viewing lyrics for {previewLyrics?.title}.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-slate-50 dark:bg-slate-900/50">
                         <p className="whitespace-pre-wrap text-xl md:text-3xl leading-relaxed font-bold text-slate-700 dark:text-slate-300 font-sans max-w-4xl mx-auto text-center">
