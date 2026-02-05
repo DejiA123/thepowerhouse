@@ -2055,33 +2055,53 @@ const ChoirPage = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Not logged in");
 
+        console.log(`[R2] Starting upload for ${file.name} (${file.size} bytes)`);
+
         const response = await supabase.functions.invoke('get-r2-upload-url', {
             body: { fileName: file.name, fileType: file.type }
         });
 
-        if (response.error) throw new Error(response.error.message || "Failed to get upload URL");
+        if (response.error) {
+            console.error("[R2] Failed to get signed URL", response.error);
+            throw new Error(response.error.message || "Failed to get upload URL");
+        }
         const { uploadUrl, publicUrl, key } = response.data;
+        console.log("[R2] Received signed URL. Starting direct transfer.");
 
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
+            xhr.withCredentials = false;
+
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    // Capping at 99% to allow room for "Finalizing" state
+                    const percentComplete = Math.round((e.loaded / e.total) * 99);
                     setUploadProgress(percentComplete);
                 }
             });
 
             xhr.addEventListener('load', () => {
+                console.log(`[R2] Server response: ${xhr.status} ${xhr.statusText}`);
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    setUploadProgress(100);
                     resolve({ publicUrl, key });
                 } else {
-                    reject(new Error(`Cloudflare upload failed: ${xhr.statusText}`));
+                    reject(new Error(`Cloudflare upload failed: ${xhr.statusText} (${xhr.status})`));
                 }
             });
 
-            xhr.addEventListener('error', () => reject(new Error('Cloudflare upload failed')));
+            xhr.addEventListener('error', () => {
+                console.error("[R2] Network error during upload");
+                reject(new Error('Cloudflare upload failed (Network Error)'));
+            });
+
+            xhr.addEventListener('timeout', () => {
+                console.error("[R2] Upload timed out");
+                reject(new Error('Cloudflare upload timed out'));
+            });
 
             xhr.open('PUT', uploadUrl);
+            xhr.timeout = 15 * 60 * 1000; // 15 minutes for large files
             xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
             xhr.send(file);
         });
@@ -2096,83 +2116,19 @@ const ChoirPage = () => {
         try {
             let fileUrl = newInstr.url;
 
-            // If a file is selected, upload it to Supabase Storage or R2
+            // All files now go to Cloudflare R2
             if (selectedFile) {
-                if (selectedFile.size > MAX_UPLOAD_SIZE) {
-                    // Use Cloudflare R2 for large files
-                    const { publicUrl } = await uploadToR2(selectedFile);
-                    fileUrl = publicUrl;
-                } else {
-                    // Existing Supabase Storage logic for small files
-                    const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-                    const fileName = `${Date.now()}_${sanitizedName}`;
+                const { publicUrl } = await uploadToR2(selectedFile);
+                fileUrl = publicUrl;
 
-                    // Get auth token for direct storage upload
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) {
-                        toast.error("You must be logged in to upload files");
-                        setUploadingFile(false);
-                        return;
-                    }
-
-                    // Upload with progress tracking using XMLHttpRequest
-                    const uploadWithProgress = new Promise<string>((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-
-                        // Track upload progress
-                        xhr.upload.addEventListener('progress', (e) => {
-                            if (e.lengthComputable) {
-                                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                                setUploadProgress(percentComplete);
-                            }
-                        });
-
-                        xhr.addEventListener('load', () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                setUploadProgress(100);
-                                // Get public URL after successful upload
-                                const { data: urlData } = supabase.storage
-                                    .from('backing-tracks')
-                                    .getPublicUrl(fileName);
-                                resolve(urlData.publicUrl);
-                            } else {
-                                let errorMsg = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
-                                if (xhr.status === 413) {
-                                    errorMsg = "The file is too large for the storage provider (Max 50MB on Free Plan)";
-                                } else if (xhr.responseText) {
-                                    try {
-                                        const parsed = JSON.parse(xhr.responseText);
-                                        if (parsed.message) errorMsg += ` - ${parsed.message}`;
-                                    } catch (e) {
-                                        errorMsg += ` - ${xhr.responseText}`;
-                                    }
-                                }
-                                console.error(errorMsg);
-                                reject(new Error(errorMsg));
-                            }
-                        });
-
-                        xhr.addEventListener('error', () => {
-                            reject(new Error('Upload failed'));
-                        });
-
-                        // Prepare upload URL and request
-                        const { data: { publicUrl } } = supabase.storage.from('backing-tracks').getPublicUrl('');
-                        const bucketUrl = publicUrl.split('/object/public/')[0] + '/object/backing-tracks/' + fileName;
-
-                        xhr.open('POST', bucketUrl);
-                        xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
-                        xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
-                        xhr.setRequestHeader('x-upsert', 'false');
-
-                        xhr.send(selectedFile);
-                    });
-
-                    fileUrl = await uploadWithProgress;
-                }
+                console.log("[R2] Upload steps finished. Registering resource in database.");
+                await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
+                console.log("[R2] Final successfully registered.");
+            } else if (newInstr.url) {
+                // Manually entered URL
+                await choirService.addInstrumentalResource({ ...newInstr, url: newInstr.url }, locationId!);
             }
-
-            await choirService.addInstrumentalResource({ ...newInstr, url: fileUrl }, locationId!);
+            console.log("[R2] Final successfully registered.");
             setNewInstr({ title: "", type: "Tutorial", url: "" });
             setSelectedFile(null);
             setUploadProgress(null);
@@ -2198,74 +2154,17 @@ const ChoirPage = () => {
         try {
             let fileUrl = "";
 
-            if (selectedFile.size > MAX_UPLOAD_SIZE) {
-                const { publicUrl } = await uploadToR2(selectedFile);
-                fileUrl = publicUrl;
-            } else {
-                const sanitizedName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-                const fileName = `vocal_training/${Date.now()}_${sanitizedName}`;
+            // All files now go to Cloudflare R2
+            const { publicUrl } = await uploadToR2(selectedFile);
+            fileUrl = publicUrl;
 
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) {
-                    toast.error("You must be logged in to upload files");
-                    setUploadingFile(false);
-                    return;
-                }
-
-                const uploadWithProgress = new Promise<string>((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.upload.addEventListener('progress', (e) => {
-                        if (e.lengthComputable) {
-                            const percentComplete = Math.round((e.loaded / e.total) * 100);
-                            setUploadProgress(percentComplete);
-                        }
-                    });
-
-                    xhr.addEventListener('load', () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            setUploadProgress(100);
-                            const { data: urlData } = supabase.storage
-                                .from('backing-tracks')
-                                .getPublicUrl(fileName);
-                            resolve(urlData.publicUrl);
-                        } else {
-                            let errorMsg = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
-                            if (xhr.status === 413) {
-                                errorMsg = "The file is too large for the storage provider (Max 50MB on Free Plan)";
-                            } else if (xhr.responseText) {
-                                try {
-                                    const parsed = JSON.parse(xhr.responseText);
-                                    if (parsed.message) errorMsg += ` - ${parsed.message}`;
-                                } catch (e) {
-                                    errorMsg += ` - ${xhr.responseText}`;
-                                }
-                            }
-                            console.error(errorMsg);
-                            reject(new Error(errorMsg));
-                        }
-                    });
-
-                    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-
-                    const { data: { publicUrl } } = supabase.storage.from('backing-tracks').getPublicUrl('');
-                    const bucketUrl = publicUrl.split('/object/public/')[0] + '/object/backing-tracks/' + fileName;
-
-                    xhr.open('POST', bucketUrl);
-                    xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
-                    xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
-                    xhr.setRequestHeader('x-upsert', 'false');
-
-                    xhr.send(selectedFile);
-                });
-
-                fileUrl = await uploadWithProgress;
-            }
-
+            console.log("[R2] Upload steps finished. Registering vocal training in database.");
             await choirService.addInstrumentalResource({
                 title: newVocalTraining.title,
                 type: 'Academy: vocal-101',
                 url: fileUrl
             }, locationId!);
+            console.log("[R2] Final successfully registered.");
 
             setNewVocalTraining({ title: "" });
             setSelectedFile(null);
@@ -4795,7 +4694,7 @@ const ChoirPage = () => {
                                                                 {uploadProgress !== null && (
                                                                     <div className="space-y-2 pt-2">
                                                                         <div className="flex justify-between text-xs font-black text-blue-600 uppercase tracking-widest">
-                                                                            <span>Uploading...</span>
+                                                                            <span>{uploadProgress === 100 ? "Finalizing..." : "Uploading Track"}</span>
                                                                             <span>{uploadProgress}%</span>
                                                                         </div>
                                                                         <Progress value={uploadProgress} className="h-2 bg-white rounded-full [&>div]:bg-blue-600" />
@@ -5339,7 +5238,7 @@ const ChoirPage = () => {
                         {uploadingFile && uploadProgress !== null && (
                             <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
                                 <div className="flex justify-between text-xs font-bold text-blue-600 uppercase tracking-widest">
-                                    <span>Uploading Track</span>
+                                    <span>{uploadProgress === 100 ? "Finalizing..." : "Uploading Track"}</span>
                                     <span>{uploadProgress}%</span>
                                 </div>
                                 <Progress value={uploadProgress} className="h-2 bg-blue-100" />
