@@ -955,6 +955,7 @@ const ChoirPage = () => {
     const [newVocalTraining, setNewVocalTraining] = useState({ title: "" });
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [vocalVoiceType, setVocalVoiceType] = useState<'Male' | 'Female'>('Male');
+    const [activeVocalFolder, setActiveVocalFolder] = useState<'male' | 'female' | null>(null);
 
 
     const sensors = useSensors(
@@ -4736,179 +4737,156 @@ const ChoirPage = () => {
 
                                                     {/* Resource List */}
                                                     <div className="space-y-12">
-                                                        {/* Male Folder */}
-                                                        <div className="space-y-6">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="bg-blue-600/10 p-2 rounded-lg">
-                                                                    <Folder className="w-6 h-6 text-blue-600" />
-                                                                </div>
-                                                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Male Vocal Exercises</h3>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                                {instrResources
-                                                                    .filter(r => r.type === 'Academy: vocal-101:male' || (r.type === 'Academy: vocal-101' && r.title.toLowerCase().includes('male')))
-                                                                    .map((resource) => (
-                                                                        <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
-                                                                            <div className="flex items-center justify-between mb-4">
-                                                                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
-                                                                                    <Mic className="w-5 h-5 text-blue-600" />
-                                                                                </div>
-                                                                                <div className="flex gap-1 items-center">
-                                                                                    {audioState.audioUrl === resource.url && (
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
-                                                                                            onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
-                                                                                        >
-                                                                                            <RotateCcw className="w-3.5 h-3.5" />
-                                                                                        </Button>
-                                                                                    )}
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="icon"
-                                                                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50 rounded-full"
-                                                                                        onClick={() => {
-                                                                                            if (resource.url) {
-                                                                                                const isCurrentTrack = audioState.audioUrl === resource.url;
-                                                                                                if (isCurrentTrack) {
-                                                                                                    if (audioState.isPlaying) {
-                                                                                                        pause();
-                                                                                                    } else {
-                                                                                                        resume();
-                                                                                                    }
-                                                                                                } else {
-                                                                                                    playVideo(resource.url, resource.title);
-                                                                                                }
-                                                                                            }
-                                                                                        }}
-                                                                                    >
-                                                                                        {audioState.audioUrl === resource.url && audioState.isPlaying ? (
-                                                                                            <Pause className="w-4 h-4" />
-                                                                                        ) : (
-                                                                                            <Play className="w-4 h-4" />
-                                                                                        )}
-                                                                                    </Button>
-                                                                                    {audioState.audioUrl === resource.url && (
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-8 w-8 text-blue-400 hover:bg-blue-50 rounded-full"
-                                                                                            onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
-                                                                                        >
-                                                                                            <RotateCw className="w-3.5 h-3.5" />
-                                                                                        </Button>
-                                                                                    )}
-                                                                                    {user && (
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
-                                                                                            onClick={async () => {
-                                                                                                if (window.confirm("Delete this training resource?")) {
-                                                                                                    await choirService.deleteInstrumentalResource(resource.id);
-                                                                                                    toast.success("Resource deleted");
-                                                                                                }
-                                                                                            }}
-                                                                                        >
-                                                                                            <Trash2 className="w-4 h-4" />
-                                                                                        </Button>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                            <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
-                                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+                                                        {!activeVocalFolder ? (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mx-auto py-10">
+                                                                {/* Male Folder Card */}
+                                                                <button
+                                                                    onClick={() => setActiveVocalFolder('male')}
+                                                                    className="group relative bg-white dark:bg-slate-900/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-[0_20px_50px_rgba(37,99,235,0.15)] hover:translate-y-[-10px] transition-all duration-500 text-left overflow-hidden"
+                                                                >
+                                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+                                                                    <div className="relative z-10 flex flex-col items-center text-center space-y-6">
+                                                                        <div className="bg-blue-600 shadow-xl shadow-blue-500/20 p-6 rounded-[2rem] group-hover:scale-110 transition-transform duration-500">
+                                                                            <Folder className="w-12 h-12 text-white" />
                                                                         </div>
-                                                                    ))}
-                                                            </div>
-                                                        </div>
+                                                                        <div>
+                                                                            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Male</h3>
+                                                                            <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Vocal Exercises</p>
+                                                                        </div>
+                                                                        <div className="bg-blue-50 text-blue-600 px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                                                                            Open Folder
+                                                                        </div>
+                                                                    </div>
+                                                                </button>
 
-                                                        {/* Female Folder */}
-                                                        <div className="space-y-6">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="bg-pink-600/10 p-2 rounded-lg">
-                                                                    <Folder className="w-6 h-6 text-pink-600" />
-                                                                </div>
-                                                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Female Vocal Exercises</h3>
+                                                                {/* Female Folder Card */}
+                                                                <button
+                                                                    onClick={() => setActiveVocalFolder('female')}
+                                                                    className="group relative bg-white dark:bg-slate-900/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-[0_20px_50px_rgba(219,39,119,0.15)] hover:translate-y-[-10px] transition-all duration-500 text-left overflow-hidden"
+                                                                >
+                                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-pink-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+                                                                    <div className="relative z-10 flex flex-col items-center text-center space-y-6">
+                                                                        <div className="bg-pink-600 shadow-xl shadow-pink-500/20 p-6 rounded-[2rem] group-hover:scale-110 transition-transform duration-500">
+                                                                            <Folder className="w-12 h-12 text-white" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Female</h3>
+                                                                            <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Vocal Exercises</p>
+                                                                        </div>
+                                                                        <div className="bg-pink-50 text-pink-600 px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest group-hover:bg-pink-600 group-hover:text-white transition-colors duration-300">
+                                                                            Open Folder
+                                                                        </div>
+                                                                    </div>
+                                                                </button>
                                                             </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                                {instrResources
-                                                                    .filter(r => r.type === 'Academy: vocal-101:female' || (r.type === 'Academy: vocal-101' && (r.title.toLowerCase().includes('female') || r.title.toLowerCase().includes('women'))))
-                                                                    .map((resource) => (
-                                                                        <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-5 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group">
-                                                                            <div className="flex items-center justify-between mb-4">
-                                                                                <div className="bg-pink-50 dark:bg-pink-900/20 p-3 rounded-xl">
-                                                                                    <Mic className="w-5 h-5 text-pink-600" />
-                                                                                </div>
-                                                                                <div className="flex gap-1 items-center">
-                                                                                    {audioState.audioUrl === resource.url && (
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-8 w-8 text-pink-400 hover:bg-pink-50 rounded-full"
-                                                                                            onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
-                                                                                        >
-                                                                                            <RotateCcw className="w-3.5 h-3.5" />
-                                                                                        </Button>
-                                                                                    )}
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="icon"
-                                                                                        className="h-8 w-8 text-pink-600 hover:bg-pink-50 rounded-full"
-                                                                                        onClick={() => {
-                                                                                            if (resource.url) {
-                                                                                                const isCurrentTrack = audioState.audioUrl === resource.url;
-                                                                                                if (isCurrentTrack) {
-                                                                                                    if (audioState.isPlaying) {
-                                                                                                        pause();
-                                                                                                    } else {
-                                                                                                        resume();
-                                                                                                    }
-                                                                                                } else {
-                                                                                                    playVideo(resource.url, resource.title);
-                                                                                                }
-                                                                                            }
-                                                                                        }}
-                                                                                    >
-                                                                                        {audioState.audioUrl === resource.url && audioState.isPlaying ? (
-                                                                                            <Pause className="w-4 h-4" />
-                                                                                        ) : (
-                                                                                            <Play className="w-4 h-4" />
+                                                        ) : (
+                                                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-6">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={() => setActiveVocalFolder(null)}
+                                                                            className="h-12 w-12 rounded-[1.2rem] bg-slate-50 dark:bg-slate-800 hover:bg-slate-100"
+                                                                        >
+                                                                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                                                                        </Button>
+                                                                        <div>
+                                                                            <h3 className={`text-2xl font-black uppercase tracking-tighter ${activeVocalFolder === 'male' ? 'text-blue-600' : 'text-pink-600'}`}>
+                                                                                {activeVocalFolder === 'male' ? 'Male' : 'Female'} Vocal Exercises
+                                                                            </h3>
+                                                                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                                                                                Vocal Lessons 101 &bull; {activeVocalFolder === 'male' ? 'Male' : 'Female'} Category
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                                    {instrResources
+                                                                        .filter(r => {
+                                                                            if (activeVocalFolder === 'male') {
+                                                                                return r.type === 'Academy: vocal-101:male' || (r.type === 'Academy: vocal-101' && r.title.toLowerCase().includes('male'));
+                                                                            } else {
+                                                                                return r.type === 'Academy: vocal-101:female' || (r.type === 'Academy: vocal-101' && (r.title.toLowerCase().includes('female') || r.title.toLowerCase().includes('women')));
+                                                                            }
+                                                                        })
+                                                                        .map((resource) => (
+                                                                            <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
+                                                                                <div className="flex items-center justify-between mb-6">
+                                                                                    <div className={`p-4 rounded-2xl ${activeVocalFolder === 'male' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600'}`}>
+                                                                                        <Mic className="w-6 h-6" />
+                                                                                    </div>
+                                                                                    <div className="flex gap-2 items-center">
+                                                                                        {audioState.audioUrl === resource.url && (
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                                                                                                onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
+                                                                                            >
+                                                                                                <RotateCcw className="w-4 h-4" />
+                                                                                            </Button>
                                                                                         )}
-                                                                                    </Button>
-                                                                                    {audioState.audioUrl === resource.url && (
                                                                                         <Button
                                                                                             variant="ghost"
                                                                                             size="icon"
-                                                                                            className="h-8 w-8 text-pink-400 hover:bg-pink-50 rounded-full"
-                                                                                            onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
-                                                                                        >
-                                                                                            <RotateCw className="w-3.5 h-3.5" />
-                                                                                        </Button>
-                                                                                    )}
-                                                                                    {user && (
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-full"
-                                                                                            onClick={async () => {
-                                                                                                if (window.confirm("Delete this training resource?")) {
-                                                                                                    await choirService.deleteInstrumentalResource(resource.id);
-                                                                                                    toast.success("Resource deleted");
+                                                                                            className={`h-11 w-11 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-pink-600 bg-pink-50 hover:bg-pink-100'}`}
+                                                                                            onClick={() => {
+                                                                                                if (resource.url) {
+                                                                                                    const isCurrentTrack = audioState.audioUrl === resource.url;
+                                                                                                    if (isCurrentTrack) {
+                                                                                                        if (audioState.isPlaying) {
+                                                                                                            pause();
+                                                                                                        } else {
+                                                                                                            resume();
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        playVideo(resource.url, resource.title);
+                                                                                                    }
                                                                                                 }
                                                                                             }}
                                                                                         >
-                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                            {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                                                                                                <Pause className="w-5 h-5" />
+                                                                                            ) : (
+                                                                                                <Play className="w-5 h-5" />
+                                                                                            )}
                                                                                         </Button>
-                                                                                    )}
+                                                                                        {audioState.audioUrl === resource.url && (
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                                                                                                onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                                                                                            >
+                                                                                                <RotateCw className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                        )}
+                                                                                        {user && (
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
+                                                                                                onClick={async () => {
+                                                                                                    if (window.confirm("Delete this training resource?")) {
+                                                                                                        await choirService.deleteInstrumentalResource(resource.id);
+                                                                                                        toast.success("Resource deleted");
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <Trash2 className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
+                                                                                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-lg">{resource.title}</h4>
+                                                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
                                                                             </div>
-                                                                            <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{resource.title}</h4>
-                                                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
-                                                                        </div>
-                                                                    ))}
+                                                                        ))}
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
