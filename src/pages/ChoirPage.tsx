@@ -901,6 +901,10 @@ const ChoirPage = () => {
     const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
     const [importFolderText, setImportFolderText] = useState("");
 
+    // UI States for Folder Options (Long Press)
+    const [isFolderOptionsOpen, setIsFolderOptionsOpen] = useState(false);
+    const [folderForOptions, setFolderForOptions] = useState<any>(null);
+
     // Team Roster States
     const [praiseRoster, setPraiseRoster] = useState<string[]>([]);
     const [prayerRoster, setPrayerRoster] = useState<string[]>([]);
@@ -3570,6 +3574,44 @@ const ChoirPage = () => {
                                                     </Dialog>
                                                 </div>
                                             )}
+
+                                            {/* Folder Options Dialog (Long Press) */}
+                                            <Dialog open={isFolderOptionsOpen} onOpenChange={setIsFolderOptionsOpen}>
+                                                <DialogContent className="sm:max-w-md w-[90%] rounded-2xl">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Folder Options: {folderForOptions?.name}</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="grid grid-cols-2 gap-4 py-4">
+                                                        <Button
+                                                            variant="outline"
+                                                            className="h-24 flex flex-col items-center justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-xl"
+                                                            onClick={() => {
+                                                                setIsFolderOptionsOpen(false);
+                                                                startEditFolder(folderForOptions);
+                                                            }}
+                                                        >
+                                                            <Pencil className="w-8 h-8 text-blue-500" />
+                                                            <span className="font-bold">Rename</span>
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="h-24 flex flex-col items-center justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-xl"
+                                                            onClick={() => {
+                                                                setIsFolderOptionsOpen(false);
+                                                                if (window.confirm(`Are you sure you want to delete "${folderForOptions?.name}"?`)) {
+                                                                    deleteFolder(folderForOptions.id);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Trash2 className="w-8 h-8 text-red-500" />
+                                                            <span className="font-bold">Delete</span>
+                                                        </Button>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button variant="ghost" onClick={() => setIsFolderOptionsOpen(false)} className="w-full">Cancel</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
                                         </div>
                                     </div>
 
@@ -3583,8 +3625,8 @@ const ChoirPage = () => {
                                                         id={`folder-${folder.id}`}
                                                         onClick={() => setActiveFolderId(folder.id)}
                                                         onLongPress={() => {
-                                                            // Trigger action sheet simulation or just open dialog
-                                                            startEditFolder(folder);
+                                                            setFolderForOptions(folder);
+                                                            setIsFolderOptionsOpen(true);
                                                         }}
                                                         className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
                                                     >
