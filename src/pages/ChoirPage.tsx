@@ -5069,7 +5069,7 @@ const ChoirPage = () => {
                             <Label>Or Upload File</Label>
                             <Input
                                 type="file"
-                                accept="audio/*,video/*"
+                                accept="audio/*,video/*,.mp3,.mp4,.wav,.m4a,.aac,.mov,.avi,application/pdf"
                                 onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
