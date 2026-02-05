@@ -69,6 +69,14 @@ import { CSS } from '@dnd-kit/utilities';
 
 const PRAYER_TEAM = ['Rekky', 'Pastor Deji', 'RP Zainab', 'YP Sodiq', 'Borja', 'Bro Kingsley', 'Min. Mercy', 'Min. Merit', 'Kido', 'Denise'];
 
+interface PrayerStats {
+    lastResetDate: string; // ISO string
+    userStats: Record<string, {
+        missedWeeks: number;
+        lastWeekStatus: 'completed' | 'missed';
+    }>;
+}
+
 
 // --- Sub-components ---
 const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
@@ -899,10 +907,56 @@ const ChoirPage = () => {
     const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
     const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
 
+    const [prayerStats, setPrayerStats] = useState<PrayerStats>({ lastResetDate: new Date().toISOString(), userStats: {} });
+
     const togglePrayer = async (name: string) => {
         const newState = { ...prayerChecklist, [name]: !prayerChecklist[name] };
         setPrayerChecklist(newState); // Optimistic UI
         await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
+    };
+
+    const checkWeeklyReset = async (checklist: Record<string, boolean>, currentStats: PrayerStats) => {
+        const lastReset = new Date(currentStats.lastResetDate);
+        const now = new Date();
+        const nextSat = nextSaturday(lastReset);
+
+        // If we have passed the next Saturday from the last reset date
+        if (now > nextSat) {
+            console.log("Processing Weekly Prayer Reset...");
+            const newStats: PrayerStats = {
+                lastResetDate: now.toISOString(), // Update reset date to now
+                userStats: { ...currentStats.userStats }
+            };
+
+            PRAYER_TEAM.forEach(member => {
+                const hasPrayed = checklist[member];
+                const currentMemberStats = newStats.userStats[member] || { missedWeeks: 0, lastWeekStatus: 'completed' };
+
+                if (!hasPrayed) {
+                    newStats.userStats[member] = {
+                        missedWeeks: currentMemberStats.missedWeeks + 1,
+                        lastWeekStatus: 'missed'
+                    };
+                } else {
+                    newStats.userStats[member] = {
+                        missedWeeks: 0, // Reset streak if they prayed
+                        lastWeekStatus: 'completed'
+                    };
+                }
+            });
+
+            // 1. Save new stats
+            await choirService.updateSetlistInfo('prayer_accountability_stats', JSON.stringify(newStats), locationId!);
+
+            // 2. Clear checklist
+            const emptyChecklist = {};
+            await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(emptyChecklist), locationId!);
+
+            // 3. Update local state
+            setPrayerStats(newStats);
+            setPrayerChecklist(emptyChecklist);
+            toast.info("A new week has started! Prayer checklist has been reset.");
+        }
     };
 
     // Team Roster States
@@ -1150,13 +1204,30 @@ const ChoirPage = () => {
                     setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
                 }
 
-                // Fetch Prayer Checklist
+                // Fetch Prayer Checklist & Stats
+                let currentChecklist: Record<string, boolean> = {};
                 if (fetchedInfo['prayer_checklist']) {
                     try {
-                        setPrayerChecklist(JSON.parse(fetchedInfo['prayer_checklist']));
+                        currentChecklist = JSON.parse(fetchedInfo['prayer_checklist']);
+                        setPrayerChecklist(currentChecklist);
                     } catch (e) {
                         console.error("Error parsing prayer checklist:", e);
                     }
+                }
+
+                let currentStats: PrayerStats = { lastResetDate: new Date().toISOString(), userStats: {} };
+                if (fetchedInfo['prayer_accountability_stats']) {
+                    try {
+                        currentStats = JSON.parse(fetchedInfo['prayer_accountability_stats']);
+                        setPrayerStats(currentStats);
+                    } catch (e) {
+                        console.error("Error parsing prayer stats:", e);
+                    }
+                }
+
+                // Trigger weekly reset check
+                if (locationId === 'galway') {
+                    checkWeeklyReset(currentChecklist, currentStats);
                 }
 
             } catch (error) {
@@ -2993,21 +3064,21 @@ const ChoirPage = () => {
 
             {/* Saturday Prayer Accountability Modal - Galway Only */}
             <Dialog open={isPrayerAccountabilityOpen} onOpenChange={setIsPrayerAccountabilityOpen}>
-                <DialogContent className="max-w-4xl p-0 h-[90vh] md:h-auto overflow-hidden bg-slate-900 border-none rounded-[2rem] shadow-2xl [&>button]:hidden">
+                <DialogContent className="max-w-4xl p-0 h-[100dvh] w-full md:h-auto overflow-hidden bg-slate-900 border-none rounded-none md:rounded-[2rem] shadow-2xl [&>button]:hidden">
                     <div className="relative w-full h-full overflow-y-auto no-scrollbar">
-                        <Card className="bg-gradient-to-br from-indigo-900 to-blue-900 border-none shadow-none overflow-hidden relative text-white rounded-none md:rounded-[2rem]">
+                        <Card className="bg-gradient-to-br from-indigo-900 to-blue-900 border-none shadow-none overflow-hidden relative text-white rounded-none md:rounded-[2rem] min-h-full">
 
 
 
                             {/* Close Button */}
                             <button
                                 onClick={() => setIsPrayerAccountabilityOpen(false)}
-                                className="absolute top-6 right-6 z-50 p-2 bg-black/20 hover:bg-black/40 text-white/70 hover:text-white rounded-full transition-all backdrop-blur-sm"
+                                className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] right-6 z-50 p-2 bg-black/20 hover:bg-black/40 text-white/70 hover:text-white rounded-full transition-all backdrop-blur-sm"
                             >
                                 <X className="w-6 h-6" />
                             </button>
 
-                            <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8">
+                            <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 pt-[calc(2rem+env(safe-area-inset-top))]">
                                 <div className="space-y-1 pr-12">
                                     <DialogTitle className="flex items-center gap-3 text-white text-3xl font-black">
 
@@ -3015,7 +3086,7 @@ const ChoirPage = () => {
                                     </DialogTitle>
                                     <CardDescription className="text-blue-200 font-medium text-xl flex items-center gap-2 pt-2">
                                         <Calendar className="w-5 h-5 text-blue-300" />
-                                        {format(nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
+                                        {format(new Date().getDay() === 6 ? new Date() : nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
                                     </CardDescription>
                                 </div>
                                 <div className="px-6 py-3 bg-white/10 rounded-full border border-white/20 backdrop-blur-sm w-fit">
@@ -3032,48 +3103,66 @@ const ChoirPage = () => {
                                 </p>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {PRAYER_TEAM.map(name => (
-                                        <button
-                                            key={name}
-                                            onClick={() => togglePrayer(name)}
-                                            className={cn(
-                                                "p-6 rounded-3xl border transition-all duration-300 group text-left relative overflow-hidden h-32 flex flex-col justify-between",
-                                                prayerChecklist[name]
-                                                    ? "bg-white text-indigo-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.02] z-10"
-                                                    : "bg-white/5 hover:bg-white/10 border-white/10 text-white backdrop-blur-sm hover:scale-[1.02]"
-                                            )}
-                                        >
-                                            {prayerChecklist[name] && (
-                                                <div className="absolute inset-0 bg-gradient-to-br from-white via-indigo-50 to-blue-100 opacity-100" />
-                                            )}
+                                    {PRAYER_TEAM.map(name => {
+                                        const memberStats = prayerStats.userStats[name] || { missedWeeks: 0, lastWeekStatus: 'completed' };
+                                        const isMissedLastWeek = memberStats.lastWeekStatus === 'missed';
 
-                                            <div className="relative z-10 flex justify-between items-start w-full">
-                                                <div className={cn(
-                                                    "w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300",
+                                        return (
+                                            <button
+                                                key={name}
+                                                onClick={() => togglePrayer(name)}
+                                                className={cn(
+                                                    "p-6 rounded-3xl border transition-all duration-300 group text-left relative overflow-hidden h-36 flex flex-col justify-between",
                                                     prayerChecklist[name]
-                                                        ? "border-indigo-600 bg-indigo-600 text-white shadow-lg"
-                                                        : "border-white/30 group-hover:border-white/60"
-                                                )}>
-                                                    {prayerChecklist[name] && <Check className="w-6 h-6" strokeWidth={4} />}
-                                                </div>
-                                            </div>
+                                                        ? "bg-white text-indigo-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.02] z-10"
+                                                        : "bg-white/5 hover:bg-white/10 border-white/10 text-white backdrop-blur-sm hover:scale-[1.02]"
+                                                )}
+                                            >
+                                                {prayerChecklist[name] && (
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-white via-indigo-50 to-blue-100 opacity-100" />
+                                                )}
 
-                                            <div className="relative z-10 space-y-1">
-                                                <span className={cn(
-                                                    "font-black text-lg block truncate transition-colors",
-                                                    prayerChecklist[name] ? "text-indigo-900" : "text-blue-100"
-                                                )}>
-                                                    {name}
-                                                </span>
-                                                <span className={cn(
-                                                    "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
-                                                    prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
-                                                )}>
-                                                    {prayerChecklist[name] ? "Completed" : "Pending"}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    ))}
+                                                <div className="relative z-10 flex justify-between items-start w-full">
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300",
+                                                        prayerChecklist[name]
+                                                            ? "border-indigo-600 bg-indigo-600 text-white shadow-lg"
+                                                            : "border-white/30 group-hover:border-white/60"
+                                                    )}>
+                                                        {prayerChecklist[name] && <Check className="w-6 h-6" strokeWidth={4} />}
+                                                    </div>
+
+                                                    {memberStats.missedWeeks > 0 && !prayerChecklist[name] && (
+                                                        <div className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-black animate-pulse flex items-center gap-1">
+                                                            MISSED {memberStats.missedWeeks} {memberStats.missedWeeks === 1 ? 'WEEK' : 'WEEKS'}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="relative z-10 space-y-1">
+                                                    <span className={cn(
+                                                        "font-black text-lg block truncate transition-colors",
+                                                        prayerChecklist[name] ? "text-indigo-900" : "text-blue-100"
+                                                    )}>
+                                                        {name}
+                                                    </span>
+
+                                                    {isMissedLastWeek && !prayerChecklist[name] ? (
+                                                        <span className="text-red-400 text-[10px] font-bold block animate-bounce">
+                                                            DID NOT PRAY LAST WEEK
+                                                        </span>
+                                                    ) : (
+                                                        <span className={cn(
+                                                            "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
+                                                            prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
+                                                        )}>
+                                                            {prayerChecklist[name] ? "Completed" : "Pending"}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </CardContent>
 
@@ -3199,7 +3288,7 @@ const ChoirPage = () => {
                                     className="bg-indigo-500/30 text-white hover:bg-indigo-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
                                     onClick={() => setIsPrayerAccountabilityOpen(true)}
                                 >
-                                    Saturday Prayer Accountability
+                                    1 Hour Saturday Prayer Accountability
                                 </Button>
                             )}
                         </div>
