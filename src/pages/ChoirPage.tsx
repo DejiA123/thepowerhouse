@@ -2214,7 +2214,6 @@ const ChoirPage = () => {
 
                 const uploadWithProgress = new Promise<string>((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
-                    // ... existing upload logic ...
                     xhr.upload.addEventListener('progress', (e) => {
                         if (e.lengthComputable) {
                             const percentComplete = Math.round((e.loaded / e.total) * 100);
