@@ -181,6 +181,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if (!audioUrl) throw new Error('Audio URL not found.');
 
+      const formatBookName = (apiName: string) => {
+        const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
+        const foundBook = allBooks.find(b => b.apiName.toLowerCase() === apiName.toLowerCase());
+        return foundBook ? foundBook.name : apiName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      };
+
+      const displayBookName = formatBookName(book);
+
       setAudioState(prev => ({
         ...prev,
         currentBook: book,
@@ -192,7 +200,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         hasAudio: true,
         isLoading: false,
         isBibleMode: true,
-        trackTitle: `${book} ${chapter}`,
+        trackTitle: `${displayBookName} ${chapter}`,
         trackArtist: `${version.toUpperCase()} Audio Bible`,
         trackImage: '/bible-icon.svg',
         currentTime: 0,
@@ -201,7 +209,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: `${book} ${chapter}`,
+          title: `${displayBookName} ${chapter}`,
           artist: 'Bible Audio',
           album: version.toUpperCase(),
           artwork: [

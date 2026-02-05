@@ -30,6 +30,9 @@ const GlobalMiniPlayer: React.FC = () => {
     // Don't show on the intro page
     if (location.pathname === '/intro') return null;
 
+    // Don't show the mini player for Bible audio at all (only Backing Tracks etc should show it)
+    if (audioState.isBibleMode) return null;
+
     // Only show if there is audio active (playing, paused, or loading with content)
     // AND the mini player is not explicitly hidden (e.g. by a full-screen modal)
     const shouldShow = audioState.hasAudio && (audioState.audioUrl || audioState.isLoading) && !audioState.isMiniPlayerHidden;
