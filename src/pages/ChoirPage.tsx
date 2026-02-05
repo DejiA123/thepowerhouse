@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -405,6 +405,133 @@ const DroppableFolder = ({ id, children, onClick, onLongPress, className }: { id
 };
 
 const MAX_UPLOAD_SIZE = 50 * 1024 * 1024; // 50MB for Supabase Free Plan
+
+// Unified YouTube ID extractor
+const extractYoutubeId = (url?: string) => {
+    if (!url) return null;
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    const id = (match && match[7].length === 11) ? match[7] : null;
+
+    if (id) return id;
+
+    // Handle shorts
+    if (url.includes('/shorts/')) {
+        const parts = url.split('/shorts/');
+        return parts[1]?.split(/[?&]/)[0];
+    }
+
+    return null;
+};
+
+// Resource Preview Helper (extracts YT thumbnail)
+const getYTThumbnail = (url?: string) => {
+    const id = extractYoutubeId(url);
+    if (id) return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+    return null;
+};
+
+const BackingTrackCard = ({
+    resource,
+    onPlay,
+    onEdit,
+    onDelete
+}: {
+    resource: any,
+    onPlay: (url: string, title?: string) => void,
+    onEdit: (resource: any) => void,
+    onDelete: (id: string) => void
+}) => {
+    // Long Press Logic Wrapper
+    const longPressTimer = useRef<number | null>(null);
+    const isLongPress = useRef(false);
+
+    const handleTouchStart = () => {
+        isLongPress.current = false;
+        longPressTimer.current = window.setTimeout(() => {
+            isLongPress.current = true;
+            // Trigger Delete Confirmation
+            if (window.confirm(`Delete backing track "${resource.title}"?`)) {
+                onDelete(resource.id);
+            }
+        }, 600);
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
+    return (
+        <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none touch-none">
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                            <MoreVertical className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => onEdit(resource)}>
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => onDelete(resource.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+            <div
+                className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchEnd}
+                onMouseDown={handleTouchStart}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+                onClick={(e) => {
+                    if (isLongPress.current) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                    resource.url && onPlay(resource.url, resource.title);
+                }}
+            >
+                {getYTThumbnail(resource.url) ? (
+                    <div className="w-full h-full relative">
+                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
+                        <PlayCircle className="w-8 h-8 text-white/40" />
+                    </div>
+                )}
+            </div>
+            <CardContent
+                className="p-4 cursor-pointer"
+                onClick={() => !isLongPress.current && resource.url && onPlay(resource.url, resource.title)}
+            >
+                <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
+                    Backing Track
+                </Badge>
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                    {resource.title}
+                </h3>
+                <p className="text-xs text-slate-500">
+                    {new Date(resource.created_at).toLocaleDateString()}
+                </p>
+            </CardContent>
+        </Card>
+    );
+};
 
 const ChoirPage = () => {
     // Inject Resource Hints for YouTube
@@ -980,29 +1107,7 @@ const ChoirPage = () => {
     const [newRosterName, setNewRosterName] = useState("");
 
     // Unified YouTube ID extractor
-    const extractYoutubeId = (url?: string) => {
-        if (!url) return null;
-        const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-        const match = url.match(regExp);
-        const id = (match && match[7].length === 11) ? match[7] : null;
 
-        if (id) return id;
-
-        // Handle shorts
-        if (url.includes('/shorts/')) {
-            const parts = url.split('/shorts/');
-            return parts[1]?.split(/[?&]/)[0];
-        }
-
-        return null;
-    };
-
-    // Resource Preview Helper (extracts YT thumbnail)
-    const getYTThumbnail = (url?: string) => {
-        const id = extractYoutubeId(url);
-        if (id) return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
-        return null;
-    };
 
 
 
@@ -2119,10 +2224,22 @@ const ChoirPage = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Not logged in");
 
-        console.log(`[R2] Starting upload for ${file.name} (${file.size} bytes)`);
+        // Helper to ensure correct MIME types (critical for iPhone .m4a uploads)
+        const getCorrectMimeType = (name: string, type: string) => {
+            const ext = name.split('.').pop()?.toLowerCase();
+            // Force correct MIME type for m4a files (often uploaded as octet-stream by iOS)
+            if (ext === 'm4a') return 'audio/mp4';
+            if (ext === 'aac') return 'audio/aac';
+            if (ext === 'mp3' && (!type || type === 'application/octet-stream')) return 'audio/mpeg';
+            // Default to original type or fallback
+            return type || 'application/octet-stream';
+        };
+
+        const contentType = getCorrectMimeType(file.name, file.type);
+        console.log(`[R2] Starting upload for ${file.name} (Size: ${file.size}, Original Type: ${file.type}, Final Type: ${contentType})`);
 
         const response = await supabase.functions.invoke('get-r2-upload-url', {
-            body: { fileName: file.name, fileType: file.type }
+            body: { fileName: file.name, fileType: contentType }
         });
 
         if (response.error) {
@@ -2166,7 +2283,7 @@ const ChoirPage = () => {
 
             xhr.open('PUT', uploadUrl);
             xhr.timeout = 15 * 60 * 1000; // 15 minutes for large files
-            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.setRequestHeader('Content-Type', contentType);
             xhr.send(file);
         });
     };
@@ -4162,13 +4279,13 @@ const ChoirPage = () => {
                             </div>
 
                             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {instrResources.filter(r => r.type !== 'Backing Track').length === 0 ? (
+                                {instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).length === 0 ? (
                                     <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
                                         <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
                                         <p>No resources yet. Add tutorials for the band!</p>
                                     </div>
                                 ) : (
-                                    instrResources.filter(r => r.type !== 'Backing Track').map((resource) => (
+                                    instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
                                         <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
                                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                                 <DropdownMenu>
@@ -4246,58 +4363,13 @@ const ChoirPage = () => {
                                     </div>
                                 ) : (
                                     instrResources.filter(r => r.type === "Backing Track").map((resource) => (
-                                        <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
-                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                                            <MoreVertical className="w-4 h-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent>
-                                                        <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
-                                                            <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
-                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-
-                                            <div
-                                                className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
-                                                onClick={() => resource.url && playVideo(resource.url, resource.title)}
-                                            >
-                                                {getYTThumbnail(resource.url) ? (
-                                                    <div className="w-full h-full relative">
-                                                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center">
-                                                        <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
-                                                        <PlayCircle className="w-8 h-8 text-white/40" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <CardContent
-                                                className="p-4 cursor-pointer"
-                                                onClick={() => resource.url && playVideo(resource.url, resource.title)}
-                                            >
-                                                <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
-                                                    Backing Track
-                                                </Badge>
-                                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
-                                                    {resource.title}
-                                                </h3>
-                                                <p className="text-xs text-slate-500">
-                                                    {new Date(resource.created_at).toLocaleDateString()}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
+                                        <BackingTrackCard
+                                            key={resource.id}
+                                            resource={resource}
+                                            onPlay={playVideo}
+                                            onEdit={startEditInstrResource}
+                                            onDelete={handleDeleteInstrResource}
+                                        />
                                     ))
                                 )}
                             </div>
