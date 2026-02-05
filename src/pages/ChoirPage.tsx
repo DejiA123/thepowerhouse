@@ -4880,7 +4880,7 @@ const ChoirPage = () => {
                                                                                         )}
                                                                                     </div>
                                                                                 </div>
-                                                                                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-lg">{resource.title}</h4>
+                                                                                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
                                                                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
                                                                             </div>
                                                                         ))}
