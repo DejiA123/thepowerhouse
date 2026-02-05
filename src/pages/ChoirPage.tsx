@@ -494,55 +494,7 @@ const ChoirPage = () => {
                         }
                     ]
                 },
-                {
-                    id: "vocal-pro",
-                    title: "Professional Vocal Training",
-                    category: "Technique",
-                    duration: "6 Hours",
-                    level: "Intermediate",
-                    description: "Advanced exercises for agility, range expansion, and pitch precision.",
-                    image: "/assets/academy/professional_vocal_training.png",
-                    modules: [
-                        {
-                            title: "Mixed Voice & Bridge Navigation",
-                            content: "Mastering the transition between chest voice and head voice (the 'passaggio') is what defines a pro. Learn to use the 'cry' or 'ng' placement to thin out the vocal folds as you move higher, creating a seamless, powerful 'mixed' sound that is safe and resonant.",
-                            audioUrl: "https://www.metronomeonline.com/static/sound/wood.mp3",
-                            exercises: [
-                                {
-                                    type: "pitch-glide",
-                                    title: "Passaggio Transition Practice",
-                                    instructions: "Slowly glide from chest voice to head voice on 'ng' sound, focusing on smooth transition",
-                                    startNote: "C3",
-                                    endNote: "C5"
-                                }
-                            ]
-                        },
-                        {
-                            title: "Vocal Agility: Runs and Riffs",
-                            content: "Agility requires localized muscle control. Practice the pentatonic and blues scales at slow tempos (60 BPM), focusing on hitting every note with individual clarity (staccato) before smoothing them into rapid 'runs' (legato). Precision over speed is the professional standard.",
-                            exercises: [
-                                {
-                                    type: "scale-practice",
-                                    title: "Pentatonic Scale Drill",
-                                    instructions: "Practice the pentatonic scale at 60 BPM. Start staccato, then move to legato",
-                                    scale: "Pentatonic",
-                                    tempo: 60,
-                                    variations: ["Staccato", "Legato"]
-                                },
-                                {
-                                    type: "metronome",
-                                    title: "Interactive Metronome",
-                                    instructions: "Practice with adjustable tempo from 40-120 BPM",
-                                    tempoRange: [40, 120]
-                                }
-                            ]
-                        },
-                        {
-                            title: "Performance Stamina & Health",
-                            content: "Professional training includes voice preservation. Learn about vocal hygiene (hydration, rest, and avoiding irritants) and 'cool-down' exercises like the 'lip trill' or straw phonation to reset the vocal folds after a high-intensity service."
-                        }
-                    ]
-                },
+
                 {
                     id: "vocal-harmony",
                     title: "Vocal Harmony & Blending",
