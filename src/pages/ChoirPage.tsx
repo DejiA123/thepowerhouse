@@ -3228,7 +3228,7 @@ const ChoirPage = () => {
                                             onClick={handleArchiveSetlist}
                                             title="Archive this week's songs to a folder"
                                         >
-                                            <Archive className="w-4 h-4 mr-2" />
+                                            <Archive className="w-4 h-4 sm:mr-2" />
                                             <span className="hidden sm:inline">Archive Week</span>
                                         </Button>
 
