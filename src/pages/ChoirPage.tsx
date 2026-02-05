@@ -3080,11 +3080,11 @@ const ChoirPage = () => {
 
                             <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 pt-[calc(2rem+env(safe-area-inset-top))]">
                                 <div className="space-y-1 pr-12">
-                                    <DialogTitle className="flex items-center gap-3 text-white text-3xl font-black">
+                                    <DialogTitle className="flex items-center gap-3 text-white text-2xl md:text-3xl font-black">
 
                                         Saturday Prayer Accountability
                                     </DialogTitle>
-                                    <CardDescription className="text-blue-200 font-medium text-xl flex items-center gap-2 pt-2">
+                                    <CardDescription className="text-blue-200 font-medium text-lg md:text-xl flex items-center gap-2 pt-2">
                                         <Calendar className="w-5 h-5 text-blue-300" />
                                         {format(new Date().getDay() === 6 ? new Date() : nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
                                     </CardDescription>
