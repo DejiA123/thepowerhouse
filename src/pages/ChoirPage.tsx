@@ -1540,6 +1540,10 @@ const ChoirPage = () => {
             return;
         }
 
+        if (!window.confirm("Are you sure you want to archive this week's setlist? This creates a folder record of these songs.")) {
+            return;
+        }
+
         try {
             const dateStr = setlistDate ? format(setlistDate, "do 'of' MMMM") : 'Unknown Date';
             const folderName = `${dateStr} Song`;
