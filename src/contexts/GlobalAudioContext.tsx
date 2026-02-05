@@ -202,7 +202,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isBibleMode: true,
         trackTitle: `${displayBookName} ${chapter}`,
         trackArtist: `${version.toUpperCase()} Audio Bible`,
-        trackImage: '/bible-icon.svg',
+        trackImage: '/church-logo.png',
         currentTime: 0,
         duration: 0
       }));
@@ -213,7 +213,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           artist: 'Bible Audio',
           album: version.toUpperCase(),
           artwork: [
-            { src: '/bible-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+            { src: '/church-logo.png', sizes: '512x512', type: 'image/png' },
           ],
         });
       }

@@ -3215,8 +3215,8 @@ const ChoirPage = () => {
                             {/* SPLIT SETLIST SECTION */}
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                        <ListMusic className="w-6 h-6 mr-3 text-blue-600" />
+                                    <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center whitespace-nowrap">
+                                        <ListMusic className="w-6 h-6 mr-3 text-blue-600 shrink-0" />
                                         This Week's Setlist
                                     </h2>
 
