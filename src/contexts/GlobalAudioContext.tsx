@@ -154,7 +154,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.load();
       await audio.play();
     } catch (error) {
-      console.error('Failed to play generic track:', error);
+      console.error(`Failed to play generic track: ${url}`, error);
       setAudioState(prev => ({ ...prev, isLoading: false, isPlaying: false }));
     }
   }, []);
