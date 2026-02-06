@@ -99,11 +99,7 @@ const BibleNotesPage = () => {
     const noteContentRef = useRef('');
 
     // Keep ref synced for iframe initialization
-    useEffect(() => {
-        if (selectedNote?.note_text) {
-            noteContentRef.current = selectedNote.note_text;
-        }
-    }, [selectedNote?.note_text]);
+
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [selectedNoteForDelete, setSelectedNoteForDelete] = useState<string | null>(null);
     const [isInlineEditing, setIsInlineEditing] = useState(false);
@@ -190,6 +186,7 @@ const BibleNotesPage = () => {
             is_pinned: false,
             folder_id: (typeof activeFolderId === 'string') ? activeFolderId : undefined
         });
+        noteContentRef.current = ''; // Reset for new note
         setShowNewNoteDialog(true);
     };
 
@@ -350,6 +347,7 @@ const BibleNotesPage = () => {
             is_pinned: note.is_pinned || false,
             folder_id: note.folder_id || undefined
         });
+        noteContentRef.current = note.note_text || ''; // Set for editing
         setShowNewNoteDialog(true);
     };
 
@@ -1287,6 +1285,7 @@ const BibleNotesPage = () => {
                                                             folder_id: selectedNote.folder_id || undefined
                                                         });
                                                         setEditingNote(selectedNote);
+                                                        noteContentRef.current = selectedNote.note_text || ''; // Set for inline edit
                                                         setIsInlineEditing(true);
                                                     }}
                                                 >
@@ -1396,19 +1395,7 @@ const BibleNotesPage = () => {
                                             <iframe
                                                 src="/editor-frame"
                                                 className="w-full h-full border-0 block"
-                                                ref={(el) => {
-                                                    // Store iframe ref and init content when loaded
-                                                    if (el && !el.dataset.ready) {
-                                                        const handleLoad = () => {
-                                                            el.contentWindow?.postMessage({
-                                                                type: 'INIT_CONTENT',
-                                                                payload: newNote.note_text
-                                                            }, '*');
-                                                            el.dataset.ready = 'true';
-                                                        };
-                                                        el.addEventListener('load', handleLoad);
-                                                    }
-                                                }}
+                                                ref={iframeRef}
                                                 title="Text Editor"
                                                 style={{ touchAction: 'none' }}
                                             />
