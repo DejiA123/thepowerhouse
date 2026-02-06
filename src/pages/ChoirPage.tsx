@@ -4828,7 +4828,7 @@ const ChoirPage = () => {
                                                                         <div className="relative">
                                                                             <input
                                                                                 type="file"
-                                                                                accept="audio/*"
+                                                                                accept="audio/*,.mp3,.wav,.m4a,.aac"
                                                                                 className="absolute inset-0 opacity-0 cursor-pointer z-10"
                                                                                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                                                                             />
