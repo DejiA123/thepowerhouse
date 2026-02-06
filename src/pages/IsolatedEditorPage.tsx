@@ -73,13 +73,23 @@ const IsolatedEditorPage = () => {
         };
 
         window.addEventListener('message', handleMessage);
-        // Signal ready
+        // Signal ready with retry mechanism to ensure parent catches it
+        const intervalId = setInterval(() => {
+            if (window.parent && !isReady) {
+                window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, '*');
+            }
+        }, 300);
+
+        // Immediate first try
         if (window.parent) {
             window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, '*');
         }
 
-        return () => window.removeEventListener('message', handleMessage);
-    }, []);
+        return () => {
+            window.removeEventListener('message', handleMessage);
+            clearInterval(intervalId);
+        };
+    }, [isReady]);
 
     const handleChange = (newContent: string) => {
         if (window.parent) {
