@@ -12,6 +12,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Slider } from "@/components/ui/slider";
 import { format, startOfWeek, nextSaturday } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -445,15 +455,13 @@ const BackingTrackCard = ({
     // Long Press Logic Wrapper
     const longPressTimer = useRef<number | null>(null);
     const isLongPress = useRef(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const handleTouchStart = () => {
         isLongPress.current = false;
         longPressTimer.current = window.setTimeout(() => {
             isLongPress.current = true;
-            // Trigger Delete Confirmation
-            if (window.confirm(`Delete backing track "${resource.title}"?`)) {
-                onDelete(resource.id);
-            }
+            setIsDeleteDialogOpen(true);
         }, 600);
     };
 
@@ -464,72 +472,220 @@ const BackingTrackCard = ({
         }
     };
 
-    return (
-        <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none touch-none">
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                            <MoreVertical className="w-4 h-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => onEdit(resource)}>
-                            <Pencil className="w-4 h-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600" onClick={() => onDelete(resource.id)}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+    const handleTouchMove = () => {
+        // If they move their finger, cancel the long press - they are likely scrolling
+        handleTouchEnd();
+    };
 
-            <div
-                className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchEnd}
-                onMouseDown={handleTouchStart}
-                onMouseUp={handleTouchEnd}
-                onMouseLeave={handleTouchEnd}
-                onClick={(e) => {
-                    if (isLongPress.current) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return;
-                    }
-                    resource.url && onPlay(resource.url, resource.title);
-                }}
-            >
-                {getYTThumbnail(resource.url) ? (
-                    <div className="w-full h-full relative">
-                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+    return (
+        <>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+                    <AlertDialogHeader>
+                        <div className="mx-auto w-20 h-20 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 className="w-10 h-10 text-red-500" />
                         </div>
+                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Delete Backing Track?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
+                            Are you sure you want to delete <span className="text-slate-900 dark:text-white font-black">"{resource.title}"</span>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
+                        <AlertDialogCancel className="w-full sm:flex-1 h-14 rounded-2xl border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
+                            Keep Track
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => onDelete(resource.id)}
+                            className="w-full sm:flex-1 h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black shadow-lg shadow-red-500/20 transition-all active:scale-95"
+                        >
+                            Confirm Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                <MoreVertical className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => onEdit(resource)}>
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteDialogOpen(true)}>
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <div
+                    className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchMove}
+                    onMouseDown={handleTouchStart}
+                    onMouseUp={handleTouchEnd}
+                    onMouseLeave={handleTouchEnd}
+                    onClick={(e) => {
+                        if (isLongPress.current) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                        }
+                        resource.url && onPlay(resource.url, resource.title);
+                    }}
+                >
+                    {getYTThumbnail(resource.url) ? (
+                        <div className="w-full h-full relative">
+                            <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
+                            <PlayCircle className="w-8 h-8 text-white/40" />
+                        </div>
+                    )}
+                </div>
+                <CardContent
+                    className="p-4 cursor-pointer"
+                    onClick={() => !isLongPress.current && resource.url && onPlay(resource.url, resource.title)}
+                >
+                    <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
+                        Backing Track
+                    </Badge>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                        {resource.title}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                        {new Date(resource.created_at).toLocaleDateString()}
+                    </p>
+                </CardContent>
+            </Card>
+        </>
+    );
+};
+
+const VocalResourceCard = ({
+    resource,
+    audioState,
+    activeVocalFolder,
+    onPlay,
+    onPause,
+    onResume,
+    onSeek,
+    onDelete
+}: {
+    resource: any,
+    audioState: any,
+    activeVocalFolder: 'male' | 'female' | null,
+    onPlay: (url: string, title?: string) => void,
+    onPause: () => void,
+    onResume: () => void,
+    onSeek: (time: number) => void,
+    onDelete: (id: string) => void
+}) => {
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    return (
+        <>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+                    <AlertDialogHeader>
+                        <div className="mx-auto w-20 h-20 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 className="w-10 h-10 text-red-500" />
+                        </div>
+                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Delete Resource?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
+                            Are you sure you want to delete <span className="text-slate-900 dark:text-white font-black">"{resource.title}"</span>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
+                        <AlertDialogCancel className="w-full sm:flex-1 h-14 rounded-2xl border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
+                            Keep Resource
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => onDelete(resource.id)}
+                            className="w-full sm:flex-1 h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black shadow-lg shadow-red-500/20 transition-all active:scale-95"
+                        >
+                            Confirm Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
+                <div className="flex items-center justify-between mb-6">
+                    <div className={`p-4 rounded-2xl ${activeVocalFolder === 'male' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600'}`}>
+                        <Mic className="w-6 h-6" />
                     </div>
-                ) : (
-                    <div className="flex flex-col items-center">
-                        <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
-                        <PlayCircle className="w-8 h-8 text-white/40" />
+                    <div className="flex gap-2 items-center">
+                        {audioState.audioUrl === resource.url && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                                onClick={() => onSeek(Math.max(0, audioState.currentTime - 15))}
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-11 w-11 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-pink-600 bg-pink-50 hover:bg-pink-100'}`}
+                            onClick={() => {
+                                if (resource.url) {
+                                    const isCurrentTrack = audioState.audioUrl === resource.url;
+                                    if (isCurrentTrack) {
+                                        if (audioState.isPlaying) {
+                                            onPause();
+                                        } else {
+                                            onResume();
+                                        }
+                                    } else {
+                                        onPlay(resource.url, resource.title);
+                                    }
+                                }
+                            }}
+                        >
+                            {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                                <Pause className="w-5 h-5" />
+                            ) : (
+                                <Play className="w-5 h-5" />
+                            )}
+                        </Button>
+                        {audioState.audioUrl === resource.url && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                                onClick={() => onSeek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                            >
+                                <RotateCw className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
                     </div>
-                )}
+                </div>
+                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
             </div>
-            <CardContent
-                className="p-4 cursor-pointer"
-                onClick={() => !isLongPress.current && resource.url && onPlay(resource.url, resource.title)}
-            >
-                <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
-                    Backing Track
-                </Badge>
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
-                    {resource.title}
-                </h3>
-                <p className="text-xs text-slate-500">
-                    {new Date(resource.created_at).toLocaleDateString()}
-                </p>
-            </CardContent>
-        </Card>
+        </>
     );
 };
 
@@ -4961,77 +5117,20 @@ const ChoirPage = () => {
                                                                             }
                                                                         })
                                                                         .map((resource) => (
-                                                                            <div key={resource.id} className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
-                                                                                <div className="flex items-center justify-between mb-6">
-                                                                                    <div className={`p-4 rounded-2xl ${activeVocalFolder === 'male' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600'}`}>
-                                                                                        <Mic className="w-6 h-6" />
-                                                                                    </div>
-                                                                                    <div className="flex gap-2 items-center">
-                                                                                        {audioState.audioUrl === resource.url && (
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
-                                                                                                onClick={() => seek(Math.max(0, audioState.currentTime - 15))}
-                                                                                            >
-                                                                                                <RotateCcw className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                        )}
-                                                                                        <Button
-                                                                                            variant="ghost"
-                                                                                            size="icon"
-                                                                                            className={`h-11 w-11 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-pink-600 bg-pink-50 hover:bg-pink-100'}`}
-                                                                                            onClick={() => {
-                                                                                                if (resource.url) {
-                                                                                                    const isCurrentTrack = audioState.audioUrl === resource.url;
-                                                                                                    if (isCurrentTrack) {
-                                                                                                        if (audioState.isPlaying) {
-                                                                                                            pause();
-                                                                                                        } else {
-                                                                                                            resume();
-                                                                                                        }
-                                                                                                    } else {
-                                                                                                        playVideo(resource.url, resource.title);
-                                                                                                    }
-                                                                                                }
-                                                                                            }}
-                                                                                        >
-                                                                                            {audioState.audioUrl === resource.url && audioState.isPlaying ? (
-                                                                                                <Pause className="w-5 h-5" />
-                                                                                            ) : (
-                                                                                                <Play className="w-5 h-5" />
-                                                                                            )}
-                                                                                        </Button>
-                                                                                        {audioState.audioUrl === resource.url && (
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
-                                                                                                onClick={() => seek(Math.min(audioState.duration, audioState.currentTime + 15))}
-                                                                                            >
-                                                                                                <RotateCw className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                        )}
-                                                                                        {user && (
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
-                                                                                                onClick={async () => {
-                                                                                                    if (window.confirm("Delete this training resource?")) {
-                                                                                                        await choirService.deleteInstrumentalResource(resource.id);
-                                                                                                        toast.success("Resource deleted");
-                                                                                                    }
-                                                                                                }}
-                                                                                            >
-                                                                                                <Trash2 className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
-                                                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
-                                                                            </div>
+                                                                            <VocalResourceCard
+                                                                                key={resource.id}
+                                                                                resource={resource}
+                                                                                audioState={audioState}
+                                                                                activeVocalFolder={activeVocalFolder as any}
+                                                                                onPlay={playVideo}
+                                                                                onPause={pause}
+                                                                                onResume={resume}
+                                                                                onSeek={seek}
+                                                                                onDelete={async (id) => {
+                                                                                    await choirService.deleteInstrumentalResource(id);
+                                                                                    toast.success("Resource deleted");
+                                                                                }}
+                                                                            />
                                                                         ))}
                                                                 </div>
                                                             </div>
