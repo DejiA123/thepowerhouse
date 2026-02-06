@@ -2221,8 +2221,6 @@ const ChoirPage = () => {
     };
 
     const uploadToR2 = async (file: File): Promise<{ publicUrl: string; key: string }> => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("Not logged in");
 
         // Helper to ensure correct MIME types (critical for iPhone .m4a uploads)
         const getCorrectMimeType = (name: string, type: string) => {
@@ -3840,7 +3838,7 @@ const ChoirPage = () => {
                                                         <span className="hidden sm:inline">New Folder</span>
                                                     </Button>
                                                 </DialogTrigger>
-                                                <DialogContent>
+                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                                                     <DialogHeader>
                                                         <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
                                                     </DialogHeader>
@@ -3860,7 +3858,7 @@ const ChoirPage = () => {
                                             </Dialog>
 
                                             <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
-                                                <DialogContent>
+                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                                                     <DialogHeader>
                                                         <DialogTitle>Edit Folder Name</DialogTitle>
                                                     </DialogHeader>
@@ -5425,7 +5423,7 @@ const ChoirPage = () => {
             </Dialog>
 
             <Dialog open={isAddInstrOpen} onOpenChange={setIsAddInstrOpen}>
-                <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader>
                         <DialogTitle>Add Instrumental Resource</DialogTitle>
                         <DialogDescription>Add a tutorial or technical guide for the band.</DialogDescription>
@@ -5509,7 +5507,7 @@ const ChoirPage = () => {
 
 
             <Dialog open={isEditInstrOpen} onOpenChange={setIsEditInstrOpen}>
-                <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:p-6 sm:rounded-2xl shadow-xl overflow-y-auto [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader>
                         <DialogTitle>Edit Instrumental Resource</DialogTitle>
                         <DialogDescription>
