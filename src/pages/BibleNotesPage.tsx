@@ -1322,14 +1322,14 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed inset-0 w-full h-[100dvh] pt-[env(safe-area-inset-top,0px)] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col">
+                <div className="fixed inset-0 w-full h-[100dvh] pt-[max(2.5rem,env(safe-area-inset-top))] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
                     </div>
                     <div className="flex flex-col h-full w-full relative bg-gray-50 dark:bg-black">
                         {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pt-[calc(0.75rem+env(safe-area-inset-top,0px))]">
+                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
