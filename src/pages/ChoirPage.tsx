@@ -120,8 +120,8 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
                     <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-bold shrink-0 text-xs">
                         {song.key}
                     </div>
-                    <div>
-                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{song.title}</h4>
+                    <div className="group/title cursor-pointer" onClick={() => setIsEditing(true)}>
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover/title:text-blue-600 transition-colors">{song.title}</h4>
                         <p className="text-xs text-slate-500">{song.artist}</p>
                     </div>
                 </div>
@@ -228,7 +228,10 @@ const SortableSetSongCard = ({
                 </div>
                 <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>
                 <div className="min-w-0">
-                    <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1">
+                    <div
+                        className="font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
+                        onClick={() => onEdit(song)}
+                    >
                         {song.title}
                         {song.url && (
                             <Badge
