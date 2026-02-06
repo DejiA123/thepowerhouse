@@ -1079,12 +1079,12 @@ const BibleNotesPage = () => {
                                 backButtonRef.current.focus();
                             }
                         }}
-                        className="fixed inset-0 w-screen h-full max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none"
+                        className="fixed top-[max(80px,env(safe-area-inset-top))] inset-x-0 bottom-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
                     >
                         {selectedNote && (
                             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                                 {/* Standard Header Bar - Clean Apple Notes Style */}
-                                <div className="relative flex items-center justify-between px-4 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[max(7rem,env(safe-area-inset-top))] pb-3">
+                                <div className="relative flex items-center justify-between px-4 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
                                     <div className="flex-none z-10">
                                         <Button
                                             ref={backButtonRef}
@@ -1321,7 +1321,7 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed inset-0 w-full h-[100dvh] pt-[max(7rem,env(safe-area-inset-top))] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col">
+                <div className="fixed top-[max(80px,env(safe-area-inset-top))] inset-x-0 bottom-0 bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
