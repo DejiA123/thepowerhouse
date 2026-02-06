@@ -3373,7 +3373,7 @@ const ChoirPage = () => {
 
             {/* Edit Setlist Song Dialog */}
             <Dialog open={isEditSetSongOpen} onOpenChange={setIsEditSetSongOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-xl font-bold">Edit Song</DialogTitle>
                         <DialogDescription>
@@ -3558,7 +3558,7 @@ const ChoirPage = () => {
 
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
-                <DialogContent>
+                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
                     <DialogHeader>
                         <DialogTitle>Edit Song Details</DialogTitle>
                     </DialogHeader>
