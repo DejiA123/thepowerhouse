@@ -1292,14 +1292,14 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed inset-0 bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col h-dvh">
+                <div className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] bg-white dark:bg-gray-950 z-[9999] overflow-hidden flex flex-col sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
                     </div>
                     <div className="flex-1 flex flex-col w-full relative bg-gray-50 dark:bg-black overflow-hidden">
                         {/* Premium Navbar - Streamlined and safe-area aware */}
-                        <div className="flex items-center justify-between w-full px-6 min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 pt-[max(env(safe-area-inset-top),1.5rem)] pb-4">
+                        <div className="flex items-center justify-between w-full px-6 min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 pt-4 pb-4">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
