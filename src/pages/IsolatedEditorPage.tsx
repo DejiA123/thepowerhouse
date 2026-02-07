@@ -72,7 +72,7 @@ const IsolatedEditorPage = () => {
 
     return (
         <div
-            className="w-screen bg-white dark:bg-gray-950 overflow-hidden relative"
+            className="w-screen h-[100dvh] bg-white dark:bg-gray-950 overflow-hidden relative"
         >
             {/* 
                 CRITICAL CSS OVERRIDES FOR IFRAME CONTEXT
