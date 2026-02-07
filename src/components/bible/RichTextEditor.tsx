@@ -218,7 +218,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       "z-[100] pt-1 pb-0 pointer-events-none",
       // Use fixed positioning for bottom toolbar to stay above keyboard
       position === 'bottom'
-        ? 'absolute left-0 right-0 bottom-0 flex justify-center bg-white/95 dark:bg-gray-950/95 pb-[env(safe-area-inset-bottom)] pt-0 backdrop-blur-md z-50'
+        ? 'absolute left-0 right-0 bottom-0 flex justify-center pb-[env(safe-area-inset-bottom)] pt-0 z-50'
         : 'absolute left-1/2 -translate-x-1/2 top-0'
     )}>
       <div className="flex flex-col items-center gap-4 pointer-events-auto">
