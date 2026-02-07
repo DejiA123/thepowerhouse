@@ -1079,7 +1079,7 @@ const BibleNotesPage = () => {
                                 backButtonRef.current.focus();
                             }
                         }}
-                        className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-[10px] [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-[calc(100dvh-10px)] [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
+                        className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
                     >
                         {selectedNote && (
                             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
@@ -1321,7 +1321,7 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-[10px] [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-[calc(100dvh-10px)] [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
+                <div className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
