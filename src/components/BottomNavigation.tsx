@@ -25,12 +25,12 @@ const BottomNavigation = () => {
   return (
     <nav
       id="bottom-nav-bar"
-      data-version="v7-aggressive-lift"
+      data-version="v8-ultra-lift"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Aggressive 100px lift for PWA mode to ensure it moves
-        paddingBottom: isStandalone ? '100px' : '45px'
+        // Ultra-aggressive 120px lift for PWA mode to ensure it moves
+        paddingBottom: isStandalone ? '120px' : '60px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -68,6 +68,10 @@ const BottomNavigation = () => {
             </Link>
           );
         })}
+      </div>
+      {/* Visible version tag for debugging */}
+      <div className="absolute bottom-1 right-1 text-[8px] text-gray-400 opacity-30 select-none pointer-events-none">
+        v8-PWA-LIFT
       </div>
     </nav >
   );
