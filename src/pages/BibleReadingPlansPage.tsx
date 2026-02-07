@@ -530,8 +530,8 @@ const BibleReadingPlansPage = () => {
       </div>
 
       <Dialog open={showStartModal} onOpenChange={setShowStartModal}>
-        <DialogContent className="max-w-full h-full sm:h-[90vh] sm:max-w-2xl flex flex-col p-0 border-0 overflow-hidden rounded-none sm:rounded-2xl [&>button]:!top-[calc(3rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
-          <DialogHeader className="p-6 pb-0 flex-shrink-0 pt-[calc(3rem + env(safe-area-inset-top, 0px))]">
+        <DialogContent className="max-w-full h-[100dvh] sm:h-[90vh] sm:max-w-2xl flex flex-col p-0 border-0 overflow-hidden rounded-none sm:rounded-2xl [&>button]:!top-[calc(4.5rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
+          <DialogHeader className="p-6 pb-0 flex-shrink-0 pt-[calc(4.5rem + env(safe-area-inset-top, 0px))]">
             <DialogTitle className="flex items-center gap-2">
               <BookOpen className="w-6 h-6" />
               Start Reading Plan
@@ -717,7 +717,7 @@ const BibleReadingPlansPage = () => {
 
       {/* Immersive Reading Mode Overlay */}
       <Dialog open={!!activeReadingPlan} onOpenChange={(open) => !open && setActiveReadingPlan(null)}>
-        <DialogContent className="max-w-full h-full sm:h-[90vh] sm:max-w-[600px] flex flex-col p-0 overflow-hidden sm:rounded-2xl border-0 rounded-none [&>button]:!top-[calc(3rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
+        <DialogContent className="max-w-full h-[100dvh] sm:h-[90vh] sm:max-w-[600px] flex flex-col p-0 overflow-hidden sm:rounded-2xl border-0 rounded-none [&>button]:!top-[calc(4.5rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
           {activeReadingPlan && (() => {
             const plan = readingPlanService.getPlanById(activeReadingPlan);
             const currentDay = userProgress[activeReadingPlan] || 1;
@@ -726,7 +726,7 @@ const BibleReadingPlansPage = () => {
             return (
               <>
                 {/* Header */}
-                <div className="h-auto border-b flex items-center justify-between px-4 bg-background shrink-0 pt-[calc(2.5rem + env(safe-area-inset-top, 0px))] pb-4">
+                <div className="h-auto border-b flex items-center justify-between px-4 bg-background shrink-0 pt-[calc(4rem + env(safe-area-inset-top, 0px))] pb-4">
                   <Button variant="ghost" size="icon" onClick={() => setActiveReadingPlan(null)}>
                     <X className="w-5 h-5" />
                   </Button>
