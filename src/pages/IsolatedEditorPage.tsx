@@ -97,7 +97,7 @@ const IsolatedEditorPage = () => {
         }
     };
 
-    if (!isReady) return <div className="p-4 text-gray-400">Loading editor...</div>;
+    if (!isReady) return null;
 
     return (
         <div
@@ -131,11 +131,17 @@ const IsolatedEditorPage = () => {
                     autoFocus={false}
                 />
             ) : (
-                <div
-                    className="h-full w-full p-4 overflow-y-auto prose max-w-none text-gray-900 dark:text-gray-100 text-[16px] [&_p]:my-2 pointer-events-none"
-                    dangerouslySetInnerHTML={{ __html: content || '<p class="text-gray-400">Start writing...</p>' }}
-                    tabIndex={-1}
-                />
+                <div className="h-full w-full relative" tabIndex={-1}>
+                    {!content && (
+                        <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
+                            Start writing...
+                        </div>
+                    )}
+                    <div
+                        className="h-full w-full p-4 overflow-y-auto prose max-w-none text-gray-900 dark:text-gray-100 text-[16px] [&_p]:my-2 pointer-events-none"
+                        dangerouslySetInnerHTML={{ __html: content }}
+                    />
+                </div>
             )}
         </div>
     );
