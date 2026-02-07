@@ -63,10 +63,16 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    MouseSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     DragEndEvent,
-    useDroppable
+    useDroppable,
+    DragStartEvent,
+    DragOverlay,
+    defaultDropAnimationSideEffects,
+    DropAnimation,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -199,54 +205,47 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
     );
 };
 
-const SortableSetSongCard = ({
+const SetSongCard = ({
     song,
     index,
     onPlay,
     onEdit,
     onRemove,
-    onViewLyrics
+    onViewLyrics,
+    dragHandleProps,
+    style,
+    innerRef,
+    isOverlay = false
 }: {
     song: WeeklySetSong,
     index: number,
     onPlay: (url: string) => void,
     onEdit: (song: WeeklySetSong) => void,
     onRemove: (id: string) => void,
-    onViewLyrics: (lyrics: string, title: string) => void
+    onViewLyrics: (lyrics: string, title: string) => void,
+    dragHandleProps?: any,
+    style?: React.CSSProperties,
+    innerRef?: React.Ref<HTMLDivElement>,
+    isOverlay?: boolean
 }) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging
-    } = useSortable({ id: song.id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 50 : undefined,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
     return (
         <div
-            ref={setNodeRef}
+            ref={innerRef}
             style={style}
-            className="flex items-center justify-between p-2 sm:p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all duration-300 border border-transparent hover:border-blue-100 dark:hover:border-blue-800"
+            {...dragHandleProps}
+            className={cn(
+                "flex items-center justify-between p-2 sm:p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all duration-300 border border-transparent hover:border-blue-100 dark:hover:border-blue-800 touch-none select-none",
+                isOverlay && "bg-white dark:bg-slate-800 shadow-xl border-blue-500 scale-105"
+            )}
             onClick={() => onEdit(song)}
         >
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                 <div
-                    {...attributes}
-                    {...listeners}
-                    className="cursor-grab active:cursor-grabbing p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors touch-none select-none"
-                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors"
                 >
                     <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>
+                {index !== undefined && <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>}
                 <div className="min-w-0 flex-1">
                     <div
                         className="font-semibold text-slate-800 dark:text-slate-100 flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1 group-hover:text-blue-600 transition-colors"
@@ -282,23 +281,71 @@ const SortableSetSongCard = ({
                         {song.key}
                     </Badge>
                 )}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                            <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="rounded-xl border-slate-200 shadow-xl font-bold">
-                        <DropdownMenuItem onClick={() => onEdit(song)} className="gap-2">
-                            <Pencil className="w-4 h-4 text-blue-500" /> Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600 gap-2" onClick={() => onRemove(song.id)}>
-                            <Trash2 className="w-4 h-4" /> Remove from Set
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {!isOverlay && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="rounded-xl border-slate-200 shadow-xl font-bold">
+                            <DropdownMenuItem onClick={() => onEdit(song)} className="gap-2">
+                                <Pencil className="w-4 h-4 text-blue-500" /> Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600 gap-2" onClick={() => onRemove(song.id)}>
+                                <Trash2 className="w-4 h-4" /> Remove from Set
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
         </div>
+    );
+};
+
+const SortableSetSongCard = ({
+    song,
+    index,
+    onPlay,
+    onEdit,
+    onRemove,
+    onViewLyrics
+}: {
+    song: WeeklySetSong,
+    index: number,
+    onPlay: (url: string) => void,
+    onEdit: (song: WeeklySetSong) => void,
+    onRemove: (id: string) => void,
+    onViewLyrics: (lyrics: string, title: string) => void
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: song.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.3 : 1, // Reduced opacity when dragging source
+    };
+
+    return (
+        <SetSongCard
+            song={song}
+            index={index}
+            onPlay={onPlay}
+            onEdit={onEdit}
+            onRemove={onRemove}
+            onViewLyrics={onViewLyrics}
+            dragHandleProps={{ ...attributes, ...listeners }}
+            style={style}
+            innerRef={setNodeRef}
+        />
     );
 };
 
@@ -1302,8 +1349,22 @@ const ChoirPage = () => {
     const [activeVocalFolder, setActiveVocalFolder] = useState<'male' | 'female' | null>(null);
 
 
+
+
+    const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
+
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(MouseSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 200,
+                tolerance: 6,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -1312,8 +1373,19 @@ const ChoirPage = () => {
     const handlePraiseDragEnd = (event: DragEndEvent) => handleDragEnd(event);
     const handleWorshipDragEnd = (event: DragEndEvent) => handleDragEnd(event);
 
+    const handleDragStart = (event: DragStartEvent) => {
+        const { active } = event;
+        // Find the song in praise or worship sets to set as active for overlay
+        // Note: active.id is the song.id
+        const song = [...praiseSet, ...worshipSet].find(s => s.id === active.id);
+        if (song) {
+            setActiveDragItem(song);
+        }
+    };
+
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveDragItem(null);
 
         if (!over) return;
 
@@ -1339,6 +1411,11 @@ const ChoirPage = () => {
                         url: songToCopy.url || "",
                         notes: ""
                     }, locationId!);
+
+                    // Refresh folders to show the new song immediately
+                    const updatedFolders = await choirService.getFolders(locationId!);
+                    setFolders(updatedFolders as any);
+
                     toast.success(`Added "${songToCopy.title}" to folder`);
                 } catch (e) {
                     console.error("Failed to copy song to folder:", e);
@@ -3707,6 +3784,7 @@ const ChoirPage = () => {
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
                         >
 
@@ -4344,6 +4422,26 @@ const ChoirPage = () => {
                                             </DroppableFolder>
                                         )}
                                     </CardContent>
+                                    {/* DRAG OVERLAY PORTAL */}
+                                    <DragOverlay dropAnimation={{
+                                        sideEffects: defaultDropAnimationSideEffects({
+                                            styles: {
+                                                active: { opacity: '0.4' },
+                                            },
+                                        }),
+                                    }}>
+                                        {activeDragItem ? (
+                                            <SetSongCard
+                                                song={activeDragItem}
+                                                index={0}
+                                                onPlay={() => { }}
+                                                onEdit={() => { }}
+                                                onRemove={() => { }}
+                                                onViewLyrics={() => { }}
+                                                isOverlay={true}
+                                            />
+                                        ) : null}
+                                    </DragOverlay>
                                 </Card>
                             </div>
 

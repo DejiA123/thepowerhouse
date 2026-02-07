@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { Volume2, ChevronDown } from "lucide-react";
 
 interface BibleBook {
@@ -93,24 +93,40 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Ref callback to ensure scroll is reset when ref is set
-  const setScrollContainerRef = (element: HTMLDivElement | null) => {
+  const setScrollContainerRef = useCallback((element: HTMLDivElement | null) => {
     scrollContainerRef.current = element;
     if (element) {
-      // Simple scroll reset to top
-      element.scrollTop = 0;
+      // Only reset scroll if we explicitly want to (e.g. first mount)
+      // We don't want to force reset here if it's just a re-render
+      // But since we use a callback ref, it generally only fires on mount or unmount
+      // preventing the "every render" reset issue.
+
+      // However, to be extra safe, we'll only reset if scrollTop is -1 (flag) or logic elsewhere handles it.
+      // Actually, standard behavior for callback ref is: called with element on mount/update, null on unmount.
+      // If we stabilize the function with useCallback, it won't be called on every render.
+      // So 'element.scrollTop = 0' here is fine, as long as this function identity doesn't change.
+      // But we should check if we really want to reset on EVERY mount of this node.
+      // Yes, on mount we want top.
+
+      // To be safe against re-mounts keeping old scroll? No, new DOM element usually means 0 anyway.
+      // The issue was the function changing every render.
+      // So just wrapping in useCallback is the fix.
+      // We can also remove the forced scrollTop=0 here if we trust useLayoutEffect.
+      // But let's keep it but stabilize the function.
+      // Actually, relying on useLayoutEffect is safer for "mount only" logic.
+      // Let's remove the scrollTop reset from here entirely and rely on the useEffects we have below.
+      // That's even safer.
     }
-  };
+  }, []);
 
   // Flatten all books into a single array
-  const allBooks = [
+  const allBooks = useMemo(() => [
     ...bibleBooks["Old Testament"],
     ...bibleBooks["New Testament"]
-  ];
-
-
+  ], []);
 
   // Ensure Genesis is always first in traditional order
-  const ensureGenesisFirst = (books: typeof allBooks) => {
+  const ensureGenesisFirst = useCallback((books: typeof allBooks) => {
     if (sortType === 'traditional') {
       // Genesis should already be first, but let's make sure
       const genesisIndex = books.findIndex(book => book.name === 'Genesis');
@@ -120,7 +136,7 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
       }
     }
     return books;
-  };
+  }, [sortType]);
 
   // Ensure scroll position is at the top when component mounts
   useLayoutEffect(() => {
@@ -130,8 +146,6 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
     }
   }, []);
 
-
-
   // Force scroll to top when sort type changes
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -140,25 +154,21 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
   }, [sortType]);
 
   // Sort books based on selected sort type
-  const sortedBooks = ensureGenesisFirst([...allBooks].sort((a, b) => {
-    if (sortType === 'alphabetical') {
-      return a.name.localeCompare(b.name);
-    }
-    // Traditional order (keep original order)
-    return 0;
-  }));
-
-  // Reset scroll whenever sortedBooks change
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
-  }, [sortedBooks]);
+  const sortedBooks = useMemo(() => {
+    const books = ensureGenesisFirst([...allBooks].sort((a, b) => {
+      if (sortType === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      }
+      // Traditional order (keep original order)
+      return 0;
+    }));
+    return books;
+  }, [allBooks, sortType, ensureGenesisFirst]);
 
   return (
-    <div className="bible-book-selection overscroll-contain">
+    <div className="bible-book-selection overscroll-contain flex-1 flex flex-col min-h-0">
       {/* Header Bar */}
-      <div className="bible-book-header">
+      <div className="bible-book-header shrink-0">
         <button
           className="bible-book-cancel"
           onClick={onCancel}
@@ -176,7 +186,7 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
 
       {/* Book List - Vertical Layout */}
       <div
-        className="bible-book-list overflow-y-auto overscroll-contain"
+        className="bible-book-list overflow-y-auto overscroll-contain flex-1 pb-32"
         ref={setScrollContainerRef}
         key={`book-list-${sortType}-${isMounted}`}
       >
