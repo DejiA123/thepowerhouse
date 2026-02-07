@@ -3671,8 +3671,8 @@ const ChoirPage = () => {
 
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
-                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-lg m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem + env(safe-area-inset-top, 0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                         <DialogTitle>Edit Song Details</DialogTitle>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -4232,8 +4232,8 @@ const ChoirPage = () => {
                                                                 <span className="hidden sm:inline">Add Song</span>
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-lg m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                                                            <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                                        <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-lg m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
+                                                            <DialogHeader className="p-6 pt-[calc(1.5rem + env(safe-area-inset-top, 0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                                                                 <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
                                                             </DialogHeader>
                                                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -5815,8 +5815,8 @@ const ChoirPage = () => {
 
             {/* Lyrics Preview Modal */}
             <Dialog open={isPreviewLyricsOpen} onOpenChange={setIsPreviewLyricsOpen}>
-                <DialogContent className="w-full h-full sm:w-[95vw] sm:h-[85vh] max-w-none sm:max-w-7xl m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-[2rem] overflow-hidden border-none shadow-2xl [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <DialogContent className="w-full h-full sm:w-[95vw] sm:h-[85vh] max-w-none sm:max-w-7xl m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-[2rem] overflow-hidden border-none shadow-2xl [&>button]:!top-[calc(1.5rem + env(safe-area-inset-top, 0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem + env(safe-area-inset-top, 0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                         <DialogTitle className="flex items-center justify-center gap-3 text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
                             <FileMusic className="w-6 h-6 md:w-8 md:h-8 text-purple-600" />
                             {previewLyrics?.title}
