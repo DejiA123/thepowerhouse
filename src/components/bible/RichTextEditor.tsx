@@ -214,15 +214,15 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
   const renderMenuBar = (position: 'top' | 'bottom' = 'top') => (
     <div className={cn(
-      "z-[100] py-8 pointer-events-none",
+      "z-[100] py-2 pointer-events-none",
       // Use fixed positioning for bottom toolbar to stay above keyboard
       position === 'bottom'
-        ? 'absolute left-0 right-0 bottom-0 flex justify-center pb-2'
+        ? 'absolute left-0 right-0 bottom-0 flex justify-center pb-[max(env(safe-area-inset-bottom),1rem)]'
         : 'absolute left-1/2 -translate-x-1/2 top-0'
     )}>
       <div className="flex flex-col items-center gap-4 pointer-events-auto">
         {showFormattingMenu && (
-          <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2.5 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex flex-wrap items-center justify-center gap-2 max-w-[90vw] md:max-w-2xl ring-1 ring-black/5 dark:ring-white/5">
+          <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2.5 rounded-[2rem] animate-in zoom-in-95 fade-in duration-300 flex flex-wrap items-center justify-center gap-2 max-w-[90vw] md:max-w-2xl ring-1 ring-black/5 dark:ring-white/5">
             <div className="flex items-center gap-1 bg-gray-100/50 dark:bg-gray-800/40 p-1 rounded-full">
               <ToolbarButton isActive={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
                 <Bold className="w-5 h-5" />
@@ -268,7 +268,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
         )}
 
         {showInsertMenu && (
-          <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2 rounded-[2rem] shadow-2xl animate-in zoom-in-95 fade-in duration-300 flex items-center gap-2 ring-1 ring-black/5 dark:ring-white/5">
+          <div className="bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border border-gray-100 dark:border-gray-800 p-2 rounded-[2rem] animate-in zoom-in-95 fade-in duration-300 flex items-center gap-2 ring-1 ring-black/5 dark:ring-white/5">
             <ToolbarButton onClick={() => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setShowInsertMenu(false); }} title="Insert Table">
               <TableIcon className="w-6 h-6" />
             </ToolbarButton>
@@ -284,7 +284,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
           </div>
         )}
 
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/20 dark:border-gray-800 p-1.5 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-1.5 ring-1 ring-black/5 dark:ring-white/10 hover:shadow-[0_25px_60px_rgba(0,0,0,0.25)] transition-all duration-300 active:scale-95">
+        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border border-white/20 dark:border-gray-800 p-1.5 rounded-full flex items-center gap-1.5 ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 active:scale-95">
           <ToolbarButton
             isActive={showInsertMenu}
             onClick={() => { setShowInsertMenu(!showInsertMenu); setShowFormattingMenu(false); }}

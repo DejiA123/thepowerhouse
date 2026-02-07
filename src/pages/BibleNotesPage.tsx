@@ -86,6 +86,7 @@ const BibleNotesPage = () => {
 
     // Initial loading, setLoading] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [globalStats, setGlobalStats] = useState({ total: 0, favourites: 0, unfiledCount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -354,7 +355,7 @@ const BibleNotesPage = () => {
     const updateNote = async () => {
         if (!user || !newNote.note_text.trim()) return;
 
-        setLoading(true);
+        setIsSaving(true);
         try {
             const noteData = {
                 title: newNote.title.trim() || null,
@@ -406,7 +407,7 @@ const BibleNotesPage = () => {
                 variant: "destructive",
             });
         } finally {
-            setLoading(false);
+            setIsSaving(false);
         }
     };
 
@@ -476,7 +477,7 @@ const BibleNotesPage = () => {
     const saveNote = async () => {
         if (!user || !newNote.note_text.trim()) return;
 
-        setLoading(true);
+        setIsSaving(true);
         try {
             const noteData = {
                 user_id: user.id,
@@ -528,7 +529,7 @@ const BibleNotesPage = () => {
                 variant: "destructive",
             });
         } finally {
-            setLoading(false);
+            setIsSaving(false);
         }
     };
 
@@ -1343,10 +1344,10 @@ const BibleNotesPage = () => {
                             <div className="flex items-center gap-3">
                                 <Button
                                     onClick={handleSaveNote}
-                                    disabled={loading}
+                                    disabled={isSaving}
                                     className="bg-indigo-600 text-white hover:bg-indigo-700 font-black px-10 rounded-full shadow-lg h-10 transition-all active:scale-95"
                                 >
-                                    {loading ? 'Saving...' : 'Save'}
+                                    {isSaving ? 'Saving...' : 'Save'}
                                 </Button>
                             </div>
                         </div>
