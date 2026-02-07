@@ -1309,15 +1309,15 @@ const BibleNotesPage = () => {
                                     <ArrowLeft className="w-6 h-6" />
                                 </Button>
 
-                                <div className="hidden sm:block">
+                                <div>
                                     <Select
                                         value={newNote.folder_id || 'unfiled'}
                                         onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
                                     >
-                                        <SelectTrigger className="w-auto min-w-[140px] h-9 rounded-full border-none bg-gray-50 dark:bg-gray-800 shadow-sm font-bold text-xs px-4">
-                                            <div className="flex items-center gap-2">
-                                                <Folder className="w-3.5 h-3.5 text-blue-500" />
-                                                <SelectValue placeholder="Add to Folder" />
+                                        <SelectTrigger className="w-auto min-w-[130px] h-8 rounded-full border-none bg-gray-100 dark:bg-gray-800 shadow-sm font-bold text-[10px] px-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <Folder className="w-3 h-3 text-blue-500" />
+                                                <SelectValue placeholder="Folder" />
                                             </div>
                                         </SelectTrigger>
                                         <SelectContent position="popper" sideOffset={5} className="z-[10000]">

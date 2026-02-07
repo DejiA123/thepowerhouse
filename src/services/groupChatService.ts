@@ -300,7 +300,7 @@ export class GroupChatService {
         if (!data) return null;
 
         const msg = data as any;
-        return {
+        const chatMessage = {
             ...msg,
             user: msg.user ? {
                 id: msg.user.id,
@@ -308,6 +308,23 @@ export class GroupChatService {
                 user_metadata: msg.user.user_metadata as { full_name?: string; avatar_url?: string } | undefined
             } : undefined
         } as ChatMessage;
+
+        // Trigger notifications for other members
+        if (chatMessage) {
+            import("./pushNotificationService").then(({ pushNotificationService }) => {
+                const senderName = chatMessage.user?.user_metadata?.full_name || chatMessage.user?.email || 'Someone';
+                pushNotificationService.notifyGroupMembers(
+                    chatId,
+                    '', // Group name can be fetched if needed
+                    user.id,
+                    senderName,
+                    chatMessage.content,
+                    chatMessage.id
+                );
+            });
+        }
+
+        return chatMessage;
     }
 
     /**
@@ -521,35 +538,53 @@ export class GroupChatService {
             .on(
                 'postgres_changes',
                 {
-                    event: '*',
+                    event: 'INSERT', // Only listen for new messages for speed
                     schema: 'public',
                     table: 'chat_messages',
                     filter: `chat_id=eq.${chatId}`
                 },
                 async (payload) => {
-                    // Handle DELETE or UPDATE where is_deleted becomes true
-                    if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && (payload.new as any).is_deleted)) {
-                        // We can construct a minimal object or just pass the ID if the callback supports it. 
-                        // For now, let's fetch the data. If it's soft-deleted, we might still want to know.
-                        // But getChatMessages filters out is_deleted. 
-                    }
+                    console.log('✅ Realtime message received:', payload.new.id);
 
-                    const { data } = await supabase
-                        .from('chat_messages')
-                        .select(`
-              *,
-              user:user_id (
-                id,
-                email,
-                user_metadata
-              )
-            `)
-                        .eq('id', (payload.new as any).id)
+                    // Fetch profile info - keep it minimal
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('id, email, user_metadata')
+                        .eq('id', payload.new.user_id)
                         .single();
 
-                    if (data) {
-                        callback(data as ChatMessage);
-                    }
+                    const chatMessage: ChatMessage = {
+                        ...payload.new as any,
+                        user: data ? {
+                            id: data.id,
+                            email: data.email,
+                            user_metadata: data.user_metadata as any
+                        } : undefined
+                    };
+
+                    callback(chatMessage);
+                }
+            )
+            .subscribe();
+
+        return channel;
+    }
+
+    /**
+     * Subscribe to messages across ALL chats (for global notifications/unread counts)
+     */
+    static subscribeToAllMessages(callback: (message: ChatMessage) => void): RealtimeChannel {
+        const channel = supabase
+            .channel('global-chat-messages')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'chat_messages'
+                },
+                (payload) => {
+                    callback(payload.new as ChatMessage);
                 }
             )
             .subscribe();
@@ -613,6 +648,26 @@ export class GroupChatService {
         }
 
         const callData = data as any;
+
+        // Trigger push notifications for incoming call
+        const { pushNotificationService } = await import("./pushNotificationService");
+        const senderName = user.user_metadata?.full_name || user.email || 'Someone';
+
+        // Fetch group name for the notification
+        const { data: chatData } = await supabase
+            .from('group_chats')
+            .select('name')
+            .eq('id', chatId)
+            .single();
+
+        pushNotificationService.notifyCallIncoming(
+            chatId,
+            chatData?.name || 'Group Chat',
+            user.id,
+            senderName,
+            callType
+        );
+
         return {
             ...callData,
             call_type: callData.call_type as 'audio' | 'video'

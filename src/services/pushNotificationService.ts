@@ -34,8 +34,8 @@ class PushNotificationService {
    * Check if we're on iOS
    */
   private isIOS(): boolean {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
   /**
@@ -147,42 +147,42 @@ class PushNotificationService {
   }
 
   /**
-   * Get group members who should receive notifications
+   * Get chat participants who should receive notifications
    */
-  async getGroupMembersForNotifications(groupName: string, excludeUserId?: string): Promise<string[]> {
+  async getChatParticipantsForNotifications(chatId: string, excludeUserId?: string): Promise<string[]> {
     try {
-      console.log('🔍 Getting group members for notifications in group:', groupName);
+      console.log('🔍 Getting chat participants for notifications in chat:', chatId);
       console.log('🚫 Excluding user:', excludeUserId);
-      
-      // First, get all group members
-      const { data: members, error: membersError } = await supabase
-        .from('group_members')
+
+      // First, get all chat participants
+      const { data: participants, error: participantsError } = await supabase
+        .from('chat_participants')
         .select('user_id')
-        .eq('group_name', groupName);
+        .eq('chat_id', chatId);
 
-      if (membersError) {
-        console.error('Error fetching group members:', membersError);
+      if (participantsError) {
+        console.error('Error fetching chat participants:', participantsError);
         return [];
       }
 
-      if (!members || members.length === 0) {
-        console.log('No members found in group:', groupName);
+      if (!participants || participants.length === 0) {
+        console.log('No participants found in chat:', chatId);
         return [];
       }
 
-      console.log('Found', members.length, 'members in group:', members.map(m => m.user_id));
+      console.log('Found', participants.length, 'participants in chat:', participants.map(p => p.user_id));
 
       // Get user IDs (excluding sender)
-      const userIds = members
-        .map(member => member.user_id)
+      const userIds = participants
+        .map(participant => participant.user_id)
         .filter(userId => userId !== excludeUserId);
 
       if (userIds.length === 0) {
-        console.log('No members to notify (all excluded)');
+        console.log('No participants to notify (all excluded)');
         return [];
       }
 
-      console.log('Members after excluding sender:', userIds);
+      console.log('Participants after excluding sender:', userIds);
 
       // Check notification preferences for each user
       const { data: preferences, error: prefsError } = await supabase
@@ -208,15 +208,15 @@ class PushNotificationService {
       const usersToNotify = userIds.filter(userId => {
         const hasPrefs = prefsMap.has(userId);
         const notificationsEnabled = prefsMap.get(userId);
-        
+
         console.log(`User ${userId}: hasPrefs=${hasPrefs}, notificationsEnabled=${notificationsEnabled}`);
-        
+
         // If user has no preferences, assume they want notifications (don't try to create them)
         if (!hasPrefs) {
           console.log('User has no preferences, assuming notifications enabled:', userId);
           return true; // Enable by default
         }
-        
+
         return notificationsEnabled;
       });
 
@@ -241,11 +241,11 @@ class PushNotificationService {
   ): Promise<boolean> {
     try {
       console.log('📨 Sending notification to user:', userId, 'for group:', groupName);
-      
+
       // Check if user has notifications enabled
       const preferences = await this.getUserPreferences(userId);
       console.log('📋 User preferences for', userId, ':', preferences);
-      
+
       // If no preferences exist, assume notifications are enabled
       if (!preferences) {
         console.log('📋 No preferences found for user, assuming notifications enabled:', userId);
@@ -279,7 +279,7 @@ class PushNotificationService {
         console.log('🔔 Showing browser notification (app not focused)');
         this.showBrowserNotification(groupName, senderName, messagePreview);
       }
-      
+
       // Always show in-app notification for current user if app is focused
       const isCurrentUser = userId === (await supabase.auth.getUser()).data.user?.id;
       if (isCurrentUser && document.hasFocus()) {
@@ -307,7 +307,7 @@ class PushNotificationService {
    */
   private showBrowserNotification(groupName: string, senderName: string, messagePreview: string): void {
     console.log('🔔 Attempting to show browser notification...');
-    
+
     if (!this.isEnabled()) {
       console.log('❌ Notifications not enabled');
       return;
@@ -330,14 +330,14 @@ class PushNotificationService {
 
     try {
       console.log('🔔 Creating browser notification...');
-             const notification = new Notification(`New message in ${groupName}`, {
-         body: `${senderName}: ${messagePreview}`,
-         icon: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png', // Church logo
-         badge: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
-         tag: `group-chat-${groupName}`,
-         requireInteraction: true, // Require user interaction to dismiss
-         silent: false
-       });
+      const notification = new Notification(`New message in ${groupName}`, {
+        body: `${senderName}: ${messagePreview}`,
+        icon: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png', // Church logo
+        badge: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+        tag: `group-chat-${groupName}`,
+        requireInteraction: true, // Require user interaction to dismiss
+        silent: false
+      });
 
       console.log('✅ Browser notification created successfully');
 
@@ -416,6 +416,7 @@ class PushNotificationService {
    * Send notifications to all group members when a new message is sent
    */
   async notifyGroupMembers(
+    chatId: string,
     groupName: string,
     senderId: string,
     senderName: string,
@@ -424,37 +425,35 @@ class PushNotificationService {
   ): Promise<void> {
     try {
       // Create a unique key for this notification
-      const notificationKey = `${messageId}-${groupName}`;
-      
+      const notificationKey = `${messageId}-${chatId}`;
+
       // Check if we've already processed this notification
       if (this.processedNotifications.has(notificationKey)) {
         console.log('⚠️ Notification already processed for message:', messageId);
         return;
       }
-      
+
       // Mark this notification as processed
       this.processedNotifications.add(notificationKey);
-      
+
       // Clean up old notifications (keep only last 100)
       if (this.processedNotifications.size > 100) {
         const entries = Array.from(this.processedNotifications);
         this.processedNotifications.clear();
         entries.slice(-50).forEach(entry => this.processedNotifications.add(entry));
       }
-      
-      console.log('🚀 Starting notification process for group:', groupName);
-      console.log('📤 Sender:', senderName, '(', senderId, ')');
-      console.log('💬 Message preview:', messagePreview);
-      
+
+      console.log('🚀 Starting notification process for chat:', groupName || chatId);
+
       // Get all group members who should receive notifications
-      const memberIds = await this.getGroupMembersForNotifications(groupName, senderId);
+      const memberIds = await this.getChatParticipantsForNotifications(chatId, senderId);
 
       if (memberIds.length === 0) {
         console.log('⚠️ No members to notify');
         return;
       }
 
-      console.log('📋 Sending notifications to', memberIds.length, 'members:', memberIds);
+      console.log('📋 Sending notifications to', memberIds.length, 'members');
 
       // Send notifications to each member
       const notificationPromises = memberIds.map(userId =>
@@ -462,17 +461,70 @@ class PushNotificationService {
       );
 
       const results = await Promise.allSettled(notificationPromises);
-      
+
       const successful = results.filter(result => result.status === 'fulfilled' && result.value).length;
       const failed = results.filter(result => result.status === 'rejected').length;
-      
+
       console.log(`✅ Notification results: ${successful} successful, ${failed} failed`);
-      
+
       if (failed > 0) {
         console.error('❌ Failed notifications:', results.filter(result => result.status === 'rejected'));
       }
     } catch (error) {
       console.error('❌ Error notifying group members:', error);
+    }
+  }
+
+  /**
+   * Notify members of an incoming call
+   */
+  async notifyCallIncoming(
+    chatId: string,
+    groupName: string,
+    senderId: string,
+    senderName: string,
+    callType: 'audio' | 'video'
+  ): Promise<void> {
+    try {
+      console.log(`🚀 Notifying incoming ${callType} call for chat:`, groupName);
+
+      const memberIds = await this.getChatParticipantsForNotifications(chatId, senderId);
+
+      if (memberIds.length === 0) return;
+
+      const title = `Incoming ${callType} call`;
+      const message = `${senderName} is calling the group ${groupName}`;
+
+      const notificationPromises = memberIds.map(async (userId) => {
+        // Show in-app notification
+        const event = new CustomEvent('showInAppNotification', {
+          detail: {
+            title,
+            message,
+            groupName
+          }
+        });
+        window.dispatchEvent(event);
+
+        // Also add to db
+        await supabase.from('chat_notifications').insert({
+          user_id: userId,
+          group_name: groupName,
+          message_id: `call-${Date.now()}`,
+          sender_name: senderName,
+          message_preview: `Incoming ${callType} call`,
+          is_read: false
+        });
+
+        // Browser notification if not focused
+        if (this.isEnabled() && !document.hasFocus()) {
+          this.showBrowserNotification(groupName, senderName, `Incoming ${callType} call`);
+        }
+      });
+
+      await Promise.allSettled(notificationPromises);
+    } catch (error) {
+      console.error('❌ Error notifying incoming call:', error);
     }
   }
 
@@ -486,18 +538,18 @@ class PushNotificationService {
     showInApp: boolean = true
   ): Promise<void> {
     console.log('🧪 Force showing notification for testing...');
-    
+
     // Try browser notification first
     if (this.isEnabled()) {
       try {
-                 const notification = new Notification(title, {
-           body: message,
-           icon: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
-           badge: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
-           tag: `test-${Date.now()}`,
-           requireInteraction: true, // Require user interaction to dismiss
-           silent: false
-         });
+        const notification = new Notification(title, {
+          body: message,
+          icon: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+          badge: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+          tag: `test-${Date.now()}`,
+          requireInteraction: true, // Require user interaction to dismiss
+          silent: false
+        });
 
         console.log('✅ Force browser notification created');
 
@@ -506,8 +558,8 @@ class PushNotificationService {
           notification.close();
         };
 
-                 // Don't auto-close test notifications - let user dismiss them manually
-         console.log('📱 Test notification will remain open until user dismisses it');
+        // Don't auto-close test notifications - let user dismiss them manually
+        console.log('📱 Test notification will remain open until user dismisses it');
       } catch (error) {
         console.error('❌ Force browser notification failed:', error);
       }

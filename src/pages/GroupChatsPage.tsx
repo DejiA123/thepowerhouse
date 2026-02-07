@@ -106,6 +106,37 @@ const GroupChatsPage = () => {
         }
     };
 
+    // Global listener for ALL messages to update unread counts and sidebar
+    useEffect(() => {
+        if (!user) return;
+
+        const globalChannel = GroupChatService.subscribeToAllMessages((message) => {
+            // Update unread counts if it's not the selected chat and not our own message
+            if (message.user_id !== user.id) {
+                if (!selectedChat || selectedChat.id !== message.chat_id) {
+                    setUnreadCounts(prev => ({
+                        ...prev,
+                        [message.chat_id]: (prev[message.chat_id] || 0) + 1
+                    }));
+                }
+            }
+
+            // Update chat list preview (optional but good for UX)
+            setChats(prevChats => {
+                return prevChats.map(chat => {
+                    if (chat.id === message.chat_id) {
+                        return { ...chat, description: message.content };
+                    }
+                    return chat;
+                });
+            });
+        });
+
+        return () => {
+            GroupChatService.unsubscribe(globalChannel);
+        };
+    }, [user, selectedChat]);
+
     // Auto-Join & Fetch messages when chat is selected
     useEffect(() => {
         if (!selectedChat) return;
