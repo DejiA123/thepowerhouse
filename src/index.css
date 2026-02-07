@@ -1846,12 +1846,14 @@ body.modal-open {
     }
   }
 
-  /* UNIVERSAL FORCE LIFT for Bottom Nav - v9 */
-  #iphone-force-nav,
-  #bottom-nav-bar,
-  .bottom-nav-bar {
-    padding-bottom: 100px !important;
-    bottom: 0px !important;
-    height: auto !important;
+  /* Safe-area aware lift for PWA standalone mode */
+  @media (display-mode: standalone) {
+
+    #bottom-nav-bar,
+    .bottom-nav-bar {
+      padding-bottom: max(env(safe-area-inset-bottom), 34px) !important;
+      bottom: 0px !important;
+      height: auto !important;
+    }
   }
 }

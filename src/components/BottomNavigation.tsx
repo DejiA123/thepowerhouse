@@ -17,13 +17,13 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      id="iphone-force-nav"
-      data-version="v9-force-lift"
+      id="bottom-nav-bar"
+      data-version="v10-standard-lift"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Force 100px lift for ALL iPhones to ensure it moves regardless of PWA/Safari detection
-        paddingBottom: isIPhone ? '100px' : '20px'
+        // Standard safe area lift with a moderate buffer
+        paddingBottom: isIPhone ? 'max(env(safe-area-inset-bottom), 40px)' : '12px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -61,10 +61,6 @@ const BottomNavigation = () => {
             </Link>
           );
         })}
-      </div>
-      {/* Visible version tag for debugging */}
-      <div className="absolute bottom-1 right-1 text-[8px] text-gray-400 opacity-50 select-none pointer-events-none">
-        v9-FORCE-LIFT
       </div>
     </nav >
   );
