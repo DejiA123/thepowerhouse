@@ -1845,4 +1845,12 @@ body.modal-open {
       overscroll-behavior: contain !important;
     }
   }
+/* Aggressive lift for PWA standalone mode */
+@media (display-mode: standalone) {
+  #bottom-nav-bar, 
+  .bottom-nav-bar {
+    padding-bottom: 100px !important;
+    height: auto !important;
+  }
+}
 }

@@ -25,12 +25,12 @@ const BottomNavigation = () => {
   return (
     <nav
       id="bottom-nav-bar"
-      data-version="v6-pwa-safe-area"
+      data-version="v7-aggressive-lift"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Aggressive fixed padding for PWA mode to ensure it lifts
-        paddingBottom: isStandalone ? '80px' : '45px'
+        // Aggressive 100px lift for PWA mode to ensure it moves
+        paddingBottom: isStandalone ? '100px' : '45px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
