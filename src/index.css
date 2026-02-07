@@ -1845,15 +1845,4 @@ body.modal-open {
       overscroll-behavior: contain !important;
     }
   }
-
-  /* Safe-area aware lift for PWA standalone mode */
-  @media (display-mode: standalone) {
-
-    #bottom-nav-bar,
-    .bottom-nav-bar {
-      padding-bottom: max(env(safe-area-inset-bottom), 34px) !important;
-      bottom: 0px !important;
-      height: auto !important;
-    }
-  }
 }

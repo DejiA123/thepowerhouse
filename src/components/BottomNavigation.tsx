@@ -12,18 +12,19 @@ const BottomNavigation = () => {
     { name: "Resources", path: "/resources", icon: Info },
   ];
 
-  // Robust iPhone check
-  const isIPhone = typeof window !== 'undefined' && /iPhone/.test(navigator.userAgent);
+  // Target iPhone 13/12/14 standard size (390px width)
+  // iPhone 12 Pro Max is 428px, so this won't affect it.
+  const isIPhoneStandard = typeof window !== 'undefined' && window.screen.width === 390;
 
   return (
     <nav
       id="bottom-nav-bar"
-      data-version="v10-standard-lift"
+      data-version="v5-safe-area"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Standard safe area lift with a moderate buffer
-        paddingBottom: isIPhone ? 'max(env(safe-area-inset-bottom), 40px)' : '12px'
+        // If iPhone 13 (390px), force it higher (20px min). Otherwise standard 8px min.
+        paddingBottom: isIPhoneStandard ? 'max(env(safe-area-inset-bottom), 20px)' : 'max(env(safe-area-inset-bottom), 8px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
