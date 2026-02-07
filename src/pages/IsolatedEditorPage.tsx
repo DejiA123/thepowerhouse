@@ -125,7 +125,7 @@ const IsolatedEditorPage = () => {
                 <RichTextEditor
                     content={content}
                     onChange={handleChange}
-                    placeholder="Start writing..."
+                    placeholder="Start writing your note..."
                     toolbarPosition="bottom"
                     className="h-full"
                     autoFocus={false}
@@ -134,7 +134,7 @@ const IsolatedEditorPage = () => {
                 <div className="h-full w-full relative" tabIndex={-1}>
                     {!content && (
                         <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
-                            Start writing...
+                            Start writing your note...
                         </div>
                     )}
                     <div

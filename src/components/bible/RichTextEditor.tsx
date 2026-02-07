@@ -66,6 +66,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
   const [containerHeight, setContainerHeight] = useState('100%');
+  const [, forceUpdate] = useState(0);
 
   // Detect iOS keyboard using visualViewport API to resize container
   useEffect(() => {
@@ -128,6 +129,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       }
     },
     onUpdate: ({ editor }) => {
+      forceUpdate((n) => n + 1);
       onChange(editor.getHTML());
     },
     editorProps: {
