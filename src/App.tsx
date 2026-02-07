@@ -47,6 +47,8 @@ import EvangelismPage from "@/pages/EvangelismPage";
 import PastoralCarePage from "@/pages/PastoralCarePage";
 import TeamFollowUpPage from "@/pages/TeamFollowUpPage";
 import IsolatedEditorPage from "@/pages/IsolatedEditorPage";
+import { CallProvider, useCall } from "@/contexts/CallContext";
+import CallOverlay from "@/components/chat/CallOverlay";
 
 console.log('App.tsx: Component loading...');
 
@@ -357,9 +359,12 @@ const App = () => {
               <ScrollToTop />
               <TooltipProvider>
                 <NotificationProvider>
-                  <AppRoutes />
-                  <Toaster />
-                  <Sonner />
+                  <CallProvider>
+                    <CallManager />
+                    <AppRoutes />
+                    <Toaster />
+                    <Sonner />
+                  </CallProvider>
                 </NotificationProvider>
               </TooltipProvider>
             </Router>
@@ -384,6 +389,21 @@ const App = () => {
       </div>
     );
   }
+};
+
+// Global component to handle call overlay
+const CallManager = () => {
+  const { activeCall, endCall } = useCall();
+
+  if (!activeCall) return null;
+
+  return (
+    <CallOverlay
+      chatId={activeCall.chat_id}
+      isActive={true}
+      onEndCall={endCall}
+    />
+  );
 };
 
 export default App;

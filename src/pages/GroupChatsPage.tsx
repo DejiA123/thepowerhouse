@@ -39,12 +39,12 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useCall } from "@/contexts/CallContext";
 import { GroupChatService, GroupChat, ChatMessage } from "@/services/groupChatService";
 import { cn } from "@/lib/utils";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import CallOverlay from "@/components/chat/CallOverlay";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 const GroupChatsPage = () => {
     const { user } = useAuth();
@@ -60,7 +60,7 @@ const GroupChatsPage = () => {
     const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
     // Call State
-    const [isCallActive, setIsCallActive] = useState(false);
+    const { startCall } = useCall();
 
     // Dialog & UI States
     const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -362,13 +362,6 @@ const GroupChatsPage = () => {
             )}>
                 {selectedChat ? (
                     <>
-                        {/* Call Overlay */}
-                        <CallOverlay
-                            chatId={selectedChat.id}
-                            isActive={isCallActive}
-                            onEndCall={() => setIsCallActive(false)}
-                        />
-
                         {/* WhatsApp Style Header */}
                         <div className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 z-10">
                             <div className="flex items-center gap-3">
@@ -389,10 +382,10 @@ const GroupChatsPage = () => {
                             </div>
 
                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="rounded-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-400" onClick={() => setIsCallActive(true)}>
+                                <Button variant="ghost" size="icon" className="rounded-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-400" onClick={() => startCall(selectedChat.id, 'video')}>
                                     <Video className="w-5 h-5" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="rounded-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-400" onClick={() => setIsCallActive(true)}>
+                                <Button variant="ghost" size="icon" className="rounded-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-400" onClick={() => startCall(selectedChat.id, 'audio')}>
                                     <Phone className="w-5 h-5" />
                                 </Button>
                                 <DropdownMenu>

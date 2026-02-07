@@ -64,8 +64,9 @@ export interface CallSession {
     initiated_by: string;
     call_type: 'audio' | 'video';
     status: 'ringing' | 'active' | 'ended' | 'missed';
-    started_at: string;
-    ended_at: string | null;
+    created_at?: string;
+    started_at?: string;
+    ended_at?: string | null;
 }
 
 export class GroupChatService {
@@ -590,6 +591,45 @@ export class GroupChatService {
             .subscribe();
 
         return channel;
+    }
+
+    /**
+     * Subscribe to incoming calls across ALL chats
+     */
+    static subscribeToCalls(callback: (call: CallSession) => void): RealtimeChannel {
+        const channel = supabase
+            .channel('global-call-sessions')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'call_sessions'
+                },
+                (payload) => {
+                    callback(payload.new as CallSession);
+                }
+            )
+            .subscribe();
+
+        return channel;
+    }
+
+    /**
+     * Check if current user is a participant of a chat
+     */
+    static async isParticipant(chatId: string): Promise<boolean> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return false;
+
+        const { data, error } = await supabase
+            .from('chat_participants')
+            .select('id')
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id)
+            .single();
+
+        return !!data && !error;
     }
 
     /**
