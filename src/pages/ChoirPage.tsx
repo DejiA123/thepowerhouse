@@ -61,6 +61,7 @@ import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
     DndContext,
     closestCenter,
+    rectIntersection,
     KeyboardSensor,
     PointerSensor,
     MouseSensor,
@@ -232,21 +233,22 @@ const SetSongCard = ({
         <div
             ref={innerRef}
             style={style}
-            {...dragHandleProps}
             className={cn(
-                "flex items-center justify-between p-2 sm:p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-all duration-300 border border-transparent hover:border-blue-100 dark:hover:border-blue-800 touch-none select-none",
+                "flex items-center justify-between p-2 sm:p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm group hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-[background-color,border-color,opacity,box-shadow] duration-300 border border-transparent hover:border-blue-100 dark:hover:border-blue-800 select-none",
                 isOverlay && "bg-white dark:bg-slate-800 shadow-xl border-blue-500 scale-105"
             )}
-            onClick={() => onEdit(song)}
         >
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                {/* DRAG HANDLE - Only this area initiates drag */}
                 <div
-                    className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors"
+                    {...dragHandleProps}
+                    className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing touch-none"
                 >
                     <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 {index !== undefined && <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>}
-                <div className="min-w-0 flex-1">
+                {/* CLICKABLE CONTENT AREA - Opens edit dialog */}
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onEdit(song)}>
                     <div
                         className="font-semibold text-slate-800 dark:text-slate-100 flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm sm:text-base line-clamp-1 group-hover:text-blue-600 transition-colors"
                     >
@@ -303,6 +305,7 @@ const SetSongCard = ({
     );
 };
 
+
 const SortableSetSongCard = ({
     song,
     index,
@@ -328,14 +331,16 @@ const SortableSetSongCard = ({
     } = useSortable({ id: song.id });
 
     const style = {
-        transform: CSS.Transform.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
         zIndex: isDragging ? 50 : undefined,
-        opacity: isDragging ? 0.3 : 1, // Reduced opacity when dragging source
+        opacity: isDragging ? 0.2 : 1,
     };
 
     return (
         <SetSongCard
+            innerRef={setNodeRef}
+            style={style}
             song={song}
             index={index}
             onPlay={onPlay}
@@ -343,11 +348,11 @@ const SortableSetSongCard = ({
             onRemove={onRemove}
             onViewLyrics={onViewLyrics}
             dragHandleProps={{ ...attributes, ...listeners }}
-            style={style}
-            innerRef={setNodeRef}
         />
     );
 };
+
+
 
 interface ScheduleItem {
     id: string;
@@ -469,6 +474,7 @@ const DroppableFolder = ({ id, children, onClick, onLongPress, className }: { id
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onTouchMove={handleTouchMove}
+            data-over={isOver}
             className={cn(
                 className,
                 isOver ? "ring-2 ring-blue-500 bg-blue-50/80 dark:bg-blue-900/40 scale-[1.02] shadow-xl" : ""
@@ -1354,15 +1360,9 @@ const ChoirPage = () => {
     const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
 
     const sensors = useSensors(
-        useSensor(MouseSensor, {
+        useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 200,
-                tolerance: 6,
+                distance: 3,
             },
         }),
         useSensor(KeyboardSensor, {
@@ -1375,33 +1375,68 @@ const ChoirPage = () => {
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
-        // Find the song in praise or worship sets to set as active for overlay
-        // Note: active.id is the song.id
-        const song = [...praiseSet, ...worshipSet].find(s => s.id === active.id);
+        console.log('🎯 Drag Started:', { activeId: active.id, activeData: active.data });
+
+        // Find the song in praise, worship OR learning sets
+        const song = [...praiseSet, ...worshipSet, ...learningSet].find(s => String(s.id) === String(active.id));
+
         if (song) {
+            console.log('✅ Found Song for Overlay:', song.title);
             setActiveDragItem(song);
+        } else {
+            console.warn('⚠️ No song found with ID:', active.id);
         }
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        console.log('🎯 Drag Ended:', {
+            activeId: active.id,
+            overId: over?.id,
+            overData: over?.data
+        });
         setActiveDragItem(null);
 
-        if (!over) return;
+        if (!over) {
+            console.warn('⚠️ No drop target found');
+            return;
+        }
 
-        // 1. Check if we dropped onto a folder
-        if (over.id.toString().startsWith('folder-')) {
-            const targetFolderId = over.id.toString().replace('folder-', '');
+        const overId = over.id.toString();
 
-            // Find the song being dragged. It could be in praiseSet or worshipSet.
+        // 1. Check if we dropped onto a folder OR the general library section
+        if (overId.startsWith('folder-') || overId === 'library-root') {
+            let targetFolderId: string | undefined;
+
+            if (overId === 'library-root') {
+                console.log('🏛️ Dropped onto library root. Choosing default folder based on voice type:', vocalVoiceType);
+                // Try to find a folder matching current voice type (Male/Female)
+                const voiceMatch = folders.find(f => f.name.toLowerCase().includes(vocalVoiceType.toLowerCase()));
+                targetFolderId = voiceMatch?.id || folders[0]?.id;
+
+                if (!targetFolderId) {
+                    toast.error("Please create a folder in the library first");
+                    return;
+                }
+            } else {
+                targetFolderId = overId.replace('folder-', '');
+            }
+
+            console.log('📁 Target folder for drop:', targetFolderId);
+
+            // Find the song being dragged. It could be in praiseSet, worshipSet or learningSet.
             let songToCopy: WeeklySetSong | undefined;
 
-            songToCopy = praiseSet.find(s => s.id === active.id);
+            songToCopy = praiseSet.find(s => String(s.id) === String(active.id));
             if (!songToCopy) {
-                songToCopy = worshipSet.find(s => s.id === active.id);
+                songToCopy = worshipSet.find(s => String(s.id) === String(active.id));
+            }
+            if (!songToCopy) {
+                songToCopy = learningSet.find(s => String(s.id) === String(active.id));
             }
 
             if (songToCopy) {
+                console.log('✅ Copying song to folder:', songToCopy.title);
                 try {
                     await choirService.addSongToFolder({
                         folder_id: targetFolderId,
@@ -1416,7 +1451,8 @@ const ChoirPage = () => {
                     const updatedFolders = await choirService.getFolders(locationId!);
                     setFolders(updatedFolders as any);
 
-                    toast.success(`Added "${songToCopy.title}" to folder`);
+                    const folderName = folders.find(f => f.id === targetFolderId)?.name || 'folder';
+                    toast.success(`Added "${songToCopy.title}" to ${folderName}`);
                 } catch (e) {
                     console.error("Failed to copy song to folder:", e);
                     toast.error("Failed to add song to folder");
@@ -1431,16 +1467,16 @@ const ChoirPage = () => {
             // Determine set type
             let targetType: 'praise' | 'worship' | null = null;
 
-            if (praiseSet.some(s => s.id === active.id)) targetType = 'praise';
-            else if (worshipSet.some(s => s.id === active.id)) targetType = 'worship';
+            if (praiseSet.some(s => String(s.id) === String(active.id))) targetType = 'praise';
+            else if (worshipSet.some(s => String(s.id) === String(active.id))) targetType = 'worship';
 
             if (!targetType) return;
 
             const set = targetType === 'praise' ? praiseSet : worshipSet;
             const setSetter = targetType === 'praise' ? setPraiseSet : setWorshipSet;
 
-            const oldIndex = set.findIndex((song) => song.id === active.id);
-            const newIndex = set.findIndex((song) => song.id === over.id);
+            const oldIndex = set.findIndex((song) => String(song.id) === String(active.id));
+            const newIndex = set.findIndex((song) => String(song.id) === String(over.id));
 
             if (oldIndex === -1 || newIndex === -1) return;
 
@@ -3635,11 +3671,11 @@ const ChoirPage = () => {
 
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
-                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
-                    <DialogHeader>
+                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-lg m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                         <DialogTitle>Edit Song Details</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
                         <div className="space-y-2">
                             <Label>Song Title</Label>
                             <Input
@@ -3678,13 +3714,14 @@ const ChoirPage = () => {
                             <Label>Notes</Label>
                             <Textarea
                                 placeholder="Add notes about structure, harmonies, etc."
+                                className="min-h-[100px]"
                                 value={songToEdit.notes}
                                 onChange={(e) => setSongToEdit({ ...songToEdit, notes: e.target.value })}
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button onClick={handleSaveEditSong} className="bg-blue-600 text-white">Save Changes</Button>
+                    <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 mt-auto sm:mt-0">
+                        <Button onClick={handleSaveEditSong} className="bg-blue-600 text-white w-full">Save Changes</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
@@ -3752,41 +3789,41 @@ const ChoirPage = () => {
 
             {/* Main Content */}
             <div id="main-content" className="container mx-auto px-2 sm:px-4 py-8 -mt-6 relative z-10">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
-                        <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
-                            <TabsTrigger
-                                value="vocalists"
-                                className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
-                            >
-                                <Mic className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                Vocalists
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="instrumentalists"
-                                className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
-                            >
-                                <Music className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                Instrumentalists
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="academy"
-                                className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
-                            >
-                                <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                Academy
-                            </TabsTrigger>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                >
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
+                            <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
+                                <TabsTrigger
+                                    value="vocalists"
+                                    className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
+                                >
+                                    <Mic className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
+                                    Vocalists
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="instrumentalists"
+                                    className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
+                                >
+                                    <Music className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
+                                    Instrumentalists
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="academy"
+                                    className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
+                                >
+                                    <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
+                                    Academy
+                                </TabsTrigger>
 
-                        </TabsList>
-                    </div>
+                            </TabsList>
+                        </div>
 
-                    <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                        >
+                        <TabsContent value="vocalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
                             {/* LEARNING FOCUS SECTION - REFACTORED FOR MULTIPLE SONGS */}
                             <div className="space-y-4">
@@ -4060,8 +4097,12 @@ const ChoirPage = () => {
                                     </h2>
                                 </div>
 
-                                <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col">
-                                    <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800">
+                                <Card className="border-none shadow-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md min-h-[400px] flex flex-col group/library relative">
+                                    <DroppableFolder
+                                        id="library-root"
+                                        className="absolute inset-0 z-0 rounded-3xl transition-colors duration-300 pointer-events-none data-[over=true]:bg-blue-500/10 data-[over=true]:ring-4 data-[over=true]:ring-blue-500/30"
+                                    />
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800 z-10">
                                         <div className="flex items-center gap-2">
                                             <FolderOpen className="w-5 h-5 text-blue-500" />
                                             {activeFolderId ? (
@@ -4090,42 +4131,46 @@ const ChoirPage = () => {
                                                         <span className="hidden sm:inline">New Folder</span>
                                                     </Button>
                                                 </DialogTrigger>
-                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
-                                                    <DialogHeader>
+                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                                                         <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
                                                     </DialogHeader>
-                                                    <div className="py-4">
-                                                        <Label>Folder Name</Label>
-                                                        <Input
-                                                            placeholder="e.g. Wedding Set"
-                                                            className="mt-2"
-                                                            value={newFolderName}
-                                                            onChange={(e) => setNewFolderName(e.target.value)}
-                                                        />
+                                                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                                        <div>
+                                                            <Label>Folder Name</Label>
+                                                            <Input
+                                                                placeholder="e.g. Wedding Set"
+                                                                className="mt-2"
+                                                                value={newFolderName}
+                                                                onChange={(e) => setNewFolderName(e.target.value)}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <DialogFooter>
-                                                        <Button onClick={handleCreateFolder} className="bg-blue-600 text-white">Create</Button>
+                                                    <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 mt-auto sm:mt-0">
+                                                        <Button onClick={handleCreateFolder} className="bg-blue-600 text-white w-full">Create</Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
 
                                             <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
-                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
-                                                    <DialogHeader>
+                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                                                         <DialogTitle>Edit Folder Name</DialogTitle>
                                                     </DialogHeader>
-                                                    <div className="py-4">
-                                                        <Label>Folder Name</Label>
-                                                        <Input
-                                                            placeholder="e.g. Wedding Set"
-                                                            className="mt-2"
-                                                            value={editFolderName}
-                                                            onChange={(e) => setEditFolderName(e.target.value)}
-                                                        />
+                                                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                                        <div>
+                                                            <Label>Folder Name</Label>
+                                                            <Input
+                                                                placeholder="e.g. Wedding Set"
+                                                                className="mt-2"
+                                                                value={editFolderName}
+                                                                onChange={(e) => setEditFolderName(e.target.value)}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <DialogFooter className="flex gap-2">
-                                                        <Button variant="outline" className="flex-1" onClick={() => setIsEditFolderOpen(false)}>Cancel</Button>
-                                                        <Button onClick={handleUpdateFolder} className="bg-blue-600 text-white flex-1">Save Changes</Button>
+                                                    <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-2 mt-auto sm:mt-0">
+                                                        <Button variant="outline" className="flex-1 order-2 sm:order-1" onClick={() => setIsEditFolderOpen(false)}>Cancel</Button>
+                                                        <Button onClick={handleUpdateFolder} className="bg-blue-600 text-white flex-1 order-1 sm:order-2">Save Changes</Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -4187,11 +4232,11 @@ const ChoirPage = () => {
                                                                 <span className="hidden sm:inline">Add Song</span>
                                                             </Button>
                                                         </DialogTrigger>
-                                                        <DialogContent>
-                                                            <DialogHeader>
+                                                        <DialogContent className="w-full h-full sm:h-auto max-w-none sm:max-w-lg m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                            <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
                                                                 <DialogTitle>Add Song to {activeFolder?.name}</DialogTitle>
                                                             </DialogHeader>
-                                                            <div className="space-y-4 py-4">
+                                                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
                                                                 <div className="space-y-2">
                                                                     <Label>Song Title</Label>
                                                                     <Input
@@ -4230,13 +4275,14 @@ const ChoirPage = () => {
                                                                     <Label>Notes</Label>
                                                                     <Textarea
                                                                         placeholder="Add notes about structure, harmonies, etc."
+                                                                        className="min-h-[100px]"
                                                                         value={newSong.notes}
                                                                         onChange={(e) => setNewSong({ ...newSong, notes: e.target.value })}
                                                                     />
                                                                 </div>
                                                             </div>
-                                                            <DialogFooter>
-                                                                <Button onClick={handleAddSong} className="bg-blue-600 text-white">Save Song</Button>
+                                                            <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 mt-auto sm:mt-0">
+                                                                <Button onClick={handleAddSong} className="bg-blue-600 text-white w-full">Save Song</Button>
                                                             </DialogFooter>
                                                         </DialogContent>
                                                     </Dialog>
@@ -4396,7 +4442,7 @@ const ChoirPage = () => {
                                                                         </div>
                                                                         <div className="min-w-0">
                                                                             <h4 className="font-medium text-slate-900 dark:text-slate-100 truncate">{song.title}</h4>
-                                                                            <p className="text-xs text-slate-500 truncate">{song.artist || "Unknown Artist"}</p>
+                                                                            {song.artist && <p className="text-xs text-slate-500 truncate">{song.artist}</p>}
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -4422,334 +4468,333 @@ const ChoirPage = () => {
                                             </DroppableFolder>
                                         )}
                                     </CardContent>
-                                    {/* DRAG OVERLAY PORTAL */}
-                                    <DragOverlay dropAnimation={{
-                                        sideEffects: defaultDropAnimationSideEffects({
-                                            styles: {
-                                                active: { opacity: '0.4' },
-                                            },
-                                        }),
-                                    }}>
-                                        {activeDragItem ? (
-                                            <SetSongCard
-                                                song={activeDragItem}
-                                                index={0}
-                                                onPlay={() => { }}
-                                                onEdit={() => { }}
-                                                onRemove={() => { }}
-                                                onViewLyrics={() => { }}
-                                                isOverlay={true}
-                                            />
-                                        ) : null}
-                                    </DragOverlay>
                                 </Card>
                             </div>
+                        </TabsContent>
+                        <TabsContent value="instrumentalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-                        </DndContext>
-                    </TabsContent>
+                            {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
+                            {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
+                                        <Music className="w-6 h-6 mr-3 text-blue-600" />
+                                        New Song{learningSet.length > 1 ? 's' : ''} Focus
+                                    </h2>
+                                </div>
 
-                    <TabsContent value="instrumentalists" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {/* Consolidated Hero Container for all focus songs (Instrumentalists) */}
+                                {learningSet.length > 0 ? (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-1 transition-all hover:scale-[1.005] group/hero">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20 transition-all"></div>
 
-                        {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
-                        {/* LEARNING FOCUS SECTION (INSTRUMENTALISTS) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    <Music className="w-6 h-6 mr-3 text-blue-600" />
-                                    New Song{learningSet.length > 1 ? 's' : ''} Focus
-                                </h2>
-                            </div>
+                                        <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
+                                            <div className="flex flex-col items-center text-center space-y-4">
+                                                <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                                                    Band Priority
+                                                </h3>
+                                                <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
+                                                    Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
+                                                </p>
+                                            </div>
 
-                            {/* Consolidated Hero Container for all focus songs (Instrumentalists) */}
-                            {learningSet.length > 0 ? (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-1 transition-all hover:scale-[1.005] group/hero">
-                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20 transition-all"></div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                                {learningSet.map((song) => {
+                                                    const videoId = extractYoutubeId(song.url);
+                                                    return (
+                                                        <div key={song.id} className="space-y-4 group/song relative">
+                                                            {/* ACTIONS */}
+                                                            <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                    <Edit3 className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
 
-                                    <CardContent className="relative z-10 p-6 md:p-10 flex flex-col gap-8">
-                                        <div className="flex flex-col items-center text-center space-y-4">
-                                            <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                                                Band Priority
-                                            </h3>
-                                            <p className="text-blue-100/80 text-lg font-medium leading-relaxed max-w-2xl">
-                                                Listen, practice, and master {learningSet.length > 1 ? 'these songs' : 'this song'} before practice!
-                                            </p>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {learningSet.map((song) => {
-                                                const videoId = extractYoutubeId(song.url);
-                                                return (
-                                                    <div key={song.id} className="space-y-4 group/song relative">
-                                                        {/* ACTIONS */}
-                                                        <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
-                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
-                                                                <Edit3 className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-
-                                                        <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
-                                                            {videoId ? (
-                                                                <iframe
-                                                                    src={`https://www.youtube-nocookie.com/embed/${videoId}`}
-                                                                    title={song.title}
-                                                                    className="w-full h-full"
-                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                    allowFullScreen
-                                                                    loading="lazy"
-                                                                    {...({ fetchpriority: "low" } as any)}
-                                                                />
-                                                            ) : (
-                                                                <div className="flex h-full items-center justify-center text-white/40">
-                                                                    <div className="text-center p-4">
-                                                                        <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                                        No Video
+                                                            <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
+                                                                {videoId ? (
+                                                                    <iframe
+                                                                        src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+                                                                        title={song.title}
+                                                                        className="w-full h-full"
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                        allowFullScreen
+                                                                        loading="lazy"
+                                                                        {...({ fetchpriority: "low" } as any)}
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex h-full items-center justify-center text-white/40">
+                                                                        <div className="text-center p-4">
+                                                                            <Music className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                                            No Video
+                                                                        </div>
                                                                     </div>
-                                                                </div>
+                                                                )}
+                                                            </div>
+                                                            {song.title && (
+                                                                <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
+                                                                    {song.title}
+                                                                </h3>
                                                             )}
                                                         </div>
-                                                        {song.title && (
-                                                            <h3 className="text-xl font-bold text-white px-2 line-clamp-2">
-                                                                {song.title}
-                                                            </h3>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-6 flex flex-col justify-center min-h-[160px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
-                                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                                    <div className="relative z-10 space-y-4 text-center">
-                                        <div className="space-y-1">
-                                            <h3 className="text-2xl font-black text-white">Band Priority</h3>
-                                            <p className="text-blue-100/80 text-base font-medium">No new song focus yet</p>
-                                        </div>
-                                    </div>
-                                </Card>
-                            )}
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                                    <Video className="w-6 h-6 text-blue-600" />
-                                    Tutorials
-                                </h2>
-                                <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
-                                    setNewInstr({ title: "", type: "Tutorial", url: "" });
-                                    setIsAddInstrOpen(true);
-                                }}>
-                                    <Plus className="w-4 h-4 mr-2" /> Add Resource
-                                </Button>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).length === 0 ? (
-                                    <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                        <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                        <p>No resources yet. Add tutorials for the band!</p>
-                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                 ) : (
-                                    instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
-                                        <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
-                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                                            <MoreVertical className="w-4 h-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent>
-                                                        <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
-                                                            <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
-                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 rounded-[2.5rem] p-6 flex flex-col justify-center min-h-[160px] transition-all hover:scale-105 group md:col-span-2 lg:col-span-3">
+                                        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                                        <div className="relative z-10 space-y-4 text-center">
+                                            <div className="space-y-1">
+                                                <h3 className="text-2xl font-black text-white">Band Priority</h3>
+                                                <p className="text-blue-100/80 text-base font-medium">No new song focus yet</p>
                                             </div>
-
-                                            <div
-                                                className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
-                                                onClick={() => resource.url && playVideo(resource.url)}
-                                            >
-                                                {getYTThumbnail(resource.url) ? (
-                                                    <div className="w-full h-full relative">
-                                                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <Video className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                )}
-                                            </div>
-                                            <CardContent className="p-4">
-                                                <Badge variant="secondary" className="mb-2 text-xs font-normal">
-                                                    {resource.type}
-                                                </Badge>
-                                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
-                                                    {resource.title}
-                                                </h3>
-                                                <p className="text-xs text-slate-500">
-                                                    {new Date(resource.created_at).toLocaleDateString()}
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                    ))
+                                        </div>
+                                    </Card>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Backing Tracks Section */}
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                                    <Music className="w-6 h-6 text-blue-600" />
-                                    Backing Tracks
-                                </h2>
-                                <Button
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                    onClick={() => {
-                                        setNewInstr({ title: "", type: "Backing Track", url: "" });
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+                                        <Video className="w-6 h-6 text-blue-600" />
+                                        Tutorials
+                                    </h2>
+                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
+                                        setNewInstr({ title: "", type: "Tutorial", url: "" });
                                         setIsAddInstrOpen(true);
-                                    }}
-                                >
-                                    <Plus className="w-4 h-4 mr-2" /> Add Backing Track
-                                </Button>
-                            </div>
+                                    }}>
+                                        <Plus className="w-4 h-4 mr-2" /> Add Resource
+                                    </Button>
+                                </div>
 
-                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {instrResources.filter(r => r.type === "Backing Track").length === 0 ? (
-                                    <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                        <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                        <p>No backing tracks yet. Add tracks for choir practice!</p>
-                                    </div>
-                                ) : (
-                                    instrResources.filter(r => r.type === "Backing Track").map((resource) => (
-                                        <BackingTrackCard
-                                            key={resource.id}
-                                            resource={resource}
-                                            onPlay={playVideo}
-                                            onEdit={startEditInstrResource}
-                                            onDelete={handleDeleteInstrResource}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).length === 0 ? (
+                                        <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                            <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                            <p>No resources yet. Add tutorials for the band!</p>
+                                        </div>
+                                    ) : (
+                                        instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
+                                            <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
+                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                                                <MoreVertical className="w-4 h-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
+                                                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
 
-                        {/* Band Weekly Setlist Section */}
-                        <div className="space-y-4">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                <ListMusic className="w-6 h-6 text-blue-500" />
-                                Band Setlist View
-                            </h2>
-                            <p className="text-slate-500 text-sm">Chord charts, dynamics, and band-specific instructions for this week.</p>
-
-                            <div className="grid lg:grid-cols-2 gap-6">
-                                {/* Praise Set for Band */}
-                                <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
-                                    <div className="bg-blue-600 p-4 text-white">
-                                        <h3 className="font-bold flex items-center gap-2">
-                                            <Zap className="w-5 h-5 fill-current" /> Praise Set
-                                        </h3>
-                                    </div>
-                                    <CardContent className="p-4 space-y-4">
-                                        {praiseSet.length === 0 ? (
-                                            <p className="text-center py-8 text-slate-400">No songs in praise set</p>
-                                        ) : (
-                                            praiseSet.map((song) => (
-                                                <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
-                                            ))
-                                        )}
-                                    </CardContent>
-                                </Card>
-
-                                {/* Worship Set for Band */}
-                                <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
-                                    <div className="bg-indigo-700 p-4 text-white">
-                                        <h3 className="font-bold flex items-center gap-2">
-                                            <Waves className="w-5 h-5" /> Worship Set
-                                        </h3>
-                                    </div>
-                                    <CardContent className="p-4 space-y-4">
-                                        {worshipSet.length === 0 ? (
-                                            <p className="text-center py-8 text-slate-400">No songs in worship set</p>
-                                        ) : (
-                                            worshipSet.map((song) => (
-                                                <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
-                                            ))
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="academy" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                        {/* Immersive Hero Section */}
-                        <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32 rounded-[3rem] border border-slate-800 p-8 md:p-12 shadow-2xl">
-                            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/20 to-transparent pointer-events-none" />
-                            <div className="relative z-10 max-w-2xl">
-                                <Badge className="bg-blue-600 text-white border-blue-500 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-1.5 rounded-full mb-6">
-                                    Introducing High Excellence
-                                </Badge>
-                                <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight leading-none">
-                                    The Power House <span className="text-blue-500">Choir Academy</span>
-                                </h2>
-                                <p className="text-slate-400 text-lg font-medium leading-relaxed italic pr-8 mb-8 border-l-2 border-blue-600 pl-6">
-                                    Elevating our worship through professional training, spiritual alignment, and technical mastery.
-                                </p>
-                                <div className="flex flex-wrap gap-4">
-                                    <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
-                                        <Users className="w-4 h-4 text-blue-500" />
-                                        <span className="text-sm font-bold">12+ Professional Courses</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
-                                        <Zap className="w-4 h-4 text-amber-500" />
-                                        <span className="text-sm font-bold">Expert Instructors</span>
-                                    </div>
+                                                <div
+                                                    className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
+                                                    onClick={() => resource.url && playVideo(resource.url)}
+                                                >
+                                                    {getYTThumbnail(resource.url) ? (
+                                                        <div className="w-full h-full relative">
+                                                            <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+                                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                                <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Video className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                    )}
+                                                </div>
+                                                <CardContent className="p-4">
+                                                    <Badge variant="secondary" className="mb-2 text-xs font-normal">
+                                                        {resource.type}
+                                                    </Badge>
+                                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                                                        {resource.title}
+                                                    </h3>
+                                                    <p className="text-xs text-slate-500">
+                                                        {new Date(resource.created_at).toLocaleDateString()}
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+                                        ))
+                                    )}
                                 </div>
                             </div>
-                        </div>
 
-                        <AcademyDashboard locationId={locationId} />
+                            {/* Backing Tracks Section */}
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+                                        <Music className="w-6 h-6 text-blue-600" />
+                                        Backing Tracks
+                                    </h2>
+                                    <Button
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        onClick={() => {
+                                            setNewInstr({ title: "", type: "Backing Track", url: "" });
+                                            setIsAddInstrOpen(true);
+                                        }}
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" /> Add Backing Track
+                                    </Button>
+                                </div>
 
-                        {/* Course Sections */}
-                        {academyCourses.map((section, idx) => (
-                            <div key={idx} className="space-y-8">
-                                <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-3 text-blue-600 dark:text-blue-500">
-                                            {section.icon}
-                                            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
-                                                {section.title}
+                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {instrResources.filter(r => r.type === "Backing Track").length === 0 ? (
+                                        <div className="col-span-full py-12 text-center text-slate-400 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                            <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                            <p>No backing tracks yet. Add tracks for choir practice!</p>
+                                        </div>
+                                    ) : (
+                                        instrResources.filter(r => r.type === "Backing Track").map((resource) => (
+                                            <BackingTrackCard
+                                                key={resource.id}
+                                                resource={resource}
+                                                onPlay={playVideo}
+                                                onEdit={startEditInstrResource}
+                                                onDelete={handleDeleteInstrResource}
+                                            />
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Band Weekly Setlist Section */}
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    <ListMusic className="w-6 h-6 text-blue-500" />
+                                    Band Setlist View
+                                </h2>
+                                <p className="text-slate-500 text-sm">Chord charts, dynamics, and band-specific instructions for this week.</p>
+
+                                <div className="grid lg:grid-cols-2 gap-6">
+                                    {/* Praise Set for Band */}
+                                    <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                        <div className="bg-blue-600 p-4 text-white">
+                                            <h3 className="font-bold flex items-center gap-2">
+                                                <Zap className="w-5 h-5 fill-current" /> Praise Set
                                             </h3>
                                         </div>
-                                        <p className="text-slate-500 font-medium italic">{section.description}</p>
-                                    </div>
-                                    <Badge variant="outline" className="w-fit text-[10px] font-black tracking-widest uppercase border-blue-100 text-blue-500 bg-blue-50/30 px-4 py-1 rounded-full">
-                                        Professional Track
-                                    </Badge>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {section.courses.map((course, cIdx) => (
-                                        <AcademyCourseCard key={cIdx} course={course} onAccess={handleAccessCourse} />
-                                    ))}
+                                        <CardContent className="p-4 space-y-4">
+                                            {praiseSet.length === 0 ? (
+                                                <p className="text-center py-8 text-slate-400">No songs in praise set</p>
+                                            ) : (
+                                                praiseSet.map((song) => (
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
+                                                ))
+                                            )}
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Worship Set for Band */}
+                                    <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                        <div className="bg-indigo-700 p-4 text-white">
+                                            <h3 className="font-bold flex items-center gap-2">
+                                                <Waves className="w-5 h-5" /> Worship Set
+                                            </h3>
+                                        </div>
+                                        <CardContent className="p-4 space-y-4">
+                                            {worshipSet.length === 0 ? (
+                                                <p className="text-center py-8 text-slate-400">No songs in worship set</p>
+                                            ) : (
+                                                worshipSet.map((song) => (
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
+                                                ))
+                                            )}
+                                        </CardContent>
+                                    </Card>
                                 </div>
                             </div>
-                        ))}
-                    </TabsContent>
+                        </TabsContent>
 
-                </Tabs>
+                        <TabsContent value="academy" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                            {/* Immersive Hero Section */}
+                            <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32 rounded-[3rem] border border-slate-800 p-8 md:p-12 shadow-2xl">
+                                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-600/20 to-transparent pointer-events-none" />
+                                <div className="relative z-10 max-w-2xl">
+                                    <Badge className="bg-blue-600 text-white border-blue-500 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-1.5 rounded-full mb-6">
+                                        Introducing High Excellence
+                                    </Badge>
+                                    <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight leading-none">
+                                        The Power House <span className="text-blue-500">Choir Academy</span>
+                                    </h2>
+                                    <p className="text-slate-400 text-lg font-medium leading-relaxed italic pr-8 mb-8 border-l-2 border-blue-600 pl-6">
+                                        Elevating our worship through professional training, spiritual alignment, and technical mastery.
+                                    </p>
+                                    <div className="flex flex-wrap gap-4">
+                                        <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
+                                            <Users className="w-4 h-4 text-blue-500" />
+                                            <span className="text-sm font-bold">12+ Professional Courses</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-slate-300 bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700">
+                                            <Zap className="w-4 h-4 text-amber-500" />
+                                            <span className="text-sm font-bold">Expert Instructors</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <AcademyDashboard locationId={locationId} />
+
+                            {/* Course Sections */}
+                            {academyCourses.map((section, idx) => (
+                                <div key={idx} className="space-y-8">
+                                    <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3 text-blue-600 dark:text-blue-500">
+                                                {section.icon}
+                                                <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                                                    {section.title}
+                                                </h3>
+                                            </div>
+                                            <p className="text-slate-500 font-medium italic">{section.description}</p>
+                                        </div>
+                                        <Badge variant="outline" className="w-fit text-[10px] font-black tracking-widest uppercase border-blue-100 text-blue-500 bg-blue-50/30 px-4 py-1 rounded-full">
+                                            Professional Track
+                                        </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {section.courses.map((course, cIdx) => (
+                                            <AcademyCourseCard key={cIdx} course={course} onAccess={handleAccessCourse} />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </TabsContent>
+
+                    </Tabs>
+
+                    {/* GLOBAL DRAG OVERLAY */}
+                    <DragOverlay dropAnimation={{
+                        sideEffects: defaultDropAnimationSideEffects({
+                            styles: {
+                                active: { opacity: '0.4' },
+                            },
+                        }),
+                    }}>
+                        {activeDragItem ? (
+                            <SetSongCard
+                                song={activeDragItem}
+                                index={0} // Index doesn't matter for overlay
+                                onPlay={() => { }}
+                                onEdit={() => { }}
+                                onRemove={() => { }}
+                                onViewLyrics={() => { }}
+                                isOverlay={true}
+                            />
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
 
                 {/* Course Detail Modal */}
                 <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
