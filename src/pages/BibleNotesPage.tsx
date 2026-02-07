@@ -96,40 +96,13 @@ const BibleNotesPage = () => {
     const [showNoteDialog, setShowNoteDialog] = useState(false);
     const [selectedNote, setSelectedNote] = useState<BibleNote | null>(null);
     const richTextEditorRef = useRef<RichTextEditorHandle | null>(null);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
     const noteContentRef = useRef('');
-
-    // Keep ref synced for iframe initialization
-
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [selectedNoteForDelete, setSelectedNoteForDelete] = useState<string | null>(null);
     const [isInlineEditing, setIsInlineEditing] = useState(false);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
 
     const { user } = useAuth();
-    // Listen for updates from Iframe Editor (Nuclear Option for iOS PWA)
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            const { type, payload } = event.data;
-
-            if (type === 'CONTENT_UPDATE') {
-                // Update state to match iframe content
-                setNewNote(prev => ({ ...prev, note_text: payload }));
-                setSelectedNote(prev => prev ? { ...prev, note_text: payload } : null);
-            }
-
-            if (type === 'EDITOR_MOUNTED') {
-                // Send initial content to iframe
-                iframeRef.current?.contentWindow?.postMessage({
-                    type: 'INIT_CONTENT',
-                    payload: noteContentRef.current
-                }, '*');
-            }
-        };
-
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    }, []);
 
     const { toast } = useToast();
     const { preferences } = useBiblePreferences();
@@ -1253,20 +1226,17 @@ const BibleNotesPage = () => {
                                         <div className="px-4 md:px-6 mt-6 flex-1 flex flex-col min-h-0 overflow-visible">
                                             {isInlineEditing ? (
                                                 <div className="flex-1 flex flex-col min-h-0">
-                                                    <div className="flex-1 h-full relative">
-                                                        <iframe
-                                                            ref={iframeRef}
-                                                            src="/editor-frame"
-                                                            className="w-full h-full border-0 bg-transparent"
-                                                            title="Note Editor"
-                                                            tabIndex={-1}
-                                                            style={{
-                                                                display: 'block',
-                                                                width: '100%',
-                                                                height: '100%'
-                                                            }}
-                                                        />
-                                                    </div>
+                                                    <RichTextEditor
+                                                        content={newNote.note_text}
+                                                        onChange={(content) => {
+                                                            newNote.note_text = content;
+                                                            noteContentRef.current = content;
+                                                        }}
+                                                        placeholder="Start writing your reflection..."
+                                                        toolbarPosition="bottom"
+                                                        className="h-full"
+                                                        autoFocus={false}
+                                                    />
                                                 </div>
                                             ) : (
                                                 <div
@@ -1322,30 +1292,49 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col shadow-[0_-8px_30px_rgb(0,0,0,0.12)]">
+                <div className="fixed inset-0 bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col h-dvh">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
                     </div>
                     <div className="flex-1 flex flex-col w-full relative bg-gray-50 dark:bg-black overflow-hidden">
-                        {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm pt-4 pb-4">
+                        {/* Premium Navbar - Streamlined and safe-area aware */}
+                        <div className="flex items-center justify-between w-full px-6 min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 pt-[max(env(safe-area-inset-top),1.5rem)] pb-4">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
                                     onClick={() => setShowNewNoteDialog(false)}
-                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-4 rounded-full font-bold"
+                                    className="text-gray-600 dark:text-gray-400 hover:text-indigo-600 px-0 rounded-full font-bold h-10 w-10"
                                 >
-                                    <ArrowLeft className="w-5 h-5 mr-2" />
-                                    Back
+                                    <ArrowLeft className="w-6 h-6" />
                                 </Button>
+
+                                <div className="hidden sm:block">
+                                    <Select
+                                        value={newNote.folder_id || 'unfiled'}
+                                        onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
+                                    >
+                                        <SelectTrigger className="w-auto min-w-[140px] h-9 rounded-full border-none bg-gray-50 dark:bg-gray-800 shadow-sm font-bold text-xs px-4">
+                                            <div className="flex items-center gap-2">
+                                                <Folder className="w-3.5 h-3.5 text-blue-500" />
+                                                <SelectValue placeholder="Add to Folder" />
+                                            </div>
+                                        </SelectTrigger>
+                                        <SelectContent position="popper" sideOffset={5} className="z-[10000]">
+                                            <SelectItem value="unfiled">All Notes</SelectItem>
+                                            {folders.map(folder => (
+                                                <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-3">
                                 <Button
                                     onClick={handleSaveNote}
                                     disabled={isSaving}
-                                    className="bg-indigo-600 text-white hover:bg-indigo-700 font-black px-10 rounded-full shadow-lg h-10 transition-all active:scale-95"
+                                    className="bg-indigo-600 text-white hover:bg-indigo-700 font-black px-8 rounded-full shadow-lg h-10 transition-all active:scale-95"
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </Button>
@@ -1355,53 +1344,28 @@ const BibleNotesPage = () => {
                         {/* Editor Content */}
                         <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-950 overflow-visible">
                             <div className="flex-1 flex flex-col min-h-0">
-                                <div className="px-4 md:px-6 pt-4 pb-4 space-y-2">
-                                    <div className="flex flex-wrap gap-4 items-center">
-                                        <div className="w-full md:w-auto">
-                                            <Select
-                                                value={newNote.folder_id || 'unfiled'}
-                                                onValueChange={(val) => setNewNote({ ...newNote, folder_id: val === 'unfiled' ? undefined : val })}
-                                            >
-                                                <SelectTrigger className="w-auto min-w-[140px] h-9 rounded-full border-none bg-gray-50 dark:bg-gray-800 shadow-sm font-bold text-xs">
-                                                    <div className="flex items-center gap-2">
-                                                        <Folder className="w-3.5 h-3.5 text-blue-500" />
-                                                        <SelectValue placeholder="Add to Folder" />
-                                                    </div>
-                                                </SelectTrigger>
-                                                <SelectContent position="popper" sideOffset={5} className="z-[10000]">
-                                                    <SelectItem value="unfiled">All Notes</SelectItem>
-                                                    {folders.map(folder => (
-                                                        <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="flex-1"></div>
-                                    </div>
-
+                                <div className="px-6 py-4 bg-white dark:bg-gray-950">
                                     <Input
                                         placeholder="Note Title"
                                         value={newNote.title}
                                         onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                                         autoFocus={false}
-                                        className="text-2xl sm:text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
+                                        className="text-2xl sm:text-3xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
                                     />
                                 </div>
-
-                                {/* Rich Text Editor */}
+                                {/* Rich Text Editor - Instant Component Version */}
                                 <div className="flex-1 flex flex-col group min-h-0">
-                                    <div className="flex-1 min-h-0 overflow-visible bg-transparent">
-                                        <div className="flex-1 min-h-0 overflow-hidden bg-transparent relative">
-                                            {/* IFRAME ISOLATION - The "Nuclear Option" */}
-                                            <iframe
-                                                src="/editor-frame"
-                                                className="w-full h-full border-0 block"
-                                                ref={iframeRef}
-                                                title="Text Editor"
-                                                style={{ touchAction: 'none' }}
-                                            />
-                                        </div>
-                                    </div>
+                                    <RichTextEditor
+                                        content={newNote.note_text}
+                                        onChange={(content) => {
+                                            newNote.note_text = content; // Direct mutation for performance in this state object
+                                            noteContentRef.current = content;
+                                        }}
+                                        placeholder="Start writing your note here..."
+                                        toolbarPosition="bottom"
+                                        className="h-full"
+                                        autoFocus={false}
+                                    />
                                 </div>
                             </div>
                         </div>
