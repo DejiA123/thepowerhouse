@@ -215,10 +215,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
   const renderMenuBar = (position: 'top' | 'bottom' = 'top') => (
     <div className={cn(
-      "z-[100] py-2 pointer-events-none",
+      "z-[100] pt-2 pb-0 pointer-events-none",
       // Use fixed positioning for bottom toolbar to stay above keyboard
       position === 'bottom'
-        ? 'absolute left-0 right-0 bottom-0 flex justify-center bg-white/95 dark:bg-gray-950/95 pb-[max(env(safe-area-inset-bottom),4px)] pt-2 backdrop-blur-md z-50'
+        ? 'absolute left-0 right-0 bottom-0 flex justify-center bg-white/95 dark:bg-gray-950/95 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-md z-50'
         : 'absolute left-1/2 -translate-x-1/2 top-0'
     )}>
       <div className="flex flex-col items-center gap-4 pointer-events-auto">
@@ -386,8 +386,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       {toolbarPosition === 'top' && !readOnly && renderMenuBar('top')}
 
       <div className={cn(
-        "flex-1 relative overflow-y-auto min-h-0",
-        toolbarPosition === 'bottom' && !readOnly && "pb-10"
+        "flex-1 relative overflow-y-auto min-h-0"
       )} style={{
         WebkitOverflowScrolling: 'touch',
         isolation: 'isolate',
@@ -431,7 +430,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 });
 
