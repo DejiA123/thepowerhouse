@@ -1846,14 +1846,12 @@ body.modal-open {
     }
   }
 
-  /* Ultra-Aggressive lift for PWA standalone mode */
-  @media (display-mode: standalone) {
-
-    #bottom-nav-bar,
-    .bottom-nav-bar {
-      padding-bottom: 120px !important;
-      bottom: 0px !important;
-      height: auto !important;
-    }
+  /* UNIVERSAL FORCE LIFT for Bottom Nav - v9 */
+  #iphone-force-nav,
+  #bottom-nav-bar,
+  .bottom-nav-bar {
+    padding-bottom: 100px !important;
+    bottom: 0px !important;
+    height: auto !important;
   }
 }

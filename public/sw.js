@@ -12,8 +12,8 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
   self.addEventListener('activate', () => { });
 } else {
 
-  const CACHE_NAME = 'powerhouse-connect-v2';
-  const AUDIO_CACHE_NAME = 'powerhouse-audio-v2';
+  const CACHE_NAME = 'powerhouse-connect-v3';
+  const AUDIO_CACHE_NAME = 'powerhouse-audio-v3';
 
   // Install event - cache essential resources
   self.addEventListener('install', (event) => {

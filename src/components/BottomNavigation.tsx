@@ -12,25 +12,18 @@ const BottomNavigation = () => {
     { name: "Resources", path: "/resources", icon: Info },
   ];
 
-  // Target iPhone 13/12/14 standard size (390px width)
-  // iPhone 12 Pro Max is 428px, so this won't affect it.
-  const isIPhoneStandard = typeof window !== 'undefined' && window.screen.width === 390;
-
-  // Detect if running in standalone PWA mode
-  const isStandalone = typeof window !== 'undefined' && (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true
-  );
+  // Robust iPhone check
+  const isIPhone = typeof window !== 'undefined' && /iPhone/.test(navigator.userAgent);
 
   return (
     <nav
-      id="bottom-nav-bar"
-      data-version="v8-ultra-lift"
+      id="iphone-force-nav"
+      data-version="v9-force-lift"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Ultra-aggressive 120px lift for PWA mode to ensure it moves
-        paddingBottom: isStandalone ? '120px' : '60px'
+        // Force 100px lift for ALL iPhones to ensure it moves regardless of PWA/Safari detection
+        paddingBottom: isIPhone ? '100px' : '20px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -70,8 +63,8 @@ const BottomNavigation = () => {
         })}
       </div>
       {/* Visible version tag for debugging */}
-      <div className="absolute bottom-1 right-1 text-[8px] text-gray-400 opacity-30 select-none pointer-events-none">
-        v8-PWA-LIFT
+      <div className="absolute bottom-1 right-1 text-[8px] text-gray-400 opacity-50 select-none pointer-events-none">
+        v9-FORCE-LIFT
       </div>
     </nav >
   );
