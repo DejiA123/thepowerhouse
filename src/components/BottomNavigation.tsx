@@ -23,8 +23,8 @@ const BottomNavigation = () => {
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Increased padding for iPhone safe areas to lift the bar higher
-        paddingBottom: isIPhoneStandard ? 'max(env(safe-area-inset-bottom), 30px)' : 'max(env(safe-area-inset-bottom), 15px)'
+        // Aggressively increased padding for iPhone safe areas to lift the bar significantly higher
+        paddingBottom: isIPhoneStandard ? 'max(env(safe-area-inset-bottom), 45px)' : 'max(env(safe-area-inset-bottom), 35px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
