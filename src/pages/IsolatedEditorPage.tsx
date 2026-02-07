@@ -5,39 +5,10 @@ const IsolatedEditorPage = () => {
     const [content, setContent] = useState('');
     const [isReady, setIsReady] = useState(false);
     const [isEditable, setIsEditable] = useState(false);
-    const [viewportHeight, setViewportHeight] = useState('100dvh');
+
     const editorRef = useRef<any>(null);
 
-    // Track visual viewport height to stay above keyboard
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.visualViewport) return;
 
-        const handleViewportResize = () => {
-            const viewport = window.visualViewport;
-            if (viewport) {
-                // Use a direct pixel value for the visible area
-                setViewportHeight(`${viewport.height}px`);
-
-                // Add a small delay and scroll to cursor if needed
-                if (document.activeElement?.closest('.ProseMirror')) {
-                    setTimeout(() => {
-                        document.activeElement?.scrollIntoView({ block: 'nearest' });
-                    }, 100);
-                }
-            }
-        };
-
-        window.visualViewport.addEventListener('resize', handleViewportResize);
-        window.visualViewport.addEventListener('scroll', handleViewportResize);
-
-        // Initial call
-        handleViewportResize();
-
-        return () => {
-            window.visualViewport?.removeEventListener('resize', handleViewportResize);
-            window.visualViewport?.removeEventListener('scroll', handleViewportResize);
-        };
-    }, []);
 
     // Prevent PWA auto-focus by starting read-only, then enabling interaction
     useEffect(() => {
@@ -102,7 +73,6 @@ const IsolatedEditorPage = () => {
     return (
         <div
             className="w-screen bg-white dark:bg-gray-950 overflow-hidden relative"
-            style={{ height: viewportHeight }}
         >
             {/* 
                 CRITICAL CSS OVERRIDES FOR IFRAME CONTEXT
@@ -125,7 +95,7 @@ const IsolatedEditorPage = () => {
                 <RichTextEditor
                     content={content}
                     onChange={handleChange}
-                    placeholder="Start writing your note..."
+                    placeholder="Start writing..."
                     toolbarPosition="bottom"
                     className="h-full"
                     autoFocus={false}
@@ -134,7 +104,7 @@ const IsolatedEditorPage = () => {
                 <div className="h-full w-full relative" tabIndex={-1}>
                     {!content && (
                         <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
-                            Start writing your note...
+                            Start writing...
                         </div>
                     )}
                     <div

@@ -65,32 +65,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
-  const [containerHeight, setContainerHeight] = useState('100%');
   const [, forceUpdate] = useState(0);
 
-  // Detect iOS keyboard using visualViewport API to resize container
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) return;
 
-    const updateHeight = () => {
-      const viewport = window.visualViewport;
-      if (viewport) {
-        // Set container height to match visible viewport height
-        // This pushes anything absolutely positioned at bottom: 0 
-        // to stay exactly above the keyboard.
-        setContainerHeight(`${viewport.height}px`);
-      }
-    };
-
-    window.visualViewport.addEventListener('resize', updateHeight);
-    window.visualViewport.addEventListener('scroll', updateHeight);
-    updateHeight();
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', updateHeight);
-      window.visualViewport?.removeEventListener('scroll', updateHeight);
-    };
-  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -337,7 +314,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   return (
     <div
       className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 relative overflow-hidden", className)}
-      style={{ height: containerHeight }}
     >
       {/* Table Bubble Menu */}
       <BubbleMenu
