@@ -1355,7 +1355,7 @@ const BibleNotesPage = () => {
                         {/* Editor Content */}
                         <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-950 overflow-visible">
                             <div className="flex-1 flex flex-col min-h-0">
-                                <div className="px-4 md:px-6 pt-10 pb-4 space-y-6">
+                                <div className="px-4 md:px-6 pt-4 pb-4 space-y-2">
                                     <div className="flex flex-wrap gap-4 items-center">
                                         <div className="w-full md:w-auto">
                                             <Select
@@ -1384,7 +1384,7 @@ const BibleNotesPage = () => {
                                         value={newNote.title}
                                         onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
                                         autoFocus={false}
-                                        className="text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
+                                        className="text-2xl sm:text-4xl md:text-5xl font-black border-none bg-transparent p-0 h-auto focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 text-gray-900 dark:text-white shadow-none text-left ios-input-fix select-text"
                                     />
                                 </div>
 
