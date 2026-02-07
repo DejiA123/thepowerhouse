@@ -1079,12 +1079,12 @@ const BibleNotesPage = () => {
                                 backButtonRef.current.focus();
                             }
                         }}
-                        className="fixed top-[120px] inset-x-0 bottom-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
+                        className="fixed top-0 inset-x-0 bottom-0 w-screen max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
                     >
                         {selectedNote && (
                             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
                                 {/* Standard Header Bar - Clean Apple Notes Style */}
-                                <div className="relative flex items-center justify-between px-4 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
+                                <div className="relative flex items-center justify-between px-4 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md sticky top-0 z-50 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3">
                                     <div className="flex-none z-10">
                                         <Button
                                             ref={backButtonRef}
@@ -1321,14 +1321,14 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed top-[120px] inset-x-0 bottom-0 bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
+                <div className="fixed top-0 inset-x-0 bottom-0 bg-white dark:bg-black z-[9999] overflow-hidden flex flex-col sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap
                     </div>
                     <div className="flex-1 flex flex-col w-full relative bg-gray-50 dark:bg-black overflow-hidden">
                         {/* Premium Navbar */}
-                        <div className="flex items-center justify-between w-full px-6 py-3 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+                        <div className="flex items-center justify-between w-full px-6 h-auto min-h-[4rem] border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3">
                             <div className="flex items-center gap-4">
                                 <Button
                                     variant="ghost"
