@@ -394,7 +394,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       }}>
         <div className="absolute inset-0 z-0 bg-transparent min-h-full" style={{ touchAction: 'none', pointerEvents: 'none' }} />
         <EditorContent editor={editor} className="min-h-full relative z-10" />
-        {!content && editor && editor.getText().length === 0 && !readOnly && (
+        {editor && editor.getText().trim().length === 0 && !readOnly && (
           <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
             {placeholder || 'Select here to write your note...'}
           </div>
