@@ -387,7 +387,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
       <div className={cn(
         "flex-1 relative overflow-y-auto min-h-0",
-        toolbarPosition === 'bottom' && !readOnly && "pb-20"
+        toolbarPosition === 'bottom' && !readOnly && "pb-10"
       )} style={{
         WebkitOverflowScrolling: 'touch',
         isolation: 'isolate',

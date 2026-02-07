@@ -84,7 +84,7 @@ const IsolatedEditorPage = () => {
                     min-height: 100% !important; 
                     height: auto !important;
                     padding: 1.5rem !important;
-                    padding-bottom: 200px !important; /* Space for toolbar */
+                    padding-bottom: 120px !important; /* Space for toolbar */
                     outline: none !important;
                     -webkit-user-select: text !important;
                     user-select: text !important;
