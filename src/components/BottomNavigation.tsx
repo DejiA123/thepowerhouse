@@ -16,15 +16,25 @@ const BottomNavigation = () => {
   // iPhone 12 Pro Max is 428px, so this won't affect it.
   const isIPhoneStandard = typeof window !== 'undefined' && window.screen.width === 390;
 
+  // Detect if running in standalone PWA mode
+  const isStandalone = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+
   return (
     <nav
       id="bottom-nav-bar"
-      data-version="v5-safe-area"
+      data-version="v6-pwa-safe-area"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Aggressively increased padding for iPhone safe areas to lift the bar significantly higher
-        paddingBottom: isIPhoneStandard ? 'max(env(safe-area-inset-bottom), 45px)' : 'max(env(safe-area-inset-bottom), 35px)'
+        // Extra lift for PWA mode (standalone) on top of safe area
+        paddingBottom: isStandalone
+          ? 'calc(env(safe-area-inset-bottom) + 40px)'
+          : isIPhoneStandard
+            ? 'max(env(safe-area-inset-bottom), 45px)'
+            : 'max(env(safe-area-inset-bottom), 35px)'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
