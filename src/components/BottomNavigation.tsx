@@ -18,12 +18,12 @@ const BottomNavigation = () => {
   return (
     <nav
       id="nav-v12-force-lift"
-      data-version="v16-safari-align-refined"
+      data-version="v17-safari-decoupled"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // 24px is the refined height after user feedback (down from 34px)
-        paddingBottom: isIPhone ? '24px' : '10px'
+        // 12px for Safari browser; PWA stays 24px via index.css !important
+        paddingBottom: isIPhone ? '12px' : '10px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -62,9 +62,9 @@ const BottomNavigation = () => {
           );
         })}
       </div>
-      {/* Tiny v16 tag to confirm update */}
+      {/* Tiny v17 tag to confirm update */}
       <div className="absolute top-0 right-1 text-[6px] text-gray-300 opacity-30 select-none pointer-events-none">
-        v16
+        v17
       </div>
     </nav >
   );
