@@ -18,12 +18,12 @@ const BottomNavigation = () => {
   return (
     <nav
       id="nav-v12-force-lift"
-      data-version="v13-safari-align-refined"
+      data-version="v14-safari-align-refined"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // 54px is the refined height after user feedback (down from 64px)
-        paddingBottom: isIPhone ? '54px' : '10px'
+        // 44px is the refined height after user feedback (down from 54px)
+        paddingBottom: isIPhone ? '44px' : '10px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -62,9 +62,9 @@ const BottomNavigation = () => {
           );
         })}
       </div>
-      {/* Tiny v13 tag to confirm update */}
+      {/* Tiny v14 tag to confirm update */}
       <div className="absolute top-0 right-1 text-[6px] text-gray-300 opacity-30 select-none pointer-events-none">
-        v13
+        v14
       </div>
     </nav >
   );
