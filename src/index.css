@@ -1827,12 +1827,12 @@ body.modal-open {
     }
   }
 
-  /* Moderate lift for PWA standalone mode */
+  /* Align with Safari: use native safe area inset for PWA */
   @media (display-mode: standalone) {
 
     #bottom-nav-bar,
     .bottom-nav-bar {
-      padding-bottom: 60px !important;
+      padding-bottom: max(env(safe-area-inset-bottom), 12px) !important;
       bottom: 0px !important;
       height: auto !important;
     }
