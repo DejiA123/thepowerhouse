@@ -1827,13 +1827,13 @@ body.modal-open {
     }
   }
 
-  /* v14: Refining lift to 44px after user feedback */
+  /* v15: Refining lift to 34px after user feedback */
   @media (display-mode: standalone) {
 
     #nav-v12-force-lift,
     #bottom-nav-bar,
     .bottom-nav-bar {
-      padding-bottom: 44px !important;
+      padding-bottom: 34px !important;
       bottom: 0px !important;
       height: auto !important;
     }
