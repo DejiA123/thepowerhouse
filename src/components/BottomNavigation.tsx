@@ -22,8 +22,8 @@ const BottomNavigation = () => {
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Align with Safari: use native safe area inset
-        paddingBottom: 'max(env(safe-area-inset-bottom), 12px)'
+        // Align with Safari: 44px compensates for the missing Safari toolbar in PWA
+        paddingBottom: isIPhone ? '44px' : '10px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
