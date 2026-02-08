@@ -1826,6 +1826,17 @@ body.modal-open {
       user-select: text !important;
     }
   }
+
+  /* Moderate lift for PWA standalone mode */
+  @media (display-mode: standalone) {
+
+    #bottom-nav-bar,
+    .bottom-nav-bar {
+      padding-bottom: 60px !important;
+      bottom: 0px !important;
+      height: auto !important;
+    }
+  }
 }
 
 /* Additional fix: Ensure iOS PWA respects touch events for selection */
