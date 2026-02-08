@@ -1827,13 +1827,13 @@ body.modal-open {
     }
   }
 
-  /* v12: Forced 64px lift to match Safari toolbar height in PWA */
+  /* v13: Refined 54px lift after user feedback (down from 64px) */
   @media (display-mode: standalone) {
 
     #nav-v12-force-lift,
     #bottom-nav-bar,
     .bottom-nav-bar {
-      padding-bottom: 64px !important;
+      padding-bottom: 54px !important;
       bottom: 0px !important;
       height: auto !important;
     }
