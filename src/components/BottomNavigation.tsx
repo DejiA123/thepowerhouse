@@ -17,13 +17,13 @@ const BottomNavigation = () => {
 
   return (
     <nav
-      id="bottom-nav-bar"
-      data-version="v11-moderate-lift"
+      id="nav-v12-force-lift"
+      data-version="v12-safari-align"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
       style={{
         boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // Align with Safari: 44px compensates for the missing Safari toolbar in PWA
-        paddingBottom: isIPhone ? '44px' : '10px'
+        // 64px matches Safari toolbar height in PWA mode
+        paddingBottom: isIPhone ? '64px' : '10px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.preventDefault()}
@@ -61,6 +61,10 @@ const BottomNavigation = () => {
             </Link>
           );
         })}
+      </div>
+      {/* Tiny v12 tag to confirm update */}
+      <div className="absolute top-0 right-1 text-[6px] text-gray-300 opacity-30 select-none pointer-events-none">
+        v12
       </div>
     </nav >
   );

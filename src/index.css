@@ -1827,12 +1827,13 @@ body.modal-open {
     }
   }
 
-  /* Align with Safari: 44px compensates for the missing Safari toolbar in PWA */
+  /* v12: Forced 64px lift to match Safari toolbar height in PWA */
   @media (display-mode: standalone) {
 
+    #nav-v12-force-lift,
     #bottom-nav-bar,
     .bottom-nav-bar {
-      padding-bottom: 44px !important;
+      padding-bottom: 64px !important;
       bottom: 0px !important;
       height: auto !important;
     }
