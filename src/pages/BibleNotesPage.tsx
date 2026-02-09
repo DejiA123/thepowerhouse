@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -1413,7 +1414,7 @@ const BibleNotesPage = () => {
             </Dialog>
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
-            {showNewNoteDialog && (
+            {showNewNoteDialog && createPortal(
                 <div className="fixed top-0 left-0 right-0 bottom-0 w-screen h-[100dvh] bg-white dark:bg-gray-950 z-[9999] overflow-hidden flex flex-col shadow-none border-none">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
@@ -1492,7 +1493,8 @@ const BibleNotesPage = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
