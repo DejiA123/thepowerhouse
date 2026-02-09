@@ -81,8 +81,8 @@ export default defineConfig(({ mode }) => ({
     },
     chunkSizeWarningLimit: 1000,
     target: 'es2015',
-    minify: false, // Disable minification to prevent React import issues
-    sourcemap: true,
+    minify: 'esbuild',
+    sourcemap: false,
     assetsInlineLimit: 0,
     reportCompressedSize: false,
   },
