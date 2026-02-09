@@ -279,6 +279,7 @@ export const useGroupChat = (groupName: string) => {
                 // Send notifications asynchronously
                 pushNotificationService.notifyGroupMembers(
                   groupName,
+                  groupName,
                   newMessageWithProfile.user_id,
                   senderName,
                   messagePreview,
@@ -411,6 +412,7 @@ export const useGroupChat = (groupName: string) => {
         
         console.log('🔔 Triggering notifications for sent message');
         pushNotificationService.notifyGroupMembers(
+          groupName,
           groupName,
           user.id,
           senderName,

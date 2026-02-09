@@ -4101,7 +4101,9 @@ const ChoirPage = () => {
                                     <DroppableFolder
                                         id="library-root"
                                         className="absolute inset-0 z-0 rounded-3xl transition-colors duration-300 pointer-events-none data-[over=true]:bg-blue-500/10 data-[over=true]:ring-4 data-[over=true]:ring-blue-500/30"
-                                    />
+                                    >
+                                        <span />
+                                    </DroppableFolder>
                                     <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800 z-10">
                                         <div className="flex items-center gap-2">
                                             <FolderOpen className="w-5 h-5 text-blue-500" />
