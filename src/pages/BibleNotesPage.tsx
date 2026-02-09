@@ -9,8 +9,10 @@ import { Card } from "@/components/ui/card";
 import {
     Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar, Trash2,
     MoreVertical, Filter, Grid, List as ListIcon, TrendingUp, Hash, Layers, Heart,
-    Folder, FolderOpen, FolderPlus, ChevronRight, ChevronDown, Menu
+    Folder, FolderOpen, FolderPlus, ChevronRight, ChevronDown, Menu, Download
 } from "lucide-react";
+import html2pdf from 'html2pdf.js';
+import { saveAs } from 'file-saver';
 import { useAuth } from "@/contexts/AuthContext";
 import DOMPurify from 'dompurify';
 import { supabase } from "@/integrations/supabase/client";
@@ -340,7 +342,8 @@ const BibleNotesPage = () => {
                 tags: newNote.tags.length > 0 ? newNote.tags : null,
                 is_favorite: newNote.is_favorite,
                 is_private: newNote.is_private,
-                folder_id: newNote.folder_id || null
+                folder_id: newNote.folder_id || null,
+                updated_at: new Date().toISOString()
             };
 
             const { error } = await supabase
@@ -463,7 +466,8 @@ const BibleNotesPage = () => {
                 tags: newNote.tags.length > 0 ? newNote.tags : null,
                 is_favorite: newNote.is_favorite,
                 is_private: newNote.is_private,
-                folder_id: newNote.folder_id || null
+                folder_id: newNote.folder_id || null,
+                updated_at: new Date().toISOString()
             };
 
             const { error } = await supabase
@@ -570,6 +574,105 @@ const BibleNotesPage = () => {
             const cleanText = html.replace(/<[^>]*>/g, '').trim();
             if (!cleanText) return 'Divine Insight';
             return cleanText.substring(0, 40) + (cleanText.length > 40 ? '...' : '');
+        }
+    };
+
+    // Download note as PDF
+    const downloadNoteAsPDF = async (note: BibleNote) => {
+        try {
+            const title = note.title || getNoteTitleFallback(note.note_text);
+            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`;
+
+            // Create formatted HTML content
+            const htmlContent = `
+                <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
+                    <h1 style="color: #1e40af; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">${title}</h1>
+                    <div style="color: #6b7280; margin-bottom: 30px; font-size: 14px;">
+                        <p><strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}</p>
+                        <p><strong>Created:</strong> ${formatDateTime(note.created_at)}</p>
+                        <p><strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}</p>
+                    </div>
+                    <div style="line-height: 1.8; color: #1f2937;">
+                        ${note.note_text}
+                    </div>
+                </div>
+            `;
+
+            const element = document.createElement('div');
+            element.innerHTML = htmlContent;
+
+            const opt = {
+                margin: 10,
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            await html2pdf().set(opt).from(element).save();
+
+            toast({
+                title: "PDF Downloaded",
+                description: `${title} has been saved as PDF`,
+            });
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast({
+                title: "Error",
+                description: "Failed to generate PDF",
+                variant: "destructive"
+            });
+        }
+    };
+
+    // Download note as Word document
+    const downloadNoteAsWord = async (note: BibleNote) => {
+        try {
+            const title = note.title || getNoteTitleFallback(note.note_text);
+            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.docx`;
+
+            // Create formatted HTML content
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }
+                        h1 { color: #1e40af; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; }
+                        .metadata { color: #6b7280; margin-bottom: 20px; font-size: 10pt; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <div class="metadata">
+                        <p><strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}</p>
+                        <p><strong>Created:</strong> ${formatDateTime(note.created_at)}</p>
+                        <p><strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}</p>
+                    </div>
+                    <div>
+                        ${note.note_text}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob(['\ufeff', htmlContent], {
+                type: 'application/msword'
+            });
+            saveAs(blob, fileName.replace('.docx', '.doc'));
+
+            toast({
+                title: "Word Document Downloaded",
+                description: `${title} has been saved as Word Document`,
+            });
+        } catch (error) {
+            console.error('Error generating Word document:', error);
+            toast({
+                title: "Error",
+                description: "Failed to generate Word document",
+                variant: "destructive"
+            });
         }
     };
 
@@ -684,7 +787,7 @@ const BibleNotesPage = () => {
                         !isSidebarOpen && "lg:w-0 lg:overflow-hidden lg:opacity-0"
                     )}>
                         {/* Folder List Card */}
-                        <Card className="p-4 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-[2.5rem] sticky top-24">
+                        <Card className="p-4 border-none shadow-xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-[2.5rem] sticky top-24 lg:flex lg:flex-col lg:max-h-[70vh]">
                             <div className="flex items-center justify-between px-2 mb-6">
                                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                     <Layers className="w-5 h-5 text-indigo-500" />
@@ -704,7 +807,7 @@ const BibleNotesPage = () => {
                                 </Button>
                             </div>
 
-                            <div className="space-y-1">
+                            <div className="space-y-1 lg:overflow-y-auto lg:flex-1 pr-1 lg:pb-20 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent lg:min-h-0">
                                 <button
                                     onClick={() => setActiveFolderId(undefined)}
                                     className={cn(
@@ -1053,7 +1156,7 @@ const BibleNotesPage = () => {
                                 backButtonRef.current.focus();
                             }
                         }}
-                        className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800"
+                        className="fixed top-0 left-0 right-0 bottom-0 w-screen h-[100dvh] max-w-none p-0 overflow-hidden bg-white dark:bg-gray-950 z-50 outline-none transform-none shadow-none border-none"
                     >
                         {selectedNote && (
                             <div className="flex flex-col h-full bg-white dark:bg-gray-950">
@@ -1109,7 +1212,8 @@ const BibleNotesPage = () => {
                                                             .update({
                                                                 note_text: newNote.note_text,
                                                                 title: newNote.title,
-                                                                folder_id: newNote.folder_id || null
+                                                                folder_id: newNote.folder_id || null,
+                                                                updated_at: new Date().toISOString()
                                                             })
                                                             .eq('id', selectedNote.id);
                                                         if (error) throw error;
@@ -1144,7 +1248,7 @@ const BibleNotesPage = () => {
                                                             <MoreVertical className="w-5 h-5" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2 shadow-xl border-gray-100">
+                                                    <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-xl border-gray-100">
                                                         <DropdownMenuItem
                                                             onClick={() => {
                                                                 setEditingNote(selectedNote);
@@ -1169,6 +1273,24 @@ const BibleNotesPage = () => {
                                                                 <Edit3 className="w-4 h-4 text-indigo-600" />
                                                             </div>
                                                             <span className="font-semibold text-sm">Edit Note</span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => downloadNoteAsPDF(selectedNote)}
+                                                            className="rounded-xl focus:bg-blue-50 cursor-pointer py-2.5 px-3 flex items-center gap-3 transition-colors mt-1"
+                                                        >
+                                                            <div className="bg-blue-50 p-2 rounded-lg">
+                                                                <Download className="w-4 h-4 text-blue-600" />
+                                                            </div>
+                                                            <span className="font-semibold text-sm">Download as PDF</span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => downloadNoteAsWord(selectedNote)}
+                                                            className="rounded-xl focus:bg-green-50 cursor-pointer py-2.5 px-3 flex items-center gap-3 transition-colors"
+                                                        >
+                                                            <div className="bg-green-50 p-2 rounded-lg">
+                                                                <Download className="w-4 h-4 text-green-600" />
+                                                            </div>
+                                                            <span className="font-semibold text-sm">Download as Word</span>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() => {
@@ -1292,7 +1414,7 @@ const BibleNotesPage = () => {
 
             {/* Premium Editor Overlay - Fixed div to resolve iOS selection issues */}
             {showNewNoteDialog && (
-                <div className="fixed top-[max(env(safe-area-inset-top),75px)] sm:top-0 [@media(display-mode:standalone)]:top-[max(env(safe-area-inset-top),120px)] inset-x-0 bottom-0 w-screen h-[calc(100dvh-max(env(safe-area-inset-top),75px))] sm:h-dvh [@media(display-mode:standalone)]:h-[calc(100dvh-max(env(safe-area-inset-top),120px))] bg-white dark:bg-gray-950 z-[9999] overflow-hidden flex flex-col sm:rounded-t-[2.5rem] shadow-[0_-8px_30px_rgb(0,0,0,0.12)] border-t border-gray-100 dark:border-gray-800">
+                <div className="fixed top-0 left-0 right-0 bottom-0 w-screen h-[100dvh] bg-white dark:bg-gray-950 z-[9999] overflow-hidden flex flex-col shadow-none border-none">
                     {/* Focus Dummy Trap at the top of the overlay */}
                     <div tabIndex={0} className="w-0 h-0 opacity-0 overflow-hidden outline-none pointer-events-none absolute top-0" aria-hidden="true">
                         Focus Trap

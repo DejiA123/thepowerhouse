@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
+import EmailOTPForm from "@/components/EmailOTPForm";
+import MFAVerificationDialog from "@/components/MFAVerificationDialog";
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +29,13 @@ const AuthPage = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
+
+  // MFA state
+  const [showMFAVerification, setShowMFAVerification] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState("");
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState("login");
 
   // Redirect if already logged in
   if (user) {
@@ -64,6 +73,23 @@ const AuthPage = () => {
           variant: "destructive",
         });
       } else if (data.user) {
+        // Check if MFA is required
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
+          // MFA is required
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factors?.totp?.[0];
+
+          if (totpFactor) {
+            setMfaFactorId(totpFactor.id);
+            setShowMFAVerification(true);
+            setIsLoading(false);
+            return; // Don't navigate yet, wait for MFA
+          }
+        }
+
+        // No MFA required, navigate to home
         navigate("/");
       }
     } catch (error) {
@@ -75,6 +101,14 @@ const AuthPage = () => {
     }
 
     setIsLoading(false);
+  };
+
+  const handleMFASuccess = () => {
+    toast({
+      title: "Success!",
+      description: "You've been logged in successfully.",
+    });
+    navigate("/");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -118,6 +152,9 @@ const AuthPage = () => {
         setSignupEmail("");
         setSignupPassword("");
         setSignupFullName("");
+
+        // Switch to Sign In tab
+        setActiveTab("login");
       }
     } catch (error) {
       toast({
@@ -176,8 +213,8 @@ const AuthPage = () => {
             </p>
           </CardHeader>
           <CardContent className="px-8 pb-8">
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-700 rounded-2xl p-1.5">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-700 rounded-2xl p-1.5">
                 <TabsTrigger
                   value="login"
                   className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
@@ -189,6 +226,12 @@ const AuthPage = () => {
                   className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
                 >
                   Sign Up
+                </TabsTrigger>
+                <TabsTrigger
+                  value="passcode"
+                  className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
+                >
+                  Passcode
                 </TabsTrigger>
               </TabsList>
 
@@ -399,11 +442,23 @@ const AuthPage = () => {
                   </Button>
                 </form>
               </TabsContent>
+
+              <TabsContent value="passcode" className="mt-6">
+                <EmailOTPForm />
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
       </div>
+
+      {/* MFA Verification Dialog */}
+      <MFAVerificationDialog
+        open={showMFAVerification}
+        onOpenChange={setShowMFAVerification}
+        factorId={mfaFactorId}
+        onSuccess={handleMFASuccess}
+      />
     </div>
   );
 };

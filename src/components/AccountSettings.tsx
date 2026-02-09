@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserRoleManager from "@/components/UserRoleManager";
+import MFAEnrollmentDialog from "@/components/MFAEnrollmentDialog";
 
 interface AccountSettingsProps {
   onBack: () => void;
@@ -15,21 +16,27 @@ interface AccountSettingsProps {
 export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
-  
+
   const [profile, setProfile] = useState({
     full_name: '',
     email: ''
   });
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // MFA state
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [showMFAEnrollment, setShowMFAEnrollment] = useState(false);
+  const [mfaFactors, setMfaFactors] = useState<any[]>([]);
+
   useEffect(() => {
     if (user) {
       loadProfile();
+      checkMFAStatus();
     }
   }, [user]);
 
@@ -52,9 +59,53 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
     }
   };
 
+  const checkMFAStatus = async () => {
+    try {
+      const { data } = await supabase.auth.mfa.listFactors();
+      const totpFactors = data?.totp || [];
+      setMfaFactors(totpFactors);
+      setMfaEnabled(totpFactors.length > 0);
+    } catch (error) {
+      console.error('Error checking MFA status:', error);
+    }
+  };
+
+  const handleDisableMFA = async (factorId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+
+      if (error) throw error;
+
+      toast({
+        title: "MFA Disabled",
+        description: "Two-factor authentication has been disabled",
+      });
+
+      await checkMFAStatus();
+    } catch (error) {
+      console.error('Error disabling MFA:', error);
+      toast({
+        title: "Error",
+        description: "Failed to disable MFA",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMFAEnrollmentSuccess = async () => {
+    toast({
+      title: "Success",
+      description: "Two-factor authentication has been enabled",
+    });
+    await checkMFAStatus();
+  };
+
   const handleSave = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Only update fields that exist in the profiles table
@@ -90,7 +141,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
 
   const handleDeleteAccount = async () => {
     if (!user || deleteConfirmation !== 'DELETE') return;
-    
+
     setLoading(true);
     try {
       // Delete user data from profiles table
@@ -169,7 +220,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
             <User className="w-5 h-5" />
             Profile Information
           </h2>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -240,6 +291,72 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
           )}
         </div>
 
+        {/* Security - MFA Management */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Security
+          </h2>
+
+          <div className="p-4 bg-muted rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">Two-Factor Authentication (MFA)</p>
+                <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {mfaEnabled ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <Shield className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Status: {mfaEnabled ? 'Enabled' : 'Disabled'}
+                </p>
+                {mfaEnabled && mfaFactors.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {mfaFactors.length} authenticator{mfaFactors.length > 1 ? 's' : ''} enrolled
+                  </p>
+                )}
+              </div>
+
+              {mfaEnabled ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => mfaFactors[0] && handleDisableMFA(mfaFactors[0].id)}
+                  disabled={loading}
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  Disable MFA
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMFAEnrollment(true)}
+                  className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+                >
+                  Enable MFA
+                </Button>
+              )}
+            </div>
+
+            {mfaEnabled && (
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-xs text-green-800 dark:text-green-200">
+                  ✓ Your account is protected with two-factor authentication
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Roles Management */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -255,7 +372,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
             <Shield className="w-5 h-5" />
             Account Actions
           </h2>
-          
+
           <div className="space-y-3">
             <Button
               variant="outline"
@@ -280,7 +397,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
         {/* Account Information */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Account Information</h2>
-          
+
           <div className="space-y-3">
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">User ID</p>
@@ -316,7 +433,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
               This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -329,14 +446,14 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
                 className="w-full"
               />
             </div>
-            
+
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm text-red-700">
                 <strong>Warning:</strong> This will permanently delete your account, profile, preferences, and all associated data.
               </p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -357,6 +474,13 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* MFA Enrollment Dialog */}
+      <MFAEnrollmentDialog
+        open={showMFAEnrollment}
+        onOpenChange={setShowMFAEnrollment}
+        onSuccess={handleMFAEnrollmentSuccess}
+      />
     </div>
   );
 }; 

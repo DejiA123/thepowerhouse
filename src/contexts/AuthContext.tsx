@@ -16,10 +16,19 @@ if (!React || !React.createContext) {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; needsMFA?: boolean; factorId?: string }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
+  // MFA methods
+  getAuthenticatorAssuranceLevel: () => Promise<{ currentLevel: string | null; nextLevel: string | null; factors: any[] }>;
+  enrollMFA: () => Promise<{ qrCode: string; secret: string; factorId: string } | null>;
+  verifyMFAEnrollment: (factorId: string, code: string) => Promise<{ error: any }>;
+  verifyMFA: (factorId: string, code: string) => Promise<{ error: any }>;
+  unenrollMFA: (factorId: string) => Promise<{ error: any }>;
+  // Email OTP methods
+  signInWithOTP: (email: string) => Promise<{ error: any }>;
+  verifyOTP: (email: string, token: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log('AuthProvider: Setting up auth state listener...');
-    
+
     try {
       // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -79,16 +88,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       console.log('AuthProvider: Attempting sign in...');
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
       if (error) {
         console.error('Sign in error:', error);
-      } else {
-        console.log('Sign in successful');
+        return { error };
       }
-      return { error };
+
+      // Check if MFA is required
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
+        // MFA is required
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totpFactor = factors?.totp?.[0];
+
+        if (totpFactor) {
+          console.log('MFA required for login');
+          return { error: null, needsMFA: true, factorId: totpFactor.id };
+        }
+      }
+
+      console.log('Sign in successful');
+      return { error: null };
     } catch (error) {
       console.error('Sign in exception:', error);
       return { error };
@@ -98,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
       console.log('AuthProvider: Attempting sign up...', { email, fullName });
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -109,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         },
       });
-      
+
       if (error) {
         console.error('Sign up error:', error);
         return { error };
@@ -133,6 +158,132 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // MFA Methods
+  const getAuthenticatorAssuranceLevel = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) {
+        console.error('Error getting AAL:', error);
+        return { currentLevel: null, nextLevel: null, factors: [] };
+      }
+
+      // Get enrolled factors
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+
+      return {
+        currentLevel: data?.currentLevel || null,
+        nextLevel: data?.nextLevel || null,
+        factors: factors?.all || [],
+      };
+    } catch (error) {
+      console.error('getAuthenticatorAssuranceLevel exception:', error);
+      return { currentLevel: null, nextLevel: null, factors: [] };
+    }
+  };
+
+  const enrollMFA = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'Authenticator App',
+      });
+
+      if (error || !data) {
+        console.error('MFA enrollment error:', error);
+        return null;
+      }
+
+      return {
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret,
+        factorId: data.id,
+      };
+    } catch (error) {
+      console.error('enrollMFA exception:', error);
+      return null;
+    }
+  };
+
+  const verifyMFAEnrollment = async (factorId: string, code: string) => {
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) {
+        return { error: challenge.error };
+      }
+
+      const verify = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code,
+      });
+
+      return { error: verify.error };
+    } catch (error) {
+      console.error('verifyMFAEnrollment exception:', error);
+      return { error };
+    }
+  };
+
+  const verifyMFA = async (factorId: string, code: string) => {
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) {
+        return { error: challenge.error };
+      }
+
+      const verify = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code,
+      });
+
+      return { error: verify.error };
+    } catch (error) {
+      console.error('verifyMFA exception:', error);
+      return { error };
+    }
+  };
+
+  const unenrollMFA = async (factorId: string) => {
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      return { error };
+    } catch (error) {
+      console.error('unenrollMFA exception:', error);
+      return { error };
+    }
+  };
+
+  // Email OTP Methods
+  const signInWithOTP = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+      return { error };
+    } catch (error) {
+      console.error('signInWithOTP exception:', error);
+      return { error };
+    }
+  };
+
+  const verifyOTP = async (email: string, token: string) => {
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+      return { error };
+    } catch (error) {
+      console.error('verifyOTP exception:', error);
+      return { error };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -140,6 +291,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     loading,
+    getAuthenticatorAssuranceLevel,
+    enrollMFA,
+    verifyMFAEnrollment,
+    verifyMFA,
+    unenrollMFA,
+    signInWithOTP,
+    verifyOTP,
   };
 
   console.log('AuthProvider: Rendering, loading=', loading, 'user=', !!user);
