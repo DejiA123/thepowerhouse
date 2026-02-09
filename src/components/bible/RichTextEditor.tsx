@@ -2,9 +2,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { cn } from '@/lib/utils';
 import StarterKit from '@tiptap/starter-kit';
-import BulletList from '@tiptap/extension-bullet-list';
-import OrderedList from '@tiptap/extension-ordered-list';
-import ListItem from '@tiptap/extension-list-item';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -98,9 +95,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
         orderedList: { keepMarks: true, keepAttributes: false },
         heading: { levels: [1, 2, 3] },
       }),
-      BulletList,
-      OrderedList,
-      ListItem,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Underline,
       TextStyle,
@@ -141,6 +135,15 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
           '[&_table_td]:border [&_table_td]:border-gray-200 dark:[&_table_td]:border-gray-800 [&_table_td]:p-2 [&_table_td]:min-w-[100px]',
           '[&_table_th]:border [&_table_th]:border-gray-200 dark:[&_table_th]:border-gray-800 [&_table_th]:p-2 [&_table_th]:bg-gray-50 dark:[&_table_th]:bg-gray-900 [&_table_th]:font-bold',
           '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-4',
+          '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-4',
+          '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4',
+          '[&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-3',
+          '[&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2',
+          '[&_ul[data-type="taskList"]]:list-none [&_ul[data-type="taskList"]]:pl-0',
+          '[&_li[data-type="taskItem"]]:flex [&_li[data-type="taskItem"]]:flex-row [&_li[data-type="taskItem"]]:items-start [&_li[data-type="taskItem"]]:gap-3 [&_li[data-type="taskItem"]]:my-2',
+          '[&_li[data-type="taskItem"]_input]:mt-1.5 [&_li[data-type="taskItem"]_input]:w-4 [&_li[data-type="taskItem"]_input]:h-4 [&_li[data-type="taskItem"]_input]:shrink-0 [&_li[data-type="taskItem"]_input]:cursor-pointer',
+          '[&_li[data-type="taskItem"]>label]:mr-0 [&_li[data-type="taskItem"]>label]:select-none',
+          '[&_li[data-type="taskItem"]>div]:flex-1 [&_li[data-type="taskItem"]>p]:flex-1',
           !readOnly && !compact && 'min-h-[200px] sm:min-h-[500px]',
           readOnly && 'caret-transparent cursor-text'
         ),

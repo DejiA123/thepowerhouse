@@ -118,6 +118,15 @@ const GroupChatsPage = () => {
                         ...prev,
                         [message.chat_id]: (prev[message.chat_id] || 0) + 1
                     }));
+                } else {
+                    // It IS the selected chat. As a fallback/redundancy, we can add it to messages here too!
+                    // This helps if the specific channel subscription is slow or failed.
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === message.id)) return prev;
+                        console.log('⚡ Global listener caught message for active chat:', message.id);
+                        return [...prev, message];
+                    });
+                    scrollToBottom();
                 }
             }
 

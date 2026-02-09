@@ -566,7 +566,15 @@ export class GroupChatService {
                     callback(chatMessage);
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ Subscribed to messages for chat ${chatId}`);
+                } else if (status === 'CHANNEL_ERROR') {
+                    console.error(`❌ Failed to subscribe to messages for chat ${chatId}`);
+                } else if (status === 'TIMED_OUT') {
+                    console.error(`❌ Subscription timed out for chat ${chatId}`);
+                }
+            });
 
         return channel;
     }
@@ -588,7 +596,11 @@ export class GroupChatService {
                     callback(payload.new as ChatMessage);
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ Subscribed to global messages`);
+                }
+            });
 
         return channel;
     }
@@ -610,7 +622,9 @@ export class GroupChatService {
                     callback(payload.new as CallSession);
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`📞 Call subscription status:`, status);
+            });
 
         return channel;
     }
@@ -700,6 +714,17 @@ export class GroupChatService {
             .eq('id', chatId)
             .single();
 
+        // 1. Send Realtime Signal (Fastest, bypasses RLS)
+        await this.sendSignal(chatId, 'call-started', {
+            callId: callData.id,
+            chatId: chatId,
+            groupName: chatData?.name || 'Group Chat',
+            initiatorId: user.id,
+            initiatorName: senderName,
+            callType: callType
+        });
+
+        // 2. Send Push Notification (Reliable fallback)
         pushNotificationService.notifyCallIncoming(
             chatId,
             chatData?.name || 'Group Chat',
@@ -735,7 +760,7 @@ export class GroupChatService {
     /**
      * Send a WebRTC signal (Offer, Answer, ICE Candidate, or Join Call)
      */
-    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call', payload: any, recipientId?: string): Promise<void> {
+    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call' | 'call-started', payload: any, recipientId?: string): Promise<void> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
