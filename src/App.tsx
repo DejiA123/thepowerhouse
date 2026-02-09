@@ -251,6 +251,7 @@ const AppRoutes = () => {
             <Route path="/groups/evangelism" element={<EvangelismPage />} />
             <Route path="/groups/pastoral" element={<PastoralCarePage />} />
             <Route path="/follow-up-team" element={<TeamFollowUpPage />} />
+            <Route path="/team-follow-up" element={<TeamFollowUpPage />} />
 
             {/* Isolated Editor Route - Nuclear Option for iOS Selection */}
             <Route path="/editor-frame" element={<IsolatedEditorPage />} />
