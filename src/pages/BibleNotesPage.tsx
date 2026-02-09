@@ -1178,7 +1178,6 @@ const BibleNotesPage = () => {
                                         >
                                             <ArrowLeft className="w-5 h-5" />
                                             <span className="hidden xs:inline">{isInlineEditing ? 'Cancel' : 'Back'}</span>
-                                            <span className="xs:hidden">{isInlineEditing ? '×' : ''}</span>
                                         </Button>
                                     </div>
 
