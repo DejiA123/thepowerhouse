@@ -31,8 +31,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (!user) return;
 
+        let isMounted = true;
+        const channels: any[] = []; // Store active channels for cleanup
+
         // 1. Subscribe to Global Call Sessions (Database events - backup)
-        const channel = GroupChatService.subscribeToCalls(async (call) => {
+        const globalChannel = GroupChatService.subscribeToCalls(async (call) => {
             if (call.initiated_by === user.id) return;
             if (call.status !== 'ringing') return;
 
@@ -43,57 +46,52 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIncomingCall(call);
             }
         });
+        channels.push(globalChannel);
 
         // 2. Subscribe to WebRTC Signals (Broadcast events - primary/faster)
-        // We need to subscribe to channels for all groups the user is part of.
-        // For now, let's implement a mechanism to listen to a specific "user-signaling" channel 
-        // OR rely on the fact that if the user has the group chat open, they will receive it.
-        // HOWEVER, to receive calls even when NOT in the chat, we need a global listener.
-        // Since Supabase Realtime doesn't support wildcard channel subscription easily for this pattern without RLS on a table,
-        // we will stick to the DB subscription for "Global" notifications if the user is NOT in the chat.
+        const initSignalSubscriptions = async () => {
+            try {
+                // Fetch all chats the user is part of
+                const chats = await GroupChatService.getGroupChats();
 
-        // BUT, if the DB subscription fails due to RLS, we need a fix.
-        // The fix implemented in GroupChatService.ts broadcasts to `chat:${chatId}`.
-        // So the user MUST be subscribed to `chat:${chatId}` to receive the signal.
-        // This implies the user must be "online" in that chat context or we need to subscribe to ALL user's chats.
+                if (!isMounted) return;
 
-        // Let's iterate through user's groups and subscribe to signals for each (if reasonable number)
-        // OR better: The "Global" DB subscription IS the way for background calls. 
-        // If RLS is the issue, we should rely on the PushNotificationService which we saw earlier.
+                chats.forEach(chat => {
+                    // Subscribe to the dedicated signals channel for each chat
+                    const sigChannel = GroupChatService.subscribeToSignals(chat.id, (payload) => {
+                        if (payload.type === 'call-started') {
+                            if (payload.payload.initiatorId === user.id) return;
 
-        // Wait, the user said "video call/phone call functionality is not working". 
-        // If I strictly rely on the `chat:${chatId}` broadcast, I need to sub to it.
-        // Let's presume the user is IN the application.
+                            console.log('⚡ Incoming call signal received:', payload);
+                            setIncomingCall({
+                                id: payload.payload.callId,
+                                chat_id: payload.payload.chatId,
+                                initiated_by: payload.payload.initiatorId,
+                                call_type: payload.payload.callType,
+                                status: 'ringing'
+                            });
 
-        // Strategy: Fetch all user's chats and subscribe to signals for them.
-        let signalChannels: any[] = [];
-        GroupChatService.getGroupChats().then(chats => {
-            chats.forEach(chat => {
-                const sigChannel = GroupChatService.subscribeToSignals(chat.id, (payload) => {
-                    if (payload.type === 'call-started') {
-                        if (payload.payload.initiatorId === user.id) return;
-
-                        console.log('⚡ Incoming call signal received:', payload);
-                        setIncomingCall({
-                            id: payload.payload.callId,
-                            chat_id: payload.payload.chatId,
-                            initiated_by: payload.payload.initiatorId,
-                            call_type: payload.payload.callType,
-                            status: 'ringing'
-                        });
-
-                        // Play sound
-                        const audio = new Audio('/ringtone.mp3'); // Placeholder
-                        // audio.play().catch(() => {}); 
-                    }
+                            // Play sound
+                            try {
+                                const audio = new Audio('/ringtone.mp3');
+                                audio.play().catch(e => console.log('Audio play failed (interaction needed):', e));
+                            } catch (e) {
+                                // Ignore audio errors
+                            }
+                        }
+                    });
+                    channels.push(sigChannel);
                 });
-                signalChannels.push(sigChannel);
-            });
-        });
+            } catch (error) {
+                console.error("Failed to subscribe to chat signals:", error);
+            }
+        };
+
+        initSignalSubscriptions();
 
         return () => {
-            GroupChatService.unsubscribe(channel);
-            signalChannels.forEach(c => GroupChatService.unsubscribe(c));
+            isMounted = false;
+            channels.forEach(c => GroupChatService.unsubscribe(c));
         };
     }, [user]);
 

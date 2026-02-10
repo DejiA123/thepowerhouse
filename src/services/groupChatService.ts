@@ -323,6 +323,9 @@ export class GroupChatService {
                     chatMessage.id
                 );
             });
+
+            // BROADCAST message immediately for real-time responsiveness (bypasses DB listener lag)
+            this.sendSignal(chatId, 'new-message', chatMessage);
         }
 
         return chatMessage;
@@ -530,12 +533,16 @@ export class GroupChatService {
     /**
      * Subscribe to new messages in a chat
      */
+    /**
+     * Subscribe to new messages in a chat
+     */
     static subscribeToMessages(
         chatId: string,
         callback: (message: ChatMessage) => void
     ): RealtimeChannel {
+        // Use a distinct channel topic for messages to avoid collision with signals
         const channel = supabase
-            .channel(`chat:${chatId}`)
+            .channel(`chat-messages:${chatId}`)
             .on(
                 'postgres_changes',
                 {
@@ -764,7 +771,8 @@ export class GroupChatService {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        await supabase.channel(`chat:${chatId}`).send({
+        // Use distinct channel for signals
+        await supabase.channel(`chat-signals:${chatId}`).send({
             type: 'broadcast',
             event: 'signal',
             payload: {
@@ -780,7 +788,8 @@ export class GroupChatService {
      * Subscribe to WebRTC signals
      */
     static subscribeToSignals(chatId: string, callback: (signal: any) => void): RealtimeChannel {
-        const channel = supabase.channel(`chat:${chatId}`)
+        // Use distinct channel for signals
+        const channel = supabase.channel(`chat-signals:${chatId}`)
             .on(
                 'broadcast',
                 { event: 'signal' },

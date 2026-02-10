@@ -172,19 +172,39 @@ const GroupChatsPage = () => {
 
         initChat();
 
-        channelRef.current = GroupChatService.subscribeToMessages(selectedChat.id, (message) => {
+        // 1. DB Subscription (Reliable persistence)
+        const dbChannel = GroupChatService.subscribeToMessages(selectedChat.id, (message) => {
             setMessages(prev => {
                 // Prevent duplicates
                 if (prev.some(m => m.id === message.id)) return prev;
+                console.log('✅ DB listener received message:', message.id);
                 return [...prev, message];
             });
             scrollToBottom();
             GroupChatService.markAsRead(selectedChat.id);
         });
 
+        // 2. Signal Subscription (Instant delivery bypasses DB lag)
+        const signalChannel = GroupChatService.subscribeToSignals(selectedChat.id, (payload) => {
+            if (payload.type === 'new-message') {
+                const message = payload.payload;
+                setMessages(prev => {
+                    // Prevent duplicates
+                    if (prev.some(m => m.id === message.id)) return prev;
+                    console.log('⚡ Signal listener received message:', message.id);
+                    return [...prev, message];
+                });
+                scrollToBottom();
+                GroupChatService.markAsRead(selectedChat.id);
+            }
+        });
+
+        channelRef.current = dbChannel;
+
         return () => {
-            // Cleanup subscription
-            if (channelRef.current) GroupChatService.unsubscribe(channelRef.current);
+            // Cleanup subscriptions
+            GroupChatService.unsubscribe(dbChannel);
+            GroupChatService.unsubscribe(signalChannel);
         };
     }, [selectedChat]);
 
@@ -286,7 +306,7 @@ const GroupChatsPage = () => {
     );
 
     return (
-        <div className="flex h-full bg-slate-50 dark:bg-slate-950 overflow-hidden overscroll-none">
+        <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden overscroll-none">
             {/* Sidebar */}
             <div className={cn(
                 "w-full md:w-[400px] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col",
@@ -366,13 +386,13 @@ const GroupChatsPage = () => {
 
             {/* Chat Window */}
             <div className={cn(
-                "flex-1 flex-col h-full relative",
+                "flex-1 flex flex-col h-full relative overflow-hidden",
                 !selectedChat ? "hidden md:flex bg-slate-100 dark:bg-slate-950 border-b-[6px] border-green-500" : "flex"
             )}>
                 {selectedChat ? (
                     <>
                         {/* WhatsApp Style Header */}
-                        <div className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 z-10">
+                        <div className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 z-20 sticky top-0">
                             <div className="flex items-center gap-3">
                                 <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedChat(null)}>
                                     <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -423,7 +443,7 @@ const GroupChatsPage = () => {
                         </div>
 
                         {/* WhatsApp Style Background & Messages */}
-                        <div className="flex-1 relative bg-[#e5ddd5] dark:bg-[#0b141a]">
+                        <div className="flex-1 min-h-0 relative bg-[#e5ddd5] dark:bg-[#0b141a]">
                             <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03]" style={{
                                 backgroundImage: `url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d936cd035c.png")`,
                                 backgroundSize: '400px'
