@@ -449,25 +449,24 @@ const GroupChatsPage = () => {
                                 backgroundSize: '400px'
                             }} />
 
-                            <ScrollArea className="h-full absolute inset-0 p-4">
-                                <div className="space-y-2 max-w-4xl mx-auto pb-4">
+                            <ScrollArea className="h-full absolute inset-0 p-3">
+                                <div className="space-y-1 max-w-4xl mx-auto pb-4">
                                     {messages.map((message) => {
                                         const isOwn = message.user_id === user?.id;
                                         return (
-                                            <div key={message.id} className={cn("flex w-full mb-1 group/msg", isOwn ? "justify-end" : "justify-start")}>
+                                            <div key={message.id} className={cn("flex w-full mb-[2px] group/msg", isOwn ? "justify-end" : "justify-start")}>
                                                 <div className={cn(
-                                                    "relative max-w-[80%] md:max-w-[60%] rounded-lg px-3 py-1.5 shadow-sm text-[15px] leading-snug",
+                                                    "relative max-w-[85%] md:max-w-[50%] rounded-lg px-2.5 py-1 shadow-sm text-[14px] leading-tight",
                                                     isOwn
                                                         ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-slate-900 dark:text-white rounded-tr-none"
                                                         : "bg-white dark:bg-[#202c33] text-slate-900 dark:text-white rounded-tl-none"
                                                 )}>
                                                     <div className="flex justify-between items-start gap-2">
-                                                        <span className={cn(
-                                                            "text-[11px] font-bold block mb-0.5",
-                                                            isOwn ? "hidden" : "text-[#d62828] dark:text-[#fcc]"
-                                                        )}>
-                                                            {getUserName(message)}
-                                                        </span>
+                                                        {!isOwn && (
+                                                            <span className="text-[11px] font-bold block mb-0 text-[#d62828] dark:text-[#fcc]">
+                                                                {getUserName(message)}
+                                                            </span>
+                                                        )}
                                                         {isOwn && (
                                                             <button
                                                                 onClick={() => handleDeleteMessage(message.id)}
@@ -479,10 +478,12 @@ const GroupChatsPage = () => {
                                                         )}
                                                     </div>
 
-                                                    {message.content}
+                                                    <div className="whitespace-pre-wrap break-words">
+                                                        {message.content}
+                                                    </div>
 
                                                     <div className={cn(
-                                                        "text-[10px] text-right mt-1 opacity-60 flex justify-end gap-1 items-center",
+                                                        "text-[9px] text-right mt-0.5 opacity-60 flex justify-end gap-1 items-center",
                                                         isOwn ? "text-slate-600 dark:text-slate-300" : "text-slate-500"
                                                     )}>
                                                         {formatTime(message.created_at)}
@@ -490,10 +491,10 @@ const GroupChatsPage = () => {
 
                                                     {/* Triangle Tail */}
                                                     <div className={cn(
-                                                        "absolute top-0 w-0 h-0 border-[6px] border-transparent",
+                                                        "absolute top-0 w-0 h-0 border-[5px] border-transparent",
                                                         isOwn
-                                                            ? "right-[-6px] border-t-[#d9fdd3] dark:border-t-[#005c4b]"
-                                                            : "left-[-6px] border-t-white dark:border-t-[#202c33]"
+                                                            ? "right-[-5px] border-t-[#d9fdd3] dark:border-t-[#005c4b]"
+                                                            : "left-[-5px] border-t-white dark:border-t-[#202c33]"
                                                     )} />
                                                 </div>
                                             </div>
