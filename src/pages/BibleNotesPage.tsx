@@ -589,9 +589,7 @@ const BibleNotesPage = () => {
                 <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
                     <h1 style="color: #1e40af; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">${title}</h1>
                     <div style="color: #6b7280; margin-bottom: 30px; font-size: 14px;">
-                        <p><strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}</p>
                         <p><strong>Created:</strong> ${formatDateTime(note.created_at)}</p>
-                        <p><strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}</p>
                     </div>
                     <div style="line-height: 1.8; color: #1f2937;">
                         ${note.note_text}
@@ -651,20 +649,8 @@ const BibleNotesPage = () => {
                         }),
                         new Paragraph({
                             children: [
-                                new TextRun({ text: "Reference: ", bold: true }),
-                                new TextRun(`${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}`),
-                            ],
-                        }),
-                        new Paragraph({
-                            children: [
                                 new TextRun({ text: "Created: ", bold: true }),
                                 new TextRun(formatDateTime(note.created_at)),
-                            ],
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: "Category: ", bold: true }),
-                                new TextRun(getCategoryInfo(note.category || 'insight').name),
                             ],
                             spacing: { after: 400 },
                         }),
