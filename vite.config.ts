@@ -64,6 +64,7 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     'process.env': {},
+    global: 'window',
   },
   build: {
     outDir: 'dist',
