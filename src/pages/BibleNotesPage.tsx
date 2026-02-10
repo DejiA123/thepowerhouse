@@ -30,7 +30,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import HTMLtoDOCX from 'html-to-docx';
 
 interface BibleNote {
     id: string;
@@ -633,37 +632,60 @@ const BibleNotesPage = () => {
             const title = note.title || getNoteTitleFallback(note.note_text);
             const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.docx`;
 
-            // HTML content targeted for html-to-docx
-            const htmlString = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                </head>
-                <body>
-                    <h1 style="color: #1e40af; border-bottom: 2px solid #3b82f6; font-family: 'Segoe UI', sans-serif;">${title}</h1>
-                    <p style="color: #6b7280; font-size: 10pt; font-style: italic;">
-                        <strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}<br/>
-                        <strong>Created:</strong> ${formatDateTime(note.created_at)}<br/>
-                        <strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}
-                    </p>
-                    <hr/>
-                    <div style="margin-top: 20px;">
-                        ${note.note_text}
-                    </div>
-                </body>
-                </html>
-            `;
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
 
-            // Generate DOCX blob
-            const docxBlob = await HTMLtoDOCX(htmlString, null, {
-                decodeUnicode: true,
-                header: true,
-                footer: true,
-                pageNumber: true,
+            // Helper to clean HTML and split into lines/paragraphs
+            const cleanText = (html: string) => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                return doc.body.innerText || doc.body.textContent || '';
+            };
+
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            text: title,
+                            heading: HeadingLevel.HEADING_1,
+                            spacing: { after: 200 },
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: "Reference: ", bold: true }),
+                                new TextRun(`${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}`),
+                            ],
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: "Created: ", bold: true }),
+                                new TextRun(formatDateTime(note.created_at)),
+                            ],
+                        }),
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: "Category: ", bold: true }),
+                                new TextRun(getCategoryInfo(note.category || 'insight').name),
+                            ],
+                            spacing: { after: 400 },
+                        }),
+                        new Paragraph({
+                            text: "",
+                            border: {
+                                bottom: { color: "auto", space: 1, style: BorderStyle.SINGLE, size: 6 }
+                            }
+                        }),
+                        ...cleanText(note.note_text).split('\n').filter(line => line.trim()).map(line =>
+                            new Paragraph({
+                                text: line,
+                                spacing: { before: 200, after: 200 }
+                            })
+                        )
+                    ],
+                }],
             });
 
-            saveAs(docxBlob, fileName);
+            const blob = await Packer.toBlob(doc);
+            saveAs(blob, fileName);
 
             toast({
                 title: "Word Document Downloaded",
