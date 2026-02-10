@@ -30,6 +30,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import HTMLtoDOCX from 'html-to-docx';
 
 interface BibleNote {
     id: string;
@@ -630,65 +631,54 @@ const BibleNotesPage = () => {
     const downloadNoteAsWord = async (note: BibleNote) => {
         try {
             const title = note.title || getNoteTitleFallback(note.note_text);
-            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.doc`;
+            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.docx`;
 
-            // Create robust Word-compatible HTML with XML namespaces
-            const htmlContent = `
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
-                      xmlns:w='urn:schemas-microsoft-com:office:word' 
-                      xmlns='http://www.w3.org/TR/REC-html40'>
+            // HTML content targeted for html-to-docx
+            const htmlString = `
+                <!DOCTYPE html>
+                <html lang="en">
                 <head>
-                    <meta charset="utf-8">
-                    <title>${title}</title>
-                    <!--[if gte mso 9]>
-                    <xml>
-                        <w:WordDocument>
-                            <w:View>Print</w:View>
-                            <w:Zoom>100</w:Zoom>
-                            <w:DoNotOptimizeForBrowser/>
-                        </w:WordDocument>
-                    </xml>
-                    <![endif]-->
-                    <style>
-                        body { font-family: "Calibri", "Arial", sans-serif; font-size: 11pt; line-height: 1.5; padding: 1in; }
-                        h1 { color: #1e40af; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: "Segoe UI", sans-serif; }
-                        .metadata { color: #6b7280; margin-bottom: 20px; font-size: 10pt; font-style: italic; }
-                        .content { margin-top: 20px; }
-                        p { margin-bottom: 10px; }
-                    </style>
+                    <meta charset="UTF-8">
                 </head>
                 <body>
-                    <h1>${title}</h1>
-                    <div class="metadata">
-                        <p><strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}</p>
-                        <p><strong>Created:</strong> ${formatDateTime(note.created_at)}</p>
-                        <p><strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}</p>
-                    </div>
-                    <div class="content">
+                    <h1 style="color: #1e40af; border-bottom: 2px solid #3b82f6; font-family: 'Segoe UI', sans-serif;">${title}</h1>
+                    <p style="color: #6b7280; font-size: 10pt; font-style: italic;">
+                        <strong>Reference:</strong> ${getBookDisplayName(note.book)} ${note.chapter}${note.verse ? ':' + note.verse : ''}<br/>
+                        <strong>Created:</strong> ${formatDateTime(note.created_at)}<br/>
+                        <strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}
+                    </p>
+                    <hr/>
+                    <div style="margin-top: 20px;">
                         ${note.note_text}
                     </div>
                 </body>
                 </html>
             `;
 
-            const blob = new Blob(['\ufeff', htmlContent], {
-                type: 'application/msword'
+            // Generate DOCX blob
+            const docxBlob = await HTMLtoDOCX(htmlString, null, {
+                decodeUnicode: true,
+                header: true,
+                footer: true,
+                pageNumber: true,
             });
-            saveAs(blob, fileName);
+
+            saveAs(docxBlob, fileName);
 
             toast({
                 title: "Word Document Downloaded",
-                description: `${title} has been saved as Word Document`,
+                description: `${title} has been saved as a true .docx file`,
             });
         } catch (error) {
             console.error('Error generating Word document:', error);
             toast({
                 title: "Error",
-                description: "Failed to generate Word document",
+                description: "Failed to generate .docx document",
                 variant: "destructive"
             });
         }
     };
+
 
     const stats = {
         total: globalStats.total,
