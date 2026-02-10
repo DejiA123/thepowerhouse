@@ -1,7 +1,12 @@
-// Polyfill global for libraries that expect it (like html-to-docx)
+// Polyfill global, Buffer, and process for libraries that expect Node environment (like html-to-docx)
+import { Buffer } from 'buffer';
+import process from 'process';
+
 if (typeof global === 'undefined') {
   (window as any).global = window;
 }
+(window as any).Buffer = Buffer;
+(window as any).process = process;
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
