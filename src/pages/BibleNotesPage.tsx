@@ -630,18 +630,31 @@ const BibleNotesPage = () => {
     const downloadNoteAsWord = async (note: BibleNote) => {
         try {
             const title = note.title || getNoteTitleFallback(note.note_text);
-            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.docx`;
+            const fileName = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.doc`;
 
-            // Create formatted HTML content
+            // Create robust Word-compatible HTML with XML namespaces
             const htmlContent = `
-                <!DOCTYPE html>
-                <html>
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                      xmlns:w='urn:schemas-microsoft-com:office:word' 
+                      xmlns='http://www.w3.org/TR/REC-html40'>
                 <head>
-                    <meta charset="UTF-8">
+                    <meta charset="utf-8">
+                    <title>${title}</title>
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <w:WordDocument>
+                            <w:View>Print</w:View>
+                            <w:Zoom>100</w:Zoom>
+                            <w:DoNotOptimizeForBrowser/>
+                        </w:WordDocument>
+                    </xml>
+                    <![endif]-->
                     <style>
-                        body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }
-                        h1 { color: #1e40af; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; }
-                        .metadata { color: #6b7280; margin-bottom: 20px; font-size: 10pt; }
+                        body { font-family: "Calibri", "Arial", sans-serif; font-size: 11pt; line-height: 1.5; padding: 1in; }
+                        h1 { color: #1e40af; border-bottom: 2px solid #3b82f6; padding-bottom: 5px; font-family: "Segoe UI", sans-serif; }
+                        .metadata { color: #6b7280; margin-bottom: 20px; font-size: 10pt; font-style: italic; }
+                        .content { margin-top: 20px; }
+                        p { margin-bottom: 10px; }
                     </style>
                 </head>
                 <body>
@@ -651,7 +664,7 @@ const BibleNotesPage = () => {
                         <p><strong>Created:</strong> ${formatDateTime(note.created_at)}</p>
                         <p><strong>Category:</strong> ${getCategoryInfo(note.category || 'insight').name}</p>
                     </div>
-                    <div>
+                    <div class="content">
                         ${note.note_text}
                     </div>
                 </body>
@@ -661,7 +674,7 @@ const BibleNotesPage = () => {
             const blob = new Blob(['\ufeff', htmlContent], {
                 type: 'application/msword'
             });
-            saveAs(blob, fileName.replace('.docx', '.doc'));
+            saveAs(blob, fileName);
 
             toast({
                 title: "Word Document Downloaded",
