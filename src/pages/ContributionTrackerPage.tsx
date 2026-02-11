@@ -59,7 +59,7 @@ const INITIAL_DATA: Record<string, Contribution[]> = {
     ]
 };
 
-const ADMIN_PIN = "0902";
+const ADMIN_PIN = "090312";
 
 const ContributionTrackerPage = () => {
     const navigate = useNavigate();
