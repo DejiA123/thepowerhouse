@@ -351,12 +351,6 @@ const ContributionTrackerPage = () => {
             {/* PIN Entry Dialog */}
             <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
                 <DialogContent className="sm:max-w-[400px] bg-white dark:bg-slate-900 border-none rounded-[2rem] p-8 shadow-2xl">
-                    <button
-                        onClick={() => setIsPinDialogOpen(false)}
-                        className="absolute right-6 top-6 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    >
-                        <X className="w-4 h-4 text-slate-400" />
-                    </button>
 
                     <DialogHeader className="items-center text-center pb-6">
                         <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mb-4">
