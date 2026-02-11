@@ -1030,7 +1030,7 @@ export const BibleChapterContent = ({
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Higher offset to clear the selection panel and provide a gap
             : isIOS && isStandalone
-              ? "bottom-[calc(env(safe-area-inset-bottom)+2.5rem)]" // Lowered for PWA iPhone to be closer to nav bar
+              ? "bottom-[calc(env(safe-area-inset-bottom)+3.5rem)]" // Adjusted upward for PWA iPhone (refined from 2.5rem)
               : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Default position
         )}
       >
