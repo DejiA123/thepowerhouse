@@ -374,8 +374,8 @@ const ContributionTrackerPage = () => {
                             <Input
                                 id="pin"
                                 type="password"
-                                placeholder="••••"
-                                maxLength={4}
+                                placeholder="••••••"
+                                maxLength={6}
                                 value={pinInput}
                                 onChange={(e) => setPinInput(e.target.value)}
                                 className="h-14 text-center text-3xl font-black tracking-[1em] bg-slate-50 dark:bg-slate-800 border-none rounded-2xl"
