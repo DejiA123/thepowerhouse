@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft } from "lucide-react";
+import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft, Wallet } from "lucide-react";
 
 const ChoirPortalPage = () => {
     const navigate = useNavigate();
@@ -61,6 +61,26 @@ const ChoirPortalPage = () => {
                             <Music className="w-6 h-6 text-blue-100" />
                         </div>
                         <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Choir Portal</h1>
+
+                        <div className="flex flex-col items-center gap-6 mb-4">
+                            <button
+                                onClick={() => navigate("/groups/choir/contributions")}
+                                className="group relative flex items-center gap-3 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl transition-all hover:scale-[1.05] active:scale-[0.98]"
+                            >
+                                <div className="p-2 bg-blue-500 rounded-xl shadow-lg group-hover:bg-blue-400 transition-colors">
+                                    <Wallet className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-blue-200 text-[10px] font-black uppercase tracking-widest leading-none mb-1">National Vault</div>
+                                    <div className="text-white font-black text-sm tracking-tight">National Choir Monthly Contribution</div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+
+                                {/* Pulse Glow */}
+                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        </div>
+
                         <p className="text-blue-100/80 text-sm font-medium">Select your branch to access setlists and resources</p>
                     </div>
                 </div>

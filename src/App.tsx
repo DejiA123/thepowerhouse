@@ -41,6 +41,7 @@ import ServePage from "@/pages/ServePage";
 import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
 import ChoirPage from "@/pages/ChoirPage";
 import ChoirPortalPage from "@/pages/ChoirPortalPage";
+import ContributionTrackerPage from "@/pages/ContributionTrackerPage";
 import ManagementTeamPage from "@/pages/ManagementTeamPage";
 import UsheringPage from "@/pages/UsheringPage";
 import EvangelismPage from "@/pages/EvangelismPage";
@@ -245,6 +246,7 @@ const AppRoutes = () => {
             <Route path="/serve" element={<ServePage />} />
             <Route path="/building-campaign" element={<BuildingCampaignPage />} />
             <Route path="/groups/choir" element={<ChoirPortalPage />} />
+            <Route path="/groups/choir/contributions" element={<ContributionTrackerPage />} />
             <Route path="/groups/choir/:locationId" element={<ChoirPage />} />
             <Route path="/groups/management" element={<ManagementTeamPage />} />
             <Route path="/groups/ushering" element={<UsheringPage />} />
