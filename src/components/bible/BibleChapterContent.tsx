@@ -1028,7 +1028,7 @@ export const BibleChapterContent = ({
         className={cn(
           "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
-            ? "bottom-[calc(env(safe-area-inset-bottom)+9rem)]" // Optimized for PWA positioning
+            ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Higher offset to clear the selection panel and provide a gap
             : isIOS && isStandalone
               ? "bottom-[calc(env(safe-area-inset-bottom)+2.5rem)]" // Lowered for PWA iPhone to be closer to nav bar
               : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Default position
