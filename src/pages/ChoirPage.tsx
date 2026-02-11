@@ -1287,6 +1287,7 @@ const ChoirPage = () => {
         const lastReset = new Date(currentStats.lastResetDate);
         const now = new Date();
         const nextSat = nextSaturday(lastReset);
+        nextSat.setHours(23, 59, 59, 999); // Ensure Saturday is fully over
 
         // If we have passed the next Saturday from the last reset date
         if (now > nextSat) {
@@ -1626,7 +1627,10 @@ const ChoirPage = () => {
                     }
                 }
 
-                let currentStats: PrayerStats = { lastResetDate: new Date().toISOString(), userStats: {} };
+                let currentStats: PrayerStats = {
+                    lastResetDate: startOfWeek(addDays(new Date(), -7), { weekStartsOn: 0 }).toISOString(),
+                    userStats: {}
+                };
                 if (fetchedInfo['prayer_accountability_stats']) {
                     try {
                         currentStats = JSON.parse(fetchedInfo['prayer_accountability_stats']);
