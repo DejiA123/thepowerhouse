@@ -1,12 +1,16 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar, Lock, Unlock, ShieldCheck, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Contribution {
     name: string;
@@ -16,7 +20,7 @@ interface Contribution {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const CONTRIBUTION_DATA: Record<string, Contribution[]> = {
+const INITIAL_DATA: Record<string, Contribution[]> = {
     "2025": [
         { name: "Min. Nenette", months: [5, 5, 5, 5, 5, null, null, null, null, null, null, null] },
         { name: "YP Sodiq", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
@@ -55,17 +59,68 @@ const CONTRIBUTION_DATA: Record<string, Contribution[]> = {
     ]
 };
 
+const ADMIN_PIN = "0902";
+
 const ContributionTrackerPage = () => {
     const navigate = useNavigate();
     const [selectedYear, setSelectedYear] = useState("2026");
+    const [contributionData, setContributionData] = useState(INITIAL_DATA);
+
+    // Admin State
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+    const [pinInput, setPinInput] = useState("");
 
     const calculateTotal = (months: (number | null)[]) => {
         return months.reduce((acc, curr) => acc + (curr || 0), 0);
     };
 
-    const currentData = CONTRIBUTION_DATA[selectedYear] || [];
+    const currentData = useMemo(() => contributionData[selectedYear] || [], [contributionData, selectedYear]);
     const totalMembers = currentData.length;
     const activeContributors = currentData.filter(m => calculateTotal(m.months) > 0).length;
+
+    const handlePinSubmit = () => {
+        if (pinInput === ADMIN_PIN) {
+            setIsAdmin(true);
+            setIsPinDialogOpen(false);
+            setPinInput("");
+            toast.success("Admin mode enabled");
+        } else {
+            toast.error("Incorrect PIN");
+        }
+    };
+
+    const toggleAdmin = () => {
+        if (isAdmin) {
+            setIsAdmin(false);
+            toast("Admin mode disabled");
+        } else {
+            setIsPinDialogOpen(true);
+        }
+    };
+
+    const updateMemberName = (index: number, newName: string) => {
+        const newData = { ...contributionData };
+        newData[selectedYear][index].name = newName;
+        setContributionData(newData);
+    };
+
+    const toggleMonthContribution = (memberIndex: number, monthIndex: number) => {
+        if (!isAdmin) return;
+        const newData = { ...contributionData };
+        const currentVal = newData[selectedYear][memberIndex].months[monthIndex];
+        newData[selectedYear][memberIndex].months[monthIndex] = currentVal ? null : 5;
+        setContributionData(newData);
+    };
+
+    const addNewMember = () => {
+        const newData = { ...contributionData };
+        newData[selectedYear] = [
+            ...newData[selectedYear],
+            { name: "New Member", months: Array(12).fill(null) }
+        ];
+        setContributionData(newData);
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
@@ -75,20 +130,39 @@ const ContributionTrackerPage = () => {
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay" />
 
                 <div className="relative z-10 max-w-7xl mx-auto">
-                    <Button
-                        variant="ghost"
-                        className="text-indigo-200 hover:text-white hover:bg-white/10 mb-8 -ml-2 transition-all flex items-center gap-2 group"
-                        onClick={() => navigate("/groups/choir")}
-                    >
-                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="font-bold uppercase tracking-wider text-xs">Back to Portal</span>
-                    </Button>
+                    <div className="flex items-center justify-between mb-8">
+                        <Button
+                            variant="ghost"
+                            className="text-indigo-200 hover:text-white hover:bg-white/10 -ml-2 transition-all flex items-center gap-2 group"
+                            onClick={() => navigate("/groups/choir")}
+                        >
+                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            <span className="font-bold uppercase tracking-wider text-xs">Back to Portal</span>
+                        </Button>
+
+                        <button
+                            onClick={toggleAdmin}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-2xl transition-all active:scale-95",
+                                isAdmin
+                                    ? "bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                                    : "bg-white/10 text-indigo-200 hover:bg-white/20 border border-white/10"
+                            )}
+                        >
+                            {isAdmin ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                {isAdmin ? "Unlocked" : "Admin Lock"}
+                            </span>
+                        </button>
+                    </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                         <div className="space-y-4">
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 backdrop-blur-md rounded-2xl border border-blue-400/30">
-                                <Wallet className="w-5 h-5 text-blue-300" />
-                                <span className="text-blue-200 text-xs font-black uppercase tracking-widest">Vault Tracker</span>
+                                <ShieldCheck className={cn("w-5 h-5", isAdmin ? "text-emerald-400" : "text-blue-300")} />
+                                <span className="text-blue-200 text-xs font-black uppercase tracking-widest">
+                                    {isAdmin ? "Admin Mode Active" : "National Vault Tracker"}
+                                </span>
                             </div>
                             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-none">
                                 National Choir <br />
@@ -155,6 +229,18 @@ const ContributionTrackerPage = () => {
                             <div className="text-slate-500 text-xs font-bold uppercase tracking-wider pt-1">Current View</div>
                         </CardContent>
                     </Card>
+
+                    {isAdmin && (
+                        <Card
+                            onClick={addNewMember}
+                            className="bg-indigo-600 dark:bg-indigo-700 border-none shadow-xl rounded-3xl overflow-hidden cursor-pointer hover:bg-indigo-500 transition-colors group"
+                        >
+                            <CardContent className="p-6 flex flex-col items-center justify-center h-full text-white">
+                                <Plus className="w-8 h-8 mb-2 group-hover:scale-125 transition-transform" />
+                                <div className="text-xs font-black uppercase tracking-widest text-center">Add New Member</div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
 
@@ -188,12 +274,20 @@ const ContributionTrackerPage = () => {
                                 {currentData.map((row, idx) => {
                                     const total = calculateTotal(row.months);
                                     return (
-                                        <TableRow key={row.name} className={cn(
+                                        <TableRow key={`${row.name}-${idx}`} className={cn(
                                             "group transition-all hover:bg-slate-50/80 dark:hover:bg-slate-800/20 border-b border-slate-50 dark:border-slate-800/50",
                                             idx % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-slate-50/30 dark:bg-slate-800/10"
                                         )}>
                                             <TableCell className="pl-8 py-6 font-black text-slate-800 dark:text-slate-100 text-sm italic tracking-tight">
-                                                {row.name}
+                                                {isAdmin ? (
+                                                    <Input
+                                                        value={row.name}
+                                                        onChange={(e) => updateMemberName(idx, e.target.value)}
+                                                        className="h-8 bg-transparent border-none p-0 focus-visible:ring-0 font-black italic text-indigo-600 dark:text-indigo-400"
+                                                    />
+                                                ) : (
+                                                    row.name
+                                                )}
                                                 {row.notes && selectedYear === "2025" && (
                                                     <div className="text-[10px] font-bold text-indigo-500 mt-1 uppercase flex items-center gap-1">
                                                         <AlertCircle className="w-3 h-3" />
@@ -202,13 +296,17 @@ const ContributionTrackerPage = () => {
                                                 )}
                                             </TableCell>
                                             {row.months.map((val, mIdx) => (
-                                                <TableCell key={mIdx} className="text-center py-6">
+                                                <TableCell
+                                                    key={mIdx}
+                                                    className="text-center py-6 cursor-pointer"
+                                                    onClick={() => toggleMonthContribution(idx, mIdx)}
+                                                >
                                                     {val ? (
-                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black shadow-sm border border-emerald-500/20 transition-transform group-hover:scale-110">
+                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black shadow-sm border border-emerald-500/20 transition-transform hover:scale-110">
                                                             {val}
                                                         </div>
                                                     ) : (
-                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 text-xs font-bold">
+                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                                             -
                                                         </div>
                                                     )}
@@ -246,6 +344,51 @@ const ContributionTrackerPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* PIN Entry Dialog */}
+            <Dialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
+                <DialogContent className="sm:max-w-[400px] bg-white dark:bg-slate-900 border-none rounded-[2rem] p-8 shadow-2xl">
+                    <button
+                        onClick={() => setIsPinDialogOpen(false)}
+                        className="absolute right-6 top-6 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                        <X className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    <DialogHeader className="items-center text-center pb-6">
+                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mb-4">
+                            <Lock className="w-8 h-8 text-blue-600" />
+                        </div>
+                        <DialogTitle className="text-2xl font-black text-slate-800 dark:text-white">Admin Access</DialogTitle>
+                        <DialogDescription className="text-slate-500 font-medium">
+                            Enter the administrative PIN <br /> to enable editing features.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6">
+                        <div className="space-y-4">
+                            <Label htmlFor="pin" className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Lock Pin</Label>
+                            <Input
+                                id="pin"
+                                type="password"
+                                placeholder="••••"
+                                maxLength={4}
+                                value={pinInput}
+                                onChange={(e) => setPinInput(e.target.value)}
+                                className="h-14 text-center text-3xl font-black tracking-[1em] bg-slate-50 dark:bg-slate-800 border-none rounded-2xl"
+                                onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handlePinSubmit}
+                            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all"
+                        >
+                            Unlock Ledger
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
