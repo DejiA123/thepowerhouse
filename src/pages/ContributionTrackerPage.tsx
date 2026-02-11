@@ -40,7 +40,6 @@ const ContributionTrackerPage = () => {
         return months.reduce((acc, curr) => acc + (curr || 0), 0);
     };
 
-    const totalVault = CONTRIBUTION_DATA.reduce((acc, curr) => acc + calculateTotal(curr.months), 0) + 50; // +50 from Njuare's extra note
 
     const totalMembers = CONTRIBUTION_DATA.length;
     const activeContributors = CONTRIBUTION_DATA.filter(m => calculateTotal(m.months) > 0).length;
@@ -77,22 +76,6 @@ const ContributionTrackerPage = () => {
                             </p>
                         </div>
 
-                        <Card className="bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl rounded-3xl overflow-hidden min-w-[280px]">
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest">Total Vault Balance</span>
-                                    <TrendingUp className="w-5 h-5 text-emerald-400" />
-                                </div>
-                                <div className="text-5xl font-black text-white flex items-end gap-2">
-                                    €{totalVault}
-                                    <span className="text-indigo-300 text-lg font-bold mb-1">.00</span>
-                                </div>
-                                <div className="mt-4 flex items-center gap-2 text-indigo-200/60 text-xs font-medium">
-                                    <Info className="w-3.5 h-3.5" />
-                                    <span>Updated live as contributions are logged</span>
-                                </div>
-                            </CardContent>
-                        </Card>
                     </div>
                 </div>
             </div>
