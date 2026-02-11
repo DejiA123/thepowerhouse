@@ -92,7 +92,9 @@ export const BibleChapterContent = ({
   // Debug: Log font size initialization and changes
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
 
+  console.log('🔍 BibleChapterContent: Device Config:', { isMobile, isIOS, isStandalone });
   console.log('🔍 BibleChapterContent: Font size state:', {
     preferencesFontSize: preferences?.fontSize,
     propFontSize: fontSize,
@@ -1022,13 +1024,14 @@ export const BibleChapterContent = ({
         </div>
       </div>
 
-      {/* Bible Navigation Controls */}
       <div
         className={cn(
           "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+9rem)]" // Optimized for PWA positioning
-            : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Raised for laptop (80px)
+            : isIOS && isStandalone
+              ? "bottom-[calc(env(safe-area-inset-bottom)+2.5rem)]" // Lowered for PWA iPhone to be closer to nav bar
+              : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Default position
         )}
       >
         <div className="flex items-end justify-between px-8 md:px-20 pointer-events-auto max-w-lg md:max-w-none mx-auto">
