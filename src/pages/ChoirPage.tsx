@@ -1328,28 +1328,6 @@ const ChoirPage = () => {
         }
     };
 
-    const fixSpecificPrayerStats = async () => {
-        const namesToFix = ['Pastor Deji', 'RP Zainab', 'Min. Mercy', 'Min. Merit'];
-        const newStats = { ...prayerStats };
-        let changed = false;
-
-        namesToFix.forEach(name => {
-            if (newStats.userStats[name]) {
-                newStats.userStats[name] = {
-                    missedWeeks: 0,
-                    lastWeekStatus: 'completed'
-                };
-                changed = true;
-            }
-        });
-
-        if (changed) {
-            await choirService.updateSetlistInfo('prayer_accountability_stats', JSON.stringify(newStats), locationId!);
-            setPrayerStats(newStats);
-            toast.success("Updated status for Pastor Deji, RP Zainab, Min. Mercy & Min. Merit");
-        }
-    };
-
     // Team Roster States
     const [praiseRoster, setPraiseRoster] = useState<string[]>([]);
     const [prayerRoster, setPrayerRoster] = useState<string[]>([]);
@@ -3597,13 +3575,6 @@ const ChoirPage = () => {
                                     <DialogTitle className="flex items-center gap-3 text-white text-2xl md:text-3xl font-black">
                                         Saturday Prayer Accountability
                                     </DialogTitle>
-                                    <button
-                                        onClick={fixSpecificPrayerStats}
-                                        className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/30 rounded-xl text-amber-200 text-[10px] font-black uppercase tracking-widest transition-all"
-                                    >
-                                        <RotateCcw className="w-3 h-3" />
-                                        Correct Last Week (Deji, Zainab, Mercy, Merit)
-                                    </button>
                                     <p id="prayer-accountability-desc" className="sr-only">
                                         Check off your name after completing your one-hour prayer session on Saturday.
                                     </p>
