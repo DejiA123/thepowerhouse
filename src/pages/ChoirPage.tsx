@@ -3627,7 +3627,7 @@ const ChoirPage = () => {
                                                     </div>
 
                                                     {memberStats.missedWeeks > 0 && !prayerChecklist[name] && (
-                                                        <div className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-black animate-pulse flex items-center gap-1">
+                                                        <div className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-black flex items-center gap-1">
                                                             MISSED {memberStats.missedWeeks} {memberStats.missedWeeks === 1 ? 'WEEK' : 'WEEKS'}
                                                         </div>
                                                     )}
@@ -3642,7 +3642,7 @@ const ChoirPage = () => {
                                                     </span>
 
                                                     {isMissedLastWeek && !prayerChecklist[name] ? (
-                                                        <span className="text-red-400 text-[10px] font-bold block animate-bounce">
+                                                        <span className="text-red-400 text-[10px] font-bold block">
                                                             DID NOT PRAY LAST WEEK
                                                         </span>
                                                     ) : (
