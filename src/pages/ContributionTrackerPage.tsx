@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar, Lock, Unlock, ShieldCheck, X, Plus } from "lucide-react";
@@ -139,21 +139,6 @@ const ContributionTrackerPage = () => {
                             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                             <span className="font-bold uppercase tracking-wider text-xs">Back to Portal</span>
                         </Button>
-
-                        <button
-                            onClick={toggleAdmin}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-2xl transition-all active:scale-95",
-                                isAdmin
-                                    ? "bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                                    : "bg-white/10 text-indigo-200 hover:bg-white/20 border border-white/10"
-                            )}
-                        >
-                            {isAdmin ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                            <span className="text-[10px] font-black uppercase tracking-widest">
-                                {isAdmin ? "Unlocked" : "Admin Lock"}
-                            </span>
-                        </button>
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -244,7 +229,7 @@ const ContributionTrackerPage = () => {
                 </div>
             </div>
 
-            {/* Main Table */}
+            {/* Main Table Content */}
             <div className="px-4 max-w-7xl mx-auto">
                 <Card className="bg-white dark:bg-slate-900 border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardHeader className="p-8 border-b border-slate-50 dark:border-slate-800">
@@ -342,6 +327,24 @@ const ContributionTrackerPage = () => {
                         <div className="w-3 h-3 rounded-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.5)]" />
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Annual Paid in Full</span>
                     </div>
+                </div>
+
+                {/* Admin Toggle */}
+                <div className="mt-12 flex justify-center">
+                    <button
+                        onClick={toggleAdmin}
+                        className={cn(
+                            "flex items-center gap-3 px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg border",
+                            isAdmin
+                                ? "bg-emerald-500 text-white border-emerald-400 shadow-emerald-200 dark:shadow-none"
+                                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        )}
+                    >
+                        {isAdmin ? <Unlock className="w-5 h-4" /> : <Lock className="w-5 h-4" />}
+                        <span className="text-xs font-black uppercase tracking-widest">
+                            {isAdmin ? "Admin: Unlocked" : "Admin Login"}
+                        </span>
+                    </button>
                 </div>
             </div>
 
