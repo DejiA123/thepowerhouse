@@ -43,7 +43,7 @@ import {
     Grid,
     List as ListIcon,
     CalendarIcon,
-    Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check
+    Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet
 } from "lucide-react";
 
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -1203,11 +1203,15 @@ const ChoirPage = () => {
     const [folders, setFolders] = useState<ChoirFolder[]>([]);
     const [praiseSet, setPraiseSet] = useState<WeeklySetSong[]>([]);
     const [worshipSet, setWorshipSet] = useState<WeeklySetSong[]>([]);
+    const [specialSet, setSpecialSet] = useState<WeeklySetSong[]>([]);
+    const [hymnsSet, setHymnsSet] = useState<WeeklySetSong[]>([]);
     const [learningSet, setLearningSet] = useState<WeeklySetSong[]>([]);
 
     // Setlist Descriptions State
     const [praiseInfo, setPraiseInfo] = useState({ title: "Praise Set", desc: "" });
     const [worshipInfo, setWorshipInfo] = useState({ title: "Worship Set", desc: "" });
+    const [specialInfo, setSpecialInfo] = useState({ title: "Special Number", desc: "" });
+    const [hymnsInfo, setHymnsInfo] = useState({ title: "Hymns", desc: "" });
 
     // UI States for Edit Setlist Info
     const [isEditSetInfoOpen, setIsEditSetInfoOpen] = useState(false);
@@ -1231,7 +1235,7 @@ const ChoirPage = () => {
 
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
-    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | null>(null);
+    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | null>(null);
     const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, lyrics?: string, library_song_id?: string }>({
         title: "",
         key: "",
@@ -1261,7 +1265,7 @@ const ChoirPage = () => {
     // UI States for Import Setlist
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [importText, setImportText] = useState("");
-    const [importSetType, setImportSetType] = useState<'praise' | 'worship' | 'learning' | null>(null);
+    const [importSetType, setImportSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | null>(null);
 
     // UI States for Import Folder Songs
     const [isImportFolderOpen, setIsImportFolderOpen] = useState(false);
@@ -1425,16 +1429,14 @@ const ChoirPage = () => {
 
             console.log('📁 Target folder for drop:', targetFolderId);
 
-            // Find the song being dragged. It could be in praiseSet, worshipSet or learningSet.
+            // Find the song being dragged. It could be in any set.
             let songToCopy: WeeklySetSong | undefined;
 
             songToCopy = praiseSet.find(s => String(s.id) === String(active.id));
-            if (!songToCopy) {
-                songToCopy = worshipSet.find(s => String(s.id) === String(active.id));
-            }
-            if (!songToCopy) {
-                songToCopy = learningSet.find(s => String(s.id) === String(active.id));
-            }
+            if (!songToCopy) songToCopy = worshipSet.find(s => String(s.id) === String(active.id));
+            if (!songToCopy) songToCopy = specialSet.find(s => String(s.id) === String(active.id));
+            if (!songToCopy) songToCopy = hymnsSet.find(s => String(s.id) === String(active.id));
+            if (!songToCopy) songToCopy = learningSet.find(s => String(s.id) === String(active.id));
 
             if (songToCopy) {
                 console.log('✅ Copying song to folder:', songToCopy.title);
@@ -1466,15 +1468,22 @@ const ChoirPage = () => {
         // Only proceed if active and over are different and NOT a folder drop
         if (active.id !== over.id) {
             // Determine set type
-            let targetType: 'praise' | 'worship' | null = null;
+            let targetType: 'praise' | 'worship' | 'special' | 'hymns' | null = null;
 
             if (praiseSet.some(s => String(s.id) === String(active.id))) targetType = 'praise';
             else if (worshipSet.some(s => String(s.id) === String(active.id))) targetType = 'worship';
+            else if (specialSet.some(s => String(s.id) === String(active.id))) targetType = 'special';
+            else if (hymnsSet.some(s => String(s.id) === String(active.id))) targetType = 'hymns';
 
             if (!targetType) return;
 
-            const set = targetType === 'praise' ? praiseSet : worshipSet;
-            const setSetter = targetType === 'praise' ? setPraiseSet : setWorshipSet;
+            const set = targetType === 'praise' ? praiseSet :
+                targetType === 'worship' ? worshipSet :
+                    targetType === 'special' ? specialSet : hymnsSet;
+
+            const setSetter = targetType === 'praise' ? setPraiseSet :
+                targetType === 'worship' ? setWorshipSet :
+                    targetType === 'special' ? setSpecialSet : setHymnsSet;
 
             const oldIndex = set.findIndex((song) => String(song.id) === String(active.id));
             const newIndex = set.findIndex((song) => String(song.id) === String(over.id));
@@ -1506,10 +1515,12 @@ const ChoirPage = () => {
 
             try {
                 setLoading(true);
-                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
+                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(locationId),
                     choirService.getWeeklySetlist('praise', locationId),
                     choirService.getWeeklySetlist('worship', locationId),
+                    choirService.getWeeklySetlist('special', locationId),
+                    choirService.getWeeklySetlist('hymns', locationId),
                     choirService.getLearningSongs(locationId),
                     choirService.getAllSetlistInfo(locationId),
                     choirService.getInstrumentalResources(locationId),
@@ -1519,6 +1530,8 @@ const ChoirPage = () => {
                 setFolders(fetchedFolders as any);
                 setPraiseSet(fetchedPraise as any);
                 setWorshipSet(fetchedWorship as any);
+                setSpecialSet(fetchedSpecial as any);
+                setHymnsSet(fetchedHymns as any);
                 setLearningSet(fetchedLearning as any);
                 setInstrResources(fetchedInstr);
                 setCalendarEvents(fetchedEvents);
@@ -1527,8 +1540,8 @@ const ChoirPage = () => {
                     const dbDate = new Date(fetchedInfo['date']);
                     const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-                    // 🚨 NEW WEEK DETECTION
-                    if (currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
+                    // 🚨 NEW WEEK DETECTION - Bypassed for National Choir
+                    if (locationId !== 'national' && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
                         console.log("New week detected! Clearing setlists...");
                         await choirService.clearWeeklySetlist(locationId);
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
@@ -1543,6 +1556,8 @@ const ChoirPage = () => {
                         setSetlistDate(currentMonday);
                         setPraiseSet([]);
                         setWorshipSet([]);
+                        setSpecialSet([]);
+                        setHymnsSet([]);
                         setLearningSet([]);
                     } else {
                         setSetlistDate(dbDate);
@@ -1664,7 +1679,7 @@ const ChoirPage = () => {
 
                 const prevMonday = startOfWeek(prevDate, { weekStartsOn: 1 });
 
-                if (currentMonday.getTime() > prevMonday.getTime()) {
+                if (locationId !== 'national' && currentMonday.getTime() > prevMonday.getTime()) {
                     // Trigger async clearing in the background
                     (async () => {
                         console.log("Week transition detected in real-time! Clearing...");
@@ -1675,6 +1690,8 @@ const ChoirPage = () => {
                         await choirService.updateSetlistInfo('prayer_checklist', '{}', locationId);
                         setPraiseSet([]);
                         setWorshipSet([]);
+                        setSpecialSet([]);
+                        setHymnsSet([]);
                         setLearningSet([]);
                         toast.info("New week started: Focus song and setlists cleared.");
                     })();
@@ -1819,14 +1836,26 @@ const ChoirPage = () => {
                     const newSong = payload.new as any;
                     if (newSong.set_type === 'praise') {
                         setPraiseSet(prev => {
-                            // Prevent duplicates by checking if song already exists
                             if (prev.some(s => s.id === newSong.id)) return prev;
+                            console.log('Inserting into Praise set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     } else if (newSong.set_type === 'worship') {
                         setWorshipSet(prev => {
-                            // Prevent duplicates by checking if song already exists
                             if (prev.some(s => s.id === newSong.id)) return prev;
+                            console.log('Inserting into Worship set');
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
+                    } else if (newSong.set_type === 'special') {
+                        setSpecialSet(prev => {
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            console.log('Inserting into Special set');
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
+                    } else if (newSong.set_type === 'hymns') {
+                        setHymnsSet(prev => {
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            console.log('Inserting into Hymns set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     }
@@ -1836,6 +1865,10 @@ const ChoirPage = () => {
                         setPraiseSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
                     } else if (updated.set_type === 'worship') {
                         setWorshipSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    } else if (updated.set_type === 'special') {
+                        setSpecialSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    } else if (updated.set_type === 'hymns') {
+                        setHymnsSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
                     }
                 } else if (payload.eventType === 'DELETE') {
                     const deleted = payload.old as any;
@@ -1844,10 +1877,16 @@ const ChoirPage = () => {
                         setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
                     } else if (deleted.set_type === 'worship') {
                         setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
+                    } else if (deleted.set_type === 'special') {
+                        setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
+                    } else if (deleted.set_type === 'hymns') {
+                        setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
                     } else {
-                        // Fallback: remove from both if set_type is unknown
+                        // Fallback: remove from all if set_type is unknown
                         setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
                         setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
+                        setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
+                        setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
                     }
                 }
             })
@@ -2039,7 +2078,7 @@ const ChoirPage = () => {
 
     const handleArchiveSetlist = async () => {
         if (!locationId) return;
-        if (praiseSet.length === 0 && worshipSet.length === 0) {
+        if (praiseSet.length === 0 && worshipSet.length === 0 && specialSet.length === 0 && hymnsSet.length === 0) {
             toast.error("Setlists are empty - nothing to archive");
             return;
         }
@@ -2063,35 +2102,68 @@ const ChoirPage = () => {
             // Create dated folder under parent (instead of root)
             const mainFolder = await choirService.createFolder(folderName, locationId, parentFolder.id);
 
-            // Create Praise Set subfolder
-            const praiseFolder = await choirService.createFolder("Praise Set", locationId, mainFolder.id);
+            // Archive each set if it has songs
+            const archivePromises = [];
 
-            // Create Worship Set subfolder
-            const worshipFolder = await choirService.createFolder("Worship Set", locationId, mainFolder.id);
+            if (praiseSet.length > 0) {
+                const praiseFolder = await choirService.createFolder("Praise Set", locationId, mainFolder.id);
+                archivePromises.push(...praiseSet.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: praiseFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locationId)
+                ));
+            }
 
-            const praisePromises = praiseSet.map(song =>
-                choirService.addSongToFolder({
-                    folder_id: praiseFolder.id,
-                    title: song.title,
-                    key: song.key,
-                    artist: song.artist,
-                    url: song.url,
-                    notes: song.instrumental_notes || ''
-                }, locationId)
-            );
+            if (worshipSet.length > 0) {
+                const worshipFolder = await choirService.createFolder("Worship Set", locationId, mainFolder.id);
+                archivePromises.push(...worshipSet.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: worshipFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locationId)
+                ));
+            }
 
-            const worshipPromises = worshipSet.map(song =>
-                choirService.addSongToFolder({
-                    folder_id: worshipFolder.id,
-                    title: song.title,
-                    key: song.key,
-                    artist: song.artist,
-                    url: song.url,
-                    notes: song.instrumental_notes || ''
-                }, locationId)
-            );
+            if (specialSet.length > 0) {
+                const specialFolder = await choirService.createFolder("Special Number", locationId, mainFolder.id);
+                archivePromises.push(...specialSet.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: specialFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locationId)
+                ));
+            }
 
-            await Promise.all([...praisePromises, ...worshipPromises]);
+            if (hymnsSet.length > 0) {
+                const hymnsFolder = await choirService.createFolder("Hymns Set", locationId, mainFolder.id);
+                archivePromises.push(...hymnsSet.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: hymnsFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locationId)
+                ));
+            }
+
+            if (archivePromises.length > 0) {
+                await Promise.all(archivePromises);
+            }
 
             toast.success(`Archived to "${folderName}" in "${parentFolderName}"`);
         } catch (e) {
@@ -2225,7 +2297,7 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Setlists --
-    const openAddSetSong = (type: 'praise' | 'worship' | 'learning') => {
+    const openAddSetSong = (type: 'praise' | 'worship' | 'learning' | 'special' | 'hymns') => {
         setActiveSetType(type);
         setNewSetSong({ title: "", key: "", artist: "", url: "" });
         setIsAddToSetOpen(true);
@@ -2258,6 +2330,15 @@ const ChoirPage = () => {
                 const updatedList = [...learningSet, newSong];
                 await choirService.saveLearningSongs(updatedList, locationId!);
             } else {
+                console.log('Adding weekly song to DB:', {
+                    set_type: activeSetType,
+                    title: newSetSong.title,
+                    key: newSetSong.key,
+                    artist: newSetSong.artist,
+                    url: newSetSong.url,
+                    library_song_id: newSetSong.library_song_id,
+                    location: locationId
+                });
                 // Add song to database - real-time subscription will update the UI
                 await choirService.addWeeklySong({
                     set_type: activeSetType,
@@ -2265,8 +2346,11 @@ const ChoirPage = () => {
                     key: newSetSong.key,
                     artist: newSetSong.artist,
                     url: newSetSong.url,
-                    library_song_id: newSetSong.library_song_id,
-                    sort_order: activeSetType === 'praise' ? praiseSet.length : worshipSet.length
+                    library_song_id: newSetSong.library_song_id || null,
+                    sort_order: activeSetType === 'praise' ? praiseSet.length :
+                        activeSetType === 'worship' ? worshipSet.length :
+                            activeSetType === 'special' ? specialSet.length :
+                                activeSetType === 'hymns' ? hymnsSet.length : 0
                 }, locationId!);
                 // Note: State update will happen via real-time subscription
             }
@@ -2279,7 +2363,7 @@ const ChoirPage = () => {
         }
     };
 
-    const removeSetSong = async (type: 'praise' | 'worship' | 'learning', id: string) => {
+    const removeSetSong = async (type: 'praise' | 'worship' | 'learning' | 'special' | 'hymns', id: string) => {
         try {
             if (type === 'learning') {
                 const updatedList = learningSet.filter(s => s.id !== id);
@@ -2295,9 +2379,14 @@ const ChoirPage = () => {
         }
     };
 
-    const clearSet = async (type: 'praise' | 'worship') => {
-        const setName = type === 'praise' ? 'Praise Set' : 'Worship Set';
-        const currentSet = type === 'praise' ? praiseSet : worshipSet;
+    const clearSet = async (type: 'praise' | 'worship' | 'special' | 'hymns') => {
+        const setName = type === 'praise' ? 'Praise Set' :
+            type === 'worship' ? 'Worship Set' :
+                type === 'special' ? 'Special Number Set' : 'Hymns Set';
+
+        const currentSet = type === 'praise' ? praiseSet :
+            type === 'worship' ? worshipSet :
+                type === 'special' ? specialSet : hymnsSet;
 
         if (currentSet.length === 0) {
             toast.info(`${setName} is already empty`);
@@ -2432,9 +2521,12 @@ const ChoirPage = () => {
             } else {
                 const results = await Promise.all(lines.map(async (line, idx) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
-                    const currentSetLength = importSetType === 'praise' ? praiseSet.length : worshipSet.length;
+                    const currentSetLength = importSetType === 'praise' ? praiseSet.length :
+                        importSetType === 'worship' ? worshipSet.length :
+                            importSetType === 'special' ? specialSet.length :
+                                importSetType === 'hymns' ? hymnsSet.length : 0;
                     const songData = match ? {
-                        set_type: importSetType as 'praise' | 'worship',
+                        set_type: importSetType as 'praise' | 'worship' | 'special' | 'hymns',
                         title: match.title,
                         key: match.key,
                         artist: match.artist || "",
@@ -2442,7 +2534,7 @@ const ChoirPage = () => {
                         library_song_id: match.id,
                         sort_order: currentSetLength + idx
                     } : {
-                        set_type: importSetType as 'praise' | 'worship',
+                        set_type: importSetType as 'praise' | 'worship' | 'special' | 'hymns',
                         title: line,
                         key: "??",
                         artist: "",
@@ -3786,6 +3878,15 @@ const ChoirPage = () => {
                                     1 Hour Saturday Prayer Accountability
                                 </Button>
                             )}
+                            {locationId === 'national' && (
+                                <Button
+                                    className="bg-emerald-500/30 text-white hover:bg-emerald-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold"
+                                    onClick={() => navigate("/groups/choir/contributions")}
+                                >
+                                    <Wallet className="w-4 h-4 mr-2" />
+                                    Monthly Contribution
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -3935,7 +4036,7 @@ const ChoirPage = () => {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0">
                                     <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center whitespace-nowrap">
                                         <ListMusic className="w-6 h-6 mr-3 text-blue-600 shrink-0" />
-                                        This Week's Setlist
+                                        {locationId === 'national' ? "National Choir Setlist" : "This Week's Setlist"}
                                     </h2>
 
                                     <div className="flex gap-2">
@@ -4093,6 +4194,122 @@ const ChoirPage = () => {
                                             )}
                                         </CardContent>
                                     </Card>
+
+                                    {locationId === 'national' && (
+                                        <>
+                                            {/* Special Number - National Only */}
+                                            <Card className="border-none shadow-lg bg-indigo-50/50 dark:bg-indigo-900/10 border-t-4 border-indigo-500">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                                    <div className="space-y-1">
+                                                        <CardTitle className="text-indigo-700 dark:text-indigo-400 flex items-center">
+                                                            <Sparkles className="w-5 h-5 mr-2" />
+                                                            {specialInfo.title}
+                                                        </CardTitle>
+                                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('special')}>
+                                                            <CardDescription className="cursor-pointer group-hover:text-indigo-600 transition-colors">
+                                                                {specialInfo.desc}
+                                                            </CardDescription>
+                                                            <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('special')} title="Clear all songs from Special Number Set">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => {
+                                                            setImportSetType('special');
+                                                            setIsImportOpen(true);
+                                                        }}>
+                                                            <Download className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => openAddSetSong('special')}>
+                                                            <Plus className="w-5 h-5" />
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3 pt-4">
+                                                    <SortableContext
+                                                        items={specialSet.map(s => s.id)}
+                                                        strategy={verticalListSortingStrategy}
+                                                    >
+                                                        {specialSet.map((song, i) => (
+                                                            <SortableSetSongCard
+                                                                key={song.id}
+                                                                song={song}
+                                                                index={i}
+                                                                onPlay={playVideo}
+                                                                onEdit={startEditSetSong}
+                                                                onRemove={(id) => removeSetSong('special', id)}
+                                                                onViewLyrics={(lyrics, title) => {
+                                                                    setPreviewLyrics({ title, content: lyrics });
+                                                                    setIsPreviewLyricsOpen(true);
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </SortableContext>
+                                                    {specialSet.length === 0 && (
+                                                        <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+
+                                            {/* Hymns Set - National Only */}
+                                            <Card className="border-none shadow-lg bg-emerald-50/50 dark:bg-emerald-900/10 border-t-4 border-emerald-500">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                                    <div className="space-y-1">
+                                                        <CardTitle className="text-emerald-700 dark:text-emerald-400 flex items-center">
+                                                            <FileMusic className="w-5 h-5 mr-2" />
+                                                            {hymnsInfo.title}
+                                                        </CardTitle>
+                                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('hymns')}>
+                                                            <CardDescription className="cursor-pointer group-hover:text-emerald-600 transition-colors">
+                                                                {hymnsInfo.desc}
+                                                            </CardDescription>
+                                                            <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('hymns')} title="Clear all songs from Hymns Set">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => {
+                                                            setImportSetType('hymns');
+                                                            setIsImportOpen(true);
+                                                        }}>
+                                                            <Download className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => openAddSetSong('hymns')}>
+                                                            <Plus className="w-5 h-5" />
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3 pt-4">
+                                                    <SortableContext
+                                                        items={hymnsSet.map(s => s.id)}
+                                                        strategy={verticalListSortingStrategy}
+                                                    >
+                                                        {hymnsSet.map((song, i) => (
+                                                            <SortableSetSongCard
+                                                                key={song.id}
+                                                                song={song}
+                                                                index={i}
+                                                                onPlay={playVideo}
+                                                                onEdit={startEditSetSong}
+                                                                onRemove={(id) => removeSetSong('hymns', id)}
+                                                                onViewLyrics={(lyrics, title) => {
+                                                                    setPreviewLyrics({ title, content: lyrics });
+                                                                    setIsPreviewLyricsOpen(true);
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </SortableContext>
+                                                    {hymnsSet.length === 0 && (
+                                                        <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        </>
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
@@ -4680,7 +4897,7 @@ const ChoirPage = () => {
                                     <ListMusic className="w-6 h-6 text-blue-500" />
                                     Band Setlist View
                                 </h2>
-                                <p className="text-slate-500 text-sm">Chord charts, dynamics, and band-specific instructions for this week.</p>
+                                <p className="text-slate-500 text-sm">Chord charts, dynamics, and band-specific instructions for {locationId === 'national' ? "this setlist" : "this week"}.</p>
 
                                 <div className="grid lg:grid-cols-2 gap-6">
                                     {/* Praise Set for Band */}

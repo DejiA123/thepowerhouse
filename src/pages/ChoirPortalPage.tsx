@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft, Wallet } from "lucide-react";
+import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft, Wallet, Globe } from "lucide-react";
 
 const ChoirPortalPage = () => {
     const navigate = useNavigate();
@@ -64,20 +64,23 @@ const ChoirPortalPage = () => {
 
                         <div className="flex flex-col items-center gap-6 mb-4">
                             <button
-                                onClick={() => navigate("/groups/choir/contributions")}
-                                className="group relative flex items-center gap-3 px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl transition-all hover:scale-[1.05] active:scale-[0.98]"
+                                onClick={() => navigate("/groups/choir/national")}
+                                className="group relative flex items-center gap-4 px-8 py-5 bg-gradient-to-r from-indigo-900 to-blue-900 hover:from-indigo-800 hover:to-blue-800 backdrop-blur-xl border border-indigo-500/30 rounded-[2rem] shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] w-full max-w-sm"
                             >
-                                <div className="p-2 bg-blue-500 rounded-xl shadow-lg group-hover:bg-blue-400 transition-colors">
-                                    <Wallet className="w-5 h-5 text-white" />
+                                <div className="p-3 bg-white/10 rounded-2xl shadow-inner group-hover:bg-white/20 transition-colors">
+                                    <Globe className="w-6 h-6 text-indigo-400" />
                                 </div>
-                                <div className="text-left">
-                                    <div className="text-blue-200 text-[10px] font-black uppercase tracking-widest leading-none mb-1">National Vault</div>
-                                    <div className="text-white font-black text-sm tracking-tight">National Choir Monthly Contribution</div>
+                                <div className="text-left flex-1">
+                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest leading-none mb-1.5 flex items-center gap-1.5">
+                                        <Music className="w-3 h-3 text-emerald-400" />
+                                        Official Portal
+                                    </div>
+                                    <div className="text-white font-black text-lg tracking-tight leading-tight">TPH National Choir</div>
                                 </div>
                                 <ChevronRight className="w-5 h-5 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
 
                                 {/* Pulse Glow */}
-                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-blue-500/30 rounded-[2rem] blur-lg opacity-50 group-hover:opacity-100 transition-opacity" />
                             </button>
                         </div>
 

@@ -22,7 +22,7 @@ export interface ChoirFolder {
 
 export interface WeeklySetSong {
     id: string;
-    set_type: 'praise' | 'worship';
+    set_type: 'praise' | 'worship' | 'special' | 'hymns';
     title: string;
     key: string;
     artist: string;
@@ -232,7 +232,7 @@ export const choirService = {
     },
 
     // --- Weekly Setlists ---
-    async getWeeklySetlist(type: 'praise' | 'worship', location: string) {
+    async getWeeklySetlist(type: 'praise' | 'worship' | 'special' | 'hymns', location: string) {
         const { data, error } = await supabase
             .from('choir_weekly_set_songs' as any)
             .select('*')
@@ -244,12 +244,27 @@ export const choirService = {
     },
 
     async addWeeklySong(song: Omit<WeeklySetSong, 'id' | 'created_at'>, location: string) {
+        // Sanitize: ensure library_song_id is null (not undefined) to satisfy FK constraint
+        const sanitized = {
+            set_type: song.set_type,
+            title: song.title,
+            key: song.key || null,
+            artist: song.artist || null,
+            url: song.url || null,
+            library_song_id: song.library_song_id || null,
+            sort_order: song.sort_order ?? 0,
+            location
+        };
+        console.log('addWeeklySong sanitized payload:', sanitized);
         const { data, error } = await supabase
             .from('choir_weekly_set_songs' as any)
-            .insert([{ ...song, location }])
+            .insert([sanitized])
             .select()
             .single();
-        if (error) throw error;
+        if (error) {
+            console.error('addWeeklySong error:', error);
+            throw error;
+        }
         return data;
     },
 
