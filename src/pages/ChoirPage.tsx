@@ -1381,7 +1381,7 @@ const ChoirPage = () => {
 
     const handleAdminLogin = () => {
         // Simple passcode check - can be moved to env later
-        if (adminPasscode === "1234") {
+        if (adminPasscode === "090312") {
             setIsAdmin(true);
             sessionStorage.setItem('choir_admin_auth', 'true');
             setIsAdminLoginOpen(false);
@@ -3869,30 +3869,67 @@ const ChoirPage = () => {
 
             {/* Admin Login Dialog */}
             <Dialog open={isAdminLoginOpen} onOpenChange={setIsAdminLoginOpen}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>Admin Access</DialogTitle>
-                        <DialogDescription>
-                            Enter the administrative passcode to reveal management options.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="passcode">Passcode</Label>
-                            <Input
-                                id="passcode"
-                                type="password"
-                                placeholder="Enter passcode"
-                                value={adminPasscode}
-                                onChange={(e) => setAdminPasscode(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                            />
+                <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden bg-slate-900 border-none rounded-[2rem] shadow-2xl">
+                    <div className="relative">
+                        {/* Decorative background elements */}
+                        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl" />
+                        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl" />
+
+                        <div className="relative p-8 space-y-8">
+                            <div className="text-center space-y-3">
+                                <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 mb-4 ring-1 ring-white/20">
+                                    <Settings className="w-8 h-8 text-white animate-pulse" />
+                                </div>
+                                <DialogTitle className="text-3xl font-black text-white tracking-tight">Portal Access</DialogTitle>
+                                <DialogDescription className="text-slate-400 text-base font-medium">
+                                    Administrative verification required.
+                                </DialogDescription>
+                            </div>
+
+                            <div className="space-y-6 pt-4">
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between px-1">
+                                        <Label htmlFor="passcode" className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">System Passcode</Label>
+                                        <Zap className="w-3 h-3 text-amber-500" />
+                                    </div>
+                                    <div className="relative group">
+                                        <Input
+                                            id="passcode"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            className="h-16 bg-white/5 border-slate-800 text-white rounded-2xl focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all text-center text-2xl tracking-[0.5em] group-hover:bg-white/10"
+                                            value={adminPasscode}
+                                            onChange={(e) => setAdminPasscode(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 pt-2">
+                                    <Button
+                                        onClick={handleAdminLogin}
+                                        className="h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-500/20 transition-all active:scale-[0.98]"
+                                    >
+                                        Authorize Access
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setIsAdminLoginOpen(false)}
+                                        className="h-14 text-slate-500 hover:text-white hover:bg-white/5 font-bold rounded-2xl"
+                                    >
+                                        Return to Portal
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex justify-center">
+                                <Badge variant="outline" className="text-[10px] font-black tracking-[0.2em] uppercase border-slate-800 text-slate-600 px-4 py-1.5 rounded-full bg-slate-900/50">
+                                    TPH National Command
+                                </Badge>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAdminLoginOpen(false)}>Cancel</Button>
-                        <Button onClick={handleAdminLogin} className="bg-blue-600 text-white">Login</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -3954,38 +3991,17 @@ const ChoirPage = () => {
                             )}
                             {locationId === 'national' && (
                                 <Button
-                                    className="bg-emerald-500/30 text-white hover:bg-emerald-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold"
+                                    className="bg-blue-500/30 text-white hover:bg-blue-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold"
                                     onClick={() => navigate("/groups/choir/contributions")}
                                 >
                                     <Wallet className="w-4 h-4 mr-2" />
                                     Monthly Contribution
                                 </Button>
                             )}
-                            {locationId === 'national' && (
-                                <Button
-                                    className={cn(
-                                        "backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold",
-                                        isAdmin ? "bg-red-500/30 hover:bg-red-500/40 text-white" : "bg-white/10 text-white hover:bg-white/20"
-                                    )}
-                                    onClick={() => isAdmin ? handleAdminLogout() : setIsAdminLoginOpen(true)}
-                                >
-                                    {isAdmin ? (
-                                        <>
-                                            <LogOut className="w-4 h-4 mr-2" />
-                                            Admin Logout
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Settings className="w-4 h-4 mr-2" />
-                                            Admin Login
-                                        </>
-                                    )}
-                                </Button>
-                            )}
                         </div>
                     </div>
                 </div>
-            </div >
+            </div>
 
             {/* Main Content */}
             <div id="main-content" className="container mx-auto px-2 sm:px-4 py-8 -mt-6 relative z-10">
@@ -5924,6 +5940,40 @@ const ChoirPage = () => {
                         </Card>
                     </section>
                 </div >
+
+                {/* RELOCATED ADMIN LOGIN BUTTON - BOTTOM OF PAGE */}
+                {locationId === 'national' && (
+                    <div className="mt-20 flex justify-center pb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+                        <Button
+                            onClick={() => isAdmin ? handleAdminLogout() : setIsAdminLoginOpen(true)}
+                            className={cn(
+                                "group relative overflow-hidden rounded-3xl h-16 px-10 transition-all duration-500 shadow-2xl",
+                                isAdmin
+                                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-200/50"
+                                    : "bg-slate-900 hover:bg-black text-white shadow-slate-900/20"
+                            )}
+                        >
+                            <div className="relative z-10 flex items-center gap-3 font-black uppercase tracking-widest">
+                                {isAdmin ? (
+                                    <>
+                                        <LogOut className="w-5 h-5" />
+                                        System Logout
+                                    </>
+                                ) : (
+                                    <>
+                                        <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+                                        Portal Control
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Decorative hover effect for non-admin state */}
+                            {!isAdmin && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            )}
+                        </Button>
+                    </div>
+                )}
             </div >
 
             {/* Dialogs for Instrumental Resources */}
