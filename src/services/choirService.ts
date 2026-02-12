@@ -504,5 +504,34 @@ export const choirService = {
         if (questionsError) throw questionsError;
 
         return newQuiz;
+    },
+
+    // --- Contributions Persistence ---
+    async getContributions(location: string): Promise<any | null> {
+        const { data, error } = await supabase
+            .from('choir_setlist_info' as any)
+            .select('value')
+            .eq('info_type', 'choir_contributions_json')
+            .eq('location', location)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching contributions", error);
+            return null;
+        }
+
+        const record = data as unknown as { value: string } | null;
+        if (!record || !record.value) return null;
+
+        try {
+            return JSON.parse(record.value);
+        } catch (e) {
+            console.error("Failed to parse contributions JSON", e);
+            return null;
+        }
+    },
+
+    async saveContributions(data: any, location: string) {
+        return this.updateSetlistInfo('choir_contributions_json', JSON.stringify(data), location);
     }
 };

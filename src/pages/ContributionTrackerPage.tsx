@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,9 +8,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar, Lock, Unlock, ShieldCheck, X, Plus } from "lucide-react";
+import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar, Lock, Unlock, ShieldCheck, X, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { choirService } from "@/services/choirService";
 
 interface Contribution {
     name: string;
@@ -65,11 +66,40 @@ const ContributionTrackerPage = () => {
     const navigate = useNavigate();
     const [selectedYear, setSelectedYear] = useState("2026");
     const [contributionData, setContributionData] = useState(INITIAL_DATA);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Admin State
     const [isAdmin, setIsAdmin] = useState(false);
     const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
     const [pinInput, setPinInput] = useState("");
+
+    // Fetch data on mount
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setIsLoading(true);
+                const savedData = await choirService.getContributions("National");
+                if (savedData) {
+                    setContributionData(savedData);
+                }
+            } catch (error) {
+                console.error("Failed to fetch contributions:", error);
+                toast.error("Failed to load contribution data. Using offline defaults.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const saveToSupabase = async (newData: Record<string, Contribution[]>) => {
+        try {
+            await choirService.saveContributions(newData, "National");
+        } catch (error) {
+            console.error("Failed to save contributions:", error);
+            toast.error("Failed to sync changes with server");
+        }
+    };
 
     const calculateTotal = (months: (number | null)[]) => {
         return months.reduce((acc, curr) => acc + (curr || 0), 0);
@@ -103,6 +133,7 @@ const ContributionTrackerPage = () => {
         const newData = { ...contributionData };
         newData[selectedYear][index].name = newName;
         setContributionData(newData);
+        saveToSupabase(newData);
     };
 
     const toggleMonthContribution = (memberIndex: number, monthIndex: number) => {
@@ -111,6 +142,7 @@ const ContributionTrackerPage = () => {
         const currentVal = newData[selectedYear][memberIndex].months[monthIndex];
         newData[selectedYear][memberIndex].months[monthIndex] = currentVal ? null : 5;
         setContributionData(newData);
+        saveToSupabase(newData);
     };
 
     const addNewMember = () => {
@@ -120,7 +152,18 @@ const ContributionTrackerPage = () => {
             { name: "New Member", months: Array(12).fill(null) }
         ];
         setContributionData(newData);
+        saveToSupabase(newData);
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+                <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Initializing National Vault</h2>
+                <p className="text-slate-500 font-medium">Fetching the latest contributions...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
