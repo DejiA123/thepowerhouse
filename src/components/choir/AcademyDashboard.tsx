@@ -10,9 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface AcademyDashboardProps {
     locationId: string;
+    isAdmin: boolean;
 }
 
-export const AcademyDashboard = ({ locationId }: AcademyDashboardProps) => {
+export const AcademyDashboard = ({ locationId, isAdmin }: AcademyDashboardProps) => {
     const [modules, setModules] = useState<AcademyModule[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeModule, setActiveModule] = useState<AcademyModule | null>(null);
@@ -89,13 +90,15 @@ export const AcademyDashboard = ({ locationId }: AcademyDashboardProps) => {
         <div className="space-y-12">
             {/* Header/Actions */}
             <div className="flex items-center justify-between">
-                <Button
-                    onClick={() => setIsAddOpen(true)}
-                    className="bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:from-black hover:to-slate-900 font-bold rounded-xl shadow-lg border border-slate-700/50 transition-all hover:scale-105 active:scale-95"
-                >
-                    <PlusCircle className="w-4 h-4 mr-2 text-blue-400" />
-                    Create Teaching
-                </Button>
+                {isAdmin && (
+                    <Button
+                        onClick={() => setIsAddOpen(true)}
+                        className="bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:from-black hover:to-slate-900 font-bold rounded-xl shadow-lg border border-slate-700/50 transition-all hover:scale-105 active:scale-95"
+                    >
+                        <PlusCircle className="w-4 h-4 mr-2 text-blue-400" />
+                        Create Teaching
+                    </Button>
+                )}
                 <div />
             </div>
 

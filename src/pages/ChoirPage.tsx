@@ -96,7 +96,7 @@ interface PrayerStats {
 
 
 // --- Sub-components ---
-const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void }) => {
+const BandSongCard = ({ song, allLibrarySongs, onUpdate, isAdmin }: { song: WeeklySetSong, allLibrarySongs: any[], onUpdate: (id: string, updates: any) => void, isAdmin: boolean }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [notes, setNotes] = useState(song.instrumental_notes || "");
     const [chartUrl, setChartUrl] = useState(song.instrumental_url || "");
@@ -149,17 +149,19 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate }: { song: WeeklySetSong
                             <FileMusic className="w-3 h-3" /> View Chart
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                            "h-8 w-8 p-0 rounded-lg transition-all",
-                            isEditing ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20" : "text-slate-400 hover:bg-slate-50"
-                        )}
-                        onClick={() => setIsEditing(!isEditing)}
-                    >
-                        {isEditing ? <Check className="w-4 h-4" /> : <Pencil className="w-3 h-3" />}
-                    </Button>
+                    {isAdmin && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                                "h-8 w-8 p-0 rounded-lg transition-all",
+                                isEditing ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20" : "text-slate-400 hover:bg-slate-50"
+                            )}
+                            onClick={() => setIsEditing(!isEditing)}
+                        >
+                            {isEditing ? <Check className="w-4 h-4" /> : <Pencil className="w-3 h-3" />}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -516,12 +518,14 @@ const BackingTrackCard = ({
     resource,
     onPlay,
     onEdit,
-    onDelete
+    onDelete,
+    isAdmin
 }: {
     resource: any,
     onPlay: (url: string, title?: string) => void,
     onEdit: (resource: any) => void,
-    onDelete: (id: string) => void
+    onDelete: (id: string) => void,
+    isAdmin: boolean
 }) => {
     // Long Press Logic Wrapper
     const longPressTimer = useRef<number | null>(null);
@@ -576,23 +580,25 @@ const BackingTrackCard = ({
             </AlertDialog>
 
             <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                <MoreVertical className="w-4 h-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => onEdit(resource)}>
-                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteDialogOpen(true)}>
-                                <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                {isAdmin && (
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                    <MoreVertical className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => onEdit(resource)}>
+                                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteDialogOpen(true)}>
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
 
                 <div
                     className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
@@ -652,7 +658,8 @@ const VocalResourceCard = ({
     onPause,
     onResume,
     onSeek,
-    onDelete
+    onDelete,
+    isAdmin
 }: {
     resource: any,
     audioState: any,
@@ -661,7 +668,8 @@ const VocalResourceCard = ({
     onPause: () => void,
     onResume: () => void,
     onSeek: (time: number) => void,
-    onDelete: (id: string) => void
+    onDelete: (id: string) => void,
+    isAdmin: boolean
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -743,14 +751,16 @@ const VocalResourceCard = ({
                                 <RotateCw className="w-4 h-4" />
                             </Button>
                         )}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {isAdmin && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        )}
                     </div>
                 </div>
                 <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
@@ -1361,6 +1371,41 @@ const ChoirPage = () => {
 
 
 
+
+    const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+        if (locationId && locationId !== 'national') return true;
+        return sessionStorage.getItem('choir_admin_auth') === 'true';
+    });
+    const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+    const [adminPasscode, setAdminPasscode] = useState("");
+
+    const handleAdminLogin = () => {
+        // Simple passcode check - can be moved to env later
+        if (adminPasscode === "1234") {
+            setIsAdmin(true);
+            sessionStorage.setItem('choir_admin_auth', 'true');
+            setIsAdminLoginOpen(false);
+            setAdminPasscode("");
+            toast.success("Admin mode activated");
+        } else {
+            toast.error("Invalid passcode");
+        }
+    };
+
+    const handleAdminLogout = () => {
+        setIsAdmin(false);
+        sessionStorage.removeItem('choir_admin_auth');
+        toast.info("Admin mode deactivated");
+    };
+
+    // Auto-admin for non-national locations
+    useEffect(() => {
+        if (locationId && locationId !== 'national') {
+            setIsAdmin(true);
+        } else if (locationId === 'national') {
+            setIsAdmin(sessionStorage.getItem('choir_admin_auth') === 'true');
+        }
+    }, [locationId]);
 
     const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
 
@@ -3822,6 +3867,35 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog >
 
+            {/* Admin Login Dialog */}
+            <Dialog open={isAdminLoginOpen} onOpenChange={setIsAdminLoginOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Admin Access</DialogTitle>
+                        <DialogDescription>
+                            Enter the administrative passcode to reveal management options.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="passcode">Passcode</Label>
+                            <Input
+                                id="passcode"
+                                type="password"
+                                placeholder="Enter passcode"
+                                value={adminPasscode}
+                                onChange={(e) => setAdminPasscode(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAdminLoginOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAdminLogin} className="bg-blue-600 text-white">Login</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* REMOVED: Edit Learning Focus Dialog */}
             {/* <Dialog open={isEditLearningFocusOpen} onOpenChange={setIsEditLearningFocusOpen}>...</Dialog> */}
             {/* OLD LEARNING FOCUS DIALOG REMOVED */}
@@ -3887,6 +3961,27 @@ const ChoirPage = () => {
                                     Monthly Contribution
                                 </Button>
                             )}
+                            {locationId === 'national' && (
+                                <Button
+                                    className={cn(
+                                        "backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold",
+                                        isAdmin ? "bg-red-500/30 hover:bg-red-500/40 text-white" : "bg-white/10 text-white hover:bg-white/20"
+                                    )}
+                                    onClick={() => isAdmin ? handleAdminLogout() : setIsAdminLoginOpen(true)}
+                                >
+                                    {isAdmin ? (
+                                        <>
+                                            <LogOut className="w-4 h-4 mr-2" />
+                                            Admin Logout
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Settings className="w-4 h-4 mr-2" />
+                                            Admin Login
+                                        </>
+                                    )}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -3937,15 +4032,17 @@ const ChoirPage = () => {
                                         <Music className="w-6 h-6 mr-3 text-blue-600" />
                                         New Song{learningSet.length > 1 ? 's' : ''} Focus
                                     </h2>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-blue-600 hover:bg-blue-50 font-bold mr-0"
-                                        onClick={() => openAddSetSong('learning')}
-                                    >
-                                        <PlusCircle className="w-4 h-4 mr-2" />
-                                        Add Focus Song
-                                    </Button>
+                                    {isAdmin && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-blue-600 hover:bg-blue-50 font-bold mr-0"
+                                            onClick={() => openAddSetSong('learning')}
+                                        >
+                                            <PlusCircle className="w-4 h-4 mr-2" />
+                                            Add Focus Song
+                                        </Button>
+                                    )}
                                 </div>
 
                                 {/* Consolidated Hero Container for all focus songs (Vocalists) */}
@@ -3969,14 +4066,16 @@ const ChoirPage = () => {
                                                     return (
                                                         <div key={song.id} className="space-y-4 group/song relative">
                                                             {/* ACTIONS */}
-                                                            <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
-                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
-                                                                    <Edit3 className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
+                                                            {isAdmin && (
+                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                        <Edit3 className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
 
                                                             <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
                                                                 {videoId ? (
@@ -4018,12 +4117,14 @@ const ChoirPage = () => {
                                                 <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
                                                 <p className="text-blue-100/80 text-lg font-medium">No new songs set yet. Add one to get started!</p>
                                             </div>
-                                            <div className="flex justify-center">
-                                                <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
-                                                    <PlusCircle className="w-5 h-5 mr-3" />
-                                                    Add Your First Focus Song
-                                                </Button>
-                                            </div>
+                                            {isAdmin && (
+                                                <div className="flex justify-center">
+                                                    <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
+                                                        <PlusCircle className="w-5 h-5 mr-3" />
+                                                        Add Your First Focus Song
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     </Card>
                                 )}
@@ -4041,15 +4142,17 @@ const ChoirPage = () => {
 
                                     <div className="flex gap-2">
                                         {/* Archive Button */}
-                                        <Button
-                                            variant="outline"
-                                            className="h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 px-4 font-bold shadow-sm"
-                                            onClick={handleArchiveSetlist}
-                                            title="Archive this week's songs to a folder"
-                                        >
-                                            <Archive className="w-4 h-4 sm:mr-2" />
-                                            <span className="hidden sm:inline">Archive Week</span>
-                                        </Button>
+                                        {isAdmin && (
+                                            <Button
+                                                variant="outline"
+                                                className="h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 px-4 font-bold shadow-sm"
+                                                onClick={handleArchiveSetlist}
+                                                title="Archive this week's songs to a folder"
+                                            >
+                                                <Archive className="w-4 h-4 sm:mr-2" />
+                                                <span className="hidden sm:inline">Archive Week</span>
+                                            </Button>
+                                        )}
 
                                         {/* Date Picker Popover */}
                                         <Popover>
@@ -4099,18 +4202,22 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('praise')} title="Clear all songs from Praise Set">
-                                                    <Trash2 className="w-5 h-5" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
-                                                    setImportSetType('praise');
-                                                    setIsImportOpen(true);
-                                                }}>
-                                                    <Download className="w-5 h-5" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
-                                                    <Plus className="w-5 h-5" />
-                                                </Button>
+                                                {isAdmin && (
+                                                    <>
+                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('praise')} title="Clear all songs from Praise Set">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => {
+                                                            setImportSetType('praise');
+                                                            setIsImportOpen(true);
+                                                        }}>
+                                                            <Download className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('praise')}>
+                                                            <Plus className="w-5 h-5" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3 pt-4">
@@ -4155,18 +4262,22 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('worship')} title="Clear all songs from Worship Set">
-                                                    <Trash2 className="w-5 h-5" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
-                                                    setImportSetType('worship');
-                                                    setIsImportOpen(true);
-                                                }}>
-                                                    <Download className="w-5 h-5" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
-                                                    <Plus className="w-5 h-5" />
-                                                </Button>
+                                                {isAdmin && (
+                                                    <>
+                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('worship')} title="Clear all songs from Worship Set">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => {
+                                                            setImportSetType('worship');
+                                                            setIsImportOpen(true);
+                                                        }}>
+                                                            <Download className="w-5 h-5" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-100/50" onClick={() => openAddSetSong('worship')}>
+                                                            <Plus className="w-5 h-5" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3 pt-4">
@@ -4213,18 +4324,22 @@ const ChoirPage = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('special')} title="Clear all songs from Special Number Set">
-                                                            <Trash2 className="w-5 h-5" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => {
-                                                            setImportSetType('special');
-                                                            setIsImportOpen(true);
-                                                        }}>
-                                                            <Download className="w-5 h-5" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => openAddSetSong('special')}>
-                                                            <Plus className="w-5 h-5" />
-                                                        </Button>
+                                                        {isAdmin && (
+                                                            <>
+                                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('special')} title="Clear all songs from Special Number Set">
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => {
+                                                                    setImportSetType('special');
+                                                                    setIsImportOpen(true);
+                                                                }}>
+                                                                    <Download className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-indigo-600 hover:bg-indigo-100/50" onClick={() => openAddSetSong('special')}>
+                                                                    <Plus className="w-5 h-5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent className="space-y-3 pt-4">
@@ -4269,18 +4384,22 @@ const ChoirPage = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('hymns')} title="Clear all songs from Hymns Set">
-                                                            <Trash2 className="w-5 h-5" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => {
-                                                            setImportSetType('hymns');
-                                                            setIsImportOpen(true);
-                                                        }}>
-                                                            <Download className="w-5 h-5" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => openAddSetSong('hymns')}>
-                                                            <Plus className="w-5 h-5" />
-                                                        </Button>
+                                                        {isAdmin && (
+                                                            <>
+                                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('hymns')} title="Clear all songs from Hymns Set">
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => {
+                                                                    setImportSetType('hymns');
+                                                                    setIsImportOpen(true);
+                                                                }}>
+                                                                    <Download className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => openAddSetSong('hymns')}>
+                                                                    <Plus className="w-5 h-5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent className="space-y-3 pt-4">
@@ -4347,33 +4466,35 @@ const ChoirPage = () => {
                                         </div>
 
                                         <div className="flex gap-2 shrink-0">
-                                            <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
-                                                <DialogTrigger asChild>
-                                                    <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-                                                        <Folder className="w-4 h-4 sm:mr-2" />
-                                                        <span className="hidden sm:inline">New Folder</span>
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                                                    <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
-                                                        <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
-                                                    </DialogHeader>
-                                                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                                        <div>
-                                                            <Label>Folder Name</Label>
-                                                            <Input
-                                                                placeholder="e.g. Wedding Set"
-                                                                className="mt-2"
-                                                                value={newFolderName}
-                                                                onChange={(e) => setNewFolderName(e.target.value)}
-                                                            />
+                                            {isAdmin && (
+                                                <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+                                                            <Folder className="w-4 h-4 sm:mr-2" />
+                                                            <span className="hidden sm:inline">New Folder</span>
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                                                        <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                                            <DialogTitle>Create New {activeFolderId ? "Subfolder" : "Folder"}</DialogTitle>
+                                                        </DialogHeader>
+                                                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                                            <div>
+                                                                <Label>Folder Name</Label>
+                                                                <Input
+                                                                    placeholder="e.g. Wedding Set"
+                                                                    className="mt-2"
+                                                                    value={newFolderName}
+                                                                    onChange={(e) => setNewFolderName(e.target.value)}
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 mt-auto sm:mt-0">
-                                                        <Button onClick={handleCreateFolder} className="bg-blue-600 text-white w-full">Create</Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                                        <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800 mt-auto sm:mt-0">
+                                                            <Button onClick={handleCreateFolder} className="bg-blue-600 text-white w-full">Create</Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            )}
 
                                             <Dialog open={isEditFolderOpen} onOpenChange={setIsEditFolderOpen}>
                                                 <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-full h-full sm:h-auto max-w-none sm:max-w-[425px] m-0 p-0 flex flex-col bg-white dark:bg-slate-900 rounded-none sm:rounded-2xl overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
@@ -4398,7 +4519,7 @@ const ChoirPage = () => {
                                                 </DialogContent>
                                             </Dialog>
 
-                                            {activeFolderId && (
+                                            {activeFolderId && isAdmin && (
                                                 <div className="flex gap-2">
                                                     <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
                                                         <DialogTrigger asChild>
@@ -4562,8 +4683,10 @@ const ChoirPage = () => {
                                                         id={`folder-${folder.id}`}
                                                         onClick={() => setActiveFolderId(folder.id)}
                                                         onLongPress={() => {
-                                                            setFolderForOptions(folder);
-                                                            setIsFolderOptionsOpen(true);
+                                                            if (isAdmin) {
+                                                                setFolderForOptions(folder);
+                                                                setIsFolderOptionsOpen(true);
+                                                            }
                                                         }}
                                                         className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
                                                     >
@@ -4577,23 +4700,25 @@ const ChoirPage = () => {
                                                             </p>
                                                         </div>
 
-                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button size="icon" variant="ghost" className="h-6 w-6">
-                                                                        <MoreVertical className="w-4 h-4 text-slate-400" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent>
-                                                                    <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
-                                                                        <Pencil className="w-4 h-4 mr-2" /> Rename
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
-                                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
+                                                        {isAdmin && (
+                                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button size="icon" variant="ghost" className="h-6 w-6">
+                                                                            <MoreVertical className="w-4 h-4 text-slate-400" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent>
+                                                                        <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
+                                                                            <Pencil className="w-4 h-4 mr-2" /> Rename
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            </div>
+                                                        )}
                                                     </DroppableFolder>
                                                 ))}
                                                 {folders.filter(f => !f.parent_id).length === 0 && (
@@ -4619,7 +4744,7 @@ const ChoirPage = () => {
                                                                     key={folder.id}
                                                                     id={`folder-${folder.id}`}
                                                                     onClick={() => setActiveFolderId(folder.id)}
-                                                                    onLongPress={() => startEditFolder(folder)}
+                                                                    onLongPress={() => isAdmin && startEditFolder(folder)}
                                                                     className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
                                                                 >
                                                                     <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
@@ -4629,23 +4754,25 @@ const ChoirPage = () => {
                                                                             {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
                                                                         </p>
                                                                     </div>
-                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                                        <DropdownMenu>
-                                                                            <DropdownMenuTrigger asChild>
-                                                                                <Button size="icon" variant="ghost" className="h-6 w-6">
-                                                                                    <MoreVertical className="w-4 h-4 text-slate-400" />
-                                                                                </Button>
-                                                                            </DropdownMenuTrigger>
-                                                                            <DropdownMenuContent>
-                                                                                <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
-                                                                                    <Pencil className="w-4 h-4 mr-2" /> Rename
-                                                                                </DropdownMenuItem>
-                                                                                <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
-                                                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                                                </DropdownMenuItem>
-                                                                            </DropdownMenuContent>
-                                                                        </DropdownMenu>
-                                                                    </div>
+                                                                    {isAdmin && (
+                                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                            <DropdownMenu>
+                                                                                <DropdownMenuTrigger asChild>
+                                                                                    <Button size="icon" variant="ghost" className="h-6 w-6">
+                                                                                        <MoreVertical className="w-4 h-4 text-slate-400" />
+                                                                                    </Button>
+                                                                                </DropdownMenuTrigger>
+                                                                                <DropdownMenuContent>
+                                                                                    <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
+                                                                                        <Pencil className="w-4 h-4 mr-2" /> Rename
+                                                                                    </DropdownMenuItem>
+                                                                                    <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                                    </DropdownMenuItem>
+                                                                                </DropdownMenuContent>
+                                                                            </DropdownMenu>
+                                                                        </div>
+                                                                    )}
                                                                 </DroppableFolder>
                                                             ))}
                                                         </div>
@@ -4674,12 +4801,16 @@ const ChoirPage = () => {
                                                                                 <PlayCircle className="w-4 h-4" />
                                                                             </Button>
                                                                         )}
-                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => startEditSong(song)}>
-                                                                            <Edit3 className="w-4 h-4" />
-                                                                        </Button>
-                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDeleteSong(song.id)}>
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </Button>
+                                                                        {isAdmin && (
+                                                                            <>
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => startEditSong(song)}>
+                                                                                    <Edit3 className="w-4 h-4" />
+                                                                                </Button>
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDeleteSong(song.id)}>
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </Button>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))
@@ -4786,12 +4917,14 @@ const ChoirPage = () => {
                                         <Video className="w-6 h-6 text-blue-600" />
                                         Tutorials
                                     </h2>
-                                    <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
-                                        setNewInstr({ title: "", type: "Tutorial", url: "" });
-                                        setIsAddInstrOpen(true);
-                                    }}>
-                                        <Plus className="w-4 h-4 mr-2" /> Add Resource
-                                    </Button>
+                                    {isAdmin && (
+                                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
+                                            setNewInstr({ title: "", type: "Tutorial", url: "" });
+                                            setIsAddInstrOpen(true);
+                                        }}>
+                                            <Plus className="w-4 h-4 mr-2" /> Add Resource
+                                        </Button>
+                                    )}
                                 </div>
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4803,23 +4936,25 @@ const ChoirPage = () => {
                                     ) : (
                                         instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
                                             <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
-                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                                                <MoreVertical className="w-4 h-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
-                                                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
-                                                                <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
+                                                {isAdmin && (
+                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                                                    <MoreVertical className="w-4 h-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
+                                                                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                )}
 
                                                 <div
                                                     className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/10 transition-colors cursor-pointer relative"
@@ -4860,15 +4995,17 @@ const ChoirPage = () => {
                                         <Music className="w-6 h-6 text-blue-600" />
                                         Backing Tracks
                                     </h2>
-                                    <Button
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        onClick={() => {
-                                            setNewInstr({ title: "", type: "Backing Track", url: "" });
-                                            setIsAddInstrOpen(true);
-                                        }}
-                                    >
-                                        <Plus className="w-4 h-4 mr-2" /> Add Backing Track
-                                    </Button>
+                                    {isAdmin && (
+                                        <Button
+                                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                                            onClick={() => {
+                                                setNewInstr({ title: "", type: "Backing Track", url: "" });
+                                                setIsAddInstrOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="w-4 h-4 mr-2" /> Add Backing Track
+                                        </Button>
+                                    )}
                                 </div>
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4885,6 +5022,7 @@ const ChoirPage = () => {
                                                 onPlay={playVideo}
                                                 onEdit={startEditInstrResource}
                                                 onDelete={handleDeleteInstrResource}
+                                                isAdmin={isAdmin}
                                             />
                                         ))
                                     )}
@@ -4912,7 +5050,7 @@ const ChoirPage = () => {
                                                 <p className="text-center py-8 text-slate-400">No songs in praise set</p>
                                             ) : (
                                                 praiseSet.map((song) => (
-                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin} />
                                                 ))
                                             )}
                                         </CardContent>
@@ -4930,7 +5068,7 @@ const ChoirPage = () => {
                                                 <p className="text-center py-8 text-slate-400">No songs in worship set</p>
                                             ) : (
                                                 worshipSet.map((song) => (
-                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} />
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin} />
                                                 ))
                                             )}
                                         </CardContent>
@@ -4967,7 +5105,7 @@ const ChoirPage = () => {
                                 </div>
                             </div>
 
-                            <AcademyDashboard locationId={locationId} />
+                            <AcademyDashboard locationId={locationId} isAdmin={isAdmin} />
 
                             {/* Course Sections */}
                             {academyCourses.map((section, idx) => (
