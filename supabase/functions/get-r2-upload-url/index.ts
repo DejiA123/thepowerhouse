@@ -1,5 +1,5 @@
-import { S3Client, PutObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.540.0?target=deno"
-import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.540.0?target=deno"
+import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.540.0"
+import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner@3.540.0"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
