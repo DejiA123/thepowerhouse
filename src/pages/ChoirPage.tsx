@@ -1297,6 +1297,18 @@ const ChoirPage = () => {
         await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
     };
 
+    const handleManualResetPrayer = async () => {
+        try {
+            const emptyChecklist = {};
+            await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(emptyChecklist), locationId!);
+            setPrayerChecklist(emptyChecklist);
+            toast.success("Prayer checklist has been manually reset.");
+        } catch (error) {
+            console.error("Error resetting prayer checklist:", error);
+            toast.error("Failed to reset prayer checklist");
+        }
+    };
+
     const checkWeeklyReset = async (checklist: Record<string, boolean>, currentStats: PrayerStats) => {
         const lastReset = new Date(currentStats.lastResetDate);
         const now = new Date();
@@ -3797,7 +3809,17 @@ const ChoirPage = () => {
                                 </div>
                             </CardContent>
 
-                            <div className="p-8 text-center relative z-10">
+                            <div className="p-8 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+                                {isAdmin && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleManualResetPrayer}
+                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 hover:border-red-500/50 rounded-2xl px-8 h-12 font-bold transition-all flex items-center gap-2"
+                                    >
+                                        <RotateCcw className="w-4 h-4" />
+                                        Reset Checklist
+                                    </Button>
+                                )}
                                 <Button
                                     onClick={() => setIsPrayerAccountabilityOpen(false)}
                                     className="bg-white/10 hover:bg-white/20 text-white border-none rounded-2xl px-8 h-12 font-bold"
