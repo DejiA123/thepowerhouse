@@ -41,6 +41,14 @@ const BiblePage = () => {
     };
   }, []);
 
+  // Helper to scroll to top of all potential scroll containers
+  const scrollToTop = () => {
+    window.scrollTo(0, 0);
+    document.getElementById('main-content')?.scrollTo(0, 0);
+    document.body.scrollTo(0, 0);
+    document.documentElement.scrollTo(0, 0);
+  };
+
   const {
     preferences,
     isLoaded,
@@ -140,7 +148,10 @@ const BiblePage = () => {
     }
   }, [selectedVersion, toast]);
 
+
+
   const handleBookSelect = (bookApiName: string) => {
+    scrollToTop();
     const normalized = normalizeBookApiName(bookApiName);
     setSelectedBook(normalized);
     // Explicitly update preferences if we have a chapter
@@ -150,6 +161,7 @@ const BiblePage = () => {
   };
 
   const handleChapterSelect = (chapter: number) => {
+    scrollToTop();
     setSelectedChapter(chapter);
     if (selectedBook) {
       setReadingPosition(selectedBook, chapter);
@@ -165,6 +177,9 @@ const BiblePage = () => {
   const handleChapterChange = useCallback(async (chapter: number, isAutoPlay = false) => {
     console.log(`🔄 BiblePage: handleChapterChange called with chapter=${chapter}, isAutoPlay=${isAutoPlay}`);
     console.log(`🔄 BiblePage: Current preferences.fontSize before change:`, preferences.fontSize);
+    if (!isAutoPlay) {
+      scrollToTop();
+    }
     setSelectedChapter(chapter);
     // Enable auto-play if this is an auto-play transition
     // When a chapter change is triggered by auto-play, ensure the next chapter will also auto-play
@@ -358,6 +373,7 @@ const BiblePage = () => {
   };
 
   const handleBackToBooks = () => {
+    scrollToTop();
     setSelectedBook(null);
     setSelectedChapter(null);
     setChapterContent(null);
@@ -367,6 +383,7 @@ const BiblePage = () => {
   };
 
   const handleBackToChapters = () => {
+    scrollToTop();
     setSelectedChapter(null);
     setChapterContent(null);
     setCurrentVerse(0);
@@ -549,6 +566,7 @@ const BiblePage = () => {
         onBookSelect={handleBookSelect}
         onCancel={() => {
           console.log('Cancel book selection - returning to current chapter');
+          scrollToTop();
           // If user has a preferred book and chapter, return to that
           if (preferences.preferredBook && preferences.preferredChapter) {
             setSelectedBook(preferences.preferredBook);
