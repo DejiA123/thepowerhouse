@@ -57,10 +57,7 @@ const GroupPinDialog = ({ isOpen, onClose, departmentName, onSuccess }: GroupPin
       if (pin === checkPin) {
         setSuccess(true);
         setTimeout(() => {
-          toast({
-            title: "Welcome aboard!",
-            description: `You've successfully joined ${departmentName}.`,
-          });
+
           onSuccess();
           onClose();
         }, 800);
@@ -111,10 +108,10 @@ const GroupPinDialog = ({ isOpen, onClose, departmentName, onSuccess }: GroupPin
                       <div
                         key={i}
                         className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all duration-200 ${pin[i]
-                            ? 'border-blue-500 bg-blue-50/50 text-blue-600 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-400'
-                            : i === pin.length
-                              ? 'border-blue-400 ring-4 ring-blue-100 dark:ring-blue-900/30 bg-white dark:bg-gray-800'
-                              : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+                          ? 'border-blue-500 bg-blue-50/50 text-blue-600 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-400'
+                          : i === pin.length
+                            ? 'border-blue-400 ring-4 ring-blue-100 dark:ring-blue-900/30 bg-white dark:bg-gray-800'
+                            : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
                           }`}
                       >
                         {pin[i] && (

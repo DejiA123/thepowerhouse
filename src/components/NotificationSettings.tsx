@@ -14,35 +14,35 @@ interface NotificationSettingsProps {
 export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [settings, setSettings] = useState({
     // General notifications
     generalNotifications: true,
     soundEnabled: true,
     vibrationEnabled: true,
-    
+
     // Bible reading notifications
     dailyScripture: true,
     readingReminders: true,
     readingPlanUpdates: true,
     verseOfTheDay: true,
-    
+
     // Social notifications
     newMessages: true,
     groupUpdates: true,
     friendRequests: true,
     mentions: true,
-    
+
     // Event notifications
     upcomingEvents: true,
     eventReminders: true,
     eventUpdates: true,
-    
+
     // Content notifications
     newContent: true,
     contentUpdates: true,
     announcements: true,
-    
+
     // Reminder settings
     reminderTime: '09:00',
     quietHours: {
@@ -88,11 +88,11 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
   const saveNotificationSettings = async (newSettings: Partial<typeof settings>) => {
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
-    
+
     try {
       // Save to localStorage
       localStorage.setItem('notification_settings', JSON.stringify(updatedSettings));
-      
+
       // Save to database - only save basic notification settings that exist in the schema
       if (user) {
         const { error } = await supabase
@@ -113,10 +113,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             variant: "destructive"
           });
         } else {
-          toast({
-            title: "Success",
-            description: "Notification settings saved",
-          });
+
         }
       }
     } catch (error) {
@@ -171,7 +168,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <Bell className="w-5 h-5" />
             General Notifications
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
@@ -216,7 +213,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <BookOpen className="w-5 h-5" />
             Bible Reading
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
@@ -274,7 +271,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <Users className="w-5 h-5" />
             Social
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
@@ -332,7 +329,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <Calendar className="w-5 h-5" />
             Events
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
@@ -378,7 +375,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <Volume2 className="w-5 h-5" />
             Content
           </h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
@@ -424,7 +421,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
             <Settings className="w-5 h-5" />
             Reminder Settings
           </h2>
-          
+
           <div className="space-y-3">
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-3">
@@ -454,7 +451,7 @@ export const NotificationSettings = ({ onBack }: NotificationSettingsProps) => {
                   disabled={!settings.generalNotifications}
                 />
               </div>
-              
+
               {settings.quietHours.enabled && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">

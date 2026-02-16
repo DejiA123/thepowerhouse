@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner';
 import { managementService, type Expense, type Guest, type Task, type ProjectTool, type ManagementSettings } from '@/services/managementService';
 import { generateProjectBriefPDF } from '@/utils/pdfGenerator';
+import { supabase } from "@/integrations/supabase/client";
 
 // Re-map interfaces to match DB schema and unify field names for UI
 interface Phase {
@@ -79,19 +80,33 @@ const BudgetTracker = ({
     const [editExpCategory, setEditExpCategory] = useState("");
     const [editExpStatus, setEditExpStatus] = useState("");
 
+    const [uploading, setUploading] = useState(false);
+
+    const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+    const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+    const [showErrors, setShowErrors] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const spent = (expenses || []).reduce((acc, curr) => acc + curr.amount, 0);
     const percentUsed = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
 
     const addExpense = () => {
-        if (!newItem || !newAmount) return;
+        if (!newItem || !newAmount) {
+            setShowErrors(true);
+            toast.error("Please fill in all required fields");
+            return;
+        }
+        setShowErrors(false);
         onAddExpense({
             item_name: newItem,
             amount: parseFloat(newAmount),
             category: newCategory,
-            status: newStatus
+            status: newStatus,
+            receipt_url: receiptUrl
         });
         setNewItem("");
         setNewAmount("");
+        setReceiptUrl(null);
     };
 
     const startEditing = (exp: Expense) => {
@@ -112,6 +127,41 @@ const BudgetTracker = ({
         setEditingExpId(null);
     };
 
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            // Get upload URL
+            const { data, error } = await supabase.functions.invoke('get-r2-upload-url', {
+                body: {
+                    fileName: `${Date.now()}-${file.name}`,
+                    fileType: file.type
+                }
+            });
+
+            if (error) throw error;
+
+            // Upload to R2
+            const response = await fetch(data.uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': file.type
+                },
+                body: file
+            });
+
+            if (!response.ok) throw new Error('Failed to upload file');
+
+            setReceiptUrl(data.publicUrl);
+        } catch (error) {
+            console.error('Error uploading receipt:', error);
+            toast.error("Failed to upload receipt");
+        } finally {
+            setUploading(false);
+        }
+    };
     return (
         <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
@@ -162,6 +212,7 @@ const BudgetTracker = ({
                                         <TableHead className="w-[150px] md:w-[180px] text-xs px-4">Item</TableHead>
                                         <TableHead className="text-xs w-[100px] md:w-[120px] px-4">Category</TableHead>
                                         <TableHead className="text-xs w-[80px] md:w-[100px] px-4">Amount</TableHead>
+                                        <TableHead className="text-xs w-[80px] md:w-[100px] px-4">Receipt</TableHead>
                                         <TableHead className="text-right text-xs w-[120px] md:w-[140px] px-4">{isEditMode ? 'Status / Actions' : 'Status'}</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -202,6 +253,20 @@ const BudgetTracker = ({
                                                     </div>
                                                 ) : (
                                                     <span className="font-bold text-sm">€{expense.amount.toLocaleString()}</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="py-4 px-4">
+                                                {expense.receipt_url ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="flex items-center text-blue-500 hover:text-blue-700 hover:underline p-0 h-auto font-normal"
+                                                        onClick={() => setViewingReceipt(expense.receipt_url || "")}
+                                                    >
+                                                        <FileText className="w-4 h-4 mr-1" />
+                                                        <span className="text-xs">View</span>
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400">-</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="py-4 px-4">
@@ -263,12 +328,29 @@ const BudgetTracker = ({
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Item Name</Label>
-                            <Input placeholder="e.g. Printing Flyers" value={newItem} onChange={e => setNewItem(e.target.value)} />
+                            <Label className={showErrors && !newItem ? "text-red-500" : ""}>Item Name</Label>
+                            <Input
+                                placeholder="e.g. Printing Flyers"
+                                value={newItem}
+                                onChange={e => {
+                                    setNewItem(e.target.value);
+                                    if (e.target.value) setShowErrors(false);
+                                }}
+                                className={showErrors && !newItem ? "border-red-500 focus-visible:ring-red-500" : ""}
+                            />
                         </div>
                         <div className="space-y-2">
-                            <Label>Amount (€)</Label>
-                            <Input type="number" placeholder="0.00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
+                            <Label className={showErrors && !newAmount ? "text-red-500" : ""}>Amount (€)</Label>
+                            <Input
+                                type="number"
+                                placeholder="0.00"
+                                value={newAmount}
+                                onChange={e => {
+                                    setNewAmount(e.target.value);
+                                    if (e.target.value) setShowErrors(false);
+                                }}
+                                className={showErrors && !newAmount ? "border-red-500 focus-visible:ring-red-500" : ""}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Category</Label>
@@ -298,12 +380,57 @@ const BudgetTracker = ({
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="relative w-full">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    className="hidden"
+                                    ref={fileInputRef}
+                                    onChange={handleFileUpload}
+                                />
+                                <Button
+                                    variant="outline"
+                                    className={`w-full border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 ${receiptUrl ? 'border-green-500 text-green-600 bg-green-50' : ''}`}
+                                    disabled={uploading}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    {uploading ? (
+                                        <Clock className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : receiptUrl ? (
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    ) : (
+                                        <FileText className="w-4 h-4 mr-2" />
+                                    )}
+                                    {uploading ? "Uploading..." : receiptUrl ? "Receipt Attached" : "Attach Receipt"}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {receiptUrl && (
+                            <div className="relative group">
+                                <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="block p-2 bg-slate-50 border rounded-lg text-sm text-blue-600 hover:underline truncate">
+                                    View Attached Receipt
+                                </a>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6 text-slate-400 hover:text-red-500"
+                                    onClick={() => setReceiptUrl(null)}
+                                >
+                                    <X className="w-3 h-3" />
+                                </Button>
+                            </div>
+                        )}
                         <Button className="w-full bg-slate-900 text-white hover:bg-slate-800" onClick={addExpense}>
                             <Plus className="w-4 h-4 mr-2" /> Record Expense
                         </Button>
                     </CardContent>
                 </Card>
+            </div>
 
+            <div className="space-y-6">
                 <Card className="bg-slate-900 text-white border-none">
                     <CardHeader>
                         <CardTitle className="text-white">Budget Health</CardTitle>
@@ -313,14 +440,37 @@ const BudgetTracker = ({
                             {/* Simple circular progress visualization */}
                             <svg className="w-full h-full transform -rotate-90">
                                 <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-700" />
-                                <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className={`text-green-500 transition-all duration-1000`} strokeDasharray={`${(percentUsed / 100) * 377} 377`} />
+                                <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className={`text-green-500 transition-all duration-1000`} strokeDasharray={`${Math.round((percentUsed / 100) * 377)} 377`} />
                             </svg>
-                            <span className="absolute text-2xl font-bold">{Math.round(percentUsed)}%</span>
+                            <span className="absolute text-2xl font-bold text-white">{Math.round(percentUsed)}%</span>
                         </div>
                         <p className="text-sm opacity-80">You are within budget targets for Phase I.</p>
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={!!viewingReceipt} onOpenChange={(open) => !open && setViewingReceipt(null)}>
+                <DialogContent className="max-w-full w-full h-screen flex flex-col p-0 gap-0 rounded-none m-0">
+                    <DialogHeader className="p-4 border-b">
+                        <DialogTitle>View Receipt</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto p-4 bg-slate-50 flex items-center justify-center">
+                        {viewingReceipt && (viewingReceipt.toLowerCase().endsWith('.pdf') ? (
+                            <iframe
+                                src={viewingReceipt}
+                                className="w-full h-full border-none rounded-md"
+                                title="Receipt PDF"
+                            />
+                        ) : (
+                            <img
+                                src={viewingReceipt}
+                                alt="Receipt"
+                                className="max-w-full max-h-full object-contain rounded-md shadow-sm"
+                            />
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
@@ -977,10 +1127,10 @@ const ModernProjectBrief = ({
                                                 <p className="text-[10px] text-slate-400 italic">Static responsibilities (editable soon)</p>
                                             </div>
                                         ) : (
-                                            <>
-                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.title}</h4>
-                                                <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
-                                            </>
+                                            <div>
+                                                <div className="font-bold text-sm text-slate-900 dark:text-white">{item.title}</div>
+                                                <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{item.desc}</div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -1246,7 +1396,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.updateTask(id, updates);
             setAllTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-            toast.success("Task updated");
+
         } catch (error) {
             toast.error("Failed to update task");
         }
@@ -1256,7 +1406,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.deleteTask(id);
             setAllTasks(prev => prev.filter(t => t.id !== id));
-            toast.success("Task removed");
+
         } catch (error) {
             toast.error("Failed to delete task");
         }
@@ -1272,7 +1422,7 @@ const ManagementTeamPage = () => {
                 deadline: "30th Jan 2026"
             });
             setAllTasks([...allTasks, newTask]);
-            toast.success("Task added");
+
         } catch (error) {
             toast.error("Failed to add task");
             console.error(error);
@@ -1283,7 +1433,7 @@ const ManagementTeamPage = () => {
         try {
             const newExp = await managementService.addExpense(exp);
             setExpenses([newExp, ...expenses]);
-            toast.success("Expense added");
+
         } catch (error) {
             toast.error("Failed to add expense");
         }
@@ -1293,7 +1443,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.deleteExpense(id);
             setExpenses(expenses.filter(e => e.id !== id));
-            toast.success("Expense removed");
+
         } catch (error) {
             toast.error("Failed to delete expense");
         }
@@ -1303,7 +1453,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.updateExpense(id, updates);
             setExpenses(expenses.map(e => e.id === id ? { ...e, ...updates } : e));
-            toast.success("Expense updated");
+
         } catch (error) {
             toast.error("Failed to update expense");
         }
@@ -1313,7 +1463,7 @@ const ManagementTeamPage = () => {
         try {
             const newGuest = await managementService.addGuest(g);
             setGuests([newGuest, ...guests]);
-            toast.success("Guest added");
+
         } catch (error) {
             toast.error("Failed to add guest");
         }
@@ -1323,7 +1473,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.updateGuest(id, updates);
             setGuests(guests.map(g => g.id === id ? { ...g, ...updates } : g));
-            toast.success("Guest updated");
+
         } catch (error) {
             toast.error("Failed to update guest");
         }
@@ -1333,7 +1483,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.deleteGuest(id);
             setGuests(guests.filter(g => g.id !== id));
-            toast.success("Guest removed");
+
         } catch (error) {
             toast.error("Failed to delete guest");
         }
@@ -1350,7 +1500,7 @@ const ManagementTeamPage = () => {
             });
             setTools([...tools, newTool]);
             setNewToolName("");
-            toast.success("Tool added");
+
         } catch (error) {
             toast.error("Failed to add tool");
         }
@@ -1360,7 +1510,7 @@ const ManagementTeamPage = () => {
         try {
             await managementService.deleteTool(id);
             setTools(tools.filter(t => t.id !== id));
-            toast.success("Tool removed");
+
         } catch (error) {
             toast.error("Failed to delete tool");
         }
@@ -1387,7 +1537,7 @@ const ManagementTeamPage = () => {
                 unit_formation_plan_meeting: unitFormationMeeting
             });
             setIsBriefEditMode(false);
-            toast.success("Project brief updated successfully");
+
         } catch (error) {
             console.error("Error saving brief:", error);
             toast.error("Failed to save project brief");

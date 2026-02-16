@@ -1318,7 +1318,7 @@ const ChoirPage = () => {
         await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
     };
 
-    const handleLyricsImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, isLibrarySong: boolean = false) => {
+    const handleLyricsImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, target: 'library' | 'edit-set' | 'new-set' = 'edit-set') => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -1346,18 +1346,29 @@ const ChoirPage = () => {
 
             if (!uploadResponse.ok) throw new Error('Failed to upload image to R2');
 
-            // 3. Update State
-            const currentLyrics = isLibrarySong ? songToEdit.notes : editingSetlistSongData.lyrics;
+            // 3. Update State based on Target
+            let currentLyrics = "";
+
+            if (target === 'library') {
+                currentLyrics = songToEdit.notes || "";
+            } else if (target === 'edit-set') {
+                currentLyrics = editingSetlistSongData.lyrics || "";
+            } else if (target === 'new-set') {
+                currentLyrics = newSetSong.lyrics || "";
+            }
+
             const { text } = parseLyrics(currentLyrics);
             const newLyricsJson = JSON.stringify({ text, imageUrl: publicUrl });
 
-            if (isLibrarySong) {
+            if (target === 'library') {
                 setSongToEdit({ ...songToEdit, notes: newLyricsJson });
-            } else {
+            } else if (target === 'edit-set') {
                 setEditingSetlistSongData({ ...editingSetlistSongData, lyrics: newLyricsJson });
+            } else if (target === 'new-set') {
+                setNewSetSong({ ...newSetSong, lyrics: newLyricsJson });
             }
 
-            toast.success("Lyrics image uploaded successfully!");
+
         } catch (error) {
             console.error("Error uploading lyrics image:", error);
             toast.error("Failed to upload image");
@@ -1483,7 +1494,7 @@ const ChoirPage = () => {
             sessionStorage.setItem('choir_admin_auth', 'true');
             setIsAdminLoginOpen(false);
             setAdminPasscode("");
-            toast.success("Admin mode activated");
+
         } else {
             toast.error("Invalid passcode");
         }
@@ -1684,12 +1695,34 @@ const ChoirPage = () => {
 
                     // 🚨 NEW WEEK DETECTION - Bypassed for National Choir
                     if (locationId !== 'national' && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
-                        console.log("New week detected! Clearing setlists...");
+                        console.log("New week detected! Archiving and clearing setlists...");
+
+                        // 1. ARCHIVE FIRST (Auto-Archive)
+                        try {
+                            await archiveWeeklySetlist(
+                                locationId,
+                                dbDate, // Use the OLD date for the folder name
+                                fetchedFolders as ChoirFolder[],
+                                fetchedPraise as WeeklySetSong[],
+                                fetchedWorship as WeeklySetSong[],
+                                fetchedSpecial as WeeklySetSong[],
+                                fetchedHymns as WeeklySetSong[]
+                            );
+                            console.log("Auto-archived previous week's setlist.");
+                        } catch (err) {
+                            console.error("Auto-archive failed, but proceeding with clear to avoid loop:", err);
+                        }
+
+                        // 2. CLEAR DATA
                         await choirService.clearWeeklySetlist(locationId);
                         await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
 
                         // Clear Learning Songs for the new week (Monday)
-                        await choirService.saveLearningSongs([], locationId);
+                        // Explicitly only for regional branches as requested
+                        const AUTO_CLEAR_BRANCHES = ['galway', 'kildare', 'athlone', 'dublin'];
+                        if (AUTO_CLEAR_BRANCHES.includes(locationId)) {
+                            await choirService.saveLearningSongs([], locationId);
+                        }
 
                         // Clear old keys to prevent migration re-triggering
                         await choirService.updateSetlistInfo('learning_song_title', "", locationId);
@@ -2194,7 +2227,7 @@ const ChoirPage = () => {
             const key = editingSetInfoType === 'praise' ? 'praise_desc' : 'worship_desc';
             await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!);
             setIsEditSetInfoOpen(false);
-            toast.success("Description updated");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to update description");
@@ -2211,45 +2244,61 @@ const ChoirPage = () => {
                 choirService.saveLearningSongs([], locationId) // Clear learning JSON
             ]);
 
-            toast.success("New week started - setlists cleared");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to clear setlists");
         }
     };
 
-    const handleArchiveSetlist = async () => {
+    const handleClearLearningSongs = async () => {
         if (!locationId) return;
-        if (praiseSet.length === 0 && worshipSet.length === 0 && specialSet.length === 0 && hymnsSet.length === 0) {
-            toast.error("Setlists are empty - nothing to archive");
-            return;
-        }
+        if (!window.confirm("Clear the 'New Songs Focus' section?")) return;
+        try {
+            await choirService.saveLearningSongs([], locationId);
 
-        if (!window.confirm("Are you sure you want to archive this week's setlist? This creates a folder record of these songs.")) {
-            return;
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to clear songs");
+        }
+    };
+
+    // -- Helper for Archiving --
+    const archiveWeeklySetlist = async (
+        locId: string,
+        date: Date | undefined,
+        currentFolders: ChoirFolder[],
+        praise: WeeklySetSong[],
+        worship: WeeklySetSong[],
+        special: WeeklySetSong[],
+        hymns: WeeklySetSong[]
+    ) => {
+        if (praise.length === 0 && worship.length === 0 && special.length === 0 && hymns.length === 0) {
+            return { success: false, message: "Setlists are empty - nothing to archive" };
         }
 
         try {
-            const dateStr = setlistDate ? format(setlistDate, "do 'of' MMMM") : 'Unknown Date';
+            const dateStr = date ? format(date, "do 'of' MMMM") : 'Unknown Date';
             const folderName = `${dateStr} Song`;
 
             // Find or create "Previous Week's Setlist" parent folder
             const parentFolderName = "Previous Week's Setlist";
-            let parentFolder = folders.find(f => f.name === parentFolderName && !f.parent_id);
+            // Check both currentFolders and fetched folders logic if passed
+            let parentFolder = currentFolders.find(f => f.name === parentFolderName && !f.parent_id);
 
             if (!parentFolder) {
-                parentFolder = await choirService.createFolder(parentFolderName, locationId, null);
+                parentFolder = await choirService.createFolder(parentFolderName, locId, null);
             }
 
             // Create dated folder under parent (instead of root)
-            const mainFolder = await choirService.createFolder(folderName, locationId, parentFolder.id);
+            const mainFolder = await choirService.createFolder(folderName, locId, parentFolder.id);
 
             // Archive each set if it has songs
             const archivePromises = [];
 
-            if (praiseSet.length > 0) {
-                const praiseFolder = await choirService.createFolder("Praise Set", locationId, mainFolder.id);
-                archivePromises.push(...praiseSet.map(song =>
+            if (praise.length > 0) {
+                const praiseFolder = await choirService.createFolder("Praise Set", locId, mainFolder.id);
+                archivePromises.push(...praise.map(song =>
                     choirService.addSongToFolder({
                         folder_id: praiseFolder.id,
                         title: song.title,
@@ -2257,13 +2306,13 @@ const ChoirPage = () => {
                         artist: song.artist,
                         url: song.url,
                         notes: song.instrumental_notes || ''
-                    }, locationId)
+                    }, locId)
                 ));
             }
 
-            if (worshipSet.length > 0) {
-                const worshipFolder = await choirService.createFolder("Worship Set", locationId, mainFolder.id);
-                archivePromises.push(...worshipSet.map(song =>
+            if (worship.length > 0) {
+                const worshipFolder = await choirService.createFolder("Worship Set", locId, mainFolder.id);
+                archivePromises.push(...worship.map(song =>
                     choirService.addSongToFolder({
                         folder_id: worshipFolder.id,
                         title: song.title,
@@ -2271,13 +2320,13 @@ const ChoirPage = () => {
                         artist: song.artist,
                         url: song.url,
                         notes: song.instrumental_notes || ''
-                    }, locationId)
+                    }, locId)
                 ));
             }
 
-            if (specialSet.length > 0) {
-                const specialFolder = await choirService.createFolder("Special Number", locationId, mainFolder.id);
-                archivePromises.push(...specialSet.map(song =>
+            if (special.length > 0) {
+                const specialFolder = await choirService.createFolder("Special Number", locId, mainFolder.id);
+                archivePromises.push(...special.map(song =>
                     choirService.addSongToFolder({
                         folder_id: specialFolder.id,
                         title: song.title,
@@ -2285,13 +2334,13 @@ const ChoirPage = () => {
                         artist: song.artist,
                         url: song.url,
                         notes: song.instrumental_notes || ''
-                    }, locationId)
+                    }, locId)
                 ));
             }
 
-            if (hymnsSet.length > 0) {
-                const hymnsFolder = await choirService.createFolder("Hymns Set", locationId, mainFolder.id);
-                archivePromises.push(...hymnsSet.map(song =>
+            if (hymns.length > 0) {
+                const hymnsFolder = await choirService.createFolder("Hymns Set", locId, mainFolder.id);
+                archivePromises.push(...hymns.map(song =>
                     choirService.addSongToFolder({
                         folder_id: hymnsFolder.id,
                         title: song.title,
@@ -2299,7 +2348,7 @@ const ChoirPage = () => {
                         artist: song.artist,
                         url: song.url,
                         notes: song.instrumental_notes || ''
-                    }, locationId)
+                    }, locId)
                 ));
             }
 
@@ -2307,9 +2356,35 @@ const ChoirPage = () => {
                 await Promise.all(archivePromises);
             }
 
-            toast.success(`Archived to "${folderName}" in "${parentFolderName}"`);
+            return { success: true, message: `Archived to "${folderName}" in "${parentFolderName}"` };
         } catch (e) {
             console.error("Failed to archive setlist:", e);
+            throw e;
+        }
+    };
+
+    const handleArchiveSetlist = async () => {
+        if (!locationId) return;
+
+        if (!window.confirm("Are you sure you want to archive this week's setlist? This creates a folder record of these songs.")) {
+            return;
+        }
+
+        try {
+            const result = await archiveWeeklySetlist(
+                locationId,
+                setlistDate,
+                folders,
+                praiseSet,
+                worshipSet,
+                specialSet,
+                hymnsSet
+            );
+
+            if (!result.success) {
+                toast.error(result.message);
+            }
+        } catch (e) {
             toast.error("Failed to archive setlist");
         }
     };
@@ -2334,7 +2409,7 @@ const ChoirPage = () => {
             await choirService.createFolder(newFolderName, locationId!, activeFolderId);
             setNewFolderName("");
             setIsNewFolderOpen(false);
-            toast.success(activeFolderId ? "Subfolder created" : "Folder created");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to create folder");
@@ -2355,7 +2430,7 @@ const ChoirPage = () => {
 
             setNewSong({ title: "", key: "", artist: "", url: "", notes: "" });
             setIsAddSongOpen(false);
-            toast.success("Song added");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to add song");
@@ -2366,7 +2441,7 @@ const ChoirPage = () => {
         try {
             await choirService.deleteFolder(id);
             if (activeFolderId === id) setActiveFolderId(null);
-            toast.success("Folder deleted");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to delete folder");
@@ -2380,7 +2455,7 @@ const ChoirPage = () => {
             setIsEditFolderOpen(false);
             setFolderToEdit(null);
             setEditFolderName("");
-            toast.success("Folder renamed");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to rename folder");
@@ -2421,7 +2496,7 @@ const ChoirPage = () => {
 
             setIsEditSongOpen(false);
             setEditingSongId(null);
-            toast.success("Song updated");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to update song");
@@ -2432,7 +2507,7 @@ const ChoirPage = () => {
         if (!activeFolderId) return;
         try {
             await choirService.deleteSong(songId);
-            toast.success("Song deleted");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to delete song");
@@ -2544,7 +2619,7 @@ const ChoirPage = () => {
             // Delete all songs from the set
             const deletePromises = currentSet.map(song => choirService.deleteWeeklySong(song.id));
             await Promise.all(deletePromises);
-            toast.success(`${setName} cleared successfully`);
+
         } catch (e) {
             console.error(e);
             toast.error(`Failed to clear ${setName}`);
@@ -2613,7 +2688,7 @@ const ChoirPage = () => {
 
             setIsEditSetSongOpen(false);
             setEditingSetSongId(null);
-            toast.success("Setlist song updated");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to update song");
@@ -2661,7 +2736,7 @@ const ChoirPage = () => {
 
                 setIsImportOpen(false);
                 setImportText("");
-                toast.success(`Imported ${newSongs.length} songs to Learning Focus (${matchedCount} matched)`);
+
             } else {
                 const results = await Promise.all(lines.map(async (line, idx) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
@@ -2693,7 +2768,7 @@ const ChoirPage = () => {
 
                 setIsImportOpen(false);
                 setImportText("");
-                toast.success(`Imported ${newSongs.length} songs (${matchedCount} matched from library)`);
+
             }
         } catch (e) {
             console.error(e);
@@ -2740,7 +2815,7 @@ const ChoirPage = () => {
 
             setIsImportFolderOpen(false);
             setImportFolderText("");
-            toast.success(`Imported ${lines.length} songs to folder (${matchedCount} details matched)`);
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to import songs to folder");
@@ -2839,7 +2914,7 @@ const ChoirPage = () => {
             setSelectedFile(null);
             setUploadProgress(null);
             setIsAddInstrOpen(false);
-            toast.success("Resource added successfully");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to add resource");
@@ -2876,7 +2951,7 @@ const ChoirPage = () => {
             setSelectedFile(null);
             setUploadProgress(null);
             setIsVocalTrainingUploadOpen(false);
-            toast.success("Vocal training audio added successfully");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to upload vocal training audio");
@@ -2898,7 +2973,7 @@ const ChoirPage = () => {
             await choirService.updateInstrumentalResource(editingInstrId, instrToEdit);
             setIsEditInstrOpen(false);
             setEditingInstrId(null);
-            toast.success("Resource updated");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to update resource");
@@ -2908,7 +2983,7 @@ const ChoirPage = () => {
     const handleDeleteInstrResource = async (id: string) => {
         try {
             await choirService.deleteInstrumentalResource(id);
-            toast.success("Resource deleted");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to delete resource");
@@ -2918,7 +2993,7 @@ const ChoirPage = () => {
     const handleUpdateBandDetails = async (songId: string, updates: { instrumental_url?: string, instrumental_notes?: string }) => {
         try {
             await choirService.updateWeeklySong(songId, updates);
-            toast.success("Band details updated");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to update band details");
@@ -2938,7 +3013,7 @@ const ChoirPage = () => {
             }, locationId!);
             setNewEvent({ title: "", description: "", color: "purple" });
             setIsAddEventOpen(false);
-            toast.success("Event added to calendar");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to add event");
@@ -2980,7 +3055,7 @@ const ChoirPage = () => {
         if (!locationId) return;
         try {
             await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId);
-            toast.success("Schedule updated successfully");
+
         } catch (e) {
             console.error(e);
             toast.error("Failed to save schedule");
@@ -3654,14 +3729,151 @@ const ChoirPage = () => {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Lyrics</Label>
-                            <Textarea
-                                placeholder="Paste lyrics here..."
-                                className="min-h-[150px] font-sans"
-                                value={newSetSong.lyrics || ""}
-                                onChange={(e) => setNewSetSong({ ...newSetSong, lyrics: e.target.value })}
-                            />
+                        <div className="space-y-4">
+                            {activeSetType === 'learning' ? (
+                                <Tabs defaultValue="edit" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2 rounded-xl mb-4 bg-slate-100 dark:bg-slate-800 p-1">
+                                        <TabsTrigger value="edit" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <Edit3 className="w-4 h-4" />
+                                                <span>Lyrics Content</span>
+                                            </div>
+                                        </TabsTrigger>
+                                        <TabsTrigger value="media" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <Image className="w-4 h-4" />
+                                                <span>Media & Search</span>
+                                            </div>
+                                        </TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="edit" className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Lyrics Text</Label>
+                                            <Textarea
+                                                placeholder="Paste lyrics here..."
+                                                className="min-h-[250px] font-sans text-base leading-relaxed p-4 rounded-xl border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
+                                                value={parseLyrics(newSetSong.lyrics || "").text}
+                                                onChange={(e) => {
+                                                    const { imageUrl } = parseLyrics(newSetSong.lyrics || "");
+                                                    setNewSetSong({
+                                                        ...newSetSong,
+                                                        lyrics: JSON.stringify({ text: e.target.value, imageUrl })
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                    </TabsContent>
+                                    <TabsContent value="media" className="space-y-6 pt-2">
+                                        {/* Mini Browser Search */}
+                                        <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                                                <Globe className="w-5 h-5 text-blue-500" />
+                                                <h4>Lyrics Search</h4>
+                                            </div>
+                                            <p className="text-sm text-slate-500">Search for lyrics online and paste them in the editor tab.</p>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    placeholder="Search song lyrics..."
+                                                    className="bg-white dark:bg-slate-900 border-none shadow-sm rounded-xl"
+                                                    value={lyricsSearchQuery}
+                                                    onChange={(e) => setLyricsSearchQuery(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleLyricsSearch();
+                                                        }
+                                                    }}
+                                                />
+                                                <Button
+                                                    onClick={handleLyricsSearch}
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shrink-0 px-6 h-10 transition-all active:scale-95"
+                                                >
+                                                    <Search className="w-4 h-4 mr-2" />
+                                                    Search
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Image Upload */}
+                                        <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                                                <Image className="w-5 h-5 text-purple-500" />
+                                                <h4>Lyrics Image</h4>
+                                            </div>
+                                            <p className="text-sm text-slate-500">Attach a screenshot of the lyrics for quick reference.</p>
+
+                                            {parseLyrics(newSetSong.lyrics || "").imageUrl && (
+                                                <div className="relative group rounded-xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 mb-4 bg-slate-200 dark:bg-slate-900">
+                                                    <img
+                                                        src={parseLyrics(newSetSong.lyrics || "").imageUrl!}
+                                                        alt="Lyrics Screenshot"
+                                                        className="w-full h-auto cursor-zoom-in max-h-[300px] object-contain mx-auto"
+                                                        onClick={() => window.open(parseLyrics(newSetSong.lyrics || "").imageUrl!, '_blank')}
+                                                    />
+                                                    <Button
+                                                        size="icon"
+                                                        variant="destructive"
+                                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
+                                                        onClick={() => {
+                                                            const { text } = parseLyrics(newSetSong.lyrics || "");
+                                                            setNewSetSong({
+                                                                ...newSetSong,
+                                                                lyrics: JSON.stringify({ text, imageUrl: null })
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center gap-4">
+                                                <Label
+                                                    htmlFor="new-set-lyrics-image"
+                                                    className={cn(
+                                                        "flex-1 flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition-all bg-white dark:bg-slate-900 group",
+                                                        isUploadingLyrics && "opacity-50 cursor-not-allowed pointer-events-none"
+                                                    )}
+                                                >
+                                                    {isUploadingLyrics ? (
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                                                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Uploading...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors mb-2">
+                                                                <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                                            </div>
+                                                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                                                                {parseLyrics(newSetSong.lyrics || "").imageUrl ? "Change Screenshot" : "Attach Screenshot"}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black text-center">PNG, JPG up to 5MB</span>
+                                                        </>
+                                                    )}
+                                                    <input
+                                                        id="new-set-lyrics-image"
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleLyricsImageUpload(e, 'new-set')}
+                                                    />
+                                                </Label>
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label>Lyrics</Label>
+                                    <Textarea
+                                        placeholder="Paste lyrics here..."
+                                        className="min-h-[150px] font-sans"
+                                        value={newSetSong.lyrics || ""}
+                                        onChange={(e) => setNewSetSong({ ...newSetSong, lyrics: e.target.value })}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-4">
@@ -3897,7 +4109,7 @@ const ChoirPage = () => {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => handleLyricsImageUpload(e, false)}
+                                                    onChange={(e) => handleLyricsImageUpload(e, 'edit-set')}
                                                 />
                                             </Label>
                                         </div>
@@ -4200,7 +4412,7 @@ const ChoirPage = () => {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => handleLyricsImageUpload(e, true)}
+                                                    onChange={(e) => handleLyricsImageUpload(e, 'library')}
                                                 />
                                             </Label>
                                         </div>
@@ -5672,7 +5884,7 @@ const ChoirPage = () => {
                                                                                         newSet.delete(moduleId);
                                                                                     } else {
                                                                                         newSet.add(moduleId);
-                                                                                        toast.success('Module completed! 🎉');
+
                                                                                     }
                                                                                     setCompletedModules(newSet);
                                                                                 }}
@@ -5711,7 +5923,7 @@ const ChoirPage = () => {
                                                                                                         setBreathTimerActive(true);
                                                                                                         setBreathPhase('inhale');
                                                                                                         setBreathCount(4);
-                                                                                                        toast.success(`Inhale for 4 counts, then exhale for ${duration}!`);
+
                                                                                                     }}
                                                                                                     className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold"
                                                                                                 >
@@ -5758,7 +5970,7 @@ const ChoirPage = () => {
                                                                                         <Button
                                                                                             onClick={() => {
                                                                                                 setMetronomeActive(!metronomeActive);
-                                                                                                toast.success(metronomeActive ? 'Metronome stopped' : 'Metronome started!');
+
                                                                                             }}
                                                                                             className={`w-full ${metronomeActive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-4`}
                                                                                         >
@@ -5795,7 +6007,7 @@ const ChoirPage = () => {
                                                                                             <button
                                                                                                 key={vowel}
                                                                                                 className="aspect-square bg-gradient-to-br from-pink-500 to-purple-600 text-white text-3xl font-black rounded-2xl hover:scale-110 transition-transform shadow-lg"
-                                                                                                onClick={() => toast.success(`Practice vowel: ${vowel}`)}
+
                                                                                             >
                                                                                                 {vowel}
                                                                                             </button>
@@ -6014,7 +6226,7 @@ const ChoirPage = () => {
                                                                                 onSeek={seek}
                                                                                 onDelete={async (id) => {
                                                                                     await choirService.deleteInstrumentalResource(id);
-                                                                                    toast.success("Resource deleted");
+
                                                                                 }}
                                                                             />
                                                                         ))}

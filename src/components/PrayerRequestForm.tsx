@@ -43,7 +43,7 @@ const PrayerRequestForm = ({ onSuccess }: PrayerRequestFormProps) => {
     } else {
       setTitle("");
       setContent("");
-      toast({ title: "Success", description: "Prayer request submitted successfully" });
+
       if (onSuccess) onSuccess();
     }
 
@@ -90,8 +90,8 @@ const PrayerRequestForm = ({ onSuccess }: PrayerRequestFormProps) => {
           />
         </div>
 
-        <Button 
-          onClick={submitPrayerRequest} 
+        <Button
+          onClick={submitPrayerRequest}
           disabled={loading || !title.trim() || !content.trim()}
           className="w-full"
         >

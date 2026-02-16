@@ -31,21 +31,21 @@ export const useGroupChat = (groupName: string) => {
   const channelRef = useRef<any>(null);
 
 
-    useEffect(() => {
+  useEffect(() => {
     if (groupName) {
       console.log('Setting up chat for group:', groupName);
-      
+
       // Clean up any existing channel first
       if (channelRef.current) {
         console.log('Cleaning up existing channel before creating new one');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
-      
+
       fetchMessages();
       const channel = subscribeToMessages();
       channelRef.current = channel;
-      
+
       return () => {
         console.log('Cleaning up subscription for group:', groupName);
         if (channelRef.current) {
@@ -72,9 +72,9 @@ export const useGroupChat = (groupName: string) => {
   const fetchMessages = async () => {
     try {
       setInitialLoading(true);
-      
+
       console.log('Fetching messages for group:', groupName);
-      
+
       // First try with deleted_at field - fetch messages without profile join
       let { data: messagesData, error: messagesError } = await supabase
         .from('group_messages')
@@ -91,12 +91,12 @@ export const useGroupChat = (groupName: string) => {
         .order('created_at', { ascending: false })
         .limit(100);
 
-              // If that fails, try without deleted_at field (fallback for old schema)
-        if (messagesError && messagesError.message.includes('deleted_at')) {
-          console.log('deleted_at column not found, trying without it...');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('group_messages')
-            .select(`
+      // If that fails, try without deleted_at field (fallback for old schema)
+      if (messagesError && messagesError.message.includes('deleted_at')) {
+        console.log('deleted_at column not found, trying without it...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('group_messages')
+          .select(`
               id,
               message,
               user_id,
@@ -104,9 +104,9 @@ export const useGroupChat = (groupName: string) => {
               created_at,
               deleted_at
             `)
-            .eq('group_name', groupName)
-            .order('created_at', { ascending: false })
-            .limit(100);
+          .eq('group_name', groupName)
+          .order('created_at', { ascending: false })
+          .limit(100);
 
         if (fallbackError) {
           console.error('Error fetching messages (fallback):', fallbackError);
@@ -127,7 +127,7 @@ export const useGroupChat = (groupName: string) => {
       }
 
       console.log('Raw messages data from Supabase:', messagesData);
-      
+
       if (!messagesData || messagesData.length === 0) {
         setMessages([]);
         return;
@@ -176,7 +176,7 @@ export const useGroupChat = (groupName: string) => {
       });
 
       console.log('Final processed messages:', messagesWithProfiles.length, 'messages');
-      
+
       // Reverse the array since we fetched newest first but want to display oldest first
       const reversedMessages = messagesWithProfiles.reverse();
       console.log('Reversed messages for display:', reversedMessages.length, 'messages');
@@ -192,10 +192,10 @@ export const useGroupChat = (groupName: string) => {
   const subscribeToMessages = () => {
     try {
       console.log('Setting up real-time subscription for group:', groupName);
-      
+
       // Create a more stable channel name with timestamp to avoid conflicts
       const channelName = `group_messages_${groupName}_${Date.now()}`;
-      
+
       const channel = supabase
         .channel(channelName)
         .on(
@@ -209,17 +209,17 @@ export const useGroupChat = (groupName: string) => {
           async (payload) => {
             try {
               console.log('🔥 REALTIME: New message received!', payload.new?.id);
-              
+
               if (!payload.new) {
                 console.error('No new data in payload');
                 return;
               }
-              
 
-              
+
+
               // Create message directly from payload to avoid RLS issues
               console.log('📨 Creating message from payload:', payload.new.id);
-              
+
               // Fetch profile data for the new message
               let profileData = null;
               try {
@@ -228,7 +228,7 @@ export const useGroupChat = (groupName: string) => {
                   .select('full_name, email')
                   .eq('id', payload.new.user_id)
                   .single();
-                
+
                 if (!profileError && profile) {
                   profileData = {
                     full_name: profile.full_name || '',
@@ -241,7 +241,7 @@ export const useGroupChat = (groupName: string) => {
               } catch (profileError) {
                 console.log('⚠️ Error fetching profile:', profileError);
               }
-              
+
               const newMessageWithProfile: Message = {
                 id: payload.new.id,
                 message: payload.new.message,
@@ -253,7 +253,7 @@ export const useGroupChat = (groupName: string) => {
               };
 
               console.log('✅ Adding new message to state:', newMessageWithProfile.id);
-              
+
               // Add the new message to the state, avoiding duplicates
               setMessages(prevMessages => {
                 const messageExists = prevMessages.some(msg => msg.id === newMessageWithProfile.id);
@@ -268,14 +268,14 @@ export const useGroupChat = (groupName: string) => {
               // Trigger notifications for received messages (only if not from current user)
               if (user && newMessageWithProfile.user_id !== user.id) {
                 console.log('🔔 Triggering notifications for received message from:', newMessageWithProfile.user_id);
-                
-                const senderName = profileData?.full_name || 
-                                 profileData?.email || 
-                                 'Unknown User';
-                const messagePreview = newMessageWithProfile.message.length > 50 
-                  ? newMessageWithProfile.message.substring(0, 50) + '...' 
+
+                const senderName = profileData?.full_name ||
+                  profileData?.email ||
+                  'Unknown User';
+                const messagePreview = newMessageWithProfile.message.length > 50
+                  ? newMessageWithProfile.message.substring(0, 50) + '...'
                   : newMessageWithProfile.message;
-                
+
                 // Send notifications asynchronously
                 pushNotificationService.notifyGroupMembers(
                   groupName,
@@ -306,7 +306,7 @@ export const useGroupChat = (groupName: string) => {
           async (payload) => {
             try {
               console.log('🔄 REALTIME: Message updated!', payload.new?.id);
-              
+
               if (!payload.new) {
                 console.error('No updated data in payload');
                 return;
@@ -315,7 +315,7 @@ export const useGroupChat = (groupName: string) => {
               // If message was deleted (deleted_at is set), remove it from the state
               if (payload.new.deleted_at) {
                 console.log('🗑️ Message deleted, removing from state:', payload.new.id);
-                setMessages(prevMessages => 
+                setMessages(prevMessages =>
                   prevMessages.filter(msg => msg.id !== payload.new.id)
                 );
               }
@@ -357,7 +357,7 @@ export const useGroupChat = (groupName: string) => {
 
     const messageToSend = newMessage.trim();
     console.log('📤 Sending message:', messageToSend, 'from user:', user.id);
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -376,9 +376,9 @@ export const useGroupChat = (groupName: string) => {
       } else {
         setNewMessage("");
         console.log('✅ Message sent successfully');
-        
+
         // Removed message sent notification - user can see their message immediately
-        
+
         // Add the message to local state immediately so it appears for the sender
         const newMessageWithProfile: Message = {
           id: data.id,
@@ -392,7 +392,7 @@ export const useGroupChat = (groupName: string) => {
             email: user.email || ''
           }
         };
-        
+
         console.log('📝 Adding sent message to local state:', newMessageWithProfile.id);
         setMessages(prevMessages => {
           const messageExists = prevMessages.some(msg => msg.id === newMessageWithProfile.id);
@@ -403,13 +403,13 @@ export const useGroupChat = (groupName: string) => {
           console.log('➕ Adding sent message to chat state');
           return [...prevMessages, newMessageWithProfile];
         });
-        
+
         // Trigger notifications for the sent message
         const senderName = user.user_metadata?.full_name || user.email || 'Unknown User';
-        const messagePreview = messageToSend.length > 50 
-          ? messageToSend.substring(0, 50) + '...' 
+        const messagePreview = messageToSend.length > 50
+          ? messageToSend.substring(0, 50) + '...'
           : messageToSend;
-        
+
         console.log('🔔 Triggering notifications for sent message');
         pushNotificationService.notifyGroupMembers(
           groupName,
@@ -463,7 +463,7 @@ export const useGroupChat = (groupName: string) => {
       }
 
       console.log('✅ Message deleted successfully');
-      toast({ title: "Success", description: "Message deleted", variant: "success" });
+
     } catch (error) {
       console.error('❌ Error in deleteMessage:', error);
       toast({ title: "Error", description: "Failed to delete message", variant: "destructive" });
@@ -482,7 +482,7 @@ export const useGroupChat = (groupName: string) => {
           profiles!inner(full_name, email)
         `)
         .eq('group_name', groupName);
-      
+
       if (error) {
         console.warn('Profile join failed, trying manual join:', error.message);
         // Fallback: fetch without join and manually join
@@ -490,7 +490,7 @@ export const useGroupChat = (groupName: string) => {
           .from('group_members')
           .select('user_id, joined_at')
           .eq('group_name', groupName);
-        
+
         if (membersError) {
           console.error('Error fetching group members:', membersError);
           setMembers([]);
@@ -516,15 +516,15 @@ export const useGroupChat = (groupName: string) => {
             acc[p.id] = p;
             return acc;
           }, {} as Record<string, any>);
-          
+
           // Combine members with their profiles
-          data = membersData.map(m => ({ 
-            ...m, 
-            profiles: profilesMap[m.user_id] || null 
+          data = membersData.map(m => ({
+            ...m,
+            profiles: profilesMap[m.user_id] || null
           }));
         }
       }
-      
+
       let memberList = data || [];
       const missingIds = memberList.filter((m: any) => !m.profiles).map((m: any) => m.user_id);
       if (missingIds.length > 0) {
@@ -565,7 +565,7 @@ export const useGroupChat = (groupName: string) => {
         .insert({ user_id: user.id, group_name: groupName });
       if (error) throw error;
       fetchMembers();
-      toast({ title: 'Joined Group', description: `You joined ${groupName}`, variant: 'success' });
+
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to join group', variant: 'destructive' });
     }

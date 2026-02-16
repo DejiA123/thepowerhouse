@@ -96,7 +96,7 @@ const AnnouncementsHub = () => {
       });
 
     if (!error) {
-      toast({ title: "Success", description: "Announcement created successfully" });
+
       setNewAnnouncement({ title: "", content: "" });
       setIsDialogOpen(false);
       await fetchAnnouncements();
@@ -119,7 +119,7 @@ const AnnouncementsHub = () => {
       .eq('id', editAnnouncement.id);
     setEditLoading(false);
     if (!error) {
-      toast({ title: "Success", description: "Announcement updated" });
+
       setEditAnnouncement(null);
       fetchAnnouncements();
     } else {
@@ -136,7 +136,7 @@ const AnnouncementsHub = () => {
       .eq('id', deleteId);
     setDeleteLoading(false);
     if (!error) {
-      toast({ title: "Deleted", description: "Announcement deleted" });
+      toast({ title: "Deleted" });
       setDeleteId(null);
       fetchAnnouncements();
     } else {

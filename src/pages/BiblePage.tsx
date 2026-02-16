@@ -212,12 +212,7 @@ const BiblePage = () => {
       // Show toast notification for book transition
       const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
       const nextBook = allBooks.find(b => b.apiName === bookApiName);
-      if (nextBook) {
-        toast({
-          title: "📚 Moving to Next Book",
-          description: `Now reading ${nextBook.name} Chapter ${chapter}`,
-        });
-      }
+
     } else {
       console.log(`❌ BiblePage: Setting shouldAutoPlay to false for manual book change`);
       setShouldAutoPlay(false);

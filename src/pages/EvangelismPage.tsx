@@ -27,7 +27,7 @@ const EvangelismPage = () => {
 
     const handleAddSoul = () => {
         setSoulsSaved(prev => prev + 1);
-        toast.success("Hallelujah! Another soul added to the Kingdom!");
+
     };
 
     return (

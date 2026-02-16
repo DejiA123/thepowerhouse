@@ -89,17 +89,14 @@ export const LanguageSettings = ({ onBack }: LanguageSettingsProps) => {
 
   const saveLanguageSettings = async (languageCode: string) => {
     setSelectedLanguage(languageCode);
-    
+
     try {
       // Save to localStorage
       localStorage.setItem('app_language', languageCode);
-      
+
       // Just save to localStorage for now since language field doesn't exist in user_preferences
-      toast({
-        title: "Success",
-        description: "Language settings saved",
-      });
-      
+
+
       // Reload the app to apply language changes
       setTimeout(() => {
         window.location.reload();
@@ -149,11 +146,10 @@ export const LanguageSettings = ({ onBack }: LanguageSettingsProps) => {
             <button
               key={language.code}
               onClick={() => saveLanguageSettings(language.code)}
-              className={`w-full p-4 text-left rounded-lg border transition-colors ${
-                selectedLanguage === language.code
+              className={`w-full p-4 text-left rounded-lg border transition-colors ${selectedLanguage === language.code
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">

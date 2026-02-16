@@ -27,13 +27,13 @@ const UserPreferencesForm = () => {
         const parsed = JSON.parse(userPrefs);
         if (parsed.theme) return parsed.theme;
       }
-    } catch (e) {}
-    
+    } catch (e) { }
+
     // Fallback: check if dark class is present on document
     if (document.documentElement.classList.contains('dark')) {
       return 'dark';
     }
-    
+
     return 'light';
   };
 
@@ -55,7 +55,7 @@ const UserPreferencesForm = () => {
 
     // Listen for the custom themechange event
     window.addEventListener('themechange', handleThemeChange);
-    
+
     // Also listen for storage changes (in case theme is changed in another tab)
     window.addEventListener('storage', handleThemeChange);
 
@@ -93,9 +93,9 @@ const UserPreferencesForm = () => {
 
   const savePreferences = async () => {
     if (!user) return;
-    
+
     setLoading(true);
-    
+
     const { error } = await supabase
       .from('user_preferences')
       .upsert({
@@ -109,9 +109,9 @@ const UserPreferencesForm = () => {
     if (error) {
       toast({ title: "Error", description: "Failed to save preferences", variant: "destructive" });
     } else {
-      toast({ title: "Success", description: "Preferences saved successfully" });
+
     }
-    
+
     setLoading(false);
   };
 
@@ -157,7 +157,7 @@ const UserPreferencesForm = () => {
                   localStorage.setItem('user_preferences', JSON.stringify({ ...parsed, theme: value }));
                   // Dispatch a custom event to trigger theme update immediately
                   window.dispatchEvent(new Event('themechange'));
-                } catch (e) {}
+                } catch (e) { }
                 return updated;
               });
             }}

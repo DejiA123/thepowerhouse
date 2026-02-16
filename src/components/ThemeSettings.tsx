@@ -13,7 +13,7 @@ interface ThemeSettingsProps {
 export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [settings, setSettings] = useState({
     theme: 'system',
     lowLightMode: false,
@@ -59,11 +59,11 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
   const saveThemeSettings = async (newSettings: Partial<typeof settings>) => {
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
-    
+
     try {
       // Save to localStorage
       localStorage.setItem('theme_settings', JSON.stringify(updatedSettings));
-      
+
       // Save to database - only save theme field that exists in the schema
       if (user) {
         const { error } = await supabase
@@ -84,11 +84,8 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
             variant: "destructive"
           });
         } else {
-          toast({
-            title: "Success",
-            description: "Theme settings saved",
-          });
-          
+
+
           // Apply theme changes
           applyTheme(updatedSettings);
         }
@@ -106,10 +103,10 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
   const applyTheme = (themeSettings: typeof settings) => {
     // Apply theme to document
     const root = document.documentElement;
-    
+
     // Remove existing theme classes
     root.classList.remove('light', 'dark');
-    
+
     // Apply new theme
     if (themeSettings.theme === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -117,26 +114,26 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
     } else {
       root.classList.add(themeSettings.theme);
     }
-    
+
     // Apply accessibility settings
     if (themeSettings.highContrast) {
       root.classList.add('high-contrast');
     } else {
       root.classList.remove('high-contrast');
     }
-    
+
     if (themeSettings.reduceMotion) {
       root.classList.add('reduce-motion');
     } else {
       root.classList.remove('reduce-motion');
     }
-    
+
     // Apply color blindness settings
     root.classList.remove('colorblind-protanopia', 'colorblind-deuteranopia', 'colorblind-tritanopia');
     if (themeSettings.colorBlindness !== 'none') {
       root.classList.add(`colorblind-${themeSettings.colorBlindness}`);
     }
-    
+
     // Apply font size
     root.classList.remove('text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl');
     root.classList.add(`text-${themeSettings.fontSize}`);
@@ -202,17 +199,16 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
             <Palette className="w-5 h-5" />
             Theme
           </h2>
-          
+
           <div className="grid grid-cols-1 gap-3">
             {['light', 'dark', 'system'].map((theme) => (
               <button
                 key={theme}
                 onClick={() => handleThemeChange(theme)}
-                className={`p-4 rounded-lg border transition-colors ${
-                  settings.theme === theme
+                className={`p-4 rounded-lg border transition-colors ${settings.theme === theme
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   {getThemeIcon(theme)}
@@ -221,11 +217,11 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
                       {getThemeName(theme)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {theme === 'system' 
+                      {theme === 'system'
                         ? 'Follow your device settings'
                         : theme === 'light'
-                        ? 'Light background with dark text'
-                        : 'Dark background with light text'
+                          ? 'Light background with dark text'
+                          : 'Dark background with light text'
                       }
                     </p>
                   </div>
@@ -238,7 +234,7 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
         {/* Accessibility Settings */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Accessibility</h2>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <div>
@@ -278,7 +274,7 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
         {/* Font Size */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Font Size</h2>
-          
+
           <div className="grid grid-cols-3 gap-3">
             {[
               { value: 'xs', label: 'Small' },
@@ -288,11 +284,10 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
               <button
                 key={size.value}
                 onClick={() => handleFontSizeChange(size.value)}
-                className={`p-3 rounded-lg border transition-colors ${
-                  settings.fontSize === size.value
+                className={`p-3 rounded-lg border transition-colors ${settings.fontSize === size.value
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
+                  }`}
               >
                 <p className={`font-medium text-gray-900 dark:text-white text-${size.value}`}>
                   {size.label}
@@ -305,7 +300,7 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
         {/* Color Blindness Support */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Color Blindness Support</h2>
-          
+
           <div className="space-y-3">
             {[
               { value: 'none', label: 'None' },
@@ -316,11 +311,10 @@ export const ThemeSettings = ({ onBack }: ThemeSettingsProps) => {
               <button
                 key={type.value}
                 onClick={() => handleColorBlindnessChange(type.value)}
-                className={`w-full p-3 text-left rounded-lg border transition-colors ${
-                  settings.colorBlindness === type.value
+                className={`w-full p-3 text-left rounded-lg border transition-colors ${settings.colorBlindness === type.value
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
+                  }`}
               >
                 <p className="font-medium text-gray-900 dark:text-white">
                   {type.label}

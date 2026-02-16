@@ -79,7 +79,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
     } else {
       setNewNote("");
       fetchNotes();
-      toast({ title: "Success", description: "Note saved successfully" });
+
     }
   };
 
@@ -100,7 +100,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
       setEditingNote(null);
       setEditText("");
       fetchNotes();
-      toast({ title: "Success", description: "Note updated successfully" });
+
     }
   };
 
@@ -114,7 +114,7 @@ const BibleNotes = ({ book, chapter, verse, onBackToChapters }: BibleNotesProps)
       toast({ title: "Error", description: "Failed to delete note", variant: "destructive" });
     } else {
       fetchNotes();
-      toast({ title: "Success", description: "Note deleted successfully" });
+
     }
   };
 

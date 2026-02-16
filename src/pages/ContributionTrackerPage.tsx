@@ -114,7 +114,7 @@ const ContributionTrackerPage = () => {
             setIsAdmin(true);
             setIsPinDialogOpen(false);
             setPinInput("");
-            toast.success("Admin mode enabled");
+
         } else {
             toast.error("Incorrect PIN");
         }
@@ -123,7 +123,7 @@ const ContributionTrackerPage = () => {
     const toggleAdmin = () => {
         if (isAdmin) {
             setIsAdmin(false);
-            toast("Admin mode disabled");
+
         } else {
             setIsPinDialogOpen(true);
         }

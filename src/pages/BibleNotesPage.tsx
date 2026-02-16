@@ -30,6 +30,23 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface BibleNote {
     id: string;
@@ -59,6 +76,114 @@ const NOTE_CATEGORIES = [
     { id: 'personal', name: 'Personal', icon: '❤️' },
     { id: 'sermon', name: 'Sermon', icon: '⛪' }
 ];
+
+interface SortableFolderItemProps {
+    folder: BibleNoteFolder;
+    activeFolderId: string | null | undefined;
+    setActiveFolderId: (id: string | null | undefined) => void;
+    setEditingFolder: (folder: BibleNoteFolder) => void;
+    setNewFolderName: (name: string) => void;
+    setShowNewFolderDialog: (show: boolean) => void;
+    handleDeleteFolder: (id: string) => void;
+}
+
+const SortableFolderItem = ({
+    folder,
+    activeFolderId,
+    setActiveFolderId,
+    setEditingFolder,
+    setNewFolderName,
+    setShowNewFolderDialog,
+    handleDeleteFolder,
+}: SortableFolderItemProps) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: folder.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+                "relative group/folder transition-all",
+                isDragging ? "opacity-50 scale-105" : "opacity-100"
+            )}
+        >
+            <button
+                onClick={() => setActiveFolderId(folder.id)}
+                className={cn(
+                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm",
+                    activeFolderId === folder.id
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                )}
+            >
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <div
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-md"
+                    >
+                        <MoreVertical className="w-4 h-4 opacity-40" />
+                    </div>
+                    <div className={cn(
+                        "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
+                        activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
+                    )}>
+                        <FolderOpen className="w-4 h-4" />
+                    </div>
+                    <span className="truncate">{folder.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs opacity-60 font-bold">{folder.noteCount}</span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className={cn(
+                                    "h-6 w-6 rounded-full transition-opacity md:opacity-0 md:group-hover/folder:opacity-100",
+                                    activeFolderId === folder.id ? "text-white hover:bg-white/20" : "text-gray-400 hover:bg-gray-100"
+                                )}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <MoreVertical className="w-3 h-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                                setEditingFolder(folder);
+                                setNewFolderName(folder.name);
+                                setShowNewFolderDialog(true);
+                            }}>
+                                <Edit3 className="w-4 h-4 mr-2" />
+                                Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleDeleteFolder(folder.id)}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </button>
+        </div>
+    );
+};
 
 const BibleNotesPage = () => {
     const [notes, setNotes] = useState<BibleNote[]>([]);
@@ -114,6 +239,48 @@ const BibleNotesPage = () => {
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
     const [isScrolled, setIsScrolled] = useState(false);
+
+    // DND Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = folders.findIndex((f) => f.id === active.id);
+            const newIndex = folders.findIndex((f) => f.id === over.id);
+
+            const newFolders = arrayMove(folders, oldIndex, newIndex);
+            setFolders(newFolders);
+
+            // Persist to database
+            try {
+                const folderOrders = newFolders.map((folder, index) => ({
+                    id: folder.id,
+                    sort_order: index + 1,
+                }));
+                await bibleNotesService.updateFolderOrder(folderOrders);
+            } catch (error) {
+                console.error('Error updating folder order:', error);
+                toast({
+                    title: "Error",
+                    description: "Failed to save folder order",
+                    variant: "destructive",
+                });
+                // Revert on error
+                fetchFolders();
+            }
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -226,10 +393,10 @@ const BibleNotesPage = () => {
         try {
             if (editingFolder) {
                 await bibleNotesService.updateFolder(editingFolder.id, { name: newFolderName.trim() });
-                toast({ title: "Folder Renamed", description: "Your folder has been renamed successfully." });
+
             } else {
                 await bibleNotesService.createFolder(user.id, newFolderName.trim());
-                toast({ title: "Folder Created", description: "Your new folder is ready for your insights." });
+
             }
             setNewFolderName('');
             setEditingFolder(null);
@@ -251,7 +418,7 @@ const BibleNotesPage = () => {
         try {
             await bibleNotesService.deleteFolder(folderId);
             if (activeFolderId === folderId) setActiveFolderId(undefined);
-            toast({ title: "Folder Deleted", description: "The folder has been removed." });
+
             await fetchFolders();
             await fetchNotes(); // Refresh to see unfiled notes
         } catch (error) {
@@ -354,10 +521,7 @@ const BibleNotesPage = () => {
 
             if (error) throw error;
 
-            toast({
-                title: "Note Updated ✨",
-                description: "Your insights have been preserved beautifully.",
-            });
+
 
             setNewNote({
                 title: '',
@@ -399,10 +563,7 @@ const BibleNotesPage = () => {
 
             if (error) throw error;
 
-            toast({
-                title: !note.is_favorite ? "Added to Favourites ⭐" : "Removed from Favourites",
-                description: !note.is_favorite ? "We've marked this note for you." : "The note has been removed from your favourites.",
-            });
+
 
             await fetchNotes();
             await fetchFolders(); // Correctly refresh global stats
@@ -429,10 +590,7 @@ const BibleNotesPage = () => {
 
             if (error) throw error;
 
-            toast({
-                title: "Note Deleted",
-                description: "The note has been removed from your collection.",
-            });
+
 
             await fetchNotes();
             await fetchFolders(); // Correctly refresh global stats
@@ -477,10 +635,7 @@ const BibleNotesPage = () => {
 
             if (error) throw error;
 
-            toast({
-                title: "Insights Saved! 📖",
-                description: "Your divine inspiration is now safely stored.",
-            });
+
 
             setNewNote({
                 title: '',
@@ -610,10 +765,7 @@ const BibleNotesPage = () => {
 
             await html2pdf().set(opt).from(element).save();
 
-            toast({
-                title: "PDF Downloaded",
-                description: `${title} has been saved as PDF`,
-            });
+
         } catch (error) {
             console.error('Error generating PDF:', error);
             toast({
@@ -673,10 +825,7 @@ const BibleNotesPage = () => {
             const blob = await Packer.toBlob(doc);
             saveAs(blob, fileName);
 
-            toast({
-                title: "Word Document Downloaded",
-                description: `${title} has been saved as a true .docx file`,
-            });
+
         } catch (error) {
             console.error('Error generating Word document:', error);
             toast({
@@ -868,64 +1017,29 @@ const BibleNotesPage = () => {
                                     <div className="h-px bg-gray-100 dark:bg-gray-800 w-full" />
                                 </div>
 
-                                {folders.map((folder) => (
-                                    <div key={folder.id} className="relative group/folder">
-                                        <button
-                                            onClick={() => setActiveFolderId(folder.id)}
-                                            className={cn(
-                                                "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm",
-                                                activeFolderId === folder.id
-                                                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                                                    : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className={cn(
-                                                    "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
-                                                    activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
-                                                )}>
-                                                    <FolderOpen className="w-4 h-4" />
-                                                </div>
-                                                <span className="truncate">{folder.name}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs opacity-60 font-bold">{folder.noteCount}</span>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            className={cn(
-                                                                "h-6 w-6 rounded-full transition-opacity md:opacity-0 md:group-hover/folder:opacity-100",
-                                                                activeFolderId === folder.id ? "text-white hover:bg-white/20" : "text-gray-400 hover:bg-gray-100"
-                                                            )}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <MoreVertical className="w-3 h-3" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => {
-                                                            setEditingFolder(folder);
-                                                            setNewFolderName(folder.name);
-                                                            setShowNewFolderDialog(true);
-                                                        }}>
-                                                            <Edit3 className="w-4 h-4 mr-2" />
-                                                            Rename
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-red-600"
-                                                            onClick={() => handleDeleteFolder(folder.id)}
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        </button>
-                                    </div>
-                                ))}
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext
+                                        items={folders.map(f => f.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        {folders.map((folder) => (
+                                            <SortableFolderItem
+                                                key={folder.id}
+                                                folder={folder}
+                                                activeFolderId={activeFolderId}
+                                                setActiveFolderId={setActiveFolderId}
+                                                setEditingFolder={setEditingFolder}
+                                                setNewFolderName={setNewFolderName}
+                                                setShowNewFolderDialog={setShowNewFolderDialog}
+                                                handleDeleteFolder={handleDeleteFolder}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
 
                                 {folders.length === 0 && (
                                     <div className="p-8 text-center">
@@ -939,25 +1053,51 @@ const BibleNotesPage = () => {
                     {/* Main Content Area */}
                     <div className="flex-1 space-y-8">
                         <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <div className="p-6">
-                                    <h3 className="text-lg font-bold mb-4">{editingFolder ? 'Rename Folder' : 'Create New Folder'}</h3>
-                                    <Input
-                                        placeholder="e.g. Sermon Reflections"
-                                        value={newFolderName}
-                                        onChange={(e) => setNewFolderName(e.target.value)}
-                                        className="h-12 rounded-xl mb-6"
-                                        autoFocus={false}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-                                    />
-                                    <div className="flex justify-end gap-3">
-                                        <Button variant="ghost" onClick={() => setShowNewFolderDialog(false)}>Cancel</Button>
-                                        <Button
-                                            onClick={handleCreateFolder}
-                                            className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-full px-6"
-                                        >
-                                            {editingFolder ? 'Save Changes' : 'Create Folder'}
-                                        </Button>
+                            <DialogContent className="max-w-full w-full h-screen flex flex-col p-0 gap-0 rounded-none m-0 border-none bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl">
+                                <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12">
+                                    <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-300">
+                                        <div className="text-center space-y-2">
+                                            <div className="inline-flex p-4 rounded-3xl bg-indigo-50 dark:bg-indigo-900/30 mb-4">
+                                                <FolderPlus className="w-10 h-10 text-indigo-600" />
+                                            </div>
+                                            <h3 className="text-3xl font-black text-gray-900 dark:text-white">
+                                                {editingFolder ? 'Rename Folder' : 'Create New Folder'}
+                                            </h3>
+                                            <p className="text-gray-500 font-medium">
+                                                {editingFolder ? 'Give your collection a new name' : 'Organise your reflections into a collection'}
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <Input
+                                                placeholder="e.g. Sermon Reflections"
+                                                value={newFolderName}
+                                                onChange={(e) => setNewFolderName(e.target.value)}
+                                                className="h-16 rounded-2xl text-xl px-6 bg-gray-50 dark:bg-gray-900 border-none shadow-inner focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all"
+                                                autoFocus
+                                                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-3">
+                                            <Button
+                                                onClick={handleCreateFolder}
+                                                className="h-14 bg-indigo-600 text-white hover:bg-indigo-700 rounded-2xl text-lg font-bold shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95"
+                                            >
+                                                {editingFolder ? 'Save Changes' : 'Create Folder'}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setShowNewFolderDialog(false);
+                                                    setEditingFolder(null);
+                                                    setNewFolderName('');
+                                                }}
+                                                className="h-12 text-gray-400 hover:text-gray-600 font-semibold"
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </DialogContent>

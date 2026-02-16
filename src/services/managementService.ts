@@ -7,6 +7,7 @@ export interface Expense {
     category: string;
     amount: number;
     status: string;
+    receipt_url?: string;
 }
 
 export interface Guest {

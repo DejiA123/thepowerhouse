@@ -118,7 +118,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
       .select();
 
     if (!error) {
-      toast({ title: "Success", description: "Event created successfully" });
+
       setNewEvent({
         title: "",
         description: "",
@@ -155,7 +155,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
       .eq('id', editEvent.id);
     setEditLoading(false);
     if (!error) {
-      toast({ title: "Success", description: "Event updated successfully" });
+
       setEditEvent(null);
       fetchEvents();
     } else {
@@ -172,7 +172,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
       .eq('id', deleteId);
     setDeleteLoading(false);
     if (!error) {
-      toast({ title: "Deleted", description: "Event deleted successfully" });
+      toast({ title: "Deleted" });
       setDeleteId(null);
       fetchEvents();
     } else {

@@ -38,7 +38,7 @@ const UserSettingsPage = () => {
     phone: '+234 123 456 7890',
     updated_at: new Date().toISOString()
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [editingField, setEditingField] = useState<'name' | 'about' | 'phone' | 'links' | null>(null);
@@ -49,10 +49,10 @@ const UserSettingsPage = () => {
   // Fetch user profile data
   const fetchUserProfile = async () => {
     if (!user) return;
-    
+
     try {
       setLoading(true);
-      
+
       // First, try to get existing profile
       let { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -109,7 +109,7 @@ const UserSettingsPage = () => {
         description: "Failed to load profile. Please try again.",
         variant: "destructive"
       });
-      
+
       // Set fallback profile data
       setProfile(prev => ({
         ...prev,
@@ -173,7 +173,7 @@ const UserSettingsPage = () => {
       'About': 'about',
       'Links': 'links'
     };
-    
+
     const field = fieldMap[fieldName];
     if (field) {
       setEditingField(field);
@@ -191,7 +191,7 @@ const UserSettingsPage = () => {
 
   const handleProfileSave = async (field: 'name' | 'about' | 'phone' | 'links', value: string) => {
     if (!user) return;
-    
+
     try {
       // Update local state immediately for better UX
       setProfile(prev => {
@@ -208,10 +208,10 @@ const UserSettingsPage = () => {
       });
 
       // Update database
-      const updateData: any = { 
-        updated_at: new Date().toISOString() 
+      const updateData: any = {
+        updated_at: new Date().toISOString()
       };
-      
+
       switch (field) {
         case 'name':
           updateData.full_name = value;
@@ -240,14 +240,11 @@ const UserSettingsPage = () => {
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: `${field === 'name' ? 'Name' : field === 'about' ? 'Bio' : field === 'phone' ? 'Phone' : 'Links'} updated successfully`
-      });
+
 
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      
+
       // Handle specific bio column error
       if (field === 'about' && error?.message?.includes("Could not find the 'bio' column")) {
         // Update local state only since database column doesn't exist
@@ -258,10 +255,10 @@ const UserSettingsPage = () => {
         });
         return;
       }
-      
+
       // Revert local state on other errors
       fetchUserProfile();
-      
+
       toast({
         title: "Error",
         description: `Failed to update ${field === 'name' ? 'name' : field === 'about' ? 'bio' : field === 'phone' ? 'phone' : 'links'}. Please try again.`,
@@ -272,11 +269,11 @@ const UserSettingsPage = () => {
 
   // Handle different views
   if (editingField) {
-    const currentValue = editingField === 'name' ? profile.full_name 
-      : editingField === 'about' ? profile.bio 
-      : editingField === 'phone' ? profile.phone 
-      : '';
-    
+    const currentValue = editingField === 'name' ? profile.full_name
+      : editingField === 'about' ? profile.bio
+        : editingField === 'phone' ? profile.phone
+          : '';
+
     return (
       <ProfileEditForm
         field={editingField}
@@ -351,7 +348,7 @@ const UserSettingsPage = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Name</label>
-              <button 
+              <button
                 className="w-full flex items-center justify-between p-3 bg-muted rounded-lg text-left"
                 onClick={() => handleProfileFieldClick('Name')}
               >
@@ -362,7 +359,7 @@ const UserSettingsPage = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">About</label>
-              <button 
+              <button
                 className="w-full flex items-center justify-between p-3 bg-muted rounded-lg text-left"
                 onClick={() => handleProfileFieldClick('About')}
               >
@@ -409,9 +406,9 @@ const UserSettingsPage = () => {
               </Button>
             </div>
           </div>
-          
+
           <div className="border-t border-border">
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Profile')}
             >
@@ -426,7 +423,7 @@ const UserSettingsPage = () => {
 
         {/* Quick Settings */}
         <div className="space-y-3">
-          <button 
+          <button
             className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
             onClick={() => handleSettingClick('Notifications')}
           >
@@ -437,7 +434,7 @@ const UserSettingsPage = () => {
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </button>
 
-          <button 
+          <button
             className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
             onClick={() => handleSettingClick('Bible Settings')}
           >
@@ -448,7 +445,7 @@ const UserSettingsPage = () => {
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </button>
 
-          <button 
+          <button
             className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
             onClick={() => handleSettingClick('Theme & Appearance')}
           >
@@ -464,7 +461,7 @@ const UserSettingsPage = () => {
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-muted-foreground px-1">Account & Support</h3>
           <div className="space-y-1">
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Account')}
             >
@@ -475,7 +472,7 @@ const UserSettingsPage = () => {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Privacy')}
             >
@@ -486,7 +483,7 @@ const UserSettingsPage = () => {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Chat')}
             >
@@ -497,7 +494,7 @@ const UserSettingsPage = () => {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Help')}
             >
@@ -508,7 +505,7 @@ const UserSettingsPage = () => {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <button 
+            <button
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => handleSettingClick('Invite Friends')}
             >

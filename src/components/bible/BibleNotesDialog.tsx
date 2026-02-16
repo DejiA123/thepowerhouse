@@ -128,10 +128,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
 
       if (error) throw error;
 
-      toast({
-        title: "Note Saved",
-        description: "Your note has been saved successfully",
-      });
+
 
       // Reset form
       setNewNote({
@@ -176,10 +173,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
 
       if (error) throw error;
 
-      toast({
-        title: "Note Updated",
-        description: "Your note has been updated successfully",
-      });
+
 
       setEditingNote(null);
       await fetchNotes();

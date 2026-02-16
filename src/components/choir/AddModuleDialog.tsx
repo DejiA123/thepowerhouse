@@ -38,7 +38,7 @@ export const AddModuleDialog = ({ isOpen, onClose, locationId }: AddModuleDialog
                 category,
                 location: locationId
             });
-            toast.success("Academy module created successfully!");
+
             onClose();
             // Reset form
             setTitle("");

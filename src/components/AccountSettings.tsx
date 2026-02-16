@@ -122,10 +122,7 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
+
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);

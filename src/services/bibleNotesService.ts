@@ -37,6 +37,7 @@ export const bibleNotesService = {
             .from('bible_note_folders' as any)
             .select('*')
             .eq('user_id', userId)
+            .order('sort_order', { ascending: true })
             .order('created_at', { ascending: true });
 
         if (foldersError) throw foldersError;
@@ -58,9 +59,19 @@ export const bibleNotesService = {
     },
 
     async createFolder(userId: string, name: string, parent_id?: string | null): Promise<BibleNoteFolder> {
+        // Get max sort order to append new folder at the end
+        const { data: lastFolder } = await supabase
+            .from('bible_note_folders' as any)
+            .select('sort_order')
+            .eq('user_id', userId)
+            .order('sort_order', { ascending: false })
+            .limit(1);
+
+        const nextOrder = (lastFolder?.[0]?.sort_order ?? 0) + 1;
+
         const { data, error } = await supabase
             .from('bible_note_folders' as any)
-            .insert([{ user_id: userId, name, parent_id }])
+            .insert([{ user_id: userId, name, parent_id, sort_order: nextOrder }])
             .select()
             .single();
 
@@ -72,6 +83,7 @@ export const bibleNotesService = {
             user_id: folderData.user_id,
             name: folderData.name,
             parent_id: folderData.parent_id,
+            sort_order: folderData.sort_order,
             created_at: folderData.created_at,
             updated_at: folderData.updated_at,
             noteCount: 0,
@@ -94,9 +106,24 @@ export const bibleNotesService = {
             user_id: folderData.user_id,
             name: folderData.name,
             parent_id: folderData.parent_id,
+            sort_order: folderData.sort_order,
             created_at: folderData.created_at,
             updated_at: folderData.updated_at
         };
+    },
+
+    async updateFolderOrder(folderOrders: { id: string, sort_order: number }[]): Promise<void> {
+        // Process updates in chunks or iterate (Supabase upsert can also work)
+        const promises = folderOrders.map(order =>
+            supabase
+                .from('bible_note_folders' as any)
+                .update({ sort_order: order.sort_order })
+                .eq('id', order.id)
+        );
+
+        const results = await Promise.all(promises);
+        const error = results.find(r => r.error)?.error;
+        if (error) throw error;
     },
 
     async deleteFolder(id: string): Promise<void> {

@@ -251,7 +251,7 @@ const GroupChatsPage = () => {
         try {
             setCreatingGroup(true);
             await GroupChatService.createCustomGroup(newGroupName, newGroupDescription, []);
-            toast({ title: "Success", description: "Group created successfully!" });
+
             setShowCreateGroup(false);
             setNewGroupName(""); setNewGroupDescription("");
             fetchChats();
