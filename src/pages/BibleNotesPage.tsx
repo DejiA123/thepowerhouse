@@ -127,18 +127,15 @@ const SortableFolderItem = ({
                 {...attributes}
                 {...listeners}
                 className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none",
+                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none touch-pan-y",
                     activeFolderId === folder.id
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
-                style={{ touchAction: 'none' }}
+                style={{ touchAction: 'pan-y' }}
                 onClick={() => setActiveFolderId(folder.id)}
             >
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="p-1 -ml-1">
-                        <MoreVertical className="w-4 h-4 opacity-40 shrink-0" />
-                    </div>
                     <div className={cn(
                         "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
                         activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
@@ -246,7 +243,7 @@ const BibleNotesPage = () => {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                delay: 1000,
+                delay: 250,
                 tolerance: 5,
             },
         }),
