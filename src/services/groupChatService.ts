@@ -342,12 +342,12 @@ export class GroupChatService {
         }
 
         // Check if already a participant
-        const { data: existing } = await supabase
+        const { data: existing, error: fetchError } = await supabase
             .from('chat_participants')
             .select('id')
             .eq('chat_id', chatId)
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
 
         if (existing) {
             return; // Already a participant
@@ -370,16 +370,22 @@ export class GroupChatService {
     /**
      * Mark messages as read
      */
-    static async markAsRead(chatId: string): Promise<void> {
+    static async markAsRead(chatId: string, timestamp?: string): Promise<void> {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) return;
 
+        // Use upsert to ensure row exists AND last_read_at is updated.
+        // This handles cases where joinChat hasn't finished or failed.
         const { error } = await supabase
             .from('chat_participants')
-            .update({ last_read_at: new Date().toISOString() })
-            .eq('chat_id', chatId)
-            .eq('user_id', user.id);
+            .upsert({
+                chat_id: chatId,
+                user_id: user.id,
+                last_read_at: timestamp || new Date().toISOString()
+            }, {
+                onConflict: 'chat_id,user_id'
+            });
 
         if (error) {
             console.error('Error marking as read:', error);
@@ -408,6 +414,7 @@ export class GroupChatService {
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('chat_id', chatId)
+            .eq('is_deleted', false)
             .gt('created_at', participant.last_read_at || '1970-01-01')
             .neq('user_id', user.id);
 
@@ -442,6 +449,7 @@ export class GroupChatService {
                 .from('chat_messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('chat_id', p.chat_id)
+                .eq('is_deleted', false)
                 .gt('created_at', p.last_read_at || '1970-01-01')
                 .neq('user_id', user.id);
 
@@ -608,6 +616,31 @@ export class GroupChatService {
                     console.log(`✅ Subscribed to global messages`);
                 }
             });
+
+        return channel;
+    }
+
+    /**
+     * Subscribe to read status updates across ALL chats for a user
+     */
+    static subscribeToReadStatus(callback: (payload: { chat_id: string, last_read_at: string }) => void): RealtimeChannel {
+        const channel = supabase
+            .channel('global-read-status')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'chat_participants'
+                },
+                (payload) => {
+                    callback({
+                        chat_id: payload.new.chat_id,
+                        last_read_at: payload.new.last_read_at
+                    });
+                }
+            )
+            .subscribe();
 
         return channel;
     }
