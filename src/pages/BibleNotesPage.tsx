@@ -133,6 +133,7 @@ const SortableFolderItem = ({
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
+                style={{ touchAction: 'none' }}
                 onClick={() => setActiveFolderId(folder.id)}
             >
                 <div className="flex items-center gap-3 overflow-hidden">
