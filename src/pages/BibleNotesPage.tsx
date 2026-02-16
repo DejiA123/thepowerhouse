@@ -244,8 +244,8 @@ const BibleNotesPage = () => {
     const sensors = useSensors(
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 300,
-                tolerance: 8,
+                delay: 500,
+                tolerance: 10,
             },
         }),
         useSensor(PointerSensor, {
