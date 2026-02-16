@@ -204,18 +204,23 @@ const BibleReadingPlansPage = () => {
 
       const fetched: { ref: string, text: string[] }[] = [];
       for (const ref of reading.readings) {
-        const match = ref.match(/^(.+?)\s+(\d+)(?::.*)?$/);
+        // Regex to handle "Matthew 1" OR "Matthew 1-4" OR "Matthew 1:1-5"
+        const match = ref.match(/^(.+?)\s+(\d+)(?:-(\d+))?(?::.*)?$/);
         if (match) {
           const bookName = match[1].trim();
-          const chapter = parseInt(match[2]);
+          const startChapter = parseInt(match[2]);
+          const endChapter = match[3] ? parseInt(match[3]) : startChapter;
           const normalizedBook = normalizeBookApiName(bookName.replace(/\s+/g, '-'));
-          const chapterData = await enhancedApiBibleService.getChapter(version, normalizedBook, chapter);
 
-          if (chapterData && chapterData.verses) {
-            fetched.push({
-              ref,
-              text: chapterData.verses.map(v => `${v.verse}. ${v.text.replace(/<[^>]*>/g, '')}`)
-            });
+          for (let ch = startChapter; ch <= endChapter; ch++) {
+            const chapterData = await enhancedApiBibleService.getChapter(version, normalizedBook, ch);
+
+            if (chapterData && chapterData.verses) {
+              fetched.push({
+                ref: endChapter > startChapter ? `${bookName} ${ch}` : ref,
+                text: chapterData.verses.map(v => `${v.verse}. ${v.text.replace(/<[^>]*>/g, '')}`)
+              });
+            }
           }
         }
       }

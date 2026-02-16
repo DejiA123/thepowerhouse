@@ -134,26 +134,34 @@ const BibleReadingPlans = () => {
 
     try {
       for (const readingRef of readings) {
-        // Parse "John 3", "Genesis 1:1", or "Song of Solomon 2"
-        // Improved regex: Capture everything up to the last number as the book, and the last number as the chapter
-        const match = readingRef.match(/^(.+?)\s+(\d+)(?::.*)?$/);
+        // Regex to handle "Matthew 1" OR "Matthew 1-4" OR "Matthew 1:1-4"
+        const match = readingRef.match(/^(.+?)\s+(\d+)(?:-(\d+))?(?::.*)?$/);
         if (match) {
           const bookName = match[1].trim();
-          const chapter = parseInt(match[2]);
-          const normalizedBook = normalizeBookApiName(bookName.replace(/\s+/g, '-')); // Use dash for API names often
+          const startChapter = parseInt(match[2]);
+          const endChapter = match[3] ? parseInt(match[3]) : startChapter;
+          const normalizedBook = normalizeBookApiName(bookName.replace(/\s+/g, '-'));
 
-          // Use preferred translation or default to KJV
+          // Use preferred translation or default to ASV
           const version = preferences.preferredTranslation || "asv";
 
-          const chapterData = await enhancedApiBibleService.getChapter(version, normalizedBook, chapter);
+          for (let ch = startChapter; ch <= endChapter; ch++) {
+            const chapterData = await enhancedApiBibleService.getChapter(version, normalizedBook, ch);
 
-          if (chapterData && chapterData.verses) {
-            const text = chapterData.verses.map(v =>
-              `${v.verse}. ${v.text.replace(/<[^>]*>/g, '')}` // Strip HTML for clean reading
-            );
-            fetchedContent.push({ ref: readingRef, text });
-          } else {
-            fetchedContent.push({ ref: readingRef, text: ["Could not load text. Please read in Bible."] });
+            if (chapterData && chapterData.verses) {
+              const text = chapterData.verses.map(v =>
+                `${v.verse}. ${v.text.replace(/<[^>]*>/g, '')}`
+              );
+              fetchedContent.push({
+                ref: endChapter > startChapter ? `${bookName} ${ch}` : readingRef,
+                text
+              });
+            } else {
+              fetchedContent.push({
+                ref: endChapter > startChapter ? `${bookName} ${ch}` : readingRef,
+                text: ["Could not load text. Please read in Bible."]
+              });
+            }
           }
         }
       }
@@ -196,8 +204,8 @@ const BibleReadingPlans = () => {
 
 
   const handleOpenScripture = (reading: string) => {
-    // Parse "John 3", "Song of Solomon 2", etc.
-    const match = reading.match(/^(.+?)\s+(\d+)(?::.*)?$/);
+    // Parse "John 3", "Song of Solomon 2", "Matthew 1-4", etc.
+    const match = reading.match(/^(.+?)\s+(\d+)(?:-(\d+))?(?::.*)?$/);
 
     if (match) {
       // Normalize book name

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import {
     Plus, Search, ArrowLeft, X, Star, Edit3, Share2, BookOpen, Calendar, Trash2,
     MoreVertical, Filter, Grid, List as ListIcon, TrendingUp, Hash, Layers, Heart,
-    Folder, FolderOpen, FolderPlus, ChevronRight, ChevronDown, Menu, Download
+    Folder, FolderOpen, FolderPlus, ChevronRight, ChevronDown, Menu, Download, GripVertical
 } from "lucide-react";
 import html2pdf from 'html2pdf.js';
 import { saveAs } from 'file-saver';
@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import {
     DndContext,
     closestCenter,
+    rectIntersection,
     KeyboardSensor,
     PointerSensor,
     TouchSensor,
@@ -50,6 +51,7 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BibleNote {
     id: string;
@@ -109,8 +111,8 @@ const SortableFolderItem = ({
     } = useSortable({ id: folder.id });
 
     const style: React.CSSProperties = {
-        transform: CSS.Transform.toString(transform),
-        transition,
+        transform: CSS.Translate.toString(transform),
+        transition: transition || 'transform 250ms cubic-bezier(0.2, 0, 0, 1)',
         zIndex: isDragging ? 50 : undefined,
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -123,29 +125,35 @@ const SortableFolderItem = ({
             style={style}
             className={cn(
                 "relative group/folder transition-all",
-                isDragging ? "opacity-50 scale-105" : "opacity-100"
+                isDragging ? "opacity-50 scale-102 shadow-xl z-50" : "opacity-100"
             )}
         >
             <div
-                {...attributes}
-                {...listeners}
                 className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none",
+                    "w-full flex items-center justify-between px-2 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none",
                     activeFolderId === folder.id
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
-                style={{ touchAction: 'manipulation' }}
                 onClick={() => setActiveFolderId(folder.id)}
             >
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div className={cn(
-                        "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
-                        activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
-                    )}>
-                        <FolderOpen className="w-4 h-4" />
+                <div className="flex items-center gap-1 overflow-hidden">
+                    <div
+                        {...attributes}
+                        {...listeners}
+                        className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing touch-none"
+                    >
+                        <GripVertical className="w-4 h-4 opacity-40 group-hover/folder:opacity-100 transition-opacity" />
                     </div>
-                    <span className="truncate">{folder.name}</span>
+                    <div className="flex items-center gap-3">
+                        <div className={cn(
+                            "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
+                            activeFolderId === folder.id ? "bg-white/20" : "bg-gray-100 dark:bg-gray-800 group-hover/folder:bg-white dark:group-hover/folder:bg-gray-700"
+                        )}>
+                            <FolderOpen className="w-4 h-4" />
+                        </div>
+                        <span className="truncate">{folder.name}</span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-xs opacity-60 font-bold">{folder.noteCount}</span>
@@ -247,13 +255,13 @@ const BibleNotesPage = () => {
     const sensors = useSensors(
         useSensor(TouchSensor, {
             activationConstraint: {
-                delay: 1000,
-                tolerance: 10,
+                delay: 150, // Much more responsive now that we have a handle
+                tolerance: 15,
             },
         }),
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 5, // Balanced for perfection
             },
         }),
         useSensor(KeyboardSensor, {
@@ -263,6 +271,10 @@ const BibleNotesPage = () => {
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveDragId(event.active.id as string);
+        // Haptic feedback for mobile
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(10);
+        }
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -1054,20 +1066,26 @@ const BibleNotesPage = () => {
                                             />
                                         ))}
                                     </SortableContext>
-                                    <DragOverlay>
-                                        {activeDragId ? (
-                                            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 px-4 py-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center bg-indigo-100 dark:bg-indigo-900">
-                                                        <FolderOpen className="w-4 h-4 text-indigo-600" />
+                                    {createPortal(
+                                        <DragOverlay dropAnimation={{
+                                            duration: 200,
+                                            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                                        }}>
+                                            {activeDragId ? (
+                                                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-indigo-200 dark:border-indigo-800 px-4 py-3 cursor-grabbing ring-4 ring-indigo-500/10 pointer-events-none scale-105 transition-transform duration-200">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center bg-indigo-600 shadow-lg shadow-indigo-600/20">
+                                                            <FolderOpen className="w-4 h-4 text-white" />
+                                                        </div>
+                                                        <span className="font-bold text-gray-900 dark:text-white">
+                                                            {folders.find(f => f.id === activeDragId)?.name}
+                                                        </span>
                                                     </div>
-                                                    <span className="font-medium text-gray-900 dark:text-white">
-                                                        {folders.find(f => f.id === activeDragId)?.name}
-                                                    </span>
                                                 </div>
-                                            </div>
-                                        ) : null}
-                                    </DragOverlay>
+                                            ) : null}
+                                        </DragOverlay>,
+                                        document.body
+                                    )}
                                 </DndContext>
 
                                 {folders.length === 0 && (
@@ -1082,7 +1100,21 @@ const BibleNotesPage = () => {
                     {/* Main Content Area */}
                     <div className="flex-1 space-y-8">
                         <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
-                            <DialogContent className="max-w-full w-full h-screen flex flex-col p-0 gap-0 rounded-none m-0 border-none bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl">
+                            <DialogContent className="max-w-full w-full h-[100dvh] flex flex-col p-0 gap-0 rounded-none m-0 border-none bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
+                                <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-6 z-50">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                            setShowNewFolderDialog(false);
+                                            setEditingFolder(null);
+                                            setNewFolderName('');
+                                        }}
+                                        className="rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                    >
+                                        <X className="w-5 h-5 text-gray-500" />
+                                    </Button>
+                                </div>
                                 <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12">
                                     <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-300">
                                         <div className="text-center space-y-2">

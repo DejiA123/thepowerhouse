@@ -251,6 +251,7 @@ export const choirService = {
             key: song.key || null,
             artist: song.artist || null,
             url: song.url || null,
+            lyrics: song.lyrics || null,
             library_song_id: song.library_song_id || null,
             sort_order: song.sort_order ?? 0,
             location

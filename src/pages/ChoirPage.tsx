@@ -2541,6 +2541,7 @@ const ChoirPage = () => {
                     key: newSetSong.key,
                     artist: newSetSong.artist,
                     url: newSetSong.url,
+                    lyrics: newSetSong.lyrics,
                     library_song_id: newSetSong.library_song_id,
                     sort_order: learningSet.length,
                     created_at: new Date().toISOString()
@@ -2554,6 +2555,7 @@ const ChoirPage = () => {
                     key: newSetSong.key,
                     artist: newSetSong.artist,
                     url: newSetSong.url,
+                    lyrics: newSetSong.lyrics,
                     library_song_id: newSetSong.library_song_id,
                     location: locationId
                 });
@@ -2564,6 +2566,7 @@ const ChoirPage = () => {
                     key: newSetSong.key,
                     artist: newSetSong.artist,
                     url: newSetSong.url,
+                    lyrics: newSetSong.lyrics,
                     library_song_id: newSetSong.library_song_id || null,
                     sort_order: activeSetType === 'praise' ? praiseSet.length :
                         activeSetType === 'worship' ? worshipSet.length :
@@ -3730,150 +3733,138 @@ const ChoirPage = () => {
                         </div>
 
                         <div className="space-y-4">
-                            {activeSetType === 'learning' ? (
-                                <Tabs defaultValue="edit" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2 rounded-xl mb-4 bg-slate-100 dark:bg-slate-800 p-1">
-                                        <TabsTrigger value="edit" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <Edit3 className="w-4 h-4" />
-                                                <span>Lyrics Content</span>
-                                            </div>
-                                        </TabsTrigger>
-                                        <TabsTrigger value="media" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <Image className="w-4 h-4" />
-                                                <span>Media & Search</span>
-                                            </div>
-                                        </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="edit" className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Lyrics Text</Label>
-                                            <Textarea
-                                                placeholder="Paste lyrics here..."
-                                                className="min-h-[250px] font-sans text-base leading-relaxed p-4 rounded-xl border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
-                                                value={parseLyrics(newSetSong.lyrics || "").text}
-                                                onChange={(e) => {
-                                                    const { imageUrl } = parseLyrics(newSetSong.lyrics || "");
-                                                    setNewSetSong({
-                                                        ...newSetSong,
-                                                        lyrics: JSON.stringify({ text: e.target.value, imageUrl })
-                                                    });
+                            <Tabs defaultValue="edit" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 rounded-xl mb-4 bg-slate-100 dark:bg-slate-800 p-1">
+                                    <TabsTrigger value="edit" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                            <Edit3 className="w-4 h-4" />
+                                            <span>Lyrics Content</span>
+                                        </div>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="media" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                            <Image className="w-4 h-4" />
+                                            <span>Media & Search</span>
+                                        </div>
+                                    </TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="edit" className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Lyrics Text</Label>
+                                        <Textarea
+                                            placeholder="Paste lyrics here..."
+                                            className="min-h-[250px] font-sans text-base leading-relaxed p-4 rounded-xl border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20"
+                                            value={parseLyrics(newSetSong.lyrics || "").text}
+                                            onChange={(e) => {
+                                                const { imageUrl } = parseLyrics(newSetSong.lyrics || "");
+                                                setNewSetSong({
+                                                    ...newSetSong,
+                                                    lyrics: JSON.stringify({ text: e.target.value, imageUrl })
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="media" className="space-y-6 pt-2">
+                                    {/* Mini Browser Search */}
+                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                                            <Globe className="w-5 h-5 text-blue-500" />
+                                            <h4>Lyrics Search</h4>
+                                        </div>
+                                        <p className="text-sm text-slate-500">Search for lyrics online and paste them in the editor tab.</p>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Search song lyrics..."
+                                                className="bg-white dark:bg-slate-900 border-none shadow-sm rounded-xl"
+                                                value={lyricsSearchQuery}
+                                                onChange={(e) => setLyricsSearchQuery(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleLyricsSearch();
+                                                    }
                                                 }}
                                             />
+                                            <Button
+                                                onClick={handleLyricsSearch}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shrink-0 px-6 h-10 transition-all active:scale-95"
+                                            >
+                                                <Search className="w-4 h-4 mr-2" />
+                                                Search
+                                            </Button>
                                         </div>
-                                    </TabsContent>
-                                    <TabsContent value="media" className="space-y-6 pt-2">
-                                        {/* Mini Browser Search */}
-                                        <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
-                                                <Globe className="w-5 h-5 text-blue-500" />
-                                                <h4>Lyrics Search</h4>
-                                            </div>
-                                            <p className="text-sm text-slate-500">Search for lyrics online and paste them in the editor tab.</p>
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    placeholder="Search song lyrics..."
-                                                    className="bg-white dark:bg-slate-900 border-none shadow-sm rounded-xl"
-                                                    value={lyricsSearchQuery}
-                                                    onChange={(e) => setLyricsSearchQuery(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            handleLyricsSearch();
-                                                        }
-                                                    }}
+                                    </div>
+
+                                    {/* Image Upload */}
+                                    <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                                            <Image className="w-5 h-5 text-purple-500" />
+                                            <h4>Lyrics Image</h4>
+                                        </div>
+                                        <p className="text-sm text-slate-500">Attach a screenshot of the lyrics for quick reference.</p>
+
+                                        {parseLyrics(newSetSong.lyrics || "").imageUrl && (
+                                            <div className="relative group rounded-xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 mb-4 bg-slate-200 dark:bg-slate-900">
+                                                <img
+                                                    src={parseLyrics(newSetSong.lyrics || "").imageUrl!}
+                                                    alt="Lyrics Screenshot"
+                                                    className="w-full h-auto cursor-zoom-in max-h-[300px] object-contain mx-auto"
+                                                    onClick={() => window.open(parseLyrics(newSetSong.lyrics || "").imageUrl!, '_blank')}
                                                 />
                                                 <Button
-                                                    onClick={handleLyricsSearch}
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shrink-0 px-6 h-10 transition-all active:scale-95"
+                                                    size="icon"
+                                                    variant="destructive"
+                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
+                                                    onClick={() => {
+                                                        const { text } = parseLyrics(newSetSong.lyrics || "");
+                                                        setNewSetSong({
+                                                            ...newSetSong,
+                                                            lyrics: JSON.stringify({ text, imageUrl: null })
+                                                        });
+                                                    }}
                                                 >
-                                                    <Search className="w-4 h-4 mr-2" />
-                                                    Search
+                                                    <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        {/* Image Upload */}
-                                        <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
-                                                <Image className="w-5 h-5 text-purple-500" />
-                                                <h4>Lyrics Image</h4>
-                                            </div>
-                                            <p className="text-sm text-slate-500">Attach a screenshot of the lyrics for quick reference.</p>
-
-                                            {parseLyrics(newSetSong.lyrics || "").imageUrl && (
-                                                <div className="relative group rounded-xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 mb-4 bg-slate-200 dark:bg-slate-900">
-                                                    <img
-                                                        src={parseLyrics(newSetSong.lyrics || "").imageUrl!}
-                                                        alt="Lyrics Screenshot"
-                                                        className="w-full h-auto cursor-zoom-in max-h-[300px] object-contain mx-auto"
-                                                        onClick={() => window.open(parseLyrics(newSetSong.lyrics || "").imageUrl!, '_blank')}
-                                                    />
-                                                    <Button
-                                                        size="icon"
-                                                        variant="destructive"
-                                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
-                                                        onClick={() => {
-                                                            const { text } = parseLyrics(newSetSong.lyrics || "");
-                                                            setNewSetSong({
-                                                                ...newSetSong,
-                                                                lyrics: JSON.stringify({ text, imageUrl: null })
-                                                            });
-                                                        }}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            )}
-
-                                            <div className="flex items-center gap-4">
-                                                <Label
-                                                    htmlFor="new-set-lyrics-image"
-                                                    className={cn(
-                                                        "flex-1 flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition-all bg-white dark:bg-slate-900 group",
-                                                        isUploadingLyrics && "opacity-50 cursor-not-allowed pointer-events-none"
-                                                    )}
-                                                >
-                                                    {isUploadingLyrics ? (
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                                                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Uploading...</span>
+                                        <div className="flex items-center gap-4">
+                                            <Label
+                                                htmlFor="new-set-lyrics-image"
+                                                className={cn(
+                                                    "flex-1 flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 cursor-pointer transition-all bg-white dark:bg-slate-900 group",
+                                                    isUploadingLyrics && "opacity-50 cursor-not-allowed pointer-events-none"
+                                                )}
+                                            >
+                                                {isUploadingLyrics ? (
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Uploading...</span>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors mb-2">
+                                                            <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                                                         </div>
-                                                    ) : (
-                                                        <>
-                                                            <div className="p-3 rounded-full bg-blue-50 dark:bg-blue-900/20 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors mb-2">
-                                                                <Upload className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                                                            </div>
-                                                            <span className="text-sm font-bold text-slate-600 dark:text-slate-400">
-                                                                {parseLyrics(newSetSong.lyrics || "").imageUrl ? "Change Screenshot" : "Attach Screenshot"}
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black text-center">PNG, JPG up to 5MB</span>
-                                                        </>
-                                                    )}
-                                                    <input
-                                                        id="new-set-lyrics-image"
-                                                        type="file"
-                                                        accept="image/*"
-                                                        className="hidden"
-                                                        onChange={(e) => handleLyricsImageUpload(e, 'new-set')}
-                                                    />
-                                                </Label>
-                                            </div>
+                                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                                                            {parseLyrics(newSetSong.lyrics || "").imageUrl ? "Change Screenshot" : "Attach Screenshot"}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-black text-center">PNG, JPG up to 5MB</span>
+                                                    </>
+                                                )}
+                                                <input
+                                                    id="new-set-lyrics-image"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => handleLyricsImageUpload(e, 'new-set')}
+                                                />
+                                            </Label>
                                         </div>
-                                    </TabsContent>
-                                </Tabs>
-                            ) : (
-                                <div className="space-y-2">
-                                    <Label>Lyrics</Label>
-                                    <Textarea
-                                        placeholder="Paste lyrics here..."
-                                        className="min-h-[150px] font-sans"
-                                        value={newSetSong.lyrics || ""}
-                                        onChange={(e) => setNewSetSong({ ...newSetSong, lyrics: e.target.value })}
-                                    />
-                                </div>
-                            )}
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
                         </div>
 
                         <div className="pt-4">
