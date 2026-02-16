@@ -1100,7 +1100,7 @@ const BibleNotesPage = () => {
                     {/* Main Content Area */}
                     <div className="flex-1 space-y-8">
                         <Dialog open={showNewFolderDialog} onOpenChange={setShowNewFolderDialog}>
-                            <DialogContent className="max-w-full w-full h-[100dvh] flex flex-col p-0 gap-0 rounded-none m-0 border-none bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
+                            <DialogContent className="max-w-full w-full h-[100dvh] flex flex-col p-0 gap-0 rounded-none m-0 border-none bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)] [&>button:last-child]:hidden">
                                 <div className="absolute top-[calc(1rem+env(safe-area-inset-top,0px))] right-6 z-50">
                                     <Button
                                         variant="ghost"
@@ -1135,7 +1135,6 @@ const BibleNotesPage = () => {
                                                 value={newFolderName}
                                                 onChange={(e) => setNewFolderName(e.target.value)}
                                                 className="h-16 rounded-2xl text-xl px-6 bg-gray-50 dark:bg-gray-900 border-none shadow-inner focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all"
-                                                autoFocus
                                                 onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
                                             />
                                         </div>
