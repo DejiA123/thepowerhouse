@@ -39,6 +39,8 @@ import {
     useSensor,
     useSensors,
     DragEndEvent,
+    DragStartEvent,
+    DragOverlay,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -133,7 +135,6 @@ const SortableFolderItem = ({
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
-                style={{ touchAction: 'none' }}
                 onClick={() => setActiveFolderId(folder.id)}
             >
                 <div className="flex items-center gap-3 overflow-hidden">
@@ -239,6 +240,7 @@ const BibleNotesPage = () => {
 
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
     const [isScrolled, setIsScrolled] = useState(false);
+    const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
     // DND Sensors – TouchSensor for mobile (long-press), PointerSensor for desktop
     const sensors = useSensors(
@@ -258,8 +260,13 @@ const BibleNotesPage = () => {
         })
     );
 
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveDragId(event.active.id as string);
+    };
+
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveDragId(null);
 
         if (over && active.id !== over.id) {
             const oldIndex = folders.findIndex((f) => f.id === active.id);
@@ -1026,6 +1033,7 @@ const BibleNotesPage = () => {
                                 <DndContext
                                     sensors={sensors}
                                     collisionDetection={closestCenter}
+                                    onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                 >
                                     <SortableContext
@@ -1045,6 +1053,20 @@ const BibleNotesPage = () => {
                                             />
                                         ))}
                                     </SortableContext>
+                                    <DragOverlay>
+                                        {activeDragId ? (
+                                            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center bg-indigo-100 dark:bg-indigo-900">
+                                                        <FolderOpen className="w-4 h-4 text-indigo-600" />
+                                                    </div>
+                                                    <span className="font-medium text-gray-900 dark:text-white">
+                                                        {folders.find(f => f.id === activeDragId)?.name}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </DragOverlay>
                                 </DndContext>
 
                                 {folders.length === 0 && (
