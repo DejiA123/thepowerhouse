@@ -35,6 +35,7 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     DragEndEvent,
@@ -127,12 +128,11 @@ const SortableFolderItem = ({
                 {...attributes}
                 {...listeners}
                 className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none touch-pan-y",
+                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none",
                     activeFolderId === folder.id
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
-                style={{ touchAction: 'pan-y' }}
                 onClick={() => setActiveFolderId(folder.id)}
             >
                 <div className="flex items-center gap-3 overflow-hidden">
@@ -239,12 +239,17 @@ const BibleNotesPage = () => {
     const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
     const [isScrolled, setIsScrolled] = useState(false);
 
-    // DND Sensors
+    // DND Sensors – TouchSensor for mobile (long-press), PointerSensor for desktop
     const sensors = useSensors(
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 300,
+                tolerance: 8,
+            },
+        }),
         useSensor(PointerSensor, {
             activationConstraint: {
-                delay: 250,
-                tolerance: 5,
+                distance: 8,
             },
         }),
         useSensor(KeyboardSensor, {
