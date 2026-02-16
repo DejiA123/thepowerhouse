@@ -105,10 +105,13 @@ const SortableFolderItem = ({
         isDragging,
     } = useSortable({ id: folder.id });
 
-    const style = {
+    const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : undefined,
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
     };
 
     return (
@@ -120,22 +123,21 @@ const SortableFolderItem = ({
                 isDragging ? "opacity-50 scale-105" : "opacity-100"
             )}
         >
-            <button
-                onClick={() => setActiveFolderId(folder.id)}
+            <div
+                {...attributes}
+                {...listeners}
                 className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm",
+                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-medium text-sm cursor-pointer select-none",
                     activeFolderId === folder.id
                         ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
                         : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
                 )}
+                style={{ touchAction: 'none' }}
+                onClick={() => setActiveFolderId(folder.id)}
             >
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-md"
-                    >
-                        <MoreVertical className="w-4 h-4 opacity-40" />
+                    <div className="p-1 -ml-1">
+                        <MoreVertical className="w-4 h-4 opacity-40 shrink-0" />
                     </div>
                     <div className={cn(
                         "w-8 h-8 shrink-0 rounded-xl flex items-center justify-center transition-colors",
@@ -180,7 +182,7 @@ const SortableFolderItem = ({
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-            </button>
+            </div>
         </div>
     );
 };
@@ -244,7 +246,8 @@ const BibleNotesPage = () => {
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
+                delay: 1000,
+                tolerance: 5,
             },
         }),
         useSensor(KeyboardSensor, {
