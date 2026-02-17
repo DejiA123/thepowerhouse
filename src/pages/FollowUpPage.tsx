@@ -128,7 +128,7 @@ const FollowUpPage = () => {
                                             </div>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="The worship was powerful..."
+                                                    placeholder=""
                                                     className="bg-slate-900/80 border-white/30 text-white text-lg placeholder:text-white font-normal min-h-[100px] rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-purple-500"
                                                     {...field}
                                                     onFocus={() => setFocusedField('enjoyed_most')}
@@ -165,7 +165,7 @@ const FollowUpPage = () => {
                                             </div>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="More community events..."
+                                                    placeholder=""
                                                     className="bg-slate-900/80 border-white/30 text-white text-lg placeholder:text-white font-normal min-h-[100px] rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-blue-500"
                                                     {...field}
                                                     onFocus={() => setFocusedField('want_more_of')}
@@ -202,7 +202,7 @@ const FollowUpPage = () => {
                                             </div>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="The sound was a bit loud..."
+                                                    placeholder=""
                                                     className="bg-slate-900/80 border-white/30 text-white text-lg placeholder:text-white font-normal min-h-[100px] rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-orange-500"
                                                     {...field}
                                                     onFocus={() => setFocusedField('didnt_work_well')}
@@ -239,7 +239,7 @@ const FollowUpPage = () => {
                                             </div>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Keep up the great work..."
+                                                    placeholder=""
                                                     className="bg-slate-900/80 border-white/30 text-white text-lg placeholder:text-white font-normal min-h-[100px] rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-green-500"
                                                     {...field}
                                                     onFocus={() => setFocusedField('suggestions')}
@@ -276,7 +276,7 @@ const FollowUpPage = () => {
                                             </div>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Whatever is on your mind..."
+                                                    placeholder=""
                                                     className="bg-slate-900/80 border-white/30 text-white text-lg placeholder:text-white font-normal min-h-[100px] rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-red-500"
                                                     {...field}
                                                     onFocus={() => setFocusedField('concerns')}
