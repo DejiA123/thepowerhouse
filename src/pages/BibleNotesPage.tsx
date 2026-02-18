@@ -1433,7 +1433,6 @@ const BibleNotesPage = () => {
                                                         selectedNote.title = newNote.title;
                                                         selectedNote.folder_id = newNote.folder_id || null;
                                                         setIsInlineEditing(false);
-                                                        toast({ title: "Saved", description: "Your reflection has been updated." });
                                                         fetchNotes();
                                                         fetchFolders(); // Refresh stats
                                                     } catch (err) {
