@@ -5963,9 +5963,13 @@ const ChoirPage = () => {
                                                                                 {isCompleted ? 'Undo Completion' : 'Mark Module Complete'}
                                                                             </Button>
                                                                         </div>
-                                                                        <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                                                                            {module.content}
-                                                                        </p>
+                                                                        {module.content && module.content.includes('<') ? (
+                                                                            <div className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed prose prose-lg dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: module.content }} />
+                                                                        ) : (
+                                                                            <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                                                                                {module.content}
+                                                                            </p>
+                                                                        )}
 
 
 
