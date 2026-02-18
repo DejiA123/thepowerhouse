@@ -800,7 +800,7 @@ export class GroupChatService {
     /**
      * Send a WebRTC signal (Offer, Answer, ICE Candidate, or Join Call)
      */
-    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call' | 'call-started', payload: any, recipientId?: string): Promise<void> {
+    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call' | 'call-started' | 'new-message', payload: any, recipientId?: string): Promise<void> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 

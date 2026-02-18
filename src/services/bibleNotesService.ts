@@ -6,6 +6,7 @@ export interface BibleNoteFolder {
     user_id: string;
     name: string;
     parent_id?: string | null;
+    sort_order?: number | null;
     created_at?: string;
     updated_at?: string;
     notes?: BibleNote[];
@@ -67,7 +68,7 @@ export const bibleNotesService = {
             .order('sort_order', { ascending: false })
             .limit(1);
 
-        const nextOrder = (lastFolder?.[0]?.sort_order ?? 0) + 1;
+        const nextOrder = ((lastFolder as any)?.[0]?.sort_order ?? 0) + 1;
 
         const { data, error } = await supabase
             .from('bible_note_folders' as any)
