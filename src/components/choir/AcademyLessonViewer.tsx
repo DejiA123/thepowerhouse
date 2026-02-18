@@ -16,8 +16,8 @@ export const AcademyLessonViewer = ({ isOpen, onClose, module, onTakeQuiz }: Aca
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(3rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
-                <DialogHeader className="p-6 pt-[calc(3rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md sticky top-0 z-50">
+            <DialogContent className="!fixed !inset-x-0 !bottom-0 !top-[env(safe-area-inset-top,0px)] !w-full !h-[calc(100dvh-env(safe-area-inset-top,0px))] !max-w-none !m-0 !p-0 !rounded-none bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-6 [&>button]:!right-10 !transform-none !translate-y-0 !translate-x-0 data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500 flex flex-col">
+                <DialogHeader className="p-8 pb-6 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md sticky top-0 z-50">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -65,7 +65,7 @@ export const AcademyLessonViewer = ({ isOpen, onClose, module, onTakeQuiz }: Aca
                         </div>
 
                         {/* Action Footer */}
-                        <div className="pt-12 pb-20 flex justify-center">
+                        <div className="pt-12 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] flex justify-center">
                             <Button
                                 onClick={() => onTakeQuiz && onTakeQuiz(module)}
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl py-8 px-12 text-xl font-bold shadow-xl shadow-blue-500/20 transform transition-all hover:scale-105 active:scale-95"
