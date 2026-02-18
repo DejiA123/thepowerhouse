@@ -200,39 +200,39 @@ const GroupChatsHub = () => {
                             <button
                                 key={chat.id}
                                 onClick={() => setSelectedChat(chat)}
-                                className="group relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 text-left overflow-hidden"
+                                className="group relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-100 dark:border-slate-800 rounded-[28px] p-6 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 text-left overflow-hidden ring-1 ring-transparent hover:ring-indigo-500/20 active:scale-[0.98]"
                             >
                                 {unreadCount > 0 && (
-                                    <div className="absolute top-3 right-3">
-                                        <Badge className="bg-indigo-600 text-white text-xs px-2 py-0.5">
+                                    <div className="absolute top-4 right-4 z-20">
+                                        <Badge className="bg-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg ring-2 ring-white dark:ring-slate-900 animate-pulse">
                                             {unreadCount}
                                         </Badge>
                                     </div>
                                 )}
 
-                                <div className="flex items-start gap-4">
+                                <div className="flex items-center gap-5 relative z-10">
                                     <div className={cn(
-                                        "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110",
-                                        chat.category === 'life_group' && "bg-gradient-to-br from-blue-500 to-cyan-500",
-                                        chat.category === 'prayer_request' && "bg-gradient-to-br from-purple-500 to-pink-500",
-                                        chat.category === 'events' && "bg-gradient-to-br from-green-500 to-emerald-500",
-                                        chat.category === 'bible_plans' && "bg-gradient-to-br from-orange-500 to-amber-500",
-                                        chat.category === 'follow_up' && "bg-gradient-to-br from-rose-500 to-pink-600"
+                                        "w-16 h-16 rounded-full flex items-center justify-center text-white shadow-xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-6",
+                                        chat.category === 'life_group' && "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-indigo-500/20",
+                                        chat.category === 'prayer_request' && "bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/20",
+                                        chat.category === 'events' && "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20",
+                                        chat.category === 'bible_plans' && "bg-gradient-to-br from-orange-500 to-rose-500 shadow-orange-500/20",
+                                        chat.category === 'follow_up' && "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-500/20"
                                     )}>
-                                        <IconComponent className="w-6 h-6" />
+                                        <IconComponent className="w-7 h-7" />
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-black text-lg text-slate-900 dark:text-white tracking-tight mb-1">
+                                        <h3 className="font-black text-xl text-slate-900 dark:text-white tracking-tighter mb-1 uppercase">
                                             {chat.name}
                                         </h3>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
+                                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 line-clamp-1 opacity-80 uppercase tracking-widest">
                                             {chat.description}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="absolute bottom-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-tl-[4rem] group-hover:scale-110 transition-transform duration-500" />
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
                             </button>
                         );
                     })}
