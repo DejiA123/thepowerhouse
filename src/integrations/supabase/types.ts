@@ -86,6 +86,7 @@ export type Database = {
           id: string
           name: string
           parent_id: string | null
+          sort_order: number | null
           updated_at: string | null
           user_id: string
         }
@@ -94,6 +95,7 @@ export type Database = {
           id?: string
           name: string
           parent_id?: string | null
+          sort_order?: number | null
           updated_at?: string | null
           user_id: string
         }
@@ -102,6 +104,7 @@ export type Database = {
           id?: string
           name?: string
           parent_id?: string | null
+          sort_order?: number | null
           updated_at?: string | null
           user_id?: string
         }
@@ -1091,6 +1094,7 @@ export type Database = {
           date_added: string | null
           id: string
           item_name: string
+          receipt_url: string | null
           status: string
         }
         Insert: {
@@ -1100,6 +1104,7 @@ export type Database = {
           date_added?: string | null
           id?: string
           item_name: string
+          receipt_url?: string | null
           status?: string
         }
         Update: {
@@ -1109,6 +1114,7 @@ export type Database = {
           date_added?: string | null
           id?: string
           item_name?: string
+          receipt_url?: string | null
           status?: string
         }
         Relationships: []

@@ -862,12 +862,40 @@ const ChoirPage = () => {
                         },
                         {
                             title: "The Mechanics of Resonance",
-                            content: "Learn to shape your vowels (A, E, I, O, U) for maximum acoustic efficiency. By lifting the soft palate and positioning the tongue correctly, you create space in the pharynx (the 'singer's formant'), allowing your voice to cut through a band without shouting.",
+                            content: `<h3>What Is the Soft Palate?</h3>
+<p>The <strong>soft palate</strong> is the fleshy area at the very back of the roof of your mouth. If you run your tongue along the roof of your mouth from front to back, you'll feel it change from hard bone to soft tissue — that soft bit is your soft palate. When you sing, lifting it creates more space inside your mouth and throat, giving your voice a richer, fuller sound.</p>
+
+<h3>The Yawn Test — Feel It for Yourself</h3>
+<ol>
+<li>Pretend you're about to yawn (a big, lazy yawn).</li>
+<li>Notice how the back of your throat opens up and rises? That's your soft palate lifting.</li>
+<li>Now try to hold that open feeling <em>without</em> actually yawning. That's the position you want when you sing.</li>
+</ol>
+<p><strong>Tip:</strong> If you feel cool air hitting the back of your throat, you've got it right.</p>
+
+<h3>Step-by-Step Vowel Shaping</h3>
+<p>Sing each vowel below on a comfortable note. Focus on keeping that "yawn space" open.</p>
+<ul>
+<li><strong>A (as in "father")</strong> — Drop your jaw. Tongue lies flat and relaxed on the floor of your mouth.</li>
+<li><strong>E (as in "say")</strong> — Jaw slightly less open than A. Tongue tip touches behind your bottom front teeth. Smile gently.</li>
+<li><strong>I (as in "see")</strong> — Similar to E but the tongue arches a little higher. Keep the jaw relaxed — don't clench.</li>
+<li><strong>O (as in "go")</strong> — Round your lips into a gentle circle. Tongue pulls back slightly. Think "tall" inside your mouth.</li>
+<li><strong>U (as in "moon")</strong> — Lips form a small, forward circle (like blowing through a straw). Tongue is high and back.</li>
+</ul>
+
+<h3>Mirror Self-Check</h3>
+<p>Stand in front of a mirror while practising. You should see:</p>
+<ul>
+<li>✅ Your jaw dropping freely (at least two fingers' width for A and O)</li>
+<li>✅ Your tongue staying relaxed, not bunching up</li>
+<li>✅ The back of your throat looking open and spacious (you can check with a torch!)</li>
+<li>❌ If your tongue is pulling back and blocking the view of your throat, relax it forward</li>
+</ul>`,
                             exercises: [
                                 {
                                     type: "vowel-practice",
                                     title: "Vowel Shaping Exercise",
-                                    instructions: "Sing each vowel (A-E-I-O-U) on a comfortable pitch, focusing on soft palate lift",
+                                    instructions: "Sing each vowel (A-E-I-O-U) on a comfortable pitch. Do the yawn test first to lift your soft palate, then hold that open feeling as you move through each vowel. Use a mirror to check your jaw and tongue position.",
                                     vowels: ["A", "E", "I", "O", "U"]
                                 }
                             ]
@@ -886,7 +914,28 @@ const ChoirPage = () => {
                     modules: [
                         {
                             title: "Interval Ear Training",
-                            content: "Harmony is the distance between notes. Learn to identify and sing major thirds, perfect fifths, and dominant sevenths by ear. This allows you to 'find your part' instantly when a new song is introduced, even without sheet music."
+                            content: `<h3>What Are Intervals?</h3>
+<p>An <strong>interval</strong> is simply the distance between two notes. Instead of memorising theory, you can learn intervals by remembering the first two notes of songs you already know!</p>
+
+<h3>Learn Intervals with Gospel Songs</h3>
+<ul>
+<li><strong>Major 2nd</strong> (one step up) — The first two notes of <em>"How Great Is Our God"</em> ("How Great…")</li>
+<li><strong>Major 3rd</strong> (a bright, happy jump) — The first two notes of <em>"Oh Happy Day"</em> ("Oh Hap-…")</li>
+<li><strong>Perfect 4th</strong> (strong and bold) — The first two notes of <em>"Amazing Grace"</em> ("A-ma-…")</li>
+<li><strong>Perfect 5th</strong> (wide and powerful) — The first two notes of <em>"Way Maker"</em> ("Way Ma-…")</li>
+<li><strong>Octave</strong> (the same note, higher) — The first two notes of <em>"Somewhere Over the Rainbow"</em> ("Some-where…")</li>
+</ul>
+<p><strong>Practice tip:</strong> Sing the song fragment, then sing just the two notes without the words. Soon you'll recognise the interval anywhere.</p>
+
+<h3>Exercise: Harmonise a Gospel Song</h3>
+<p>Pick a simple song your choir knows well (e.g. <em>"This Is the Day"</em> or <em>"He's Able"</em>). Follow these steps:</p>
+<ol>
+<li><strong>Sing the melody</strong> together first so everyone knows it.</li>
+<li><strong>Find a third above:</strong> While one group sings the melody note, a second group sings the note three scale steps higher. It should sound bright and sweet.</li>
+<li><strong>Find a third below:</strong> Same idea, but sing three scale steps <em>lower</em> than the melody. This creates a warm, rich sound.</li>
+<li><strong>Put it together:</strong> Melody in the middle, harmony above and below. Listen — you've just created a three-part choir arrangement!</li>
+</ol>
+<p><strong>Don't worry about getting it perfect.</strong> The goal is to train your ear. The more you practise, the faster you'll "hear" your harmony part without being taught it note by note.</p>`
                         },
                         {
                             title: "The Art of Vocal Blending",
@@ -894,7 +943,37 @@ const ChoirPage = () => {
                         },
                         {
                             title: "Dynamic Sensitivity in Groups",
-                            content: "Harmony is ineffective if it's not balanced. Learn 'The Pyramid of Sound'—where the lower parts (Basses/Tenors) provide a foundation for the higher parts (Altos/Sopranos). Learn to adjust your volume to serve the overall texture, not to stand out."
+                            content: `<h3>The Pyramid of Sound</h3>
+<p>Think of your choir's sound like a pyramid of building blocks:</p>
+<ul>
+<li><strong>Bottom layer (Basses):</strong> The widest, strongest foundation. They should be the fullest sound.</li>
+<li><strong>Second layer (Tenors):</strong> Slightly lighter than the basses, sitting on top of them.</li>
+<li><strong>Third layer (Altos):</strong> Lighter still, adding colour and warmth.</li>
+<li><strong>Top layer (Sopranos):</strong> The lightest — like a crown on top of the pyramid.</li>
+</ul>
+<p>If the top is louder than the bottom, the pyramid topples and the sound becomes thin and harsh. <strong>Lower voices lead the volume; higher voices float on top.</strong></p>
+
+<h3>Exercise 1: The Volume Ladder</h3>
+<ol>
+<li>Everyone sings a simple chord together at <strong>volume level 3 out of 10</strong> (barely more than a whisper).</li>
+<li>Over 8 beats, gradually build to <strong>level 7</strong>.</li>
+<li>Over the next 8 beats, bring it back down to <strong>level 3</strong>.</li>
+<li>Repeat, this time going from 3 → 10 → 3. Notice how the room fills up and empties — that's dynamic control.</li>
+</ol>
+
+<h3>Exercise 2: Listen and Adjust</h3>
+<ol>
+<li>Stand in a circle. Everyone sings the same note at a comfortable volume.</li>
+<li><strong>Your goal:</strong> Match the volume of the person standing next to you — not louder, not softer.</li>
+<li>A leader points at different singers to sing slightly louder or softer. Everyone else must adjust in real time.</li>
+</ol>
+
+<h3>Golden Rules</h3>
+<ul>
+<li>🎯 <strong>If you can't hear the person next to you, you're too loud.</strong></li>
+<li>🎯 When in doubt, sing softer — it's always easier to add volume than to take it away.</li>
+<li>🎯 The best choirs don't have the loudest singers; they have the best <em>listeners</em>.</li>
+</ul>`
                         }
                     ]
                 }
@@ -1241,7 +1320,7 @@ const ChoirPage = () => {
 
     // UI States for Edit Setlist Info
     const [isEditSetInfoOpen, setIsEditSetInfoOpen] = useState(false);
-    const [editingSetInfoType, setEditingSetInfoType] = useState<'praise' | 'worship' | null>(null);
+    const [editingSetInfoType, setEditingSetInfoType] = useState<'praise' | 'worship' | 'special' | 'hymns' | null>(null);
     const [tempSetInfo, setTempSetInfo] = useState({ title: "", desc: "" });
 
     // UI States for Folder/Song Management
@@ -1703,10 +1782,10 @@ const ChoirPage = () => {
                                 locationId,
                                 dbDate, // Use the OLD date for the folder name
                                 fetchedFolders as ChoirFolder[],
-                                fetchedPraise as WeeklySetSong[],
-                                fetchedWorship as WeeklySetSong[],
-                                fetchedSpecial as WeeklySetSong[],
-                                fetchedHymns as WeeklySetSong[]
+                                fetchedPraise as unknown as WeeklySetSong[],
+                                fetchedWorship as unknown as WeeklySetSong[],
+                                fetchedSpecial as unknown as WeeklySetSong[],
+                                fetchedHymns as unknown as WeeklySetSong[]
                             );
                             console.log("Auto-archived previous week's setlist.");
                         } catch (err) {
@@ -2214,7 +2293,7 @@ const ChoirPage = () => {
 
 
     // -- Handlers for Setlist Info --
-    const openEditSetInfo = (type: 'praise' | 'worship') => {
+    const openEditSetInfo = (type: 'praise' | 'worship' | 'special' | 'hymns') => {
         setEditingSetInfoType(type);
         const info = type === 'praise' ? praiseInfo : worshipInfo;
         setTempSetInfo({ ...info });
@@ -2469,7 +2548,7 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Song Edit/Delete (Library) --
-    const startEditSong = (song: ChoirSong) => {
+    const startEditSong = (song: any) => {
         setSongToEdit({
             title: song.title,
             key: song.key || "",
@@ -6215,7 +6294,8 @@ const ChoirPage = () => {
                                                                                 onPause={pause}
                                                                                 onResume={resume}
                                                                                 onSeek={seek}
-                                                                                onDelete={async (id) => {
+                                                                            isAdmin={isAdmin}
+                                                                            onDelete={async (id) => {
                                                                                     await choirService.deleteInstrumentalResource(id);
 
                                                                                 }}
