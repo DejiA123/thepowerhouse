@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { AcademyModule } from "@/services/choirService";
 import { PlayCircle, Award, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface AcademyLessonViewerProps {
     isOpen: boolean;
