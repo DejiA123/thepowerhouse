@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, User, QrCode, Bell, BookOpen, Settings as SettingsIcon, Shield, MessageCircle, HelpCircle, Users, Share2, Palette, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,7 @@ const UserSettingsPage = () => {
   const [currentView, setCurrentView] = useState<ViewType>('main');
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Fetch user profile data
   const fetchUserProfile = async () => {
@@ -137,6 +139,9 @@ const UserSettingsPage = () => {
         break;
       case 'Theme & Appearance':
         setCurrentView('theme');
+        break;
+      case 'Social Circle':
+        navigate('/social');
         break;
       case 'Account':
         setCurrentView('account');
@@ -452,6 +457,17 @@ const UserSettingsPage = () => {
             <div className="flex items-center space-x-3">
               <Palette className="w-5 h-5 text-muted-foreground" />
               <span className="text-foreground">Theme & Appearance</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+
+          <button
+            className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted/50 transition-colors"
+            onClick={() => handleSettingClick('Social Circle')}
+          >
+            <div className="flex items-center space-x-3">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <span className="text-foreground">Social Circle</span>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </button>

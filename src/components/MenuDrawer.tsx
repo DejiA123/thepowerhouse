@@ -41,6 +41,7 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
     { name: "Bible", path: "/bible", icon: Book },
     { name: "Give", path: "/give", icon: Heart },
     { name: "Resources", path: "/resources", icon: Info },
+    { name: "Social Circle", path: "/social", icon: Users },
     { name: "Services", path: "/services", icon: Video },
     { name: "Groups", path: "/groups", icon: Users },
     { name: "Prayer Wall", path: "/prayer", icon: MessageSquare },
@@ -72,8 +73,8 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
                   key={item.path}
                   variant="ghost"
                   className={`w-full justify-start h-12 rounded-xl transition-all duration-200 ${isActive
-                      ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
+                    ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
                     }`}
                   onClick={() => {
                     navigate(item.path);

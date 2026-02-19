@@ -36,6 +36,7 @@ import IntroPage from "@/pages/IntroPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import FollowUpPage from "@/pages/FollowUpPage";
+import SocialPage from "@/pages/SocialPage";
 import NewHerePage from "@/pages/NewHerePage";
 import ServePage from "@/pages/ServePage";
 import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
@@ -229,6 +230,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute>
                   <SocialMediaPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/social"
+              element={
+                <ProtectedRoute>
+                  <SocialPage />
                 </ProtectedRoute>
               }
             />
