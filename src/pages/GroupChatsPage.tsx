@@ -68,6 +68,8 @@ const GroupChatsPage = () => {
     const [showAddMember, setShowAddMember] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
 
+    const [reactions, setReactions] = useState<Record<string, { emoji: string; user_id: string; id: string }[]>>({});
+
     const [newGroupName, setNewGroupName] = useState("");
     const [newGroupDescription, setNewGroupDescription] = useState("");
     const [creatingGroup, setCreatingGroup] = useState(false);
@@ -157,8 +159,6 @@ const GroupChatsPage = () => {
         if (!selectedChat) return;
 
         const initChat = async () => {
-            // DO NOT clear messages here to avoid white screen.
-            // Data will swap instantly once fetched.
             try {
                 await GroupChatService.joinChat(selectedChat.id);
             } catch (e) {
@@ -168,6 +168,12 @@ const GroupChatsPage = () => {
             try {
                 const data = await GroupChatService.getChatMessages(selectedChat.id);
                 setMessages(data);
+
+                // Fetch reactions for all messages
+                if (data.length > 0) {
+                    const reactionData = await GroupChatService.getReactions(data.map(m => m.id));
+                    setReactions(reactionData);
+                }
 
                 // Use the latest message's timestamp to mark as read, or current time
                 const lastMsg = data[data.length - 1];
@@ -217,11 +223,13 @@ const GroupChatsPage = () => {
 
     const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
         if (behavior === "instant") {
+            // Use multiple frames to ensure DOM is fully rendered
             requestAnimationFrame(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+                requestAnimationFrame(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+                });
             });
         } else {
-            // Reduced timeout for even faster response
             requestAnimationFrame(() => {
                 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             });
@@ -259,6 +267,21 @@ const GroupChatsPage = () => {
         }
     };
 
+    const handleToggleReaction = async (messageId: string, emoji: string) => {
+        try {
+            const added = await GroupChatService.toggleReaction(messageId, emoji);
+            setReactions(prev => {
+                const current = prev[messageId] || [];
+                if (added) {
+                    return { ...prev, [messageId]: [...current, { emoji, user_id: user!.id, id: 'temp' }] };
+                } else {
+                    return { ...prev, [messageId]: current.filter(r => !(r.emoji === emoji && r.user_id === user!.id)) };
+                }
+            });
+        } catch (error) {
+            console.error('Error toggling reaction:', error);
+        }
+    };
     const handleCreateGroup = async () => {
         if (!newGroupName.trim() || !user) return;
         try {
@@ -426,9 +449,20 @@ const GroupChatsPage = () => {
                                                 isActive ? "text-indigo-600/80 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"
                                             )}>{chat.description || "Start a conversation"}</p>
                                         </div>
-                                        {isActive && (
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-indigo-500 rounded-full shadow-lg shadow-indigo-500/50" />
-                                        )}
+                                        <div className="flex items-center gap-1">
+                                            {chat.is_custom && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteGroup(chat.id); }}
+                                                    className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all opacity-0 group-hover:opacity-100 z-20"
+                                                    title="Delete group"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            {isActive && (
+                                                <div className="w-2 h-2 bg-indigo-500 rounded-full shadow-lg shadow-indigo-500/50" />
+                                            )}
+                                        </div>
                                     </button>
                                 )
                             })
@@ -518,6 +552,14 @@ const GroupChatsPage = () => {
                                         <div ref={messagesEndRef} className="h-0.5 w-full shrink-0" />
                                         {[...messages].reverse().map((message) => {
                                             const isOwn = message.user_id === user?.id;
+                                            const msgReactions = reactions[message.id] || [];
+                                            // Group reactions by emoji
+                                            const reactionGroups: Record<string, string[]> = {};
+                                            msgReactions.forEach(r => {
+                                                if (!reactionGroups[r.emoji]) reactionGroups[r.emoji] = [];
+                                                reactionGroups[r.emoji].push(r.user_id);
+                                            });
+
                                             return (
                                                 <div
                                                     key={message.id}
@@ -548,6 +590,43 @@ const GroupChatsPage = () => {
                                                             )}>
                                                                 {formatTime(message.created_at)}
                                                             </div>
+                                                        </div>
+
+                                                        {/* Emoji Reactions Display */}
+                                                        {Object.keys(reactionGroups).length > 0 && (
+                                                            <div className={cn("flex flex-wrap gap-1 mt-1", isOwn ? "justify-end mr-2" : "ml-2")}>
+                                                                {Object.entries(reactionGroups).map(([emoji, users]) => (
+                                                                    <button
+                                                                        key={emoji}
+                                                                        onClick={() => handleToggleReaction(message.id, emoji)}
+                                                                        className={cn(
+                                                                            "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all border",
+                                                                            users.includes(user?.id || '')
+                                                                                ? "bg-indigo-100 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-700"
+                                                                                : "bg-white/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                                        )}
+                                                                    >
+                                                                        <span>{emoji}</span>
+                                                                        <span className="text-[10px] font-bold text-slate-500">{users.length}</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Reaction Picker (shown on hover) */}
+                                                        <div className={cn(
+                                                            "flex items-center gap-0.5 mt-1 opacity-0 group-hover/msg:opacity-100 transition-all",
+                                                            isOwn ? "justify-end" : "justify-start"
+                                                        )}>
+                                                            {['❤️', '👍', '😂', '🙏', '🔥', '😮'].map(emoji => (
+                                                                <button
+                                                                    key={emoji}
+                                                                    onClick={() => handleToggleReaction(message.id, emoji)}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-125 transition-all text-base"
+                                                                >
+                                                                    {emoji}
+                                                                </button>
+                                                            ))}
                                                         </div>
 
                                                         {isOwn && (

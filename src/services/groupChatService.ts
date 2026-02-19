@@ -375,17 +375,14 @@ export class GroupChatService {
 
         if (!user) return;
 
-        // Use upsert to ensure row exists AND last_read_at is updated.
-        // This handles cases where joinChat hasn't finished or failed.
+        // Use direct update on the existing participant row
         const { error } = await supabase
             .from('chat_participants')
-            .upsert({
-                chat_id: chatId,
-                user_id: user.id,
+            .update({
                 last_read_at: timestamp || new Date().toISOString()
-            }, {
-                onConflict: 'chat_id,user_id'
-            });
+            })
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
 
         if (error) {
             console.error('Error marking as read:', error);
@@ -848,5 +845,61 @@ export class GroupChatService {
             .single();
 
         return !!data;
+    }
+
+    /**
+     * Get reactions for a list of messages
+     */
+    static async getReactions(messageIds: string[]): Promise<Record<string, { emoji: string; user_id: string; id: string }[]>> {
+        if (!messageIds.length) return {};
+
+        const { data, error } = await supabase
+            .from('message_reactions' as any)
+            .select('id, message_id, user_id, emoji')
+            .in('message_id', messageIds);
+
+        if (error) {
+            console.error('Error fetching reactions:', error);
+            return {};
+        }
+
+        const grouped: Record<string, { emoji: string; user_id: string; id: string }[]> = {};
+        for (const r of (data || []) as any[]) {
+            if (!grouped[r.message_id]) grouped[r.message_id] = [];
+            grouped[r.message_id].push({ emoji: r.emoji, user_id: r.user_id, id: r.id });
+        }
+        return grouped;
+    }
+
+    /**
+     * Toggle a reaction on a message
+     */
+    static async toggleReaction(messageId: string, emoji: string): Promise<boolean> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Check if reaction already exists
+        const { data: existing } = await supabase
+            .from('message_reactions' as any)
+            .select('id')
+            .eq('message_id', messageId)
+            .eq('user_id', user.id)
+            .eq('emoji', emoji)
+            .maybeSingle();
+
+        if (existing) {
+            // Remove reaction
+            await supabase
+                .from('message_reactions' as any)
+                .delete()
+                .eq('id', (existing as any).id);
+            return false; // removed
+        } else {
+            // Add reaction
+            await supabase
+                .from('message_reactions' as any)
+                .insert({ message_id: messageId, user_id: user.id, emoji });
+            return true; // added
+        }
     }
 }
