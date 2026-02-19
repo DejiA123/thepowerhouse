@@ -58,16 +58,26 @@ export const useGroupChat = (groupName: string) => {
   }, [groupName]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      // Add a small delay to ensure the DOM is updated
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          console.log('Scrolled to bottom, scrollHeight:', scrollRef.current.scrollHeight);
-        }
-      }, 150);
+    if (scrollRef.current && messages.length > 0) {
+      console.log("🚀 useGroupChat: Triggering robust scroll...");
+
+      // Immediate scroll
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+
+      // Use multiple timeouts to handle layout shifts, image loads, etc.
+      const timeouts = [100, 300, 600, 1000];
+      const timers = timeouts.map(delay =>
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            console.log(`📜 useGroupChat: Scrolled to bottom at ${delay}ms`);
+          }
+        }, delay)
+      );
+
+      return () => timers.forEach(clearTimeout);
     }
-  }, [messages]);
+  }, [messages, initialLoading, groupName]);
 
   const fetchMessages = async () => {
     try {

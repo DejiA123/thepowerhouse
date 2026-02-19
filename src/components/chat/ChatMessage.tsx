@@ -1,8 +1,5 @@
-import { Message } from "@/hooks/useGroupChat";
-import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Trash2, Check, CheckCheck } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ChatMessageProps {
   message: Message;
@@ -12,21 +9,65 @@ interface ChatMessageProps {
 
 const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: ChatMessageProps) => {
   const { user } = useAuth();
-  
+  const [showReactions, setShowReactions] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleToggleReaction = async (emoji: string) => {
+    try {
+      setShowReactions(false);
+      // Directly using supabase here for simplicity in this component
+      const { data: existing } = await supabase
+        .from('message_reactions' as any)
+        .select('id')
+        .eq('message_id', message.id)
+        .eq('user_id', user?.id)
+        .eq('emoji', emoji)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('message_reactions' as any)
+          .delete()
+          .eq('id', (existing as any).id);
+      } else {
+        await supabase
+          .from('message_reactions' as any)
+          .insert({ message_id: message.id, user_id: user?.id, emoji });
+      }
+    } catch (error) {
+      console.error('Error toggling reaction:', error);
+    }
+  };
+
+  const handleTouchStart = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setShowReactions(true);
+      if (window.navigator?.vibrate) {
+        window.navigator.vibrate(50);
+      }
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  };
+
   const displayName = useMemo(() => {
     console.log('Getting display name for message:', message.id);
-    
+
     // Try full_name first
     if (message.profiles?.full_name && message.profiles.full_name.trim() !== '') {
       return message.profiles.full_name;
     }
-    
+
     // Try email as fallback (extract name part before @)
     if (message.profiles?.email && message.profiles.email.trim() !== '') {
       const emailName = message.profiles.email.split('@')[0];
       return emailName;
     }
-    
+
     return 'Member';
   }, [message.profiles, message.user_id, message.id]);
 
@@ -42,7 +83,7 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
     } else if (date.toDateString() === yesterday.toDateString()) {
@@ -62,25 +103,29 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
           </div>
         </div>
       )}
-      
+
       {/* Message bubble */}
       <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>
-        <div className={`whatsapp-bubble relative group/message ${
-          isOwnMessage 
-            ? 'whatsapp-message-own' 
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleTouchStart}
+          onMouseUp={handleTouchEnd}
+          onMouseLeave={handleTouchEnd}
+          className={`whatsapp-bubble relative group/message select-none transition-transform active:scale-[0.98] ${isOwnMessage
+            ? 'whatsapp-message-own'
             : 'whatsapp-message-other'
-        }`}>
+            }`}>
           {/* Sender name for other messages */}
           {!isOwnMessage && (
             <p className="text-xs font-medium text-blue-600 mb-1">{displayName}</p>
           )}
           {/* Message text */}
           <p className="text-sm leading-relaxed break-words">{message.message}</p>
-          
+
           {/* Timestamp and status */}
-          <div className={`flex items-center justify-end space-x-1 mt-1 ${
-            isOwnMessage ? 'text-blue-100' : 'text-gray-500'
-          }`}>
+          <div className={`flex items-center justify-end space-x-1 mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+            }`}>
             <span className="whatsapp-timestamp">{formatTime(message.created_at)}</span>
             {isOwnMessage && (
               <div className="flex items-center space-x-1">
@@ -88,7 +133,24 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
               </div>
             )}
           </div>
-          
+
+          {/* Reaction picker shown on hover or long press */}
+          <div className={cn(
+            "absolute -bottom-10 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-1 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 z-50 transition-all",
+            showReactions ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible group-hover/message:opacity-100 group-hover/message:scale-100 group-hover/message:visible",
+            isOwnMessage ? "right-0" : "left-0"
+          )}>
+            {['❤️', '👍', '😂', '🙏', '🔥', '😮'].map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => handleToggleReaction(emoji)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-all hover:scale-125"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
           {/* Delete button for own messages */}
           {isOwnMessage && (
             <Button

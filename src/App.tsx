@@ -157,6 +157,7 @@ const AppRoutes = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/campus-fellowships" element={<CampusFellowshipPage />} />
+            <Route path="/campus-fellowship" element={<Navigate to="/campus-fellowships" replace />} />
             <Route
               path="/bible"
               element={<BiblePage />}

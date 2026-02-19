@@ -81,8 +81,11 @@ const GroupChatsPage = () => {
     const [addingMember, setAddingMember] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
     const initialLoadRef = useRef(false);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
 
     const iconMap: Record<string, any> = {
         Users, Heart, Calendar, Book, MessageCircle, UserCheck, Music: Users
@@ -168,6 +171,8 @@ const GroupChatsPage = () => {
 
             try {
                 const data = await GroupChatService.getChatMessages(selectedChat.id);
+                // Mark that we need to scroll after render - set BEFORE updating messages to avoid race condition
+                initialLoadRef.current = true;
                 setMessages(data);
 
                 // Fetch reactions for all messages
@@ -181,8 +186,6 @@ const GroupChatsPage = () => {
                 await GroupChatService.markAsRead(selectedChat.id, lastMsg?.created_at);
 
                 setUnreadCounts(prev => ({ ...prev, [selectedChat.id]: 0 }));
-                // Mark that we need to scroll after render
-                initialLoadRef.current = true;
             } catch (error) {
                 console.error('Error fetching messages:', error);
             }
@@ -226,17 +229,32 @@ const GroupChatsPage = () => {
     useEffect(() => {
         if (initialLoadRef.current && messages.length > 0) {
             initialLoadRef.current = false;
-            // Use a short timeout to ensure the ScrollArea has rendered all messages
-            const timer = setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-            }, 50);
-            return () => clearTimeout(timer);
+            console.log("🚀 Initial load detected, triggering scroll...");
+
+            // Immediate scroll
+            messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+
+            // Use multiple timeouts to handle layout shifts, image loads, and Radix animation
+            const timeouts = [100, 300, 600, 1000];
+            const timers = timeouts.map(delay =>
+                setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+                    console.log(`📜 Scrolled to bottom at ${delay}ms`);
+                }, delay)
+            );
+
+            return () => timers.forEach(clearTimeout);
         }
     }, [messages]);
 
     const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
         requestAnimationFrame(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: behavior === "instant" ? "auto" : "smooth" });
+            if (messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({
+                    behavior: behavior === "instant" ? "auto" : "smooth",
+                    block: "end"
+                });
+            }
         });
     };
 
@@ -273,6 +291,7 @@ const GroupChatsPage = () => {
 
     const handleToggleReaction = async (messageId: string, emoji: string) => {
         try {
+            setLongPressedMessageId(null); // Close picker on selection
             const added = await GroupChatService.toggleReaction(messageId, emoji);
             setReactions(prev => {
                 const current = prev[messageId] || [];
@@ -284,6 +303,21 @@ const GroupChatsPage = () => {
             });
         } catch (error) {
             console.error('Error toggling reaction:', error);
+        }
+    };
+
+    const handleTouchStart = (messageId: string) => {
+        longPressTimerRef.current = setTimeout(() => {
+            setLongPressedMessageId(messageId);
+            if (window.navigator?.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }, 500); // 500ms for long press
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
         }
     };
     const handleCreateGroup = async () => {
@@ -550,11 +584,11 @@ const GroupChatsPage = () => {
                                 <div className="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-blue-100 dark:bg-blue-900 rounded-full blur-[120px]" />
                             </div>
 
-                            <ScrollArea className="h-full absolute inset-0 z-10">
-                                <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col justify-end min-h-full">
-                                    <div className="flex flex-col-reverse gap-4">
-                                        <div ref={messagesEndRef} className="h-0.5 w-full shrink-0" />
-                                        {[...messages].reverse().map((message) => {
+                            <ScrollArea className="h-full absolute inset-0 z-10" ref={scrollAreaRef}>
+                                <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col min-h-full">
+                                    <div className="flex-1" /> {/* Push content to bottom if few messages */}
+                                    <div className="flex flex-col gap-4">
+                                        {messages.map((message) => {
                                             const isOwn = message.user_id === user?.id;
                                             const msgReactions = reactions[message.id] || [];
                                             // Group reactions by emoji
@@ -578,12 +612,18 @@ const GroupChatsPage = () => {
                                                                 {getUserName(message)}
                                                             </span>
                                                         )}
-                                                        <div className={cn(
-                                                            "px-6 py-4 shadow-xl overflow-hidden relative backdrop-blur-sm",
-                                                            isOwn
-                                                                ? "bg-indigo-600 text-white rounded-[28px] rounded-tr-none shadow-indigo-600/20"
-                                                                : "bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-[28px] rounded-tl-none border border-slate-100/50 dark:border-slate-700/50 shadow-slate-200/50"
-                                                        )}>
+                                                        <div
+                                                            onTouchStart={() => handleTouchStart(message.id)}
+                                                            onTouchEnd={handleTouchEnd}
+                                                            onMouseDown={() => handleTouchStart(message.id)}
+                                                            onMouseUp={handleTouchEnd}
+                                                            onMouseLeave={handleTouchEnd}
+                                                            className={cn(
+                                                                "px-6 py-4 shadow-xl overflow-hidden relative backdrop-blur-sm transition-transform active:scale-[0.98] select-none touch-none",
+                                                                isOwn
+                                                                    ? "bg-indigo-600 text-white rounded-[28px] rounded-tr-none shadow-indigo-600/20"
+                                                                    : "bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-[28px] rounded-tl-none border border-slate-100/50 dark:border-slate-700/50 shadow-slate-200/50"
+                                                            )}>
                                                             <div className="text-[15px] leading-relaxed whitespace-pre-wrap break-words font-semibold">
                                                                 {message.content}
                                                             </div>
@@ -617,9 +657,10 @@ const GroupChatsPage = () => {
                                                             </div>
                                                         )}
 
-                                                        {/* Reaction Picker (shown on hover) */}
+                                                        {/* Reaction Picker (shown on hover or long-press) */}
                                                         <div className={cn(
-                                                            "flex items-center gap-0.5 mt-1 opacity-0 group-hover/msg:opacity-100 transition-all",
+                                                            "flex items-center gap-0.5 mt-1 transition-all",
+                                                            longPressedMessageId === message.id ? "opacity-100 scale-100" : "opacity-0 scale-95 group-hover/msg:opacity-100 group-hover/msg:scale-100",
                                                             isOwn ? "justify-end" : "justify-start"
                                                         )}>
                                                             {['❤️', '👍', '😂', '🙏', '🔥', '😮'].map(emoji => (
@@ -645,6 +686,7 @@ const GroupChatsPage = () => {
                                                 </div>
                                             );
                                         })}
+                                        <div ref={messagesEndRef} className="h-4 w-full shrink-0" />
                                     </div>
                                 </div>
                             </ScrollArea>
