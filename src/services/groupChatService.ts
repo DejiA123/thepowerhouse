@@ -39,6 +39,11 @@ export interface ChatParticipant {
     user_id: string;
     joined_at: string;
     last_read_at: string;
+    user?: {
+        full_name: string | null;
+        avatar_url: string | null;
+        email: string | null;
+    };
 }
 
 export interface UserPresence {
@@ -462,7 +467,14 @@ export class GroupChatService {
     static async getParticipants(chatId: string): Promise<(ChatParticipant & { presence?: UserPresence })[]> {
         const { data, error } = await supabase
             .from('chat_participants')
-            .select('*')
+            .select(`
+                *,
+                user:user_id (
+                    full_name,
+                    avatar_url,
+                    email
+                )
+            `)
             .eq('chat_id', chatId)
             .order('joined_at', { ascending: false });
 

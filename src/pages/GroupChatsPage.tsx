@@ -924,12 +924,16 @@ const GroupChatsPage = () => {
                                 {participants.map((p: any) => (
                                     <div key={p.user_id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors group">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-indigo-500/10">
-                                                {(p.user?.user_metadata?.full_name?.[0] || p.user_id?.[0] || "U").toUpperCase()}
+                                            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md ring-1 ring-indigo-500/10 overflow-hidden">
+                                                {p.user?.avatar_url ? (
+                                                    <img src={p.user.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    (p.user?.full_name?.[0] || p.user_id?.[0] || "U").toUpperCase()
+                                                )}
                                             </div>
                                             <div>
                                                 <p className="text-[14px] font-bold text-slate-900 dark:text-white leading-none">
-                                                    {p.user_id === user?.id ? "You" : (p.user?.user_metadata?.full_name || p.user_id.split('-')[0])}
+                                                    {p.user_id === user?.id ? "You" : (p.user?.full_name || p.user_id.split('-')[0])}
                                                 </p>
                                                 {p.presence?.is_online && (
                                                     <div className="flex items-center gap-1 mt-1">
