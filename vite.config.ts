@@ -72,14 +72,15 @@ export default defineConfig(({ mode }) => ({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
       },
       output: {
-        // Force React and React-DOM into main chunk to prevent loading issues
-        manualChunks: {
-          'react-core': ['react', 'react-dom'],
-          'vendor': ['@supabase/supabase-js', 'lucide-react', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'react-core';
+          if (id.includes('node_modules/@radix-ui')) return 'radix-ui';
+          if (id.includes('node_modules/html2canvas')) return 'html2canvas';
+          if (id.includes('node_modules/@supabase') || id.includes('node_modules/lucide-react') || id.includes('node_modules/class-variance-authority') || id.includes('node_modules/clsx') || id.includes('node_modules/tailwind-merge')) return 'vendor';
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 4000,
     target: 'es2015',
     minify: 'esbuild',
     sourcemap: false,
