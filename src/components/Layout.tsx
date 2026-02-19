@@ -181,7 +181,10 @@ const Layout = ({ children }: LayoutProps) => {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-x-hidden">
+    <div className={cn(
+      "fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-x-hidden",
+      location.pathname === '/group-chats' && "overflow-hidden"
+    )}>
       {/* Background fill for status bar - now using a real element to avoid pushing container height */}
       {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
       {/* Only show for pages WITHOUT Header (like GroupChats, Intro, FollowUp) except Bible */}
@@ -206,7 +209,7 @@ const Layout = ({ children }: LayoutProps) => {
       >
         <div className={cn(
           "min-h-full",
-          showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full" : "")
+          showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
         )}>
           {children}
         </div>

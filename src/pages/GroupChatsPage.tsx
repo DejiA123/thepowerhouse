@@ -382,7 +382,7 @@ const GroupChatsPage = () => {
     );
 
     return (
-        <div className="flex h-screen bg-white dark:bg-slate-950 overflow-hidden overscroll-none">
+        <div className="flex h-full bg-white dark:bg-slate-950 overflow-hidden overscroll-none">
             {/* Sidebar */}
             <div className={cn(
                 "w-full md:w-[380px] bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 flex flex-col z-30",
