@@ -163,7 +163,7 @@ const CampusFellowshipPage = () => {
           </Button>
 
           <h1 className="text-4xl md:text-5xl font-outfit font-bold text-white mb-2">
-            Life Groups
+            Believers Connect
           </h1>
           <p className="text-blue-100 text-lg md:text-xl max-w-2xl">
             Find your community and grow in faith together on campus.
