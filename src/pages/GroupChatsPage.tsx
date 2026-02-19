@@ -439,7 +439,7 @@ const GroupChatsPage = () => {
                                     <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
                                     <MessageCircle className="w-5 h-5 text-indigo-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                 </div>
-                                <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.2em]">Synchronizing</p>
+                                <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.2em]">Loading chat</p>
                             </div>
                         ) : filteredChats.length === 0 ? (
                             <div className="text-center p-10 bg-white/40 dark:bg-slate-800/20 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800 backdrop-blur-sm">
