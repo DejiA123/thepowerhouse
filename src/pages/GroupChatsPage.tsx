@@ -67,6 +67,11 @@ const GroupChatsPage = () => {
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showParticipants, setShowParticipants] = useState(false);
     const [showAddMember, setShowAddMember] = useState(false);
+    useEffect(() => {
+        if (!showAddMember && !showCreateGroup) {
+            setSelectedFriends([]);
+        }
+    }, [showAddMember, showCreateGroup]);
     const [showSettings, setShowSettings] = useState(false);
 
     const [reactions, setReactions] = useState<Record<string, { emoji: string; user_id: string; id: string }[]>>({});
