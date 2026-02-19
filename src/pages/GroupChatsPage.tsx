@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCall } from "@/contexts/CallContext";
 import { GroupChatService, GroupChat, ChatMessage } from "@/services/groupChatService";
-import { SocialService, Profile } from "@/services/SocialService";
+import { SocialService, Profile } from "@/services/socialService";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
