@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Save } from "lucide-react";
+import { ChevronLeft, Save, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface ProfileEditFormProps {
   field: 'name' | 'about' | 'phone' | 'links';
@@ -22,21 +23,21 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
 
   const getFieldTitle = () => {
     switch (field) {
-      case 'name': return 'Name';
-      case 'about': return 'About';
+      case 'name': return 'Full Name';
+      case 'about': return 'Bio / About';
       case 'phone': return 'Phone Number';
-      case 'links': return 'Links';
-      default: return 'Edit';
+      case 'links': return 'Social Links';
+      default: return 'Edit Profile';
     }
   };
 
   const getFieldPlaceholder = () => {
     switch (field) {
-      case 'name': return 'Enter your name';
-      case 'about': return 'Tell us about yourself...';
-      case 'phone': return 'Enter your phone number';
-      case 'links': return 'Add your social media or website links';
-      default: return 'Enter value';
+      case 'name': return 'Enter your full name...';
+      case 'about': return 'Tell the community about yourself...';
+      case 'phone': return 'e.g. +1 234 567 890';
+      case 'links': return 'Website, Instagram, Twitter...';
+      default: return 'Type here...';
     }
   };
 
@@ -55,7 +56,6 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
         }
         break;
       case 'phone':
-        // Basic phone validation - allow various formats
         const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
         if (!phoneRegex.test(value.replace(/[\s\-\(\)]/g, ''))) {
           return 'Please enter a valid phone number';
@@ -85,7 +85,6 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
       return;
     }
 
-    // Validate the input
     const validationError = validateField(field, value);
     if (validationError) {
       toast({
@@ -96,81 +95,101 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
       return;
     }
 
-    // Check if value actually changed
     if (value.trim() === currentValue.trim()) {
-      toast({
-        title: "No Changes",
-        description: "No changes were made to save",
-      });
       onBack();
       return;
     }
-    
+
     setLoading(true);
-    
     try {
-      // Call the parent's save function
       await onSave(value);
-      
-      // If we get here, the save was successful
-      // The parent component will handle the database update and show success toast
-      
+      onBack();
     } catch (error) {
       console.error('Error in ProfileEditForm handleSave:', error);
-      // Error handling is done in the parent component
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="profile-page">
-      {/* Header */}
-      <div className="profile-header">
-        <button onClick={onBack} className="p-2">
-          <ChevronLeft className="w-6 h-6 text-gray-900" />
-        </button>
-        <h1 className="profile-title">{getFieldTitle()}</h1>
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      {/* Decorative Blur */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Premium Header */}
+      <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-900 px-6 py-4 flex items-center justify-between mt-12">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          className="rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-90"
+        >
+          <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+        </Button>
+        <h1 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">Edit {getFieldTitle()}</h1>
         <div className="w-10"></div>
       </div>
 
-      <div className="p-4 space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              {getFieldTitle()}
+      <div className="max-w-xl mx-auto p-8 space-y-10 relative z-10">
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 ml-4">
+              Update {getFieldTitle()}
             </label>
-            {field === 'about' || field === 'links' ? (
-              <Textarea
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={getFieldPlaceholder()}
-                rows={field === 'about' ? 4 : 3}
-                className="w-full"
-                maxLength={field === 'about' ? 500 : 200}
-              />
-            ) : (
-              <Input
-                type={field === 'phone' ? 'tel' : 'text'}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={getFieldPlaceholder()}
-                className="w-full"
-                maxLength={field === 'name' ? 50 : undefined}
-              />
-            )}
-            <div className="text-xs text-gray-500 text-right">
-              {value.length} / {field === 'about' ? 500 : field === 'name' ? 50 : field === 'links' ? 200 : '∞'}
+
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[30px] blur opacity-10 group-focus-within:opacity-25 transition duration-500"></div>
+              <div className="relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[28px] overflow-hidden">
+                {field === 'about' || field === 'links' ? (
+                  <Textarea
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={getFieldPlaceholder()}
+                    rows={field === 'about' ? 6 : 4}
+                    className="w-full bg-transparent border-none focus-visible:ring-0 p-6 text-lg font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300 resize-none shadow-none"
+                    maxLength={field === 'about' ? 500 : 200}
+                  />
+                ) : (
+                  <Input
+                    type={field === 'phone' ? 'tel' : 'text'}
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={getFieldPlaceholder()}
+                    className="w-full bg-transparent border-none focus-visible:ring-0 h-16 px-6 text-lg font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-300 shadow-none"
+                    maxLength={field === 'name' ? 50 : undefined}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-4">
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                Character Limit: {field === 'about' ? 500 : field === 'name' ? 50 : field === 'links' ? 200 : 'Unlimited'}
+              </span>
+              <span className={cn(
+                "text-[10px] font-black uppercase tracking-widest",
+                value.length > (field === 'about' ? 450 : 40) ? "text-rose-500" : "text-indigo-500"
+              )}>
+                {value.length} Used
+              </span>
             </div>
           </div>
 
-          <Button 
+          <Button
             onClick={handleSave}
             disabled={loading || !value.trim() || value.trim() === currentValue.trim()}
-            className="w-full"
+            className="w-full h-16 rounded-[28px] bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:scale-[1.02] active:scale-95 transition-all text-sm font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 dark:shadow-white/5"
           >
-            <Save className="w-4 h-4 mr-2" />
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
+              </>
+            )}
           </Button>
         </div>
       </div>
