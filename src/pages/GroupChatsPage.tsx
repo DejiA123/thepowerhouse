@@ -86,6 +86,7 @@ const GroupChatsPage = () => {
     const initialLoadRef = useRef(false);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
+    const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
 
     const iconMap: Record<string, any> = {
         Users, Heart, Calendar, Book, MessageCircle, UserCheck, Music: Users
@@ -306,13 +307,32 @@ const GroupChatsPage = () => {
         }
     };
 
-    const handleTouchStart = (messageId: string) => {
+    const handleTouchStart = (messageId: string, e?: React.TouchEvent | React.MouseEvent) => {
+        if (e && 'touches' in e) {
+            setTouchStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+        }
         longPressTimerRef.current = setTimeout(() => {
             setLongPressedMessageId(messageId);
             if (window.navigator?.vibrate) {
                 window.navigator.vibrate(50);
             }
         }, 500); // 500ms for long press
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!longPressTimerRef.current) return;
+
+        const touch = e.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartPos.x);
+        const deltaY = Math.abs(touch.clientY - touchStartPos.y);
+
+        // If moved more than 10px, it's a scroll or swipe, not a long press
+        if (deltaX > 10 || deltaY > 10) {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+            }
+        }
     };
 
     const handleTouchEnd = () => {
@@ -613,13 +633,14 @@ const GroupChatsPage = () => {
                                                             </span>
                                                         )}
                                                         <div
-                                                            onTouchStart={() => handleTouchStart(message.id)}
+                                                            onTouchStart={(e) => handleTouchStart(message.id, e)}
+                                                            onTouchMove={handleTouchMove}
                                                             onTouchEnd={handleTouchEnd}
-                                                            onMouseDown={() => handleTouchStart(message.id)}
+                                                            onMouseDown={(e) => handleTouchStart(message.id, e)}
                                                             onMouseUp={handleTouchEnd}
                                                             onMouseLeave={handleTouchEnd}
                                                             className={cn(
-                                                                "px-6 py-4 shadow-xl overflow-hidden relative backdrop-blur-sm transition-transform active:scale-[0.98] select-none touch-none",
+                                                                "px-6 py-4 shadow-xl overflow-hidden relative backdrop-blur-sm transition-transform active:scale-[0.98] select-none",
                                                                 isOwn
                                                                     ? "bg-indigo-600 text-white rounded-[28px] rounded-tr-none shadow-indigo-600/20"
                                                                     : "bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-[28px] rounded-tl-none border border-slate-100/50 dark:border-slate-700/50 shadow-slate-200/50"
