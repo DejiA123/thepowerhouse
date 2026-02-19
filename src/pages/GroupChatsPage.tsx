@@ -41,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCall } from "@/contexts/CallContext";
 import { GroupChatService, GroupChat, ChatMessage } from "@/services/groupChatService";
+import { SocialService, Profile } from "@/services/SocialService";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,6 +80,9 @@ const GroupChatsPage = () => {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searchingUsers, setSearchingUsers] = useState(false);
     const [addingMember, setAddingMember] = useState(false);
+    const [friends, setFriends] = useState<any[]>([]);
+    const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -105,6 +109,9 @@ const GroupChatsPage = () => {
             if (user) {
                 const counts = await GroupChatService.getAllUnreadCounts();
                 setUnreadCounts(counts);
+                // Fetch friends for selections
+                const friendData = await SocialService.getFriends(user.id);
+                setFriends(friendData.map(f => f.friend));
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
@@ -344,9 +351,11 @@ const GroupChatsPage = () => {
         if (!newGroupName.trim() || !user) return;
         try {
             setCreatingGroup(true);
-            await GroupChatService.createCustomGroup(newGroupName, newGroupDescription, []);
+            // Create group with selected friends
+            await GroupChatService.createCustomGroup(newGroupName, newGroupDescription, selectedFriends);
             setShowCreateGroup(false);
             setNewGroupName(""); setNewGroupDescription("");
+            setSelectedFriends([]);
             fetchChats();
         } catch (error) {
             toast({ title: "Error", description: "Failed to create group", variant: "destructive" });
@@ -371,11 +380,28 @@ const GroupChatsPage = () => {
         setParticipants(data);
     };
 
-    const handleAddMember = async (userId: string) => {
-        if (!selectedChat) return;
-        await GroupChatService.addMembers(selectedChat.id, [userId]);
-        setShowAddMember(false);
-        toast({ title: "Member Added" });
+    const handleAddParticipants = async () => {
+        if (!selectedChat || selectedFriends.length === 0) return;
+        try {
+            setAddingMember(true);
+            await GroupChatService.addMembers(selectedChat.id, selectedFriends);
+            setShowAddMember(false);
+            setSelectedFriends([]);
+            toast({ title: "Members Added", description: `Added ${selectedFriends.length} people to the chat.` });
+            fetchParticipants();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to add members", variant: "destructive" });
+        } finally {
+            setAddingMember(false);
+        }
+    };
+
+    const toggleFriendSelection = (friendId: string) => {
+        setSelectedFriends(prev =>
+            prev.includes(friendId)
+                ? prev.filter(id => id !== friendId)
+                : [...prev, friendId]
+        );
     };
 
     const handleSearchUsers = async (q: string) => {
@@ -817,6 +843,40 @@ const GroupChatsPage = () => {
                                 className="min-h-[120px] rounded-2xl bg-slate-50 dark:bg-slate-900 border-none p-6 font-medium focus-visible:ring-indigo-500/50 resize-none"
                             />
                         </div>
+                        <div className="space-y-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Add Friends (Optional)</Label>
+                            <ScrollArea className="h-40 rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-2">
+                                <div className="space-y-1">
+                                    {friends.length === 0 ? (
+                                        <p className="text-center text-[10px] text-slate-400 py-8 uppercase tracking-widest">No friends found</p>
+                                    ) : friends.map(friend => (
+                                        <div
+                                            key={friend.id}
+                                            onClick={() => toggleFriendSelection(friend.id)}
+                                            className={cn(
+                                                "flex items-center gap-3 p-2 rounded-xl transition-all cursor-pointer",
+                                                selectedFriends.includes(friend.id)
+                                                    ? "bg-indigo-600/10 border border-indigo-500/20"
+                                                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                                            )}
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-[10px] font-black">
+                                                {friend.full_name?.[0] || "?"}
+                                            </div>
+                                            <span className="flex-1 text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{friend.full_name}</span>
+                                            <div className={cn(
+                                                "w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center",
+                                                selectedFriends.includes(friend.id)
+                                                    ? "bg-indigo-600 border-indigo-600"
+                                                    : "border-slate-300 dark:border-slate-700"
+                                            )}>
+                                                {selectedFriends.includes(friend.id) && <div className="w-2 h-2 rounded-full bg-white animate-in zoom-in-50" />}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </div>
                         <Button
                             onClick={handleCreateGroup}
                             disabled={creatingGroup || !newGroupName.trim()}
@@ -888,44 +948,106 @@ const GroupChatsPage = () => {
                         <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Add Participant</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
+                        <div className="space-y-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Select Friends</Label>
+                            <ScrollArea className="h-48 rounded-2xl bg-slate-50 dark:bg-slate-900/50 p-2">
+                                <div className="space-y-1">
+                                    {friends.length === 0 ? (
+                                        <p className="text-center text-[10px] text-slate-400 py-12 uppercase tracking-widest">No friends found</p>
+                                    ) : friends.map(friend => (
+                                        <div
+                                            key={friend.id}
+                                            onClick={() => toggleFriendSelection(friend.id)}
+                                            className={cn(
+                                                "flex items-center gap-4 p-3 rounded-2xl transition-all cursor-pointer group",
+                                                selectedFriends.includes(friend.id)
+                                                    ? "bg-indigo-600/10 border border-indigo-500/20"
+                                                    : "hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent"
+                                            )}
+                                        >
+                                            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-sm ring-1 ring-indigo-500/10">
+                                                {friend.avatar_url ? (
+                                                    <img src={friend.avatar_url} className="w-full h-full rounded-xl object-cover" />
+                                                ) : (
+                                                    (friend.full_name?.[0] || "?").toUpperCase()
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{friend.full_name}</p>
+                                                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Friend</p>
+                                            </div>
+                                            <div className={cn(
+                                                "w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center",
+                                                selectedFriends.includes(friend.id)
+                                                    ? "bg-indigo-600 border-indigo-600"
+                                                    : "border-slate-300 dark:border-slate-700 group-hover:border-indigo-400"
+                                            )}>
+                                                {selectedFriends.includes(friend.id) && <div className="w-2 h-2 rounded-full bg-white animate-in zoom-in-50" />}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </div>
+
                         <div className="relative group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                             <Input
-                                placeholder="Search by name or email..."
+                                placeholder="Search other members..."
                                 value={userSearchQuery}
                                 onChange={e => handleSearchUsers(e.target.value)}
                                 className="pl-11 h-14 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none font-medium focus-visible:ring-indigo-500/50 shadow-inner"
                             />
                         </div>
 
-                        <ScrollArea className="h-full max-h-[300px]">
-                            <div className="space-y-2">
-                                {searchingUsers ? (
-                                    <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-500" /></div>
-                                ) : searchResults.length === 0 && userSearchQuery.length >= 2 ? (
-                                    <p className="text-center text-sm font-medium text-slate-400 py-8 uppercase tracking-widest">No users found</p>
-                                ) : searchResults.map(u => (
-                                    <div key={u.id} className="flex justify-between items-center p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md">
-                                                {((u.full_name || u.email)?.[0] || "?").toUpperCase()}
+                        {userSearchQuery.length >= 2 && (
+                            <ScrollArea className="h-40 rounded-2xl border border-slate-100 dark:border-slate-800 p-2">
+                                <div className="space-y-2">
+                                    {searchingUsers ? (
+                                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-500" /></div>
+                                    ) : searchResults.length === 0 ? (
+                                        <p className="text-center text-sm font-medium text-slate-400 py-8 uppercase tracking-widest">No users found</p>
+                                    ) : searchResults.map(u => (
+                                        <div
+                                            key={u.id}
+                                            onClick={() => toggleFriendSelection(u.id)}
+                                            className={cn(
+                                                "flex justify-between items-center p-3 rounded-2xl transition-all cursor-pointer group",
+                                                selectedFriends.includes(u.id)
+                                                    ? "bg-indigo-600/10 border border-indigo-500/20"
+                                                    : "hover:bg-slate-50 dark:hover:bg-slate-900 border border-transparent"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-black text-sm">
+                                                    {((u.full_name || u.email)?.[0] || "?").toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{u.full_name || u.email}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium truncate">{u.email}</p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{u.full_name || u.email}</p>
-                                                <p className="text-[10px] text-slate-400 font-medium truncate">{u.email}</p>
+                                            <div className={cn(
+                                                "w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center",
+                                                selectedFriends.includes(u.id)
+                                                    ? "bg-indigo-600 border-indigo-600"
+                                                    : "border-slate-300 dark:border-slate-700"
+                                            )}>
+                                                {selectedFriends.includes(u.id) && <div className="w-2 h-2 rounded-full bg-white animate-in zoom-in-50" />}
                                             </div>
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleAddMember(u.id)}
-                                            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            Add
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )}
+
+                        <Button
+                            onClick={handleAddParticipants}
+                            disabled={addingMember || selectedFriends.length === 0}
+                            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-600/20 transition-all hover:scale-[1.02] active:scale-95 mt-4"
+                        >
+                            {addingMember ? <Loader2 className="animate-spin w-5 h-5" /> : `Add ${selectedFriends.length > 0 ? selectedFriends.length : ''} Members`}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
