@@ -82,6 +82,7 @@ const GroupChatsPage = () => {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
+    const initialLoadRef = useRef(false);
 
     const iconMap: Record<string, any> = {
         Users, Heart, Calendar, Book, MessageCircle, UserCheck, Music: Users
@@ -180,8 +181,8 @@ const GroupChatsPage = () => {
                 await GroupChatService.markAsRead(selectedChat.id, lastMsg?.created_at);
 
                 setUnreadCounts(prev => ({ ...prev, [selectedChat.id]: 0 }));
-                // Instant anchor to bottom on load
-                scrollToBottom("instant");
+                // Mark that we need to scroll after render
+                initialLoadRef.current = true;
             } catch (error) {
                 console.error('Error fetching messages:', error);
             }
@@ -221,19 +222,22 @@ const GroupChatsPage = () => {
         };
     }, [selectedChat]);
 
-    const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-        if (behavior === "instant") {
-            // Use multiple frames to ensure DOM is fully rendered
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-                });
-            });
-        } else {
-            requestAnimationFrame(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            });
+    // Scroll to bottom when messages change after initial load
+    useEffect(() => {
+        if (initialLoadRef.current && messages.length > 0) {
+            initialLoadRef.current = false;
+            // Use a short timeout to ensure the ScrollArea has rendered all messages
+            const timer = setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+            }, 50);
+            return () => clearTimeout(timer);
         }
+    }, [messages]);
+
+    const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+        requestAnimationFrame(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: behavior === "instant" ? "auto" : "smooth" });
+        });
     };
 
     const handleSendMessage = async () => {

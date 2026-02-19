@@ -23,7 +23,7 @@ import UserSettingsPage from "@/pages/UserSettingsPage";
 import CampusFellowshipPage from "@/pages/CampusFellowshipPage";
 import NotFound from "./pages/NotFound";
 import PrayerWallPage from "@/pages/PrayerWallPage";
-import GroupPage from "@/components/GroupPage";
+import FellowshipGroupPage from "@/pages/FellowshipGroupPage";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { GlobalAudioProvider } from "@/contexts/GlobalAudioContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -235,7 +235,7 @@ const AppRoutes = () => {
               path="/fellowship-group/:groupId"
               element={
                 <ProtectedRoute>
-                  <GroupPageWrapper />
+                  <FellowshipGroupPage />
                 </ProtectedRoute>
               }
             />
@@ -319,20 +319,6 @@ const applyTheme = () => {
   }
 };
 
-const GroupPageWrapper = () => {
-  const { groupId } = useParams();
-  const navigate = useNavigate();
-  // Convert groupId to a readable name (e.g. uog -> Believers Connect UoG)
-  const groupNames: Record<string, string> = {
-    uog: "Believers Connect UoG",
-    atu: "Believers Connect ATU",
-    tus: "Believers Connect TUS",
-    maynooth: "Believers Connect Maynooth",
-    south: "Believers Connect South"
-  };
-  const departmentName = groupNames[groupId || ""] || groupId || "Fellowship";
-  return <GroupPage departmentName={departmentName} onBack={() => navigate(-1)} />;
-};
 
 const App = () => {
   console.log('App: Main component rendering...');
