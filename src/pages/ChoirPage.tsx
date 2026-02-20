@@ -4556,8 +4556,8 @@ const ChoirPage = () => {
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         {/* Week Switcher UI */}
                         {locationId !== 'national' && (
-                            <div className="flex justify-center mb-6 overflow-x-auto no-scrollbar pb-2">
-                                <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm">
+                            <div className="flex justify-start md:justify-center mb-6 overflow-x-auto no-scrollbar pb-2 px-4 md:px-0">
+                                <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm shrink-0">
                                     {availableWeeks.map((week) => {
                                         const isActive = selectedWeekDate.getTime() === week.date.getTime();
                                         return (
@@ -4569,7 +4569,7 @@ const ChoirPage = () => {
                                                     setSetlistDate(week.date);
                                                 }}
                                                 className={cn(
-                                                    "h-auto py-2 px-6 rounded-xl flex flex-col items-center gap-0.5 transition-all group min-w-[100px]",
+                                                    "h-auto py-2 px-3 md:px-6 rounded-xl flex flex-col items-center gap-0.5 transition-all group min-w-[85px] md:min-w-[100px] shrink-0",
                                                     isActive
                                                         ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700"
                                                         : "text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600"

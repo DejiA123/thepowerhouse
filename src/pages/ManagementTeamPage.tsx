@@ -15,7 +15,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
 import { managementService, type Expense, type Guest, type Task, type ProjectTool, type ManagementSettings } from '@/services/managementService';
 import { generateProjectBriefPDF } from '@/utils/pdfGenerator';
@@ -862,11 +871,73 @@ const ModernProjectBrief = ({
     setUnitFormationPastor: (v: string) => void,
     unitFormationMeeting: string,
     setUnitFormationMeeting: (v: string) => void,
-    onUpdateUnit: (id: string, updates: any) => void
+    onUpdateUnit: (id: string, updates: any) => void,
+    onDeleteUnitRequest: (id: string, name: string) => void
 }) => {
     const alreadyExistingUnits = unitInformation.filter(u => u.is_existing_unit);
     const immediateActionUnits = unitInformation.filter(u => u.unit_type === 'Immediate Action');
     const subsequentUnits = unitInformation.filter(u => u.unit_type === 'Subsequent');
+
+    const UnitCard = ({ unit, index, typePrefix }: { unit: any, index: number, typePrefix: string }) => {
+        const longPressProps = useLongPress(() => {
+            if (isEditMode) {
+                onDeleteUnitRequest(unit.id, unit.unit_name);
+            }
+        });
+
+        return (
+            <Card
+                {...longPressProps}
+                className={cn(
+                    "shadow-sm hover:shadow-md transition-shadow cursor-default active:scale-[0.98] transition-all",
+                    typePrefix === 'immediate' ? "border-l-4 border-l-orange-500" :
+                        typePrefix === 'subsequent' ? "border-l-4 border-l-blue-500" :
+                            "bg-green-50 dark:bg-green-900/10 border-green-200"
+                )}
+            >
+                <CardContent className="p-4">
+                    <div className="flex gap-3">
+                        {typePrefix !== 'existing' ? (
+                            <div className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5",
+                                typePrefix === 'immediate' ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600"
+                            )}>
+                                {index + 1}
+                            </div>
+                        ) : (
+                            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                            {isEditMode ? (
+                                <div className="space-y-2">
+                                    <Input
+                                        value={unit.unit_name}
+                                        onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
+                                        className={cn("font-bold h-8", typePrefix === 'existing' && "text-sm h-7")}
+                                    />
+                                    <Textarea
+                                        value={unit.full_description}
+                                        onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
+                                        className={cn("text-sm min-h-[60px]", typePrefix === 'existing' && "text-xs min-h-[50px]")}
+                                    />
+                                    <p className="text-[10px] text-slate-400 italic">Long press to delete unit</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <h4 className={cn("font-bold text-slate-800 dark:text-slate-200", typePrefix === 'existing' && "text-sm")}>
+                                        {unit.unit_name}
+                                    </h4>
+                                    <p className={cn("text-slate-600 dark:text-slate-400", typePrefix === 'existing' ? "text-xs mt-1" : "text-sm mt-1")}>
+                                        {unit.full_description}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
 
     return (
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
@@ -960,36 +1031,7 @@ const ModernProjectBrief = ({
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-orange-600 pl-4 text-orange-600">Immediate Actions</h3>
                         <div className="space-y-3">
                             {immediateActionUnits.map((unit, i) => (
-                                <Card key={unit.id || i} className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                                                {i + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                {isEditMode ? (
-                                                    <div className="space-y-2">
-                                                        <Input
-                                                            value={unit.unit_name}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
-                                                            className="font-bold h-8"
-                                                        />
-                                                        <Textarea
-                                                            value={unit.full_description}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
-                                                            className="text-sm min-h-[60px]"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                        <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <UnitCard key={unit.id || i} unit={unit} index={i} typePrefix="immediate" />
                             ))}
                         </div>
                     </section>
@@ -999,36 +1041,7 @@ const ModernProjectBrief = ({
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-blue-600 pl-4 text-blue-600">Subsequent Units</h3>
                         <div className="space-y-3">
                             {subsequentUnits.map((unit, i) => (
-                                <Card key={unit.id || i} className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                                                {i + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                {isEditMode ? (
-                                                    <div className="space-y-2">
-                                                        <Input
-                                                            value={unit.unit_name}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
-                                                            className="font-bold h-8"
-                                                        />
-                                                        <Textarea
-                                                            value={unit.full_description}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
-                                                            className="text-sm min-h-[60px]"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                        <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{unit.full_description}</p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <UnitCard key={unit.id || i} unit={unit} index={i} typePrefix="subsequent" />
                             ))}
                         </div>
                     </section>
@@ -1038,34 +1051,7 @@ const ModernProjectBrief = ({
                         <h3 className="text-xl font-bold mb-4 border-l-4 border-green-600 pl-4 text-green-600">Already Existing Units</h3>
                         <div className="grid sm:grid-cols-2 gap-3">
                             {alreadyExistingUnits.map((unit, i) => (
-                                <Card key={unit.id || i} className="bg-green-50 dark:bg-green-900/10 border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start gap-2">
-                                            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                                            <div className="flex-1">
-                                                {isEditMode ? (
-                                                    <div className="space-y-2">
-                                                        <Input
-                                                            value={unit.unit_name}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { unit_name: e.target.value })}
-                                                            className="font-bold h-7 text-sm"
-                                                        />
-                                                        <Textarea
-                                                            value={unit.full_description}
-                                                            onChange={(e) => onUpdateUnit(unit.id, { full_description: e.target.value })}
-                                                            className="text-xs min-h-[50px]"
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{unit.unit_name}</h4>
-                                                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{unit.full_description}</p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <UnitCard key={unit.id || i} unit={unit} index={i} typePrefix="existing" />
                             ))}
                         </div>
                     </section>
@@ -1167,6 +1153,40 @@ const ModernProjectBrief = ({
 
 
 
+
+// --- Custom Hook for Long Press ---
+const useLongPress = (onLongPress: () => void, onClick?: () => void, ms = 500) => {
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const isLongPressActive = useRef(false);
+
+    const start = useCallback((e: any) => {
+        isLongPressActive.current = false;
+        timerRef.current = setTimeout(() => {
+            isLongPressActive.current = true;
+            onLongPress();
+        }, ms);
+    }, [onLongPress, ms]);
+
+    const stop = useCallback((e: any) => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+
+        if (!isLongPressActive.current && onClick) {
+            onClick();
+        }
+    }, [onClick]);
+
+    return {
+        onMouseDown: start,
+        onMouseUp: stop,
+        onMouseLeave: stop,
+        onTouchStart: start,
+        onTouchEnd: stop,
+    };
+};
+
 // --- Main Page Component ---
 
 const ManagementTeamPage = () => {
@@ -1247,6 +1267,14 @@ const ManagementTeamPage = () => {
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editTaskText, setEditTaskText] = useState("");
     const [editTaskDeadline, setEditTaskDeadline] = useState("");
+
+    // Saturday Prayer Accountability State
+    const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
+    const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
+
+    // Unit Deletion State
+    const [unitToRemove, setUnitToRemove] = useState<{ id: string, name: string } | null>(null);
+    const [isRemoveUnitConfirmOpen, setIsRemoveUnitConfirmOpen] = useState(false);
 
     // Fetch Data
     const fetchData = async () => {
@@ -1545,6 +1573,17 @@ const ManagementTeamPage = () => {
         } catch (error) {
             console.error("Error updating unit info:", error);
             toast.error("Failed to update unit information");
+        }
+    };
+
+    const handleDeleteUnitInfo = async (id: string) => {
+        try {
+            await managementService.deleteUnitInformation(id);
+            setUnitInformation(unitInformation.filter(u => u.id !== id));
+            toast.success("Unit deleted successfully");
+        } catch (error) {
+            console.error("Error deleting unit info:", error);
+            toast.error("Failed to delete unit");
         }
     };
 
@@ -1902,6 +1941,10 @@ const ManagementTeamPage = () => {
                         unitFormationMeeting={unitFormationMeeting}
                         setUnitFormationMeeting={setUnitFormationMeeting}
                         onUpdateUnit={handleUpdateUnitInfo}
+                        onDeleteUnitRequest={(id, name) => {
+                            setUnitToRemove({ id, name });
+                            setIsRemoveUnitConfirmOpen(true);
+                        }}
                     />
                 </TabsContent>
 
@@ -2141,6 +2184,38 @@ const ManagementTeamPage = () => {
                 </TabsContent>
 
             </Tabs>
+
+            {/* Unit Deletion Confirmation */}
+            <AlertDialog open={isRemoveUnitConfirmOpen} onOpenChange={setIsRemoveUnitConfirmOpen}>
+                <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center">
+                                <Trash2 className="w-5 h-5" />
+                            </div>
+                            Delete Unit?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-600 dark:text-slate-400 text-base py-4">
+                            Are you sure you want to delete the unit <span className="font-bold text-slate-900 dark:text-white">"{unitToRemove?.name}"</span>?
+                            This action will permanently remove the unit and all its associated descriptions and data.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 font-bold hover:bg-slate-50">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (unitToRemove) handleDeleteUnitInfo(unitToRemove.id);
+                                setIsRemoveUnitConfirmOpen(false);
+                            }}
+                            className="rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-lg shadow-red-500/20"
+                        >
+                            Delete Unit
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
