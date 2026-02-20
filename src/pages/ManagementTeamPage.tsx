@@ -1233,9 +1233,9 @@ const ManagementTeamPage = () => {
     const [totalBudget, setTotalBudget] = useState(25000);
 
     // Brief Content States
-    const [briefTitle, setBriefTitle] = useState("Bishopric Consecration & Outpouring Convention");
+    const [briefTitle, setBriefTitle] = useState("Outpouring Convention & Episcopal Consecration");
     const [briefSubtitle, setBriefSubtitle] = useState("A definitive guide to the planning, execution, and spiritual preparation for the upcoming consecration ceremony and convention.");
-    const [briefOverview, setBriefOverview] = useState("This brief contains a high-level summary of the project management of the forthcoming Bishopric Consecration & Outpouring Convention.");
+    const [briefOverview, setBriefOverview] = useState("This brief contains a high-level summary of the project management of the forthcoming Outpouring Convention & Episcopal Consecration.");
     const [strategicObjective, setStrategicObjective] = useState("To facilitate a seamless, spiritually charged, and excellently organized event that honors the consecration of the Bishop-Elect and hosts the Outpouring Convention, ensuring maximum impact and comfort for all attendees and dignitaries.");
     const [unitFormationPastor, setUnitFormationPastor] = useState("National Workers Meeting: Before this meeting, a list of all Units is given to each of the main Pastors. Pastors nominate different members and workers into groups they see fit based on skills and spiritual maturity.");
     const [unitFormationMeeting, setUnitFormationMeeting] = useState("During the meeting, everyone is informed by their Pastor what unit they will be joining and who the unit lead will be. This ensures a blended approach and maximum collaboration across all branches.");
@@ -1268,12 +1268,34 @@ const ManagementTeamPage = () => {
             setManualProgress(settingsData.manual_progress);
 
             // Brief Settings
-            if (settingsData.brief_title) setBriefTitle(settingsData.brief_title);
+            let updatedTitle = settingsData.brief_title;
+            let updatedOverview = settingsData.brief_overview;
+            let needsDbUpdate = false;
+
+            // Sanitize old naming if it exists in DB
+            if (updatedTitle === "Bishopric Consecration & Outpouring Convention") {
+                updatedTitle = "Outpouring Convention & Episcopal Consecration";
+                needsDbUpdate = true;
+            }
+            if (updatedOverview?.includes("Bishopric Consecration & Outpouring Convention")) {
+                updatedOverview = updatedOverview.replace("Bishopric Consecration & Outpouring Convention", "Outpouring Convention & Episcopal Consecration");
+                needsDbUpdate = true;
+            }
+
+            if (updatedTitle) setBriefTitle(updatedTitle);
             if (settingsData.brief_subtitle) setBriefSubtitle(settingsData.brief_subtitle);
-            if (settingsData.brief_overview) setBriefOverview(settingsData.brief_overview);
+            if (updatedOverview) setBriefOverview(updatedOverview);
             if (settingsData.strategic_objective) setStrategicObjective(settingsData.strategic_objective);
             if (settingsData.unit_formation_plan_pastor) setUnitFormationPastor(settingsData.unit_formation_plan_pastor);
             if (settingsData.unit_formation_plan_meeting) setUnitFormationMeeting(settingsData.unit_formation_plan_meeting);
+
+            // If we found old naming, update the database record to permanently switch it
+            if (needsDbUpdate) {
+                managementService.updateSettings({
+                    brief_title: updatedTitle,
+                    brief_overview: updatedOverview
+                }).catch(err => console.error("Auto-syncing renamed convention failed:", err));
+            }
 
             setExpenses(expensesData);
             setGuests(guestsData);
@@ -1567,7 +1589,7 @@ const ManagementTeamPage = () => {
                         {currentPhase.name} Active
                     </Badge>
                     <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight flex flex-col md:flex-row md:items-center gap-4">
-                        <span>Bishopric Consecration & <span className="text-blue-600">Outpouring Convention</span></span>
+                        <span>Outpouring Convention & <span className="text-blue-600">Episcopal Consecration</span></span>
                         <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 px-4 py-1.5 rounded-2xl shadow-sm transition-all hover:shadow-md hover:border-blue-200">
                             <Calendar className="w-4 h-4 text-blue-600" />
                             <span className="text-xs font-black text-blue-700 dark:text-blue-300 uppercase tracking-[0.2em]">

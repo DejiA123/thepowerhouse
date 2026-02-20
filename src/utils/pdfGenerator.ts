@@ -58,7 +58,7 @@ export const generateProjectBriefPDF = (data: any) => {
 
     // Title Section
     addCenteredText('PROJECT BRIEF', 10, 'bold', [100, 116, 139]);
-    addCenteredText('Bishopric Consecration & Outpouring Convention', 22, 'bold', [30, 41, 59]);
+    addCenteredText('Outpouring Convention & Episcopal Consecration', 22, 'bold', [30, 41, 59]);
 
     currentY += 5;
     doc.setFillColor(241, 245, 249);
@@ -80,7 +80,7 @@ export const generateProjectBriefPDF = (data: any) => {
 
     // Overview
     addHeading('Overview');
-    addBodyText('This brief contains a high-level summary of the project management of the forthcoming Bishopric Consecration & Outpouring Convention.');
+    addBodyText('This brief contains a high-level summary of the project management of the forthcoming Outpouring Convention & Episcopal Consecration.');
 
     // Immediate Actions
     addHeading('Immediate Actions');
