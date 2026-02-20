@@ -240,7 +240,7 @@ const SetSongCard = ({
     index: number,
     onPlay: (url: string) => void,
     onEdit: (song: WeeklySetSong) => void,
-    onRemove: (id: string) => void,
+    onRemove: (id: string, title: string) => void,
     onViewLyrics: (lyrics: string, title: string) => void,
     dragHandleProps?: any,
     style?: React.CSSProperties,
@@ -312,7 +312,7 @@ const SetSongCard = ({
                             <DropdownMenuItem onClick={() => onEdit(song)} className="gap-2">
                                 <Pencil className="w-4 h-4 text-blue-500" /> Edit Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 gap-2" onClick={() => onRemove(song.id)}>
+                            <DropdownMenuItem className="text-red-600 gap-2" onClick={() => onRemove(song.id, song.title)}>
                                 <Trash2 className="w-4 h-4" /> Remove from Set
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -336,7 +336,7 @@ const SortableSetSongCard = ({
     index: number,
     onPlay: (url: string) => void,
     onEdit: (song: WeeklySetSong) => void,
-    onRemove: (id: string) => void,
+    onRemove: (id: string, title: string) => void,
     onViewLyrics: (lyrics: string, title: string) => void
 }) => {
     const {
@@ -535,134 +535,98 @@ const BackingTrackCard = ({
     onPlay,
     onEdit,
     onDelete,
+    onRequestDeletion,
     isAdmin
 }: {
     resource: any,
     onPlay: (url: string, title?: string) => void,
     onEdit: (resource: any) => void,
     onDelete: (id: string) => void,
+    onRequestDeletion: (title: string, action: () => Promise<void> | void) => void,
     isAdmin: boolean
 }) => {
     // Long Press Logic Wrapper
     const longPressTimer = useRef<number | null>(null);
     const isLongPress = useRef(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const handleTouchStart = () => {
         isLongPress.current = false;
         longPressTimer.current = window.setTimeout(() => {
             isLongPress.current = true;
-            setIsDeleteDialogOpen(true);
+            if (isAdmin) {
+                onRequestDeletion(resource.title, () => onDelete(resource.id));
+            }
         }, 600);
     };
 
-    const handleTouchEnd = () => {
-        if (longPressTimer.current) {
-            clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
-        }
-    };
-
-    const handleTouchMove = () => {
-        // If they move their finger, cancel the long press - they are likely scrolling
-        handleTouchEnd();
-    };
-
     return (
-        <>
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
-                    <AlertDialogHeader>
-                        <div className="mx-auto w-20 h-20 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center mb-4">
-                            <Trash2 className="w-10 h-10 text-red-500" />
-                        </div>
-                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Delete Backing Track?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
-                            Are you sure you want to delete <span className="text-slate-900 dark:text-white font-black">"{resource.title}"</span>? This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
-                        <AlertDialogCancel className="w-full sm:flex-1 h-14 rounded-2xl border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
-                            Keep Track
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => onDelete(resource.id)}
-                            className="w-full sm:flex-1 h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black shadow-lg shadow-red-500/20 transition-all active:scale-95"
-                        >
-                            Confirm Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+        <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
+            {isAdmin && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
+                                <MoreVertical className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => onEdit(resource)}>
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => onRequestDeletion(resource.title, () => onDelete(resource.id))}>
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )}
 
-            <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
-                {isAdmin && (
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
-                                    <MoreVertical className="w-4 h-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => onEdit(resource)}>
-                                    <Pencil className="w-4 h-4 mr-2" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteDialogOpen(true)}>
-                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+            <div
+                className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
+                onMouseDown={handleTouchStart}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+                onClick={(e) => {
+                    if (isLongPress.current) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                    resource.url && onPlay(resource.url, resource.title);
+                }}
+            >
+                {getYTThumbnail(resource.url) ? (
+                    <div className="w-full h-full relative">
+                        <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
+                        <PlayCircle className="w-8 h-8 text-white/40" />
                     </div>
                 )}
-
-                <div
-                    className="h-32 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 flex items-center justify-center group-hover:from-blue-400 group-hover:via-blue-500 group-hover:to-blue-700 transition-all cursor-pointer relative shadow-inner"
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchMove={handleTouchMove}
-                    onMouseDown={handleTouchStart}
-                    onMouseUp={handleTouchEnd}
-                    onMouseLeave={handleTouchEnd}
-                    onClick={(e) => {
-                        if (isLongPress.current) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            return;
-                        }
-                        resource.url && onPlay(resource.url, resource.title);
-                    }}
-                >
-                    {getYTThumbnail(resource.url) ? (
-                        <div className="w-full h-full relative">
-                            <img src={getYTThumbnail(resource.url)!} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <PlayCircle className="w-12 h-12 text-white drop-shadow-lg" />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center">
-                            <Music className="w-12 h-12 text-white/90 mb-2 drop-shadow-md" />
-                            <PlayCircle className="w-8 h-8 text-white/40" />
-                        </div>
-                    )}
-                </div>
-                <CardContent
-                    className="p-4 cursor-pointer"
-                    onClick={() => !isLongPress.current && resource.url && onPlay(resource.url, resource.title)}
-                >
-                    <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
-                        Backing Track
-                    </Badge>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
-                        {resource.title}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                        {new Date(resource.created_at).toLocaleDateString()}
-                    </p>
-                </CardContent>
-            </Card>
-        </>
+            </div>
+            <CardContent
+                className="p-4 cursor-pointer"
+                onClick={() => !isLongPress.current && resource.url && onPlay(resource.url, resource.title)}
+            >
+                <Badge variant="secondary" className="mb-2 text-xs font-normal bg-blue-100 text-blue-700">
+                    Backing Track
+                </Badge>
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1 group-hover:text-blue-600 transition-colors truncate">
+                    {resource.title}
+                </h3>
+                <p className="text-xs text-slate-500">
+                    {new Date(resource.created_at).toLocaleDateString()}
+                </p>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -675,6 +639,7 @@ const VocalResourceCard = ({
     onResume,
     onSeek,
     onDelete,
+    onRequestDeletion,
     isAdmin
 }: {
     resource: any,
@@ -685,104 +650,76 @@ const VocalResourceCard = ({
     onResume: () => void,
     onSeek: (time: number) => void,
     onDelete: (id: string) => void,
+    onRequestDeletion: (title: string, action: () => Promise<void> | void) => void,
     isAdmin: boolean
 }) => {
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
     return (
-        <>
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
-                    <AlertDialogHeader>
-                        <div className="mx-auto w-20 h-20 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center mb-4">
-                            <Trash2 className="w-10 h-10 text-red-500" />
-                        </div>
-                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Delete Resource?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
-                            Are you sure you want to delete <span className="text-slate-900 dark:text-white font-black">"{resource.title}"</span>? This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
-                        <AlertDialogCancel className="w-full sm:flex-1 h-14 rounded-2xl border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
-                            Keep Resource
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => onDelete(resource.id)}
-                            className="w-full sm:flex-1 h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black shadow-lg shadow-red-500/20 transition-all active:scale-95"
-                        >
-                            Confirm Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
-                <div className="flex items-center justify-between mb-6">
-                    <div className={`p-4 rounded-2xl ${activeVocalFolder === 'male' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600'}`}>
-                        <Mic className="w-6 h-6" />
-                    </div>
-                    <div className="flex gap-2 items-center">
-                        {audioState.audioUrl === resource.url && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
-                                onClick={() => onSeek(Math.max(0, audioState.currentTime - 15))}
-                            >
-                                <RotateCcw className="w-4 h-4" />
-                            </Button>
-                        )}
+        <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
+            <div className="flex items-center justify-between mb-6">
+                <div className={`p-4 rounded-2xl ${activeVocalFolder === 'male' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600'}`}>
+                    <Mic className="w-6 h-6" />
+                </div>
+                <div className="flex gap-2 items-center">
+                    {audioState.audioUrl === resource.url && (
                         <Button
                             variant="ghost"
                             size="icon"
-                            className={`h-11 w-11 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-pink-600 bg-pink-50 hover:bg-pink-100'}`}
-                            onClick={() => {
-                                if (resource.url) {
-                                    const isCurrentTrack = audioState.audioUrl === resource.url;
-                                    if (isCurrentTrack) {
-                                        if (audioState.isPlaying) {
-                                            onPause();
-                                        } else {
-                                            onResume();
-                                        }
-                                    } else {
-                                        onPlay(resource.url, resource.title);
-                                    }
-                                }
-                            }}
+                            className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                            onClick={() => onSeek(Math.max(0, audioState.currentTime - 15))}
                         >
-                            {audioState.audioUrl === resource.url && audioState.isPlaying ? (
-                                <Pause className="w-5 h-5" />
-                            ) : (
-                                <Play className="w-5 h-5" />
-                            )}
+                            <RotateCcw className="w-4 h-4" />
                         </Button>
-                        {audioState.audioUrl === resource.url && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
-                                onClick={() => onSeek(Math.min(audioState.duration, audioState.currentTime + 15))}
-                            >
-                                <RotateCw className="w-4 h-4" />
-                            </Button>
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-11 w-11 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' : 'text-pink-600 bg-pink-50 hover:bg-pink-100'}`}
+                        onClick={() => {
+                            if (resource.url) {
+                                const isCurrentTrack = audioState.audioUrl === resource.url;
+                                if (isCurrentTrack) {
+                                    if (audioState.isPlaying) {
+                                        onPause();
+                                    } else {
+                                        onResume();
+                                    }
+                                } else {
+                                    onPlay(resource.url, resource.title);
+                                }
+                            }
+                        }}
+                    >
+                        {audioState.audioUrl === resource.url && audioState.isPlaying ? (
+                            <Pause className="w-5 h-5" />
+                        ) : (
+                            <Play className="w-5 h-5" />
                         )}
-                        {isAdmin && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={() => setIsDeleteDialogOpen(true)}
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
+                    </Button>
+                    {audioState.audioUrl === resource.url && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-10 w-10 rounded-full ${activeVocalFolder === 'male' ? 'text-blue-400' : 'text-pink-400'}`}
+                            onClick={() => onSeek(Math.min(audioState.duration, audioState.currentTime + 15))}
+                        >
+                            <RotateCw className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {isAdmin && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-full"
+                            onClick={() => onRequestDeletion(resource.title, () => onDelete(resource.id))}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    )}
                 </div>
-                <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
             </div>
-        </>
+            <h4 className="font-black text-slate-800 dark:text-slate-100 mb-1 line-clamp-2 text-base">{resource.title}</h4>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Audio Resource</p>
+        </div>
     );
 };
 
@@ -1283,10 +1220,10 @@ const ChoirPage = () => {
     const availableWeeks = useMemo(() => {
         const thisMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
         return [
-            { label: "This Week", date: thisMonday },
-            { label: "Next Week", date: addDays(thisMonday, 7) },
-            { label: "Week 2", date: addDays(thisMonday, 14) },
-            { label: "Week 3", date: addDays(thisMonday, 21) },
+            { label: `This Week ${format(thisMonday, "MMM d")}`, date: thisMonday },
+            { label: `Next Week ${format(addDays(thisMonday, 7), "MMM d")}`, date: addDays(thisMonday, 7) },
+            { label: `${format(addDays(thisMonday, 14), "MMM d")}`, date: addDays(thisMonday, 14) },
+            { label: `${format(addDays(thisMonday, 21), "MMM d")}`, date: addDays(thisMonday, 21) },
         ];
     }, []);
 
@@ -1408,6 +1345,15 @@ const ChoirPage = () => {
         const newState = { ...prayerChecklist, [name]: !prayerChecklist[name] };
         setPrayerChecklist(newState); // Optimistic UI
         await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
+    };
+
+    // Unified Deletion Confirmation States
+    const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+    const [itemToRemove, setItemToRemove] = useState<{ title: string, action: () => Promise<void> | void } | null>(null);
+
+    const requestDeletion = (title: string, action: () => Promise<void> | void) => {
+        setItemToRemove({ title, action });
+        setIsRemoveConfirmOpen(true);
     };
 
     const handleLyricsImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, target: 'library' | 'edit-set' | 'new-set' = 'edit-set') => {
@@ -2280,17 +2226,17 @@ const ChoirPage = () => {
         }
     };
 
-    const handleClearLearningSongs = async () => {
+    const handleClearLearningSongs = () => {
         if (!locationId) return;
-        if (!window.confirm("Clear the 'New Songs Focus' section?")) return;
-        try {
-            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
-            await choirService.saveLearningSongs([], locationId, weekDateStr);
-
-        } catch (e) {
-            console.error(e);
-            toast.error("Failed to clear songs");
-        }
+        requestDeletion("'New Songs Focus' section", async () => {
+            try {
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                await choirService.saveLearningSongs([], locationId, weekDateStr);
+            } catch (e) {
+                console.error(e);
+                toast.error("Failed to clear songs");
+            }
+        });
     };
 
     // -- Helper for Archiving --
@@ -2393,30 +2339,30 @@ const ChoirPage = () => {
         }
     };
 
-    const handleArchiveSetlist = async () => {
+    const handleArchiveSetlist = () => {
         if (!locationId) return;
 
-        if (!window.confirm("Are you sure you want to archive this week's setlist? This creates a folder record of these songs.")) {
-            return;
-        }
+        requestDeletion("this week's setlist (archive)", async () => {
+            try {
+                const result = await archiveWeeklySetlist(
+                    locationId,
+                    setlistDate,
+                    folders,
+                    praiseSet,
+                    worshipSet,
+                    specialSet,
+                    hymnsSet
+                );
 
-        try {
-            const result = await archiveWeeklySetlist(
-                locationId,
-                setlistDate,
-                folders,
-                praiseSet,
-                worshipSet,
-                specialSet,
-                hymnsSet
-            );
-
-            if (!result.success) {
-                toast.error(result.message);
+                if (!result.success) {
+                    toast.error(result.message);
+                } else {
+                    toast.success(`Setlist archived to folder: ${result.name}`);
+                }
+            } catch (e) {
+                toast.error("Failed to archive setlist");
             }
-        } catch (e) {
-            toast.error("Failed to archive setlist");
-        }
+        });
     };
 
     // -- Handlers for Date --
@@ -2622,7 +2568,7 @@ const ChoirPage = () => {
         }
     };
 
-    const removeSetSong = async (type: 'praise' | 'worship' | 'learning' | 'special' | 'hymns', id: string) => {
+    const removeSetSong = async (type: string, id: string) => {
         try {
             if (type === 'learning') {
                 const updatedList = learningSet.filter(s => s.id !== id);
@@ -2633,13 +2579,15 @@ const ChoirPage = () => {
                 await choirService.deleteWeeklySong(id);
                 // Note: State update will happen via real-time subscription
             }
+            setIsRemoveConfirmOpen(false);
+            setItemToRemove(null);
         } catch (e) {
             console.error(e);
             toast.error("Failed to remove song");
         }
     };
 
-    const clearSet = async (type: 'praise' | 'worship' | 'special' | 'hymns') => {
+    const clearSet = (type: 'praise' | 'worship' | 'special' | 'hymns') => {
         const setName = type === 'praise' ? 'Praise Set' :
             type === 'worship' ? 'Worship Set' :
                 type === 'special' ? 'Special Number Set' : 'Hymns Set';
@@ -2653,19 +2601,16 @@ const ChoirPage = () => {
             return;
         }
 
-        if (!window.confirm(`Are you sure you want to clear all ${currentSet.length} song(s) from ${setName}? This action cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            // Delete all songs from the set
-            const deletePromises = currentSet.map(song => choirService.deleteWeeklySong(song.id));
-            await Promise.all(deletePromises);
-
-        } catch (e) {
-            console.error(e);
-            toast.error(`Failed to clear ${setName}`);
-        }
+        requestDeletion(`all songs from ${setName}`, async () => {
+            try {
+                // Delete all songs from the set
+                const deletePromises = currentSet.map(song => choirService.deleteWeeklySong(song.id));
+                await Promise.all(deletePromises);
+            } catch (e) {
+                console.error(e);
+                toast.error(`Failed to clear ${setName}`);
+            }
+        });
     };
 
     // -- Handlers for Edit Setlist Song --
@@ -3275,7 +3220,7 @@ const ChoirPage = () => {
                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditScheduleItem(item)}>
                                                     <Edit3 className="w-4 h-4" />
                                                 </Button>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" onClick={() => handleDeleteScheduleItem(item.id)}>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" onClick={() => requestDeletion(item.title, () => handleDeleteScheduleItem(item.id))}>
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
@@ -3553,7 +3498,7 @@ const ChoirPage = () => {
                                                     size="icon"
                                                     variant="ghost"
                                                     className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
-                                                    onClick={() => handleRemoveRosterMember('praise', i)}
+                                                    onClick={() => requestDeletion(name, () => handleRemoveRosterMember('praise', i))}
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </Button>
@@ -3621,7 +3566,7 @@ const ChoirPage = () => {
                                                         size="icon"
                                                         variant="ghost"
                                                         className="h-10 w-10 text-rose-600 hover:bg-rose-50 rounded-full"
-                                                        onClick={() => handleRemoveRosterMember('prayer', i)}
+                                                        onClick={() => requestDeletion(name, () => handleRemoveRosterMember('prayer', i))}
                                                     >
                                                         <Trash2 className="w-5 h-5" />
                                                     </Button>
@@ -3674,9 +3619,11 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog >
 
-            {/* Add Setlist Song Dialog */}
             <Dialog open={isAddToSetOpen} onOpenChange={setIsAddToSetOpen}>
-                <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
+                <DialogContent
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6"
+                >
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-xl font-bold">
                             {activeSetType === 'learning' ? 'Add Learning Focus Song' : `Add to ${activeSetType === 'praise' ? 'Praise' : 'Worship'} Set`}
@@ -4608,32 +4555,34 @@ const ChoirPage = () => {
                 >
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         {/* Week Switcher UI */}
-                        <div className="flex justify-center mb-6 overflow-x-auto no-scrollbar pb-2">
-                            <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm">
-                                {availableWeeks.map((week) => {
-                                    const isActive = selectedWeekDate.getTime() === week.date.getTime();
-                                    return (
-                                        <Button
-                                            key={week.label}
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setSelectedWeekDate(week.date);
-                                                setSetlistDate(week.date);
-                                            }}
-                                            className={cn(
-                                                "h-auto py-2 px-4 rounded-xl flex flex-col items-center gap-0.5 transition-all group",
-                                                isActive
-                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700"
-                                                    : "text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600"
-                                            )}
-                                        >
-                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100">{week.label}</span>
-                                            <span className="text-xs font-bold">{format(week.date, "MMM d")}</span>
-                                        </Button>
-                                    );
-                                })}
+                        {locationId !== 'national' && (
+                            <div className="flex justify-center mb-6 overflow-x-auto no-scrollbar pb-2">
+                                <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm">
+                                    {availableWeeks.map((week) => {
+                                        const isActive = selectedWeekDate.getTime() === week.date.getTime();
+                                        return (
+                                            <Button
+                                                key={week.label}
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setSelectedWeekDate(week.date);
+                                                    setSetlistDate(week.date);
+                                                }}
+                                                className={cn(
+                                                    "h-auto py-2 px-6 rounded-xl flex flex-col items-center gap-0.5 transition-all group min-w-[100px]",
+                                                    isActive
+                                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700"
+                                                        : "text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600"
+                                                )}
+                                            >
+                                                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100">{week.date.getTime() === startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() ? "This Week" : week.date.getTime() === addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 7).getTime() ? "Next Week" : "Coming Up"}</span>
+                                                <span className="text-xs font-bold">{format(week.date, "MMM d")}</span>
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
                             <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
@@ -4710,7 +4659,7 @@ const ChoirPage = () => {
                                                                     <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                         <Edit3 className="w-4 h-4" />
                                                                     </Button>
-                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestRemoveSetSong('learning', song.id, song.title)}>
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </Button>
                                                                 </div>
@@ -4875,7 +4824,7 @@ const ChoirPage = () => {
                                                         index={i}
                                                         onPlay={playVideo}
                                                         onEdit={startEditSetSong}
-                                                        onRemove={(id) => removeSetSong('praise', id)}
+                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('praise', id))}
                                                         onViewLyrics={(lyrics, title) => {
                                                             setPreviewLyrics({ title, content: lyrics });
                                                             setIsPreviewLyricsOpen(true);
@@ -4935,7 +4884,7 @@ const ChoirPage = () => {
                                                         index={i}
                                                         onPlay={playVideo}
                                                         onEdit={startEditSetSong}
-                                                        onRemove={(id) => removeSetSong('worship', id)}
+                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('worship', id))}
                                                         onViewLyrics={(lyrics, title) => {
                                                             setPreviewLyrics({ title, content: lyrics });
                                                             setIsPreviewLyricsOpen(true);
@@ -4997,7 +4946,7 @@ const ChoirPage = () => {
                                                                 index={i}
                                                                 onPlay={playVideo}
                                                                 onEdit={startEditSetSong}
-                                                                onRemove={(id) => removeSetSong('special', id)}
+                                                                onRemove={(id, title) => requestDeletion(title, () => removeSetSong('special', id))}
                                                                 onViewLyrics={(lyrics, title) => {
                                                                     setPreviewLyrics({ title, content: lyrics });
                                                                     setIsPreviewLyricsOpen(true);
@@ -5057,7 +5006,7 @@ const ChoirPage = () => {
                                                                 index={i}
                                                                 onPlay={playVideo}
                                                                 onEdit={startEditSetSong}
-                                                                onRemove={(id) => removeSetSong('hymns', id)}
+                                                                onRemove={(id, title) => requestDeletion(title, () => removeSetSong('hymns', id))}
                                                                 onViewLyrics={(lyrics, title) => {
                                                                     setPreviewLyrics({ title, content: lyrics });
                                                                     setIsPreviewLyricsOpen(true);
@@ -5299,9 +5248,7 @@ const ChoirPage = () => {
                                                             className="h-24 flex flex-col items-center justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-xl"
                                                             onClick={() => {
                                                                 setIsFolderOptionsOpen(false);
-                                                                if (window.confirm(`Are you sure you want to delete "${folderForOptions?.name}"?`)) {
-                                                                    deleteFolder(folderForOptions.id);
-                                                                }
+                                                                requestDeletion(folderForOptions?.name || "this folder", () => deleteFolder(folderForOptions.id));
                                                             }}
                                                         >
                                                             <Trash2 className="w-8 h-8 text-red-500" />
@@ -5355,7 +5302,7 @@ const ChoirPage = () => {
                                                                         <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
                                                                             <Pencil className="w-4 h-4 mr-2" /> Rename
                                                                         </DropdownMenuItem>
-                                                                        <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                        <DropdownMenuItem className="text-red-600" onClick={() => requestDeletion(folder.name, () => deleteFolder(folder.id))}>
                                                                             <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                         </DropdownMenuItem>
                                                                     </DropdownMenuContent>
@@ -5409,7 +5356,7 @@ const ChoirPage = () => {
                                                                                     <DropdownMenuItem className="text-blue-600" onClick={() => startEditFolder(folder)}>
                                                                                         <Pencil className="w-4 h-4 mr-2" /> Rename
                                                                                     </DropdownMenuItem>
-                                                                                    <DropdownMenuItem className="text-red-600" onClick={() => deleteFolder(folder.id)}>
+                                                                                    <DropdownMenuItem className="text-red-600" onClick={() => requestDeletion(folder.name, () => deleteFolder(folder.id))}>
                                                                                         <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                                     </DropdownMenuItem>
                                                                                 </DropdownMenuContent>
@@ -5505,7 +5452,7 @@ const ChoirPage = () => {
                                                                 <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                     <Edit3 className="w-4 h-4" />
                                                                 </Button>
-                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => removeSetSong('learning', song.id)}>
+                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestDeletion(song.title || "this song", () => removeSetSong('learning', song.id))}>
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>
                                                             </div>
@@ -5591,7 +5538,7 @@ const ChoirPage = () => {
                                                                 <DropdownMenuItem onClick={() => startEditInstrResource(resource)}>
                                                                     <Pencil className="w-4 h-4 mr-2" /> Edit
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteInstrResource(resource.id)}>
+                                                                <DropdownMenuItem className="text-red-600" onClick={() => requestDeletion(resource.title, () => handleDeleteInstrResource(resource.id))}>
                                                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -5665,6 +5612,7 @@ const ChoirPage = () => {
                                                 onPlay={playVideo}
                                                 onEdit={startEditInstrResource}
                                                 onDelete={handleDeleteInstrResource}
+                                                onRequestDeletion={requestDeletion}
                                                 isAdmin={isAdmin}
                                             />
                                         ))
@@ -6296,10 +6244,8 @@ const ChoirPage = () => {
                                                                                 onResume={resume}
                                                                                 onSeek={seek}
                                                                                 isAdmin={isAdmin}
-                                                                                onDelete={async (id) => {
-                                                                                    await choirService.deleteInstrumentalResource(id);
-
-                                                                                }}
+                                                                                onDelete={(id) => choirService.deleteInstrumentalResource(id)}
+                                                                                onRequestDeletion={requestDeletion}
                                                                             />
                                                                         ))}
                                                                 </div>
@@ -6892,6 +6838,32 @@ const ChoirPage = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Unified Deletion Confirmation AlertDialog */}
+            <AlertDialog open={isRemoveConfirmOpen} onOpenChange={setIsRemoveConfirmOpen}>
+                <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+                    <AlertDialogHeader>
+                        <div className="mx-auto w-20 h-20 bg-rose-50 dark:bg-rose-900/10 rounded-full flex items-center justify-center mb-4">
+                            <Trash2 className="w-10 h-10 text-rose-500" />
+                        </div>
+                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
+                            Do you want to delete <span className="text-slate-900 dark:text-white font-black">"{itemToRemove?.title}"</span>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
+                        <AlertDialogCancel className="w-full sm:flex-1 h-14 rounded-2xl border-slate-200 dark:border-slate-800 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => itemToRemove?.action()}
+                            className="w-full sm:flex-1 h-14 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+                        >
+                            Delete Now
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div >
     );
 };
