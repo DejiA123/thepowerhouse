@@ -26,27 +26,27 @@
   ],
   "icons": [
     {
-      "src": "/bible-icon.svg",
+      "src": "/church-logo.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/bible-icon.svg",
+      "src": "/church-logo.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/bible-icon.svg",
+      "src": "/church-logo.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     }
   ],
   "screenshots": [
     {
-      "src": "/bible-icon.svg",
+      "src": "/church-logo.png",
       "sizes": "1280x720",
       "type": "image/svg+xml",
       "form_factor": "wide"
@@ -60,8 +60,9 @@
       "url": "/bible",
       "icons": [
         {
-          "src": "/bible-icon.svg",
-          "sizes": "96x96"
+          "src": "/church-logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
         }
       ]
     },
@@ -72,8 +73,9 @@
       "url": "/prayer-wall",
       "icons": [
         {
-          "src": "/bible-icon.svg",
-          "sizes": "96x96"
+          "src": "/church-logo.png",
+          "sizes": "96x96",
+          "type": "image/png"
         }
       ]
     }

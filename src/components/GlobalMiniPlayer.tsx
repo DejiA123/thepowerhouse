@@ -70,7 +70,7 @@ const GlobalMiniPlayer: React.FC = () => {
             >
                 {/* Artwork / Icon */}
                 <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 overflow-hidden relative pointer-events-none">
-                    {audioState.trackImage && audioState.trackImage !== '/bible-icon.svg' ? (
+                    {audioState.trackImage && audioState.trackImage !== '/church-logo.png' ? (
                         <img src={audioState.trackImage} alt="Cover" className="h-full w-full object-cover" />
                     ) : (
                         audioState.isBibleMode ? <BookOpen className="h-6 w-6 text-white" /> : <Music className="h-6 w-6 text-white" />

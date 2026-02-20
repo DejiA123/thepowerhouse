@@ -27,7 +27,7 @@ interface NotificationSettings {
 export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [settings, setSettings] = useState<NotificationSettings>({
     dailyVerseEnabled: true,
     dailyVerseTime: '08:00',
@@ -40,7 +40,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     soundEnabled: true,
     vibrationEnabled: true
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<'default' | 'granted' | 'denied'>('default');
 
@@ -61,7 +61,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     if ('Notification' in window) {
       const permission = await Notification.requestPermission();
       setPermissionStatus(permission);
-      
+
       if (permission === 'granted') {
         toast({
           title: "Notifications Enabled",
@@ -133,7 +133,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     if (permissionStatus === 'granted') {
       new Notification('Bible Reader App', {
         body: 'This is a test notification. Your notifications are working!',
-        icon: '/bible-icon.svg',
+        icon: '/church-logo.png',
       });
     } else {
       toast({
@@ -161,7 +161,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
             <Bell className="w-5 h-5" />
             Notification Permission
           </h2>
-          
+
           <div className="p-4 bg-muted rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -178,13 +178,13 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
                 <Bell className="w-6 h-6 text-yellow-500" />
               )}
             </div>
-            
+
             {permissionStatus !== 'granted' && (
               <Button onClick={requestNotificationPermission} className="w-full mt-3">
                 Enable Notifications
               </Button>
             )}
-            
+
             {permissionStatus === 'granted' && (
               <Button variant="outline" onClick={testNotification} className="w-full mt-3">
                 Test Notification
@@ -199,7 +199,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
             <Clock className="w-5 h-5" />
             Daily Reminders
           </h2>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -212,7 +212,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
                 disabled={loading}
               />
             </div>
-            
+
             {settings.dailyVerseEnabled && (
               <div className="ml-4">
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -248,7 +248,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
                 disabled={loading}
               />
             </div>
-            
+
             {settings.readingRemindersEnabled && (
               <div className="ml-4">
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -280,7 +280,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
             <Users className="w-5 h-5" />
             App Notifications
           </h2>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -311,7 +311,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
         {/* Notification Methods */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Notification Methods</h2>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>

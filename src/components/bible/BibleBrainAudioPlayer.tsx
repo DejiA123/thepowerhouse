@@ -60,7 +60,7 @@ export const BibleBrainAudioPlayer = ({
         artist: 'The PowerHouse',
         album: version,
         artwork: [
-          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' }
+          { src: '/church-logo.png', sizes: '192x192', type: 'image/png' }
         ]
       });
 

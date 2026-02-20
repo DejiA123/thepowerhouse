@@ -38,18 +38,18 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ['favicon.ico'],
       manifest: {
-        name: 'The Power House App',
-        short_name: 'PowerHouse',
+        name: 'The Power House',
+        short_name: 'The Power House',
         description: 'The Power House International Church App',
         theme_color: '#ffffff',
         icons: [
           {
-            src: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+            src: '/church-logo.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png',
+            src: '/church-logo.png',
             sizes: '512x512',
             type: 'image/png'
           }

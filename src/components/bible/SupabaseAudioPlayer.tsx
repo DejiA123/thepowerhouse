@@ -22,7 +22,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
 }) => {
   const { preferences } = useBiblePreferences();
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -53,7 +53,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
         artist: 'The PowerHouse',
         album: version,
         artwork: [
-          { src: '/bible-icon.svg', sizes: '192x192', type: 'image/svg+xml' }
+          { src: '/church-logo.png', sizes: '192x192', type: 'image/png' }
         ]
       });
 
@@ -125,11 +125,11 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      
+
       console.log(`Loading audio for ${book} ${chapter} (${version})`);
-      
+
       const fileInfo = await supabaseAudioService.getAudioFileInfo(book, chapter, version);
-      
+
       if (!fileInfo) {
         const errorMsg = `No audio file found for ${book} ${chapter} (${version})`;
         setError(errorMsg);
@@ -138,12 +138,12 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
       }
 
       setAudioFileInfo(fileInfo);
-      
+
       if (audioRef.current) {
         audioRef.current.src = fileInfo.url;
         audioRef.current.load();
       }
-      
+
       console.log(`Audio loaded: ${fileInfo.fileName}`);
     } catch (err) {
       const errorMsg = `Failed to load audio: ${err}`;
@@ -198,7 +198,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
-    
+
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
       setIsMuted(newVolume === 0);
@@ -250,10 +250,10 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
           <span className="font-medium">Audio Not Available</span>
         </div>
         <p className="text-red-600 text-sm mt-1">{error}</p>
-        <Button 
-          onClick={loadAudioFile} 
-          variant="outline" 
-          size="sm" 
+        <Button
+          onClick={loadAudioFile}
+          variant="outline"
+          size="sm"
           className="mt-2"
         >
           Retry
@@ -327,7 +327,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
           >
             <SkipBack className="w-4 h-4" />
           </Button>
-          
+
           <Button
             onClick={restart}
             variant="outline"
@@ -336,7 +336,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
           >
             <RotateCcw className="w-4 h-4" />
           </Button>
-          
+
           <Button
             onClick={togglePlayPause}
             size="sm"
@@ -349,7 +349,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
               <Play className="w-4 h-4" />
             )}
           </Button>
-          
+
           <Button
             onClick={skipForward}
             variant="outline"
@@ -374,7 +374,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
               <Volume2 className="w-4 h-4" />
             )}
           </Button>
-          
+
           <div className="w-20">
             <Slider
               value={[isMuted ? 0 : volume]}
