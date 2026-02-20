@@ -1823,7 +1823,6 @@ const ChoirPage = () => {
 
                                 // Update the date so we don't trigger again
                                 await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
-                                toast.info("New week started! Previous setlist has been archived.");
                             } catch (err) {
                                 console.error("Archive failed:", err);
                             }
