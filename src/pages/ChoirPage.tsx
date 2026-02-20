@@ -2059,8 +2059,9 @@ const ChoirPage = () => {
                 const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
                 const item = (payload.new || payload.old) as any;
 
-                // Only update local state if the change belongs to the currently viewed week
-                if (item.week_date !== weekDateStr) return;
+                // Only update local state if the change belongs to the currently viewed week.
+                // For DELETE events, we allow it to proceed regardless of metadata presence as IDs are unique.
+                if (payload.eventType !== 'DELETE' && item.week_date !== weekDateStr) return;
 
                 console.log('Setlist change for current week:', payload);
 
