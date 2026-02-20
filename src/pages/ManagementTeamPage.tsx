@@ -1271,6 +1271,24 @@ const ManagementTeamPage = () => {
     const [editTaskText, setEditTaskText] = useState("");
     const [editTaskDeadline, setEditTaskDeadline] = useState("");
 
+    // Task Delete Confirmation State
+    const [taskToDelete, setTaskToDelete] = useState<{ id: string, text: string } | null>(null);
+    const taskLongPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+    const handleTaskLongPressStart = (task: { id: string, task_text: string }) => {
+        taskLongPressTimer.current = setTimeout(() => {
+            if (window.navigator?.vibrate) window.navigator.vibrate(50);
+            setTaskToDelete({ id: task.id, text: task.task_text });
+        }, 500);
+    };
+
+    const handleTaskLongPressEnd = () => {
+        if (taskLongPressTimer.current) {
+            clearTimeout(taskLongPressTimer.current);
+            taskLongPressTimer.current = null;
+        }
+    };
+
     // Saturday Prayer Accountability State
     const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
     const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
@@ -1994,7 +2012,7 @@ const ManagementTeamPage = () => {
                                         <CardContent>
                                             <div className="space-y-3">
                                                 {unit.tasks.map(task => (
-                                                    <div key={task.id} className="group flex items-start justify-between space-x-2">
+                                                    <div key={task.id} className="group flex items-start justify-between space-x-2 select-none" onTouchStart={() => handleTaskLongPressStart(task)} onTouchEnd={handleTaskLongPressEnd} onMouseDown={() => handleTaskLongPressStart(task)} onMouseUp={handleTaskLongPressEnd} onMouseLeave={handleTaskLongPressEnd}>
                                                         <div className="flex items-start space-x-2 flex-1">
                                                             <Checkbox
                                                                 id={task.id}
@@ -2096,7 +2114,7 @@ const ManagementTeamPage = () => {
                                         <CardContent>
                                             <div className="space-y-3">
                                                 {unit.tasks.map(task => (
-                                                    <div key={task.id} className="group flex items-start justify-between space-x-2">
+                                                    <div key={task.id} className="group flex items-start justify-between space-x-2 select-none" onTouchStart={() => handleTaskLongPressStart(task)} onTouchEnd={handleTaskLongPressEnd} onMouseDown={() => handleTaskLongPressStart(task)} onMouseUp={handleTaskLongPressEnd} onMouseLeave={handleTaskLongPressEnd}>
                                                         <div className="flex items-start space-x-2 flex-1">
                                                             <Checkbox
                                                                 id={task.id}
@@ -2187,6 +2205,38 @@ const ManagementTeamPage = () => {
                 </TabsContent>
 
             </Tabs>
+
+            {/* Task Delete Confirmation */}
+            <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+                <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center">
+                                <Trash2 className="w-5 h-5" />
+                            </div>
+                            Delete Task?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-600 dark:text-slate-400 text-base py-4">
+                            Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">"{taskToDelete?.text}"</span>?
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 font-bold hover:bg-slate-50">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (taskToDelete) handleDeleteTask(taskToDelete.id);
+                                setTaskToDelete(null);
+                            }}
+                            className="rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-lg shadow-red-500/20"
+                        >
+                            Delete Task
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Unit Deletion Confirmation */}
             <AlertDialog open={isRemoveUnitConfirmOpen} onOpenChange={setIsRemoveUnitConfirmOpen}>
