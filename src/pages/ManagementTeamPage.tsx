@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
 import { managementService, type Expense, type Guest, type Task, type ProjectTool, type ManagementSettings } from '@/services/managementService';
 import { generateProjectBriefPDF } from '@/utils/pdfGenerator';
@@ -855,7 +857,8 @@ const ModernProjectBrief = ({
     setUnitFormationPastor,
     unitFormationMeeting,
     setUnitFormationMeeting,
-    onUpdateUnit
+    onUpdateUnit,
+    onDeleteUnitRequest
 }: {
     unitInformation: any[],
     isEditMode: boolean,
@@ -872,7 +875,7 @@ const ModernProjectBrief = ({
     unitFormationMeeting: string,
     setUnitFormationMeeting: (v: string) => void,
     onUpdateUnit: (id: string, updates: any) => void,
-    onDeleteUnitRequest: (id: string, name: string) => void
+    onDeleteUnitRequest?: (id: string, name: string) => void
 }) => {
     const alreadyExistingUnits = unitInformation.filter(u => u.is_existing_unit);
     const immediateActionUnits = unitInformation.filter(u => u.unit_type === 'Immediate Action');
@@ -880,7 +883,7 @@ const ModernProjectBrief = ({
 
     const UnitCard = ({ unit, index, typePrefix }: { unit: any, index: number, typePrefix: string }) => {
         const longPressProps = useLongPress(() => {
-            if (isEditMode) {
+            if (isEditMode && onDeleteUnitRequest) {
                 onDeleteUnitRequest(unit.id, unit.unit_name);
             }
         });
