@@ -44,12 +44,12 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#ffffff',
         icons: [
           {
-            src: '/church-logo.png',
+            src: '/favicon.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/church-logo.png',
+            src: '/favicon.png',
             sizes: '512x512',
             type: 'image/png'
           }

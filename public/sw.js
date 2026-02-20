@@ -23,7 +23,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
         return cache.addAll([
           '/',
           '/index.html',
-          '/church-logo.png',
+          '/favicon.png',
           '/favicon.ico'
         ]);
       })

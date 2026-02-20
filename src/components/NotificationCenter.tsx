@@ -133,7 +133,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     if (permissionStatus === 'granted') {
       new Notification('Bible Reader App', {
         body: 'This is a test notification. Your notifications are working!',
-        icon: '/church-logo.png',
+        icon: '/favicon.png',
       });
     } else {
       toast({
