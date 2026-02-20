@@ -1538,7 +1538,6 @@ const ChoirPage = () => {
             // 3. Update local state
             setPrayerStats(newStats);
             setPrayerChecklist(emptyChecklist);
-            toast.info("A new week has started! Prayer checklist has been reset.");
         }
     };
 
