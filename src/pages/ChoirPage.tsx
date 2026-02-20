@@ -1277,7 +1277,20 @@ const ChoirPage = () => {
     // State for Media Player (Video or Audio)
     const [currentMedia, setCurrentMedia] = useState<{ type: 'video' | 'audio', url: string, title?: string } | null>(null);
 
-    // State for Setlist Date
+    // State for Setlist Week Selection
+    const [selectedWeekDate, setSelectedWeekDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+
+    const availableWeeks = useMemo(() => {
+        const thisMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+        return [
+            { label: "This Week", date: thisMonday },
+            { label: "Next Week", date: addDays(thisMonday, 7) },
+            { label: "Week 2", date: addDays(thisMonday, 14) },
+            { label: "Week 3", date: addDays(thisMonday, 21) },
+        ];
+    }, []);
+
+    // State for Setlist Date (Legacy/Current Week Reference)
     const [setlistDate, setSetlistDate] = useState<Date | undefined>(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
     // State for Header Modals
@@ -1744,17 +1757,18 @@ const ChoirPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             if (!locationId) return;
+            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
 
             try {
                 setLoading(true);
                 const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(locationId),
-                    choirService.getWeeklySetlist('praise', locationId),
-                    choirService.getWeeklySetlist('worship', locationId),
-                    choirService.getWeeklySetlist('special', locationId),
-                    choirService.getWeeklySetlist('hymns', locationId),
-                    choirService.getLearningSongs(locationId),
-                    choirService.getAllSetlistInfo(locationId),
+                    choirService.getWeeklySetlist('praise', locationId, weekDateStr),
+                    choirService.getWeeklySetlist('worship', locationId, weekDateStr),
+                    choirService.getWeeklySetlist('special', locationId, weekDateStr),
+                    choirService.getWeeklySetlist('hymns', locationId, weekDateStr),
+                    choirService.getLearningSongs(locationId, weekDateStr),
+                    choirService.getAllSetlistInfo(locationId, weekDateStr),
                     choirService.getInstrumentalResources(locationId),
                     choirService.getCalendarEvents(locationId)
                 ]);
@@ -1768,59 +1782,53 @@ const ChoirPage = () => {
                 setInstrResources(fetchedInstr);
                 setCalendarEvents(fetchedEvents);
 
-                if (fetchedInfo['date']) {
-                    const dbDate = new Date(fetchedInfo['date']);
-                    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+                // Handling descriptions for the selected week
+                setPraiseInfo({ title: "Praise Set", desc: fetchedInfo['praise_desc'] || "" });
+                setWorshipInfo({ title: "Worship Set", desc: fetchedInfo['worship_desc'] || "" });
+                setSpecialInfo({ title: "Special Number", desc: fetchedInfo['special_desc'] || "" });
+                setHymnsInfo({ title: "Hymns", desc: fetchedInfo['hymns_desc'] || "" });
 
-                    // 🚨 NEW WEEK DETECTION - Bypassed for National Choir
-                    if (locationId !== 'national' && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
-                        console.log("New week detected! Archiving and clearing setlists...");
+                // Check "This Week" (Legacy Date) reference only for This Week selection
+                const isThisWeek = weekDateStr === startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
 
-                        // 1. ARCHIVE FIRST (Auto-Archive)
-                        try {
-                            await archiveWeeklySetlist(
-                                locationId,
-                                dbDate, // Use the OLD date for the folder name
-                                fetchedFolders as ChoirFolder[],
-                                fetchedPraise as unknown as WeeklySetSong[],
-                                fetchedWorship as unknown as WeeklySetSong[],
-                                fetchedSpecial as unknown as WeeklySetSong[],
-                                fetchedHymns as unknown as WeeklySetSong[]
-                            );
-                            console.log("Auto-archived previous week's setlist.");
-                        } catch (err) {
-                            console.error("Auto-archive failed, but proceeding with clear to avoid loop:", err);
+                if (isThisWeek) {
+                    // Update setlistDate for legacy reasons/reference
+                    setSetlistDate(selectedWeekDate);
+
+                    // --- AUTOMATED WEEKLY ARCHIVE TRIGGER ---
+                    // Fetch the absolute "last known main week" from a global key if possible,
+                    // or just check against the 'date' row in the main setlist info.
+                    // For now, let's just check if we need to archive the PREVIOUS week.
+                    const lastKnownWeekStr = fetchedInfo['last_archived_week']; // We might need to add this key
+                    const currentMondayStr = startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
+
+                    // If 'date' info key exists, it means we've used the old system.
+                    // We'll use FETCHED_INFO['date'] as a trigger for a one-time migration/archive if it's old.
+                    if (fetchedInfo['date']) {
+                        const dbDate = new Date(fetchedInfo['date']);
+                        const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+                        if (locationId !== 'national' && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
+                            console.log("New week detected! Archiving previous week...");
+                            try {
+                                await archiveWeeklySetlist(
+                                    locationId,
+                                    dbDate,
+                                    fetchedFolders as ChoirFolder[],
+                                    fetchedPraise as unknown as WeeklySetSong[],
+                                    fetchedWorship as unknown as WeeklySetSong[],
+                                    fetchedSpecial as unknown as WeeklySetSong[],
+                                    fetchedHymns as unknown as WeeklySetSong[]
+                                );
+
+                                // Update the date so we don't trigger again
+                                await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+                                toast.info("New week started! Previous setlist has been archived.");
+                            } catch (err) {
+                                console.error("Archive failed:", err);
+                            }
                         }
-
-                        // 2. CLEAR DATA
-                        await choirService.clearWeeklySetlist(locationId);
-                        await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
-
-                        // Clear Learning Songs for the new week (Monday)
-                        // Explicitly only for regional branches as requested
-                        const AUTO_CLEAR_BRANCHES = ['galway', 'kildare', 'athlone', 'dublin'];
-                        if (AUTO_CLEAR_BRANCHES.includes(locationId)) {
-                            await choirService.saveLearningSongs([], locationId);
-                        }
-
-                        // Clear old keys to prevent migration re-triggering
-                        await choirService.updateSetlistInfo('learning_song_title', "", locationId);
-                        await choirService.updateSetlistInfo('learning_song_url', "", locationId);
-
-                        setSetlistDate(currentMonday);
-                        setPraiseSet([]);
-                        setWorshipSet([]);
-                        setSpecialSet([]);
-                        setHymnsSet([]);
-                        setLearningSet([]);
-                    } else {
-                        setSetlistDate(dbDate);
                     }
-                } else {
-                    // Initialize week start if missing
-                    const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
-                    await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
-                    setSetlistDate(currentMonday);
                 }
                 if (fetchedInfo['praise_desc']) setPraiseInfo(prev => ({ ...prev, desc: fetchedInfo['praise_desc'] }));
                 if (fetchedInfo['worship_desc']) setWorshipInfo(prev => ({ ...prev, desc: fetchedInfo['worship_desc'] }));
@@ -1840,7 +1848,7 @@ const ChoirPage = () => {
                             created_at: new Date().toISOString()
                         };
                         const newSet = [migratedSong];
-                        await choirService.saveLearningSongs(newSet, locationId);
+                        await choirService.saveLearningSongs(newSet, locationId, weekDateStr);
                         setLearningSet(newSet);
 
                         // Clear old keys to prevent re-migration
@@ -1922,41 +1930,7 @@ const ChoirPage = () => {
             }
         };
         fetchData();
-
-        // 🔄 Real-time date update: Check every minute if the week has changed
-        const dateInterval = setInterval(async () => {
-            if (!locationId) return;
-            const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
-
-            setSetlistDate(prevDate => {
-                if (!prevDate) return currentMonday;
-
-                const prevMonday = startOfWeek(prevDate, { weekStartsOn: 1 });
-
-                if (locationId !== 'national' && currentMonday.getTime() > prevMonday.getTime()) {
-                    // Trigger async clearing in the background
-                    (async () => {
-                        console.log("Week transition detected in real-time! Clearing...");
-                        await choirService.clearWeeklySetlist(locationId);
-                        await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
-                        await choirService.updateSetlistInfo('learning_song_title', "", locationId);
-                        await choirService.updateSetlistInfo('learning_song_url', "", locationId);
-                        await choirService.updateSetlistInfo('prayer_checklist', '{}', locationId);
-                        setPraiseSet([]);
-                        setWorshipSet([]);
-                        setSpecialSet([]);
-                        setHymnsSet([]);
-                        setLearningSet([]);
-                        toast.info("New week started: Focus song and setlists cleared.");
-                    })();
-                    return currentMonday;
-                }
-                return prevDate;
-            });
-        }, 60000);
-
-        return () => clearInterval(dateInterval);
-    }, [locationId]);
+    }, [locationId, selectedWeekDate]);
 
     // Sync state with URL params (Deep Linking)
     useEffect(() => {
@@ -2084,32 +2058,34 @@ const ChoirPage = () => {
                 table: 'choir_weekly_set_songs',
                 filter: `location=eq.${locationId}`
             }, (payload) => {
-                console.log('Setlist change:', payload);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const item = (payload.new || payload.old) as any;
+
+                // Only update local state if the change belongs to the currently viewed week
+                if (item.week_date !== weekDateStr) return;
+
+                console.log('Setlist change for current week:', payload);
 
                 if (payload.eventType === 'INSERT') {
                     const newSong = payload.new as any;
                     if (newSong.set_type === 'praise') {
                         setPraiseSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
-                            console.log('Inserting into Praise set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     } else if (newSong.set_type === 'worship') {
                         setWorshipSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
-                            console.log('Inserting into Worship set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     } else if (newSong.set_type === 'special') {
                         setSpecialSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
-                            console.log('Inserting into Special set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     } else if (newSong.set_type === 'hymns') {
                         setHymnsSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
-                            console.log('Inserting into Hymns set');
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
                     }
@@ -2126,29 +2102,18 @@ const ChoirPage = () => {
                     }
                 } else if (payload.eventType === 'DELETE') {
                     const deleted = payload.old as any;
-                    // Robust deletion handling with fallback for cases where set_type might be missing in older payloads
-                    if (deleted.set_type === 'praise') {
-                        setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
-                    } else if (deleted.set_type === 'worship') {
-                        setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
-                    } else if (deleted.set_type === 'special') {
-                        setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
-                    } else if (deleted.set_type === 'hymns') {
-                        setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
-                    } else {
-                        // Fallback: remove from all if set_type is unknown
-                        setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
-                        setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
-                        setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
-                        setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
-                    }
+                    // Robust deletion handling
+                    setPraiseSet(prev => prev.filter(s => s.id !== deleted.id));
+                    setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
+                    setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
+                    setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
                 }
             })
             .subscribe();
 
         subscriptions.push(setlistChannel);
 
-        // 4. Subscribe to choir_setlist_info (for date, descriptions, learning songs, schedules, rosters)
+        // 4. Subscribe to choir_setlist_info
         const infoChannel = supabase
             .channel('choir_setlist_info_changes')
             .on('postgres_changes', {
@@ -2157,60 +2122,46 @@ const ChoirPage = () => {
                 table: 'choir_setlist_info',
                 filter: `location=eq.${locationId}`
             }, (payload) => {
-                console.log('Setlist info change:', payload);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const info = (payload.new || payload.old) as any;
+
+                // Only update local state if the change belongs to the currently viewed week
+                // EXCEPT for global keys like 'date' if they are still used (though we transitioned away)
+                if (info.week_date && info.week_date !== weekDateStr) return;
+
+                console.log('Setlist info change for current week:', payload);
 
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                    const info = payload.new as any;
+                    const updatedInfo = payload.new as any;
 
-                    switch (info.info_type) {
+                    switch (updatedInfo.info_type) {
                         case 'date':
-                            setSetlistDate(new Date(info.value));
+                            // This might be global, so we update legacy state if someone else touches it
+                            setSetlistDate(new Date(updatedInfo.value));
                             break;
                         case 'praise_desc':
-                            setPraiseInfo(prev => ({ ...prev, desc: info.value }));
+                            setPraiseInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
                         case 'worship_desc':
-                            setWorshipInfo(prev => ({ ...prev, desc: info.value }));
+                            setWorshipInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
                         case 'learning_songs_json':
                             try {
-                                const learningSongs = JSON.parse(info.value);
+                                const learningSongs = JSON.parse(updatedInfo.value);
                                 setLearningSet(learningSongs);
                             } catch (e) {
                                 console.error('Failed to parse learning songs:', e);
                             }
                             break;
-                        case 'prayer_checklist':
-                            try {
-                                const checklist = JSON.parse(info.value);
-                                setPrayerChecklist(checklist);
-                            } catch (e) {
-                                console.error('Failed to parse prayer checklist:', e);
-                            }
-                            break;
+                        // Roster/Schedule are currently global per location, let's keep them that way or update if needed
                         case 'weekly_schedule':
-                            try {
-                                const schedule = JSON.parse(info.value);
-                                setWeeklySchedule(schedule);
-                            } catch (e) {
-                                console.error('Failed to parse schedule:', e);
-                            }
+                            try { setWeeklySchedule(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
                         case 'praise_roster':
-                            try {
-                                const roster = JSON.parse(info.value);
-                                setPraiseRoster(roster);
-                            } catch (e) {
-                                console.error('Failed to parse praise roster:', e);
-                            }
+                            try { setPraiseRoster(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
                         case 'prayer_roster':
-                            try {
-                                const roster = JSON.parse(info.value);
-                                setPrayerRoster(roster);
-                            } catch (e) {
-                                console.error('Failed to parse prayer roster:', e);
-                            }
+                            try { setPrayerRoster(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
                     }
                 }
@@ -2304,7 +2255,8 @@ const ChoirPage = () => {
         if (!editingSetInfoType) return;
         try {
             const key = editingSetInfoType === 'praise' ? 'praise_desc' : 'worship_desc';
-            await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!);
+            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!, weekDateStr);
             setIsEditSetInfoOpen(false);
 
         } catch (e) {
@@ -2316,14 +2268,13 @@ const ChoirPage = () => {
     const handleClearSetlist = async () => {
         if (!locationId) return;
         try {
+            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
             await Promise.all([
-                choirService.clearWeeklySetlist(locationId),
-                choirService.updateSetlistInfo('praise_desc', "", locationId),
-                choirService.updateSetlistInfo('worship_desc', "", locationId),
-                choirService.saveLearningSongs([], locationId) // Clear learning JSON
+                choirService.clearWeeklySetlist(locationId, weekDateStr),
+                choirService.updateSetlistInfo('praise_desc', "", locationId, weekDateStr),
+                choirService.updateSetlistInfo('worship_desc', "", locationId, weekDateStr),
+                choirService.saveLearningSongs([], locationId, weekDateStr) // Clear learning JSON
             ]);
-
-
         } catch (e) {
             console.error(e);
             toast.error("Failed to clear setlists");
@@ -2334,7 +2285,8 @@ const ChoirPage = () => {
         if (!locationId) return;
         if (!window.confirm("Clear the 'New Songs Focus' section?")) return;
         try {
-            await choirService.saveLearningSongs([], locationId);
+            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            await choirService.saveLearningSongs([], locationId, weekDateStr);
 
         } catch (e) {
             console.error(e);
@@ -2473,7 +2425,12 @@ const ChoirPage = () => {
         if (!date) return;
         try {
             const mondayOfSelectedWeek = startOfWeek(date, { weekStartsOn: 1 });
+            // Update the legacy 'date' global key for this location
             await choirService.updateSetlistInfo('date', mondayOfSelectedWeek.toISOString(), locationId!);
+
+            // Update viewing state
+            setSelectedWeekDate(mondayOfSelectedWeek);
+            setSetlistDate(mondayOfSelectedWeek);
         } catch (e) {
             console.error(e);
             toast.error("Failed to save date");
@@ -2626,7 +2583,8 @@ const ChoirPage = () => {
                     created_at: new Date().toISOString()
                 };
                 const updatedList = [...learningSet, newSong];
-                await choirService.saveLearningSongs(updatedList, locationId!);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 console.log('Adding weekly song to DB:', {
                     set_type: activeSetType,
@@ -2639,6 +2597,7 @@ const ChoirPage = () => {
                     location: locationId
                 });
                 // Add song to database - real-time subscription will update the UI
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
                 await choirService.addWeeklySong({
                     set_type: activeSetType,
                     title: newSetSong.title,
@@ -2647,6 +2606,7 @@ const ChoirPage = () => {
                     url: newSetSong.url,
                     lyrics: newSetSong.lyrics,
                     library_song_id: newSetSong.library_song_id || null,
+                    week_date: weekDateStr,
                     sort_order: activeSetType === 'praise' ? praiseSet.length :
                         activeSetType === 'worship' ? worshipSet.length :
                             activeSetType === 'special' ? specialSet.length :
@@ -2667,7 +2627,8 @@ const ChoirPage = () => {
         try {
             if (type === 'learning') {
                 const updatedList = learningSet.filter(s => s.id !== id);
-                await choirService.saveLearningSongs(updatedList, locationId!);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 // Delete from database - real-time subscription will update the UI
                 await choirService.deleteWeeklySong(id);
@@ -2754,7 +2715,8 @@ const ChoirPage = () => {
                     }
                     return s;
                 });
-                await choirService.saveLearningSongs(updatedList, locationId!);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 // Must be Praise or Worship (DB)
                 await choirService.updateWeeklySong(editingSetSongId, {
@@ -2813,13 +2775,15 @@ const ChoirPage = () => {
                 });
 
                 const updatedList = [...learningSet, ...newSongs];
-                await choirService.saveLearningSongs(updatedList, locationId!);
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
                 setLearningSet(updatedList);
 
                 setIsImportOpen(false);
                 setImportText("");
 
             } else {
+                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
                 const results = await Promise.all(lines.map(async (line, idx) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
                     const currentSetLength = importSetType === 'praise' ? praiseSet.length :
@@ -2833,6 +2797,7 @@ const ChoirPage = () => {
                         artist: match.artist || "",
                         url: match.url || "",
                         library_song_id: match.id,
+                        week_date: weekDateStr,
                         sort_order: currentSetLength + idx
                     } : {
                         set_type: importSetType as 'praise' | 'worship' | 'special' | 'hymns',
@@ -2840,6 +2805,7 @@ const ChoirPage = () => {
                         key: "??",
                         artist: "",
                         url: "",
+                        week_date: weekDateStr,
                         sort_order: currentSetLength + idx
                     };
                     if (match) matchedCount++;
@@ -4642,6 +4608,34 @@ const ChoirPage = () => {
                     onDragEnd={handleDragEnd}
                 >
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        {/* Week Switcher UI */}
+                        <div className="flex justify-center mb-6 overflow-x-auto no-scrollbar pb-2">
+                            <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm">
+                                {availableWeeks.map((week) => {
+                                    const isActive = selectedWeekDate.getTime() === week.date.getTime();
+                                    return (
+                                        <Button
+                                            key={week.label}
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setSelectedWeekDate(week.date);
+                                                setSetlistDate(week.date);
+                                            }}
+                                            className={cn(
+                                                "h-auto py-2 px-4 rounded-xl flex flex-col items-center gap-0.5 transition-all group",
+                                                isActive
+                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700"
+                                                    : "text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600"
+                                            )}
+                                        >
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-60 group-hover:opacity-100">{week.label}</span>
+                                            <span className="text-xs font-bold">{format(week.date, "MMM d")}</span>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         <div className="flex justify-center mb-8 overflow-x-auto no-scrollbar pb-2">
                             <TabsList className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-blue-100 dark:border-blue-900/30 h-auto flex-nowrap shrink-0 mx-auto">
                                 <TabsTrigger
@@ -4783,7 +4777,11 @@ const ChoirPage = () => {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0">
                                     <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center whitespace-nowrap">
                                         <ListMusic className="w-6 h-6 mr-3 text-blue-600 shrink-0" />
-                                        {locationId === 'national' ? "National Choir Setlist" : "This Week's Setlist"}
+                                        {locationId === 'national' ? "National Choir Setlist" : (
+                                            selectedWeekDate.getTime() === startOfWeek(new Date(), { weekStartsOn: 1 }).getTime()
+                                                ? "This Week's Setlist"
+                                                : availableWeeks.find(w => w.date.getTime() === selectedWeekDate.getTime())?.label + " Setlist" || format(selectedWeekDate, "MMM d") + " Setlist"
+                                        )}
                                     </h2>
 
                                     <div className="flex gap-2">
@@ -6298,8 +6296,8 @@ const ChoirPage = () => {
                                                                                 onPause={pause}
                                                                                 onResume={resume}
                                                                                 onSeek={seek}
-                                                                            isAdmin={isAdmin}
-                                                                            onDelete={async (id) => {
+                                                                                isAdmin={isAdmin}
+                                                                                onDelete={async (id) => {
                                                                                     await choirService.deleteInstrumentalResource(id);
 
                                                                                 }}

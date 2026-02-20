@@ -32,6 +32,7 @@ export interface WeeklySetSong {
     lyrics?: string;
     library_song_id?: string;
     sort_order: number;
+    week_date?: string;
     created_at?: string;
 }
 
@@ -47,6 +48,7 @@ export interface SetlistInfo {
     id: string;
     info_type: string;
     value: string;
+    week_date?: string;
     updated_at?: string;
 }
 
@@ -232,13 +234,21 @@ export const choirService = {
     },
 
     // --- Weekly Setlists ---
-    async getWeeklySetlist(type: 'praise' | 'worship' | 'special' | 'hymns', location: string) {
-        const { data, error } = await supabase
+    async getWeeklySetlist(type: 'praise' | 'worship' | 'special' | 'hymns', location: string, weekDate?: string) {
+        let query = supabase
             .from('choir_weekly_set_songs' as any)
             .select('*')
             .eq('set_type', type)
-            .eq('location', location)
-            .order('sort_order', { ascending: true });
+            .eq('location', location);
+
+        if (weekDate) {
+            query = query.eq('week_date', weekDate);
+        } else {
+            // Default to rows without week_date or rows matching current week's Monday
+            // For now, let's just make weekDate required in practice from the UI
+        }
+
+        const { data, error } = await query.order('sort_order', { ascending: true });
         if (error) throw error;
         return data;
     },
@@ -254,6 +264,7 @@ export const choirService = {
             lyrics: song.lyrics || null,
             library_song_id: song.library_song_id || null,
             sort_order: song.sort_order ?? 0,
+            week_date: song.week_date,
             location
         };
         console.log('addWeeklySong sanitized payload:', sanitized);
@@ -303,32 +314,46 @@ export const choirService = {
         if (error) throw error;
     },
 
-    async clearWeeklySetlist(location: string) {
-        const { error } = await supabase
+    async clearWeeklySetlist(location: string, weekDate?: string) {
+        let query = supabase
             .from('choir_weekly_set_songs' as any)
             .delete()
             .eq('location', location);
+
+        if (weekDate) {
+            query = query.eq('week_date', weekDate);
+        }
+
+        const { error } = await query;
         if (error) throw error;
     },
 
     // --- Setlist Info (Date & Descriptions) ---
-    async getSetlistInfo(infoType: string, location: string) {
-        const { data, error } = await supabase
+    async getSetlistInfo(infoType: string, location: string, weekDate?: string) {
+        let query = supabase
             .from('choir_setlist_info' as any)
             .select('*')
             .eq('info_type', infoType)
-            .eq('location', location)
-            .single();
+            .eq('location', location);
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (weekDate) {
+            query = query.eq('week_date', weekDate);
+        }
+
+        const { data, error } = await query.maybeSingle();
+
+        if (error) throw error;
         return data;
     },
 
-    async updateSetlistInfo(infoType: string, value: string, location: string) {
-        // Upsert mechanism with location
+    async updateSetlistInfo(infoType: string, value: string, location: string, weekDate?: string) {
+        // Upsert mechanism with location and weekDate
+        const payload: any = { info_type: infoType, value, location };
+        if (weekDate) payload.week_date = weekDate;
+
         const { data, error } = await supabase
             .from('choir_setlist_info' as any)
-            .upsert({ info_type: infoType, value, location }, { onConflict: 'info_type,location' })
+            .upsert(payload, { onConflict: 'info_type,location,week_date' })
             .select()
             .single();
         if (error) throw error;
@@ -336,20 +361,9 @@ export const choirService = {
     },
 
     // --- Learning Focus (JSON Storage) ---
-    async getLearningSongs(location: string): Promise<WeeklySetSong[]> {
-        const { data, error } = await supabase
-            .from('choir_setlist_info' as any)
-            .select('value')
-            .eq('info_type', 'learning_songs_json')
-            .eq('location', location)
-            .maybeSingle();
+    async getLearningSongs(location: string, weekDate?: string): Promise<WeeklySetSong[]> {
+        const record = await this.getSetlistInfo('learning_songs_json', location, weekDate);
 
-        if (error) {
-            console.error("Error fetching learning songs", error);
-            return [];
-        }
-
-        const record = data as unknown as { value: string } | null;
         if (!record || !record.value) return [];
 
         try {
@@ -360,16 +374,22 @@ export const choirService = {
         }
     },
 
-    async saveLearningSongs(songs: WeeklySetSong[], location: string) {
-        return this.updateSetlistInfo('learning_songs_json', JSON.stringify(songs), location);
+    async saveLearningSongs(songs: WeeklySetSong[], location: string, weekDate?: string) {
+        return this.updateSetlistInfo('learning_songs_json', JSON.stringify(songs), location, weekDate);
     },
 
     // Helper to get all info at once for a location
-    async getAllSetlistInfo(location: string) {
-        const { data, error } = await supabase
+    async getAllSetlistInfo(location: string, weekDate?: string) {
+        let query = supabase
             .from('choir_setlist_info' as any)
             .select('*')
             .eq('location', location);
+
+        if (weekDate) {
+            query = query.eq('week_date', weekDate);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
