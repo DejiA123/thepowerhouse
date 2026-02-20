@@ -2237,7 +2237,7 @@ const ChoirPage = () => {
                 supabase.removeChannel(sub);
             });
         };
-    }, [locationId]);
+    }, [locationId, selectedWeekDate]);
 
 
 
