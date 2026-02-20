@@ -1271,14 +1271,16 @@ const ManagementTeamPage = () => {
     const [editTaskText, setEditTaskText] = useState("");
     const [editTaskDeadline, setEditTaskDeadline] = useState("");
 
-    // Task Delete Confirmation State
-    const [taskToDelete, setTaskToDelete] = useState<{ id: string, text: string } | null>(null);
+    // Task Edit/Delete Dialog State
+    const [taskActionTarget, setTaskActionTarget] = useState<{ id: string, text: string } | null>(null);
+    const [editingTaskText, setEditingTaskText] = useState("");
     const taskLongPressTimer = useRef<NodeJS.Timeout | null>(null);
 
     const handleTaskLongPressStart = (task: { id: string, task_text: string }) => {
         taskLongPressTimer.current = setTimeout(() => {
             if (window.navigator?.vibrate) window.navigator.vibrate(50);
-            setTaskToDelete({ id: task.id, text: task.task_text });
+            setTaskActionTarget({ id: task.id, text: task.task_text });
+            setEditingTaskText(task.task_text);
         }, 500);
     };
 
@@ -2206,37 +2208,64 @@ const ManagementTeamPage = () => {
 
             </Tabs>
 
-            {/* Task Delete Confirmation */}
-            <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
-                <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center">
-                                <Trash2 className="w-5 h-5" />
+            {/* Task Edit / Delete Dialog */}
+            <Dialog open={!!taskActionTarget} onOpenChange={(open) => !open && setTaskActionTarget(null)}>
+                <DialogContent className="rounded-3xl border-none shadow-2xl max-w-sm mx-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center">
+                                <Edit className="w-5 h-5" />
                             </div>
-                            Delete Task?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-600 dark:text-slate-400 text-base py-4">
-                            Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">"{taskToDelete?.text}"</span>?
-                            This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="gap-2 sm:gap-0">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 font-bold hover:bg-slate-50">
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                                if (taskToDelete) handleDeleteTask(taskToDelete.id);
-                                setTaskToDelete(null);
-                            }}
-                            className="rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-lg shadow-red-500/20"
-                        >
-                            Delete Task
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                            Edit Task
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                        <div>
+                            <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">Task Description</Label>
+                            <Textarea
+                                value={editingTaskText}
+                                onChange={(e) => setEditingTaskText(e.target.value)}
+                                className="rounded-2xl resize-none text-sm min-h-[80px]"
+                                placeholder="Task description..."
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 pt-1">
+                            <Button
+                                onClick={() => {
+                                    if (taskActionTarget && editingTaskText.trim()) {
+                                        handleUpdateTask(taskActionTarget.id, { task_text: editingTaskText.trim() });
+                                        toast.success("Task updated");
+                                    }
+                                    setTaskActionTarget(null);
+                                }}
+                                className="w-full rounded-2xl font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                            >
+                                Save Changes
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    if (taskActionTarget) {
+                                        handleDeleteTask(taskActionTarget.id);
+                                    }
+                                    setTaskActionTarget(null);
+                                }}
+                                className="w-full rounded-2xl font-bold border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Task
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => setTaskActionTarget(null)}
+                                className="w-full rounded-2xl font-bold text-slate-500"
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Unit Deletion Confirmation */}
             <AlertDialog open={isRemoveUnitConfirmOpen} onOpenChange={setIsRemoveUnitConfirmOpen}>
