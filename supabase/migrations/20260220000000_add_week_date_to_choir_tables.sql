@@ -29,11 +29,17 @@ SET week_date = date_trunc('week', updated_at)::date + interval '0 days'
 WHERE week_date IS NULL;
 
 -- 3. Update Unique Constraints for choir_setlist_info
--- First, remove old constraint if it exists (usually it's on info_type, location)
+-- Remove old constraints if they exist (names can vary)
 ALTER TABLE public.choir_setlist_info DROP CONSTRAINT IF EXISTS choir_setlist_info_info_type_location_key;
+ALTER TABLE public.choir_setlist_info DROP CONSTRAINT IF EXISTS choir_setlist_info_type_location_unique;
 
--- Add new constraint that includes week_date
-ALTER TABLE public.choir_setlist_info ADD CONSTRAINT choir_setlist_info_info_type_location_week_date_key UNIQUE (info_type, location, week_date);
+-- Add new constraint that includes week_date (idempotently)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'choir_setlist_info_info_type_location_week_date_key') THEN
+        ALTER TABLE public.choir_setlist_info ADD CONSTRAINT choir_setlist_info_info_type_location_week_date_key UNIQUE (info_type, location, week_date);
+    END IF;
+END $$;
 
 -- 4. Set REPLICA IDENTITY FULL for real-time (already done but good to ensure)
 ALTER TABLE public.choir_weekly_set_songs REPLICA IDENTITY FULL;
