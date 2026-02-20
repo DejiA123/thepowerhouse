@@ -556,6 +556,7 @@ export type Database = {
           location: string | null
           updated_at: string
           value: string | null
+          week_date: string | null
         }
         Insert: {
           id?: string
@@ -563,6 +564,7 @@ export type Database = {
           location?: string | null
           updated_at?: string
           value?: string | null
+          week_date?: string | null
         }
         Update: {
           id?: string
@@ -570,6 +572,7 @@ export type Database = {
           location?: string | null
           updated_at?: string
           value?: string | null
+          week_date?: string | null
         }
         Relationships: []
       }
@@ -632,6 +635,7 @@ export type Database = {
           sort_order: number | null
           title: string
           url: string | null
+          week_date: string | null
         }
         Insert: {
           artist?: string | null
@@ -647,6 +651,7 @@ export type Database = {
           sort_order?: number | null
           title: string
           url?: string | null
+          week_date?: string | null
         }
         Update: {
           artist?: string | null
@@ -662,6 +667,7 @@ export type Database = {
           sort_order?: number | null
           title?: string
           url?: string | null
+          week_date?: string | null
         }
         Relationships: [
           {
@@ -765,6 +771,48 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friendships_friend_id_fkey"
+            columns: ["friend_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friendships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       group_admins: {
         Row: {

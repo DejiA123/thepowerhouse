@@ -1,5 +1,20 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Trash2, CheckCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface Message {
+  id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  profiles?: {
+    full_name?: string;
+    email?: string;
+  };
+}
 
 interface ChatMessageProps {
   message: Message;
@@ -15,7 +30,6 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
   const handleToggleReaction = async (emoji: string) => {
     try {
       setShowReactions(false);
-      // Directly using supabase here for simplicity in this component
       const { data: existing } = await supabase
         .from('message_reactions' as any)
         .select('id')
@@ -55,21 +69,14 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
   };
 
   const displayName = useMemo(() => {
-    console.log('Getting display name for message:', message.id);
-
-    // Try full_name first
     if (message.profiles?.full_name && message.profiles.full_name.trim() !== '') {
       return message.profiles.full_name;
     }
-
-    // Try email as fallback (extract name part before @)
     if (message.profiles?.email && message.profiles.email.trim() !== '') {
-      const emailName = message.profiles.email.split('@')[0];
-      return emailName;
+      return message.profiles.email.split('@')[0];
     }
-
     return 'Member';
-  }, [message.profiles, message.user_id, message.id]);
+  }, [message.profiles]);
 
   const isOwnMessage = user?.id === message.user_id;
 
@@ -95,7 +102,6 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
 
   return (
     <div className="group">
-      {/* Date separator - only show if requested */}
       {showDateSeparator && (
         <div className="flex justify-center my-2">
           <div className="whatsapp-date-separator">
@@ -104,7 +110,6 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
         </div>
       )}
 
-      {/* Message bubble */}
       <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>
         <div
           onTouchStart={handleTouchStart}
@@ -116,16 +121,12 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
             ? 'whatsapp-message-own'
             : 'whatsapp-message-other'
             }`}>
-          {/* Sender name for other messages */}
           {!isOwnMessage && (
             <p className="text-xs font-medium text-blue-600 mb-1">{displayName}</p>
           )}
-          {/* Message text */}
           <p className="text-sm leading-relaxed break-words">{message.message}</p>
 
-          {/* Timestamp and status */}
-          <div className={`flex items-center justify-end space-x-1 mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'
-            }`}>
+          <div className={`flex items-center justify-end space-x-1 mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
             <span className="whatsapp-timestamp">{formatTime(message.created_at)}</span>
             {isOwnMessage && (
               <div className="flex items-center space-x-1">
@@ -134,7 +135,6 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
             )}
           </div>
 
-          {/* Reaction picker shown on hover or long press */}
           <div className={cn(
             "absolute -bottom-10 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-1 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 z-50 transition-all",
             showReactions ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible group-hover/message:opacity-100 group-hover/message:scale-100 group-hover/message:visible",
@@ -151,7 +151,6 @@ const ChatMessage = ({ message, deleteMessage, showDateSeparator = false }: Chat
             ))}
           </div>
 
-          {/* Delete button for own messages */}
           {isOwnMessage && (
             <Button
               variant="ghost"

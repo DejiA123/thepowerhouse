@@ -559,6 +559,20 @@ const BackingTrackCard = ({
         }, 600);
     };
 
+    const handleTouchEnd = () => {
+        if (longPressTimer.current !== null) {
+            window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
+    const handleTouchMove = () => {
+        if (longPressTimer.current !== null) {
+            window.clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
+
     return (
         <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
             {isAdmin && (
@@ -2357,7 +2371,7 @@ const ChoirPage = () => {
                 if (!result.success) {
                     toast.error(result.message);
                 } else {
-                    toast.success(`Setlist archived to folder: ${result.name}`);
+                    toast.success(`Setlist archived successfully`);
                 }
             } catch (e) {
                 toast.error("Failed to archive setlist");
@@ -4556,7 +4570,7 @@ const ChoirPage = () => {
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         {/* Week Switcher UI */}
                         {locationId !== 'national' && (
-                            <div className="flex justify-start md:justify-center mb-6 overflow-x-auto no-scrollbar pb-2 px-4 md:px-0">
+                            <div className="flex justify-center mb-6 pb-2 px-4 md:px-0">
                                 <div className="flex gap-2 p-1 bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-blue-900/20 shadow-sm shrink-0">
                                     {availableWeeks.map((week) => {
                                         const isActive = selectedWeekDate.getTime() === week.date.getTime();
@@ -4659,7 +4673,7 @@ const ChoirPage = () => {
                                                                     <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                         <Edit3 className="w-4 h-4" />
                                                                     </Button>
-                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestRemoveSetSong('learning', song.id, song.title)}>
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestDeletion(song.title, () => removeSetSong('learning', song.id))}>
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </Button>
                                                                 </div>
