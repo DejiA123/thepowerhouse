@@ -3,7 +3,9 @@ import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
+import DesktopSidebar from "./DesktopSidebar";
 import GlobalMiniPlayer from "./GlobalMiniPlayer";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +13,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const isMobile = useIsMobile();
   const showChrome = location.pathname !== "/intro";
 
   // Initialize theme on app load
@@ -182,43 +185,51 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className={cn(
-      "fixed inset-0 flex flex-col w-full text-foreground bg-background overscroll-none overflow-x-hidden",
+      "fixed inset-0 flex w-full text-foreground bg-background overscroll-none overflow-x-hidden",
+      isMobile ? "flex-col" : "flex-row",
       location.pathname === '/group-chats' && "overflow-hidden"
     )}>
-      {/* Background fill for status bar - now using a real element to avoid pushing container height */}
-      {/* Hide on Bible page (handles own spacing) AND when Header is shown (Header now handles spacing) */}
-      {/* Only show for pages WITHOUT Header (like GroupChats, Intro, FollowUp) except Bible */}
-      {location.pathname !== '/bible' && (location.pathname === '/group-chats' || location.pathname === '/follow-up' || !showChrome) && (
-        <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
-      )}
+      {/* Desktop Sidebar - only on desktop */}
+      {!isMobile && showChrome && <DesktopSidebar />}
 
-      {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
-        <>
-          <Header />
-          {/* Spacer for Fixed Header: logo + padding + safe-area-top */}
-          {/* Mobile: 64px (h-16) + 16px (pt-2 + pb-2) = 80px */}
-          {/* Desktop: 80px (h-20) + 16px (pt-2 + pb-2) = 96px */}
-          <div className="h-20 sm:h-24 shrink-0" style={{ marginTop: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
-        </>
-      )}
+      {/* Main column */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Background fill for status bar - mobile only */}
+        {isMobile && location.pathname !== '/bible' && (location.pathname === '/group-chats' || location.pathname === '/follow-up' || !showChrome) && (
+          <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
+        )}
 
-      {/* Main Content */}
-      <main
-        id="main-content"
-        className="flex-1 overflow-y-auto"
-      >
-        <div className={cn(
-          "min-h-full",
-          showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
-        )}>
-          {children}
-        </div>
-      </main>
+        {/* Header - mobile shows full header, desktop shows compact top bar */}
+        {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
+          <>
+            {isMobile && (
+              <>
+                <Header />
+                <div className="h-20 sm:h-24 shrink-0" style={{ marginTop: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
+              </>
+            )}
+          </>
+        )}
 
-      {showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && <BottomNavigation />}
+        {/* Main Content */}
+        <main
+          id="main-content"
+          className="flex-1 overflow-y-auto"
+        >
+          <div className={cn(
+            "min-h-full",
+            showChrome && isMobile && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
+          )}>
+            {children}
+          </div>
+        </main>
 
-      {/* Global Mini Player for Background Audio */}
-      <GlobalMiniPlayer />
+        {/* Bottom Nav - mobile only */}
+        {isMobile && showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && <BottomNavigation />}
+
+        {/* Global Mini Player for Background Audio */}
+        <GlobalMiniPlayer />
+      </div>
     </div>
   );
 };
