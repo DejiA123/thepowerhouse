@@ -28,7 +28,9 @@ const LocationsSection = () => {
       },
       phone: "089 953 5663",
       email: "contact.thepowerhouse@gmail.com",
-      whatsappGroup: "https://chat.whatsapp.com/KildareGroup"
+      whatsappGroup: "https://chat.whatsapp.com/KildareGroup",
+      bibleStudyTime: "6:30 PM",
+      prayerTime: "6:30 PM"
     },
     {
       name: "Athlone",
@@ -102,11 +104,11 @@ const LocationsSection = () => {
                     </div>
                     <div className="flex items-center justify-between text-xs font-medium">
                       <span className="text-gray-500 flex items-center"><Clock className="w-3 h-3 mr-1.5" /> Bible Study</span>
-                      <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">{location.times.bibleStudy}</span>
+                      <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">{(location as any).bibleStudyTime || location.times.bibleStudy}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs font-medium">
                       <span className="text-gray-500 flex items-center"><Clock className="w-3 h-3 mr-1.5" /> Prayer Meeting</span>
-                      <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">{location.times.prayer}</span>
+                      <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">{(location as any).prayerTime || location.times.prayer}</span>
                     </div>
                   </div>
 
@@ -114,7 +116,7 @@ const LocationsSection = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full text-xs font-semibold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transaction-colors"
+                      className="w-full text-xs font-semibold border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 hover:border-green-400 dark:bg-green-900/40 dark:text-green-300 dark:border-green-600 dark:hover:bg-green-800/60 dark:hover:text-green-200 transition-colors"
                       onClick={() => window.open(location.whatsappGroup, '_blank')}
                     >
                       <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
