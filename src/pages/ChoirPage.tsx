@@ -234,7 +234,8 @@ const SetSongCard = ({
     dragHandleProps,
     style,
     innerRef,
-    isOverlay = false
+    isOverlay = false,
+    isLocked
 }: {
     song: WeeklySetSong,
     index: number,
@@ -333,7 +334,8 @@ const SortableSetSongCard = ({
     onPlay,
     onEdit,
     onRemove,
-    onViewLyrics
+    onViewLyrics,
+    isLocked
 }: {
     song: WeeklySetSong,
     index: number,
