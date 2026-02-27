@@ -305,7 +305,7 @@ const SetSongCard = ({
                         {song.key}
                     </Badge>
                 )}
-                {!isOverlay && (
+                {!isOverlay && !isLocked && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button size="icon" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
@@ -543,20 +543,23 @@ const BackingTrackCard = ({
     onEdit,
     onDelete,
     onRequestDeletion,
-    isAdmin
+    isAdmin,
+    isLocked
 }: {
     resource: any,
     onPlay: (url: string, title?: string) => void,
     onEdit: (resource: any) => void,
     onDelete: (id: string) => void,
     onRequestDeletion: (title: string, action: () => Promise<void> | void) => void,
-    isAdmin: boolean
+    isAdmin: boolean,
+    isLocked: boolean
 }) => {
     // Long Press Logic Wrapper
     const longPressTimer = useRef<number | null>(null);
     const isLongPress = useRef(false);
 
     const handleTouchStart = () => {
+        if (isLocked) return;
         isLongPress.current = false;
         longPressTimer.current = window.setTimeout(() => {
             isLongPress.current = true;
@@ -582,7 +585,7 @@ const BackingTrackCard = ({
 
     return (
         <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
-            {isAdmin && (
+            {isAdmin && !isLocked && (
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -661,7 +664,8 @@ const VocalResourceCard = ({
     onSeek,
     onDelete,
     onRequestDeletion,
-    isAdmin
+    isAdmin,
+    isLocked
 }: {
     resource: any,
     audioState: any,
@@ -672,7 +676,8 @@ const VocalResourceCard = ({
     onSeek: (time: number) => void,
     onDelete: (id: string) => void,
     onRequestDeletion: (title: string, action: () => Promise<void> | void) => void,
-    isAdmin: boolean
+    isAdmin: boolean,
+    isLocked: boolean
 }) => {
     return (
         <div className="bg-white dark:bg-slate-900/50 p-6 rounded-[1.8rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:translate-y-[-6px] transition-all duration-500 group">
@@ -726,7 +731,7 @@ const VocalResourceCard = ({
                             <RotateCw className="w-4 h-4" />
                         </Button>
                     )}
-                    {isAdmin && (
+                    {isAdmin && !isLocked && (
                         <Button
                             variant="ghost"
                             size="icon"
@@ -5680,7 +5685,8 @@ const ChoirPage = () => {
                                                 onEdit={startEditInstrResource}
                                                 onDelete={handleDeleteInstrResource}
                                                 onRequestDeletion={requestDeletion}
-                                                isAdmin={isAdmin && !isLocked}
+                                                isAdmin={isAdmin}
+                                                isLocked={isLocked}
                                             />
                                         ))
                                     )}
@@ -5810,6 +5816,7 @@ const ChoirPage = () => {
                                 onRemove={() => { }}
                                 onViewLyrics={() => { }}
                                 isOverlay={true}
+                                isLocked={isLocked}
                             />
                         ) : null}
                     </DragOverlay>
@@ -6310,7 +6317,8 @@ const ChoirPage = () => {
                                                                                 onPause={pause}
                                                                                 onResume={resume}
                                                                                 onSeek={seek}
-                                                                                isAdmin={isAdmin && !isLocked}
+                                                                                isAdmin={isAdmin}
+                                                                                isLocked={isLocked}
                                                                                 onDelete={(id) => choirService.deleteInstrumentalResource(id)}
                                                                                 onRequestDeletion={requestDeletion}
                                                                             />
