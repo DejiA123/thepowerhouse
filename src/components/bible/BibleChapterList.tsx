@@ -53,7 +53,7 @@ export const BibleChapterList = ({
   return (
     <div className="bible-chapter-selection overscroll-contain">
       {/* Header Bar */}
-      <div className="bible-chapter-header">
+      <div className="bible-chapter-header" style={{ touchAction: 'none' }}>
         <button
           className="bible-chapter-back"
           onClick={onBackToBooks}

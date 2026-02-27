@@ -168,7 +168,7 @@ export const BibleBookList = ({ onBookSelect, onCancel, onHistory }: BibleBookLi
   return (
     <div className="bible-book-selection overscroll-contain flex-1 flex flex-col min-h-0">
       {/* Header Bar */}
-      <div className="bible-book-header shrink-0">
+      <div className="bible-book-header shrink-0" style={{ touchAction: 'none' }}>
         <button
           className="bible-book-cancel"
           onClick={onCancel}
