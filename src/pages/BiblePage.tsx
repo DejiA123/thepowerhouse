@@ -572,7 +572,7 @@ const BiblePage = () => {
   if (selectedChapter && !showHighlights && !showNotes) {
     // Full Bible reading layout
     return (
-      <div className="min-h-screen bg-background pb-[72px] pt-0">
+      <div className="flex flex-col h-[100dvh] bg-background overscroll-none pt-0 overflow-hidden">
         {renderContent()}
 
         {/* Version Selector Drawer */}

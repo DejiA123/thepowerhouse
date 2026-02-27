@@ -13,25 +13,6 @@ const Header = () => {
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  const isBiblePage = location.pathname === "/bible";
-
-  // Handle scroll detection for Bible page
-  useEffect(() => {
-    if (!isBiblePage) return;
-
-    const mainContent = document.getElementById('main-content');
-    if (!mainContent) return;
-
-    const handleScroll = () => {
-      const scrollTop = mainContent.scrollTop;
-      setIsScrolled(scrollTop > 50); // Hide after 50px of scroll
-    };
-
-    mainContent.addEventListener('scroll', handleScroll);
-    return () => mainContent.removeEventListener('scroll', handleScroll);
-  }, [isBiblePage]);
 
   const handleUserIconClick = () => {
     if (user) {

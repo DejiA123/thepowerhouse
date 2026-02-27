@@ -595,7 +595,7 @@ export const BibleChapterContent = ({
       onTouchEnd={onTouchEnd}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] bg-white/95 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-100/50">
+      <div className="flex items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] bg-background sticky top-0 z-50 border-b border-border">
         {/* Left Side: Book/Chapter and Version Pills */}
         <div className="flex items-center gap-2">
           <button
