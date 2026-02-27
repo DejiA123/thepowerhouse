@@ -671,7 +671,7 @@
 
 /* Full Bible page styles to cover the entire app */
 .bible-page-full {
-  @apply bg-background text-foreground font-serif min-h-screen flex flex-col;
+  @apply bg-background text-foreground font-serif min-h-screen flex flex-col h-[100dvh] overflow-hidden;
 }
 
 .bible-header-full {
@@ -747,7 +747,7 @@
 }
 
 .bible-main-content-full {
-  @apply flex-1 bg-background pb-40;
+  @apply flex-1 bg-background pb-40 overflow-y-auto overscroll-y-auto;
 }
 
 @media (display-mode: standalone) {

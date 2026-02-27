@@ -42,7 +42,7 @@ const Header = () => {
   };
 
   return (
-    <header className="glass fixed top-0 w-full z-40">
+    <header className="fixed top-0 w-full z-40 bg-background border-b border-border shadow-sm">
       <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-1">

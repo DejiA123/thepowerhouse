@@ -28,19 +28,6 @@ import { FileText, Volume2, Smartphone, X } from "lucide-react";
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
 
-  // Add styles to prevent page scrolling - only allow content scrolling
-  useEffect(() => {
-    // Apply fixed height and overflow hidden to body when on Bible page
-    document.body.style.height = '100dvh';
-    document.body.style.overflow = 'hidden';
-
-    // Cleanup function to restore normal scrolling when leaving the page
-    return () => {
-      document.body.style.height = '';
-      document.body.style.overflow = '';
-    };
-  }, []);
-
   // Helper to scroll to top of all potential scroll containers
   const scrollToTop = () => {
     window.scrollTo(0, 0);
@@ -686,7 +673,7 @@ const BiblePage = () => {
 
   // Book selection or other layouts
   return (
-    <div className="flex flex-col h-[100dvh] bg-background overscroll-contain pt-[env(safe-area-inset-top,0px)] overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-background overscroll-none pt-[env(safe-area-inset-top,0px)] overflow-hidden">
       {renderContent()}
 
       {/* Bible History Dialog */}

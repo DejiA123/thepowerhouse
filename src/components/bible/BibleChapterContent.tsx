@@ -662,7 +662,9 @@ export const BibleChapterContent = ({
       {/* Main Content Area */}
 
       <div
-        className="bible-main-content-full"
+        className="bible-main-content-full flex-1 overflow-y-auto min-h-0"
+        id="main-content"
+        ref={scrollContainerRef}
       >
         {loading ? (
           <div className="flex items-center justify-center py-8">
