@@ -1370,10 +1370,10 @@ const ChoirPage = () => {
 
     // Unified Deletion Confirmation States
     const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
-    const [itemToRemove, setItemToRemove] = useState<{ title: string, action: () => Promise<void> | void } | null>(null);
+    const [itemToRemove, setItemToRemove] = useState<{ title: string, action: () => Promise<void> | void, type?: 'delete' | 'archive' } | null>(null);
 
-    const requestDeletion = (title: string, action: () => Promise<void> | void) => {
-        setItemToRemove({ title, action });
+    const requestDeletion = (title: string, action: () => Promise<void> | void, type: 'delete' | 'archive' = 'delete') => {
+        setItemToRemove({ title, action, type });
         setIsRemoveConfirmOpen(true);
     };
 
@@ -2394,7 +2394,7 @@ const ChoirPage = () => {
             } catch (e) {
                 toast.error("Failed to archive setlist");
             }
-        });
+        }, 'archive');
     };
 
     // -- Handlers for Date --
@@ -6910,16 +6910,28 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Unified Deletion Confirmation AlertDialog */}
             <AlertDialog open={isRemoveConfirmOpen} onOpenChange={setIsRemoveConfirmOpen}>
                 <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8 bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
                     <AlertDialogHeader>
-                        <div className="mx-auto w-20 h-20 bg-rose-50 dark:bg-rose-900/10 rounded-full flex items-center justify-center mb-4">
-                            <Trash2 className="w-10 h-10 text-rose-500" />
+                        <div className={cn(
+                            "mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-colors",
+                            itemToRemove?.type === 'archive' ? "bg-blue-50 dark:bg-blue-900/10" : "bg-rose-50 dark:bg-rose-900/10"
+                        )}>
+                            {itemToRemove?.type === 'archive' ? (
+                                <Archive className="w-10 h-10 text-blue-500" />
+                            ) : (
+                                <Trash2 className="w-10 h-10 text-rose-500" />
+                            )}
                         </div>
-                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">Are you sure?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-2xl font-black text-center text-slate-900 dark:text-white uppercase tracking-tighter">
+                            {itemToRemove?.type === 'archive' ? 'Confirm Archive' : 'Are you sure?'}
+                        </AlertDialogTitle>
                         <AlertDialogDescription className="text-center text-slate-500 dark:text-slate-400 font-medium text-lg pt-2 leading-relaxed">
-                            Do you want to delete <span className="text-slate-900 dark:text-white font-black">"{itemToRemove?.title}"</span>? This action cannot be undone.
+                            {itemToRemove?.type === 'archive' ? (
+                                <>Do you want to archive <span className="text-slate-900 dark:text-white font-black">"{itemToRemove?.title}"</span>?</>
+                            ) : (
+                                <>Do you want to delete <span className="text-slate-900 dark:text-white font-black">"{itemToRemove?.title}"</span>? This action cannot be undone.</>
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 mt-2">
@@ -6928,9 +6940,14 @@ const ChoirPage = () => {
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => itemToRemove?.action()}
-                            className="w-full sm:flex-1 h-14 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+                            className={cn(
+                                "w-full sm:flex-1 h-14 rounded-2xl text-white font-black shadow-lg transition-all active:scale-95",
+                                itemToRemove?.type === 'archive'
+                                    ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/20"
+                                    : "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
+                            )}
                         >
-                            Delete Now
+                            {itemToRemove?.type === 'archive' ? 'Archive Now' : 'Delete Now'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
