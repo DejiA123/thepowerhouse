@@ -42,8 +42,8 @@ import {
     Share2,
     Grid,
     List as ListIcon,
-    CalendarIcon,
-    Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet, Upload, Image, Globe, ExternalLink, Globe2
+    Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet, Upload, Image, Globe, ExternalLink, Globe2,
+    Lock, Unlock
 } from "lucide-react";
 
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -245,7 +245,8 @@ const SetSongCard = ({
     dragHandleProps?: any,
     style?: React.CSSProperties,
     innerRef?: React.Ref<HTMLDivElement>,
-    isOverlay?: boolean
+    isOverlay?: boolean,
+    isLocked?: boolean
 }) => {
     return (
         <div
@@ -258,12 +259,14 @@ const SetSongCard = ({
         >
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                 {/* DRAG HANDLE - Only this area initiates drag */}
-                <div
-                    {...dragHandleProps}
-                    className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing touch-none"
-                >
-                    <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
+                {!isLocked && (
+                    <div
+                        {...dragHandleProps}
+                        className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing touch-none"
+                    >
+                        <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                )}
                 {index !== undefined && <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>}
                 {/* CLICKABLE CONTENT AREA - Opens edit dialog */}
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onEdit(song)}>
@@ -337,7 +340,8 @@ const SortableSetSongCard = ({
     onPlay: (url: string) => void,
     onEdit: (song: WeeklySetSong) => void,
     onRemove: (id: string, title: string) => void,
-    onViewLyrics: (lyrics: string, title: string) => void
+    onViewLyrics: (lyrics: string, title: string) => void,
+    isLocked: boolean
 }) => {
     const {
         attributes,
@@ -346,7 +350,7 @@ const SortableSetSongCard = ({
         transform,
         transition,
         isDragging
-    } = useSortable({ id: song.id });
+    } = useSortable({ id: song.id, disabled: isLocked });
 
     const style = {
         transform: CSS.Translate.toString(transform),
@@ -365,6 +369,7 @@ const SortableSetSongCard = ({
             onEdit={onEdit}
             onRemove={onRemove}
             onViewLyrics={onViewLyrics}
+            isLocked={isLocked}
             dragHandleProps={{ ...attributes, ...listeners }}
         />
     );
@@ -1535,6 +1540,16 @@ const ChoirPage = () => {
         if (locationId && locationId !== 'national') return true;
         return sessionStorage.getItem('choir_admin_auth') === 'true';
     });
+
+    const [isLocked, setIsLocked] = useState<boolean>(() => {
+        const saved = sessionStorage.getItem('choir_portal_locked');
+        return saved === null ? true : saved === 'true';
+    });
+
+    // Persist lock state
+    useEffect(() => {
+        sessionStorage.setItem('choir_portal_locked', isLocked.toString());
+    }, [isLocked]);
     const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
     const [adminPasscode, setAdminPasscode] = useState("");
 
@@ -1598,6 +1613,7 @@ const ChoirPage = () => {
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
+        if (isLocked) return;
         const { active, over } = event;
         console.log('🎯 Drag Ended:', {
             activeId: active.id,
@@ -3182,25 +3198,27 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                            <CalendarIcon className="w-6 h-6 text-blue-600" />
+                            <Calendar className="w-6 h-6 text-blue-600" />
                             Choir Schedule
                         </DialogTitle>
                         <DialogDescription className="sr-only">
                             View and manage the weekly choir rehearsal and event schedule.
                         </DialogDescription>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
-                            onClick={() => {
-                                setEditingScheduleId(null);
-                                setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
-                                setIsEditScheduleOpen(true);
-                            }}
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Item
-                        </Button>
+                        {isAdmin && !isLocked && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
+                                onClick={() => {
+                                    setEditingScheduleId(null);
+                                    setNewScheduleItem({ day: "", time: "", title: "", description: "", color: "blue" });
+                                    setIsEditScheduleOpen(true);
+                                }}
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Item
+                            </Button>
+                        )}
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-6 space-y-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
@@ -3230,14 +3248,16 @@ const ChoirPage = () => {
                                     <div className="space-y-1 flex-1">
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{item.title}</h3>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditScheduleItem(item)}>
-                                                    <Edit3 className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" onClick={() => requestDeletion(item.title, () => handleDeleteScheduleItem(item.id))}>
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
+                                            {isAdmin && !isLocked && (
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditScheduleItem(item)}>
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" onClick={() => requestDeletion(item.title, () => handleDeleteScheduleItem(item.id))}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                         <p className={cn(
                                             "text-lg font-bold",
@@ -3256,7 +3276,7 @@ const ChoirPage = () => {
                         ) : (
                             <div className="text-center py-20 space-y-4">
                                 <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
-                                    <CalendarIcon className="w-10 h-10" />
+                                    <Calendar className="w-10 h-10" />
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xl font-bold text-slate-900 dark:text-white">No Schedule Set</p>
@@ -3365,7 +3385,7 @@ const ChoirPage = () => {
                 <DialogContent className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6">
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between space-y-0">
                         <DialogTitle className="text-2xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
-                            <CalendarIcon className="w-6 h-6 text-blue-600" />
+                            <Calendar className="w-6 h-6 text-blue-600" />
                             {editingEvent ? 'Edit Calendar Note' : 'Add Calendar Note'}
                         </DialogTitle>
                         <DialogDescription className="sr-only">
@@ -3458,15 +3478,17 @@ const ChoirPage = () => {
                         <DialogDescription className="sr-only">
                             View the current roster for Praise & Worship and Tuesday Prayer teams.
                         </DialogDescription>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
-                            onClick={() => setIsEditRosterMode(!isEditRosterMode)}
-                        >
-                            <Edit3 className="w-4 h-4 mr-2" />
-                            {isEditRosterMode ? 'Finish Editing' : 'Edit Roster'}
-                        </Button>
+                        {isAdmin && !isLocked && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50 font-bold mr-12"
+                                onClick={() => setIsEditRosterMode(!isEditRosterMode)}
+                            >
+                                <Edit3 className="w-4 h-4 mr-2" />
+                                {isEditRosterMode ? 'Finish Editing' : 'Edit Roster'}
+                            </Button>
+                        )}
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-8 space-y-12 px-4 md:px-20 max-w-4xl mx-auto w-full">
@@ -4523,6 +4545,29 @@ const ChoirPage = () => {
                         </div>
 
                         <div className="flex flex-wrap gap-3"> {/* Buttons visible on all screens */}
+                            {isAdmin && (
+                                <Button
+                                    className={cn(
+                                        "shadow-lg border-none flex-1 md:flex-none font-bold transition-all duration-300",
+                                        isLocked
+                                            ? "bg-amber-500 hover:bg-amber-600 text-white"
+                                            : "bg-emerald-500 hover:bg-emerald-600 text-white"
+                                    )}
+                                    onClick={() => setIsLocked(!isLocked)}
+                                >
+                                    {isLocked ? (
+                                        <>
+                                            <Lock className="w-4 h-4 mr-2" />
+                                            Unlock Portal
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Unlock className="w-4 h-4 mr-2" />
+                                            Lock Portal
+                                        </>
+                                    )}
+                                </Button>
+                            )}
                             <Button
                                 className="bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-lg border-none flex-1 md:flex-none font-bold"
                                 onClick={() => setIsScheduleOpen(true)}
@@ -4634,7 +4679,7 @@ const ChoirPage = () => {
                                         <Music className="w-6 h-6 mr-3 text-blue-600" />
                                         New Song{learningSet.length > 1 ? 's' : ''} Focus
                                     </h2>
-                                    {isAdmin && (
+                                    {isAdmin && !isLocked && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -4668,7 +4713,7 @@ const ChoirPage = () => {
                                                     return (
                                                         <div key={song.id} className="space-y-4 group/song relative">
                                                             {/* ACTIONS */}
-                                                            {isAdmin && (
+                                                            {isAdmin && !isLocked && (
                                                                 <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
                                                                     <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                         <Edit3 className="w-4 h-4" />
@@ -4719,7 +4764,7 @@ const ChoirPage = () => {
                                                 <h3 className="text-3xl font-black text-white">What are we learning next?</h3>
                                                 <p className="text-blue-100/80 text-lg font-medium">No new songs set yet. Add one to get started!</p>
                                             </div>
-                                            {isAdmin && (
+                                            {isAdmin && !isLocked && (
                                                 <div className="flex justify-center">
                                                     <Button onClick={() => openAddSetSong('learning')} className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-2xl px-8 py-6 h-auto shadow-xl w-fit">
                                                         <PlusCircle className="w-5 h-5 mr-3" />
@@ -4748,7 +4793,7 @@ const ChoirPage = () => {
 
                                     <div className="flex gap-2">
                                         {/* Archive Button */}
-                                        {isAdmin && (
+                                        {isAdmin && !isLocked && (
                                             <Button
                                                 variant="outline"
                                                 className="h-12 rounded-2xl border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100 px-4 font-bold shadow-sm"
@@ -4775,7 +4820,7 @@ const ChoirPage = () => {
                                                     ) : (
                                                         <span>Select Service Date</span>
                                                     )}
-                                                    <CalendarIcon className="ml-3 h-5 w-5 opacity-50" />
+                                                    <Calendar className="ml-3 h-5 w-5 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
                                             <PopoverContent className="w-auto p-0" align="end">
@@ -4808,7 +4853,7 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                {isAdmin && (
+                                                {isAdmin && !isLocked && (
                                                     <>
                                                         <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('praise')} title="Clear all songs from Praise Set">
                                                             <Trash2 className="w-5 h-5" />
@@ -4843,6 +4888,7 @@ const ChoirPage = () => {
                                                             setPreviewLyrics({ title, content: lyrics });
                                                             setIsPreviewLyricsOpen(true);
                                                         }}
+                                                        isLocked={isLocked}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -4868,7 +4914,7 @@ const ChoirPage = () => {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                {isAdmin && (
+                                                {isAdmin && !isLocked && (
                                                     <>
                                                         <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('worship')} title="Clear all songs from Worship Set">
                                                             <Trash2 className="w-5 h-5" />
@@ -4903,6 +4949,7 @@ const ChoirPage = () => {
                                                             setPreviewLyrics({ title, content: lyrics });
                                                             setIsPreviewLyricsOpen(true);
                                                         }}
+                                                        isLocked={isLocked}
                                                     />
                                                 ))}
                                             </SortableContext>
@@ -4930,7 +4977,7 @@ const ChoirPage = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        {isAdmin && (
+                                                        {isAdmin && !isLocked && (
                                                             <>
                                                                 <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('special')} title="Clear all songs from Special Number Set">
                                                                     <Trash2 className="w-5 h-5" />
@@ -4965,6 +5012,7 @@ const ChoirPage = () => {
                                                                     setPreviewLyrics({ title, content: lyrics });
                                                                     setIsPreviewLyricsOpen(true);
                                                                 }}
+                                                                isLocked={isLocked}
                                                             />
                                                         ))}
                                                     </SortableContext>
@@ -4990,7 +5038,7 @@ const ChoirPage = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        {isAdmin && (
+                                                        {isAdmin && !isLocked && (
                                                             <>
                                                                 <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('hymns')} title="Clear all songs from Hymns Set">
                                                                     <Trash2 className="w-5 h-5" />
@@ -5025,6 +5073,7 @@ const ChoirPage = () => {
                                                                     setPreviewLyrics({ title, content: lyrics });
                                                                     setIsPreviewLyricsOpen(true);
                                                                 }}
+                                                                isLocked={isLocked}
                                                             />
                                                         ))}
                                                     </SortableContext>
@@ -5072,7 +5121,7 @@ const ChoirPage = () => {
                                         </div>
 
                                         <div className="flex gap-2 shrink-0">
-                                            {isAdmin && (
+                                            {isAdmin && !isLocked && (
                                                 <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
                                                     <DialogTrigger asChild>
                                                         <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
@@ -5125,7 +5174,7 @@ const ChoirPage = () => {
                                                 </DialogContent>
                                             </Dialog>
 
-                                            {activeFolderId && isAdmin && (
+                                            {activeFolderId && isAdmin && !isLocked && (
                                                 <div className="flex gap-2">
                                                     <Dialog open={isImportFolderOpen} onOpenChange={setIsImportFolderOpen}>
                                                         <DialogTrigger asChild>
@@ -5287,7 +5336,7 @@ const ChoirPage = () => {
                                                         id={`folder-${folder.id}`}
                                                         onClick={() => setActiveFolderId(folder.id)}
                                                         onLongPress={() => {
-                                                            if (isAdmin) {
+                                                            if (isAdmin && !isLocked) {
                                                                 setFolderForOptions(folder);
                                                                 setIsFolderOptionsOpen(true);
                                                             }
@@ -5304,7 +5353,7 @@ const ChoirPage = () => {
                                                             </p>
                                                         </div>
 
-                                                        {isAdmin && (
+                                                        {isAdmin && !isLocked && (
                                                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
@@ -5348,7 +5397,7 @@ const ChoirPage = () => {
                                                                     key={folder.id}
                                                                     id={`folder-${folder.id}`}
                                                                     onClick={() => setActiveFolderId(folder.id)}
-                                                                    onLongPress={() => isAdmin && startEditFolder(folder)}
+                                                                    onLongPress={() => isAdmin && !isLocked && startEditFolder(folder)}
                                                                     className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group flex flex-col items-center text-center gap-2 relative"
                                                                 >
                                                                     <FolderOpen className="w-8 h-8 text-blue-400 group-hover:text-blue-600" />
@@ -5358,7 +5407,7 @@ const ChoirPage = () => {
                                                                             {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
                                                                         </p>
                                                                     </div>
-                                                                    {isAdmin && (
+                                                                    {isAdmin && !isLocked && (
                                                                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                             <DropdownMenu>
                                                                                 <DropdownMenuTrigger asChild>
@@ -5405,7 +5454,7 @@ const ChoirPage = () => {
                                                                                 <PlayCircle className="w-4 h-4" />
                                                                             </Button>
                                                                         )}
-                                                                        {isAdmin && (
+                                                                        {isAdmin && !isLocked && (
                                                                             <>
                                                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => startEditSong(song)}>
                                                                                     <Edit3 className="w-4 h-4" />
@@ -5462,14 +5511,16 @@ const ChoirPage = () => {
                                                     return (
                                                         <div key={song.id} className="space-y-4 group/song relative">
                                                             {/* ACTIONS */}
-                                                            <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
-                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
-                                                                    <Edit3 className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestDeletion(song.title || "this song", () => removeSetSong('learning', song.id))}>
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
+                                                            {isAdmin && !isLocked && (
+                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
+                                                                        <Edit3 className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-rose-500 text-white border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => requestDeletion(song.title || "this song", () => removeSetSong('learning', song.id))}>
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
 
                                                             <div className="w-full aspect-video rounded-[2rem] overflow-hidden shadow-2xl ring-4 ring-white/10 bg-black/40">
                                                                 {videoId ? (
@@ -5521,7 +5572,7 @@ const ChoirPage = () => {
                                         <Video className="w-6 h-6 text-blue-600" />
                                         Tutorials
                                     </h2>
-                                    {isAdmin && (
+                                    {isAdmin && !isLocked && (
                                         <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => {
                                             setNewInstr({ title: "", type: "Tutorial", url: "" });
                                             setIsAddInstrOpen(true);
@@ -5540,7 +5591,7 @@ const ChoirPage = () => {
                                     ) : (
                                         instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
                                             <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
-                                                {isAdmin && (
+                                                {isAdmin && !isLocked && (
                                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -5599,7 +5650,7 @@ const ChoirPage = () => {
                                         <Music className="w-6 h-6 text-blue-600" />
                                         Backing Tracks
                                     </h2>
-                                    {isAdmin && (
+                                    {isAdmin && !isLocked && (
                                         <Button
                                             className="bg-blue-600 hover:bg-blue-700 text-white"
                                             onClick={() => {
@@ -5627,7 +5678,7 @@ const ChoirPage = () => {
                                                 onEdit={startEditInstrResource}
                                                 onDelete={handleDeleteInstrResource}
                                                 onRequestDeletion={requestDeletion}
-                                                isAdmin={isAdmin}
+                                                isAdmin={isAdmin && !isLocked}
                                             />
                                         ))
                                     )}
@@ -5655,7 +5706,7 @@ const ChoirPage = () => {
                                                 <p className="text-center py-8 text-slate-400">No songs in praise set</p>
                                             ) : (
                                                 praiseSet.map((song) => (
-                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin} />
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin && !isLocked} />
                                                 ))
                                             )}
                                         </CardContent>
@@ -5673,7 +5724,7 @@ const ChoirPage = () => {
                                                 <p className="text-center py-8 text-slate-400">No songs in worship set</p>
                                             ) : (
                                                 worshipSet.map((song) => (
-                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin} />
+                                                    <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin && !isLocked} />
                                                 ))
                                             )}
                                         </CardContent>
@@ -5710,7 +5761,7 @@ const ChoirPage = () => {
                                 </div>
                             </div>
 
-                            <AcademyDashboard locationId={locationId} isAdmin={isAdmin} />
+                            <AcademyDashboard locationId={locationId} isAdmin={isAdmin && !isLocked} />
 
                             {/* Course Sections */}
                             {academyCourses.map((section, idx) => (
@@ -6257,7 +6308,7 @@ const ChoirPage = () => {
                                                                                 onPause={pause}
                                                                                 onResume={resume}
                                                                                 onSeek={seek}
-                                                                                isAdmin={isAdmin}
+                                                                                isAdmin={isAdmin && !isLocked}
                                                                                 onDelete={(id) => choirService.deleteInstrumentalResource(id)}
                                                                                 onRequestDeletion={requestDeletion}
                                                                             />
@@ -6300,16 +6351,18 @@ const ChoirPage = () => {
                                 </h2>
                                 <p className="text-slate-500 font-medium">Strategic goals and daily coordination for the entire team.</p>
                             </div>
-                            <Button
-                                onClick={() => {
-                                    setEditingEvent(null);
-                                    setNewEvent({ title: "", description: "", color: "purple" });
-                                    setIsAddEventOpen(true);
-                                }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-8 py-6 h-auto shadow-xl shadow-blue-500/20 font-bold"
-                            >
-                                <Plus className="w-5 h-5 mr-2" /> Add New Note
-                            </Button>
+                            {isAdmin && !isLocked && (
+                                <Button
+                                    onClick={() => {
+                                        setEditingEvent(null);
+                                        setNewEvent({ title: "", description: "", color: "purple" });
+                                        setIsAddEventOpen(true);
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-8 py-6 h-auto shadow-xl shadow-blue-500/20 font-bold"
+                                >
+                                    <Plus className="w-5 h-5 mr-2" /> Add New Note
+                                </Button>
+                            )}
                         </div>
 
                         <Card className="border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-slate-800 rounded-[3rem]">
@@ -6471,7 +6524,7 @@ const ChoirPage = () => {
                                                                             event.color === 'orange' ? 'bg-orange-600 text-white shadow-orange-500/30' :
                                                                                 'bg-red-600 text-white shadow-red-500/30'
                                                             )}>
-                                                                <CalendarIcon className="w-7 h-7" />
+                                                                <Calendar className="w-7 h-7" />
                                                             </div>
                                                             <div>
                                                                 <h4 className="font-black text-lg text-slate-800 dark:text-slate-100 group-hover:text-purple-600 transition-colors uppercase tracking-tight">{event.title}</h4>
@@ -6483,32 +6536,34 @@ const ChoirPage = () => {
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-col gap-2 items-end">
-                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:scale-110"
-                                                                    onClick={() => {
-                                                                        setEditingEvent(event);
-                                                                        setNewEvent({
-                                                                            title: event.title,
-                                                                            description: event.description || "",
-                                                                            color: event.color
-                                                                        });
-                                                                        setIsAddEventOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <Pencil className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:bg-red-50 hover:text-red-500 hover:scale-110"
-                                                                    onClick={() => handleDeleteCalendarEvent(event.id)}
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
+                                                            {isAdmin && !isLocked && (
+                                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:scale-110"
+                                                                        onClick={() => {
+                                                                            setEditingEvent(event);
+                                                                            setNewEvent({
+                                                                                title: event.title,
+                                                                                description: event.description || "",
+                                                                                color: event.color
+                                                                            });
+                                                                            setIsAddEventOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        <Pencil className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-9 w-9 rounded-xl bg-white dark:bg-slate-800 shadow-md hover:bg-red-50 hover:text-red-500 hover:scale-110"
+                                                                        onClick={() => handleDeleteCalendarEvent(event.id)}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            )}
                                                             <span className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em] mt-2">
                                                                 TPH COMMAND
                                                             </span>
