@@ -1036,7 +1036,7 @@ export const BibleChapterContent = ({
             ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Higher offset to clear the selection panel and provide a gap
             : isIOS && isStandalone
               ? "bottom-[calc(env(safe-area-inset-bottom)+3.5rem)]" // Adjusted upward for PWA iPhone (refined from 2.5rem)
-              : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[80px]" // Default position
+              : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[40px]" // Default position - desktop pushed lower
         )}
       >
         <div className="flex items-end justify-between px-8 md:px-20 pointer-events-auto max-w-lg md:max-w-none mx-auto">

@@ -622,7 +622,28 @@ export const enhancedApiBibleService = {
       console.log(`🔍 Enhanced API.Bible Service: Searching for "${query}" in ${version}`);
 
       const bibleId = this.normalizeVersionId(version);
-      const data = await makeApiRequest(`/bibles/${bibleId}/search?query=${encodeURIComponent(query)}&limit=50`);
+
+      // Check if this version should be routed to Bolls.life
+      // (same logic as getChapter for restricted versions)
+      const restrictedMappings: Record<string, string> = {
+        '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'NIV',
+        '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
+        '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ESV',
+        '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
+        // Common short codes
+        'NIV': 'NIV', 'NKJV': 'NKJV', 'NLT': 'NLT', 'ESV': 'ESV',
+        'MSG': 'MSG', 'AMP': 'AMP', 'CSB': 'CSB', 'NASB': 'NASB'
+      };
+
+      const targetBollsId = restrictedMappings[bibleId] || restrictedMappings[version];
+
+      if (targetBollsId) {
+        console.log(`🔄 Routing search for ${version} (ID: ${bibleId}) to Bolls.life as ${targetBollsId}`);
+        return this.searchBollsLife(targetBollsId, query);
+      }
+
+      // For non-restricted versions (KJV, ASV, etc.), use API.Bible search
+      const data = await makeApiRequest(`/bibles/${bibleId}/search?query=${encodeURIComponent(query)}&limit=100`);
 
       if (!data.data?.verses) {
         return [];
@@ -670,6 +691,73 @@ export const enhancedApiBibleService = {
       });
     } catch (error) {
       console.error('❌ Enhanced API.Bible Service search error:', error);
+      return [];
+    }
+  },
+
+  // Search via Bolls.life API for restricted versions
+  async searchBollsLife(translation: string, query: string): Promise<BibleVerse[]> {
+    try {
+      console.log(`🔍 Bolls.life Search: Searching for "${query}" in ${translation}`);
+
+      const url = `https://bolls.life/search/${translation}/?search=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Bolls.life search error: ${response.status}`);
+      }
+
+      const results = await response.json();
+
+      if (!Array.isArray(results) || results.length === 0) {
+        console.log('🔍 Bolls.life Search: No results found');
+        return [];
+      }
+
+      console.log(`🔍 Bolls.life Search: Found ${results.length} results`);
+      if (results.length > 0) {
+        console.log('🔍 Bolls.life Search: Sample result:', results[0]);
+      }
+
+      // Reverse mapping: Bolls.life book ID (integer) -> our API book code
+      const REVERSE_BOLLS_BOOK_IDS: Record<number, string> = {};
+      for (const [key, val] of Object.entries(BOLLS_BOOK_IDS)) {
+        REVERSE_BOLLS_BOOK_IDS[val] = key;
+      }
+
+      // Also map book IDs to 3-letter API.Bible codes for BibleSearch normalization
+      const BOLLS_TO_API_BIBLE: Record<number, string> = {
+        1: 'GEN', 2: 'EXO', 3: 'LEV', 4: 'NUM', 5: 'DEU',
+        6: 'JOS', 7: 'JDG', 8: 'RUT', 9: '1SA', 10: '2SA',
+        11: '1KI', 12: '2KI', 13: '1CH', 14: '2CH', 15: 'EZR',
+        16: 'NEH', 17: 'EST', 18: 'JOB', 19: 'PSA', 20: 'PRO',
+        21: 'ECC', 22: 'SNG', 23: 'ISA', 24: 'JER', 25: 'LAM',
+        26: 'EZK', 27: 'DAN', 28: 'HOS', 29: 'JOL', 30: 'AMO',
+        31: 'OBA', 32: 'JON', 33: 'MIC', 34: 'NAM', 35: 'HAB',
+        36: 'ZEP', 37: 'HAG', 38: 'ZEC', 39: 'MAL',
+        40: 'MAT', 41: 'MRK', 42: 'LUK', 43: 'JHN', 44: 'ACT',
+        45: 'ROM', 46: '1CO', 47: '2CO', 48: 'GAL', 49: 'EPH',
+        50: 'PHP', 51: 'COL', 52: '1TH', 53: '2TH', 54: '1TI',
+        55: '2TI', 56: 'TIT', 57: 'PHM', 58: 'HEB', 59: 'JAS',
+        60: '1PE', 61: '2PE', 62: '1JN', 63: '2JN', 64: '3JN',
+        65: 'JUD', 66: 'REV'
+      };
+
+      return results.map((result: any) => {
+        const bookId = result.book || result.bookId || 1;
+        const bookCode = BOLLS_TO_API_BIBLE[bookId] || 'GEN';
+
+        return {
+          book: bookCode,
+          chapter: result.chapter || 1,
+          verse: (result.verse || 1).toString(),
+          text: this.cleanBollsText(result.text || '', translation),
+          reference: `${bookCode} ${result.chapter}:${result.verse}`,
+          version: translation
+        };
+      });
+    } catch (error) {
+      console.error('❌ Bolls.life Search error:', error);
       return [];
     }
   },
