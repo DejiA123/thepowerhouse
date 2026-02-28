@@ -7,15 +7,25 @@ const ScrollToTop = () => {
     useEffect(() => {
         // Try to find the main content container (used in Layout)
         const mainContent = document.getElementById('main-content');
+        const bibleContent = document.getElementById('bible-content-scroll'); // Will add this ID to BibleChapterContent
+
+        // Reset window and body scroll (important for some mobile browsers and layout configurations)
+        window.scrollTo(0, 0);
+        document.body.scrollTo(0, 0);
+        document.documentElement.scrollTo(0, 0);
 
         if (mainContent) {
             mainContent.scrollTo({
                 top: 0,
-                behavior: "instant" // Use instant for navigation to avoid awkward smooth scrolling on page load
+                behavior: "instant"
             });
-        } else {
-            // Fallback for pages that might not use the layout ID (if any)
-            window.scrollTo(0, 0);
+        }
+
+        if (bibleContent) {
+            bibleContent.scrollTo({
+                top: 0,
+                behavior: "instant"
+            });
         }
     }, [pathname]);
 

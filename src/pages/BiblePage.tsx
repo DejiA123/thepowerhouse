@@ -32,9 +32,36 @@ const BiblePage = () => {
   const scrollToTop = () => {
     window.scrollTo(0, 0);
     document.getElementById('main-content')?.scrollTo(0, 0);
+    document.getElementById('bible-content-scroll')?.scrollTo(0, 0);
     document.body.scrollTo(0, 0);
     document.documentElement.scrollTo(0, 0);
   };
+
+  // On mount: immediately reset ALL scroll containers so that navigating from a
+  // scrolled homepage doesn't push the Bible header off-screen on mobile.
+  useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo(0, 0);
+      document.body.scrollTo(0, 0);
+      document.documentElement.scrollTo(0, 0);
+      // Reset the Layout's main-content container (key on mobile)
+      const mainContent = document.getElementById('main-content');
+      if (mainContent) {
+        mainContent.scrollTop = 0;
+        mainContent.scrollTo({ top: 0, behavior: 'instant' });
+      }
+      // Also reset the Bible-specific scroll container if it exists yet
+      const bibleContent = document.getElementById('bible-content-scroll');
+      if (bibleContent) {
+        bibleContent.scrollTop = 0;
+      }
+    };
+
+    // Run immediately and after a short delay to catch async renders
+    resetScroll();
+    const t = setTimeout(resetScroll, 50);
+    return () => clearTimeout(t);
+  }, []); // empty deps = runs once on mount
 
   const {
     preferences,
@@ -287,6 +314,7 @@ const BiblePage = () => {
         setPreferredBook(normalizedBook);
         setPreferredChapter(chapterNum);
         loadChapter(normalizedBook, chapterNum);
+        scrollToTop();
         hasInitialized.current = true;
         return;
       }
@@ -303,6 +331,7 @@ const BiblePage = () => {
       setPreferredBook(normalizedBook);
       setPreferredChapter(chapterNum);
       loadChapter(normalizedBook, chapterNum);
+      scrollToTop();
       hasInitialized.current = true;
       return;
     }
@@ -316,6 +345,7 @@ const BiblePage = () => {
       setSelectedBook(prefBook);
       setSelectedChapter(prefChapter);
       loadChapter(prefBook, prefChapter);
+      scrollToTop();
       hasInitialized.current = true;
       return;
     }
@@ -328,6 +358,7 @@ const BiblePage = () => {
       setPreferredBook('genesis');
       setPreferredChapter(1);
       loadChapter('genesis', 1);
+      scrollToTop();
       hasInitialized.current = true;
     }
   }, [

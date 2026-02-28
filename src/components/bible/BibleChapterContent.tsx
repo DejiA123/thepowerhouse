@@ -152,9 +152,9 @@ export const BibleChapterContent = ({
 
   // Scroll to top when chapter or book changes
   useEffect(() => {
-    const mainContent = document.getElementById('main-content');
+    const mainContent = document.getElementById('bible-content-scroll');
     if (mainContent) {
-      console.log('📜 BibleChapterContent: Scrolling to top of main-content due to chapter/book change');
+      console.log('📜 BibleChapterContent: Scrolling to top of bible-content-scroll due to chapter/book change');
       mainContent.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [selectedBook, selectedChapter]);
@@ -666,7 +666,7 @@ export const BibleChapterContent = ({
 
       <div
         className="bible-main-content-full flex-1 overflow-y-auto min-h-0"
-        id="main-content"
+        id="bible-content-scroll"
         ref={scrollContainerRef}
       >
         {loading ? (

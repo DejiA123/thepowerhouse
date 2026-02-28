@@ -214,11 +214,14 @@ const Layout = ({ children }: LayoutProps) => {
         {/* Main Content */}
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto"
+          className={cn(
+            "flex-1",
+            location.pathname === '/bible' ? "overflow-hidden" : "overflow-y-auto"
+          )}
         >
           <div className={cn(
             "min-h-full",
-            showChrome && isMobile && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
+            showChrome && isMobile && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && location.pathname !== '/bible' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
           )}>
             {children}
           </div>
