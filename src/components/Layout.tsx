@@ -16,6 +16,14 @@ const Layout = ({ children }: LayoutProps) => {
   const isMobile = useIsMobile();
   const showChrome = location.pathname !== "/intro";
 
+  // Reset scroll on every route change — runs in Layout because it owns #main-content
+  useEffect(() => {
+    const el = document.getElementById('main-content');
+    if (el) {
+      el.scrollTop = 0;
+    }
+  }, [location.pathname]);
+
   // Initialize theme on app load
   useEffect(() => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -184,16 +192,19 @@ const Layout = ({ children }: LayoutProps) => {
   }
 
   return (
-    <div className={cn(
-      "fixed inset-0 flex w-full text-foreground bg-background overscroll-none overflow-x-hidden",
-      isMobile ? "flex-col" : "flex-row",
-      location.pathname === '/group-chats' && "overflow-hidden"
-    )}>
+    <div
+      id="app-layout-root"
+      className={cn(
+        "fixed inset-0 flex w-full text-foreground bg-background overscroll-none overflow-x-hidden",
+        isMobile ? "flex-col" : "flex-row",
+        location.pathname === '/group-chats' && "overflow-hidden"
+      )}
+    >
       {/* Desktop Sidebar - only on desktop */}
       {!isMobile && showChrome && <DesktopSidebar />}
 
       {/* Main column */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div id="app-main-wrapper" className="flex flex-col flex-1 min-w-0">
         {/* Background fill for status bar - mobile only */}
         {isMobile && location.pathname !== '/bible' && (location.pathname === '/group-chats' || location.pathname === '/follow-up' || !showChrome) && (
           <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />

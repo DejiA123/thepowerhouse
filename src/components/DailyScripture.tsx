@@ -31,7 +31,7 @@ const DailyScripture = () => {
   }, []);
 
   const videoId = shortsIds[randomIndex];
-  const playlistUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
+  const playlistUrl = `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`;
 
   return (
     <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">

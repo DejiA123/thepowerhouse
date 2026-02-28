@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Clock, MapPin, Star, Settings, ArrowRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Star, Settings, ArrowRight, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,8 @@ const NewsPage = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isManageEventsOpen, setIsManageEventsOpen] = useState(false);
   const [editEventId, setEditEventId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -27,6 +30,14 @@ const NewsPage = () => {
     if (user) {
       checkAdminStatus();
     }
+
+    // Ensure page starts at top
+    ['app-layout-root', 'app-main-wrapper', 'main-content'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollTop = 0;
+      }
+    });
   }, [user]);
 
   const displayEvents = useMemo(() => {
@@ -65,6 +76,17 @@ const NewsPage = () => {
 
 
 
+  const deleteEvent = async (eventId: string) => {
+    const { error } = await supabase.from('events').delete().eq('id', eventId);
+    if (error) {
+      toast({ title: "Error deleting event", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Event deleted" });
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+    }
+    setDeleteConfirmId(null);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return {
@@ -91,15 +113,15 @@ const NewsPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20 animate-in fade-in duration-700">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20">
       {/* Immersive Hero Section */}
       <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-slate-900 to-slate-900 z-0" />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-700/20 rounded-full blur-3xl opacity-50 animate-pulse" />
-        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl opacity-50 animate-pulse" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-700/20 rounded-full blur-3xl opacity-50" />
+        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl opacity-50" />
 
         <div className="relative z-10 container mx-auto px-6 lg:px-8">
-          <div className="max-w-2xl animate-in slide-in-from-left-8 duration-1000">
+          <div className="max-w-2xl">
             <Badge variant="outline" className="mb-6 border-blue-500/50 text-blue-400 px-3 py-1 text-xs uppercase tracking-widest font-bold bg-blue-500/5">
               Updates & Announcements
             </Badge>
@@ -138,7 +160,7 @@ const NewsPage = () => {
 
         {/* Featured Events Vertical List */}
         {displayEvents.length > 0 && (
-          <div className="animate-in slide-in-from-bottom-8 duration-700 delay-200 flex flex-col gap-8">
+          <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Upcoming Events</h2>
             </div>
@@ -177,17 +199,27 @@ const NewsPage = () => {
                     )}
                     <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
                       {isAdmin && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setEditEventId(event.id);
-                            setIsManageEventsOpen(true);
-                          }}
-                          className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-bold"
-                        >
-                          <Settings className="mr-2 h-4 w-4" />
-                          Edit
-                        </Button>
+                        <>
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setEditEventId(event.id);
+                              setIsManageEventsOpen(true);
+                            }}
+                            className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-bold"
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => setDeleteConfirmId(event.id)}
+                            className="bg-red-500/20 hover:bg-red-500/40 text-red-300 backdrop-blur-md border border-red-500/30 font-bold"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </>
                       )}
                       <Button className="flex-1 sm:flex-none bg-white text-slate-900 hover:bg-blue-50 font-black px-8 py-6 h-auto transition-all active:scale-95 shadow-xl shadow-black/50">
                         Join Us This Week
@@ -201,7 +233,7 @@ const NewsPage = () => {
         )}
 
         {/* Announcements & Newsletter - Centered Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto animate-in slide-in-from-bottom-8 duration-1000 delay-300">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
           <div id="announcements-sidebar" className="space-y-8 scroll-mt-24 w-full">
             {/* Announcements Hub */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm relative overflow-hidden h-full">
@@ -236,6 +268,38 @@ const NewsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Delete Event
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this event? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleteConfirmId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => deleteConfirmId && deleteEvent(deleteConfirmId)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isAdmin && (
         <Dialog

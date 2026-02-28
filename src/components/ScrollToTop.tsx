@@ -5,28 +5,38 @@ const ScrollToTop = () => {
     const { pathname } = useLocation();
 
     useEffect(() => {
-        // Try to find the main content container (used in Layout)
-        const mainContent = document.getElementById('main-content');
-        const bibleContent = document.getElementById('bible-content-scroll'); // Will add this ID to BibleChapterContent
+        const resetAllScrollPositions = () => {
+            // Reset window and body scroll
+            window.scrollTo(0, 0);
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
 
-        // Reset window and body scroll (important for some mobile browsers and layout configurations)
-        window.scrollTo(0, 0);
-        document.body.scrollTo(0, 0);
-        document.documentElement.scrollTo(0, 0);
-
-        if (mainContent) {
-            mainContent.scrollTo({
-                top: 0,
-                behavior: "instant"
+            // Reset Layout's root containers (important for certain mobile browsers)
+            ['app-layout-root', 'app-main-wrapper', 'main-content'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.scrollTop = 0;
+                }
             });
-        }
 
-        if (bibleContent) {
-            bibleContent.scrollTo({
-                top: 0,
-                behavior: "instant"
-            });
-        }
+            // Reset Bible-specific scroll container
+            const bibleContent = document.getElementById('bible-content-scroll');
+            if (bibleContent) {
+                bibleContent.scrollTop = 0;
+            }
+        };
+
+        // Run immediately
+        resetAllScrollPositions();
+
+        // Run again after React finishes rendering the new page
+        requestAnimationFrame(() => {
+            resetAllScrollPositions();
+        });
+
+        // Final fallback for slower renders
+        const t = setTimeout(resetAllScrollPositions, 50);
+        return () => clearTimeout(t);
     }, [pathname]);
 
     return null;
