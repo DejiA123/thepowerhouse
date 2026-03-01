@@ -1831,7 +1831,7 @@ body.modal-open {
   @media (display-mode: standalone) {
     :root {
       --bible-audio-bottom-offset-v2: 6.5rem;
-      --bible-selection-bottom-offset: 7.5rem;
+      --bible-selection-bottom-offset: 5.5rem;
     }
 
     #nav-v12-force-lift,

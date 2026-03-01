@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Type, Settings, Play } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
+import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const BibleMenuDialog = ({
   onViewNotes
 }: BibleMenuDialogProps) => {
   const { preferences, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
+  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext } = useGlobalAudio();
 
   // Local state for font size slider to allow changes before saving
   const [localFontSize, setLocalFontSize] = useState(() => {
@@ -201,6 +203,14 @@ export const BibleMenuDialog = ({
                   onCheckedChange={(checked) => {
                     console.log('Auto-play next changed to:', checked);
                     setAutoPlayNext(checked);
+                    setGlobalAutoPlayNext(checked);
+
+                    // If turning ON Auto-Play, turn OFF Loop Chapter
+                    if (checked && preferences.loopChapter) {
+                      setLoopChapter(false);
+                      setGlobalLoopChapter(false);
+                    }
+
                     onSettingsChange?.();
                   }}
                   className="data-[state=checked]:bg-primary"
@@ -224,6 +234,14 @@ export const BibleMenuDialog = ({
                   onCheckedChange={(checked) => {
                     console.log('Loop chapter changed to:', checked);
                     setLoopChapter(checked);
+                    setGlobalLoopChapter(checked);
+
+                    // If turning ON Loop Chapter, turn OFF Auto-Play Next
+                    if (checked && preferences.autoPlayNext) {
+                      setAutoPlayNext(false);
+                      setGlobalAutoPlayNext(false);
+                    }
+
                     onSettingsChange?.();
                   }}
                   className="data-[state=checked]:bg-primary"

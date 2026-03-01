@@ -5,9 +5,9 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, Book, Volume2, Type, Palette, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { EnhancedBibleVersionSelector } from "@/components/bible/EnhancedBibleVersionSelector";
+import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
 interface BibleSettingsPanelProps {
   onBack: () => void;
@@ -25,8 +25,11 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
     setRate,
     setRedLetters,
     setAutoPlayNext,
+    setLoopChapter,
     resetPreferences
   } = useBiblePreferences();
+
+  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext } = useGlobalAudio();
 
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,12 +109,12 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
               <Book className="w-5 h-5" />
               Bible Translation
             </h2>
-            
-            <EnhancedBibleVersionSelector 
+
+            <EnhancedBibleVersionSelector
               selectedVersion={preferences.preferredTranslation}
               onVersionChange={handleTranslationChange}
             />
-            
+
             <div className="text-sm text-gray-600">
               Choose from over 100 available English Bible translations for reading and study.
             </div>
@@ -124,7 +127,7 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
             <Type className="w-5 h-5" />
             Reading Settings
           </h2>
-          
+
           <div className="space-y-4">
             {/* Font Size */}
             <div>
@@ -186,7 +189,7 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
             <Volume2 className="w-5 h-5" />
             Audio Settings
           </h2>
-          
+
           <div className="space-y-4">
             {/* Audio Tracking Bar */}
             <div className="flex items-center justify-between">
@@ -208,7 +211,37 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
               </div>
               <Switch
                 checked={preferences.autoPlayNext}
-                onCheckedChange={setAutoPlayNext}
+                onCheckedChange={(checked) => {
+                  setAutoPlayNext(checked);
+                  setGlobalAutoPlayNext(checked);
+
+                  // If turning ON Auto-Play, turn OFF Loop Chapter
+                  if (checked && preferences.loopChapter) {
+                    setLoopChapter(false);
+                    setGlobalLoopChapter(false);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Loop Chapter */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">Loop Chapter</p>
+                <p className="text-sm text-muted-foreground">Repeat current chapter when audio finishes playing</p>
+              </div>
+              <Switch
+                checked={preferences.loopChapter}
+                onCheckedChange={(checked) => {
+                  setLoopChapter(checked);
+                  setGlobalLoopChapter(checked);
+
+                  // If turning ON Loop Chapter, turn OFF Auto-Play Next
+                  if (checked && preferences.autoPlayNext) {
+                    setAutoPlayNext(false);
+                    setGlobalAutoPlayNext(false);
+                  }
+                }}
               />
             </div>
 
@@ -266,7 +299,7 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
               <Settings className="w-5 h-5" />
               Current Settings
             </h2>
-            
+
             <div className="space-y-2 p-4 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">
                 <strong>Translation:</strong> {versions.find(v => v.abbreviation === preferences.preferredTranslation)?.name || preferences.preferredTranslation.toUpperCase()}
