@@ -363,8 +363,31 @@ const BibleNotesPage = () => {
     const fetchNotes = async (folderId: string | null | undefined = activeFolderId) => {
         if (!user) return;
 
+        // Create cache keys based on user and active folder
+        const cacheKey = `bible_notes_list_${user.id}_${folderId === undefined ? 'all' : folderId}`;
+
+        // Phase 1: Try reading from cache for instant load
+        const cachedData = localStorage.getItem(cacheKey);
+        let hasCache = false;
+
+        if (cachedData) {
+            try {
+                const parsedNotes = JSON.parse(cachedData);
+                if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
+                    setNotes(parsedNotes);
+                    hasCache = true;
+                }
+            } catch (error) {
+                console.error('Failed to parse cached bible notes', error);
+            }
+        }
+
         try {
-            setLoading(true);
+            // Only show loading spinner if we don't have cached data to display instantly
+            if (!hasCache) {
+                setLoading(true);
+            }
+
             let query = supabase
                 .from('bible_notes')
                 .select('*')
@@ -381,14 +404,25 @@ const BibleNotesPage = () => {
             const { data, error } = await query.order('created_at', { ascending: false });
 
             if (error) throw error;
-            setNotes(data || []);
+
+            const fetchedNotes = data || [];
+
+            // Phase 2: Update state with actual data from DB to ensure accuracy
+            setNotes(fetchedNotes);
+
+            // And save it back to cache for next time
+            localStorage.setItem(cacheKey, JSON.stringify(fetchedNotes));
+
         } catch (error) {
             console.error('Error fetching notes:', error);
-            toast({
-                title: "Error",
-                description: "Failed to load notes",
-                variant: "destructive",
-            });
+            // Only show error if we didn't have cache, otherwise silently fail background update
+            if (!hasCache) {
+                toast({
+                    title: "Error",
+                    description: "Failed to load notes",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -397,17 +431,54 @@ const BibleNotesPage = () => {
     const fetchFolders = async () => {
         if (!user) return;
 
+        const foldersCacheKey = `bible_notes_folders_${user.id}`;
+        const statsCacheKey = `bible_notes_stats_${user.id}`;
+
+        // Phase 1: Try reading from cache for instant load
+        const cachedFolders = localStorage.getItem(foldersCacheKey);
+        const cachedStats = localStorage.getItem(statsCacheKey);
+
+        if (cachedFolders) {
+            try {
+                const parsedFolders = JSON.parse(cachedFolders);
+                if (Array.isArray(parsedFolders) && parsedFolders.length > 0) {
+                    setFolders(parsedFolders);
+                }
+            } catch (error) {
+                console.error('Failed to parse cached bible folders', error);
+            }
+        }
+
+        if (cachedStats) {
+            try {
+                const parsedStats = JSON.parse(cachedStats);
+                if (parsedStats) {
+                    setGlobalStats(parsedStats);
+                }
+            } catch (error) {
+                console.error('Failed to parse cached basic bible stats', error);
+            }
+        }
+
         try {
+            // Phase 2: Fetch accurate real data from server
             const fetchedFolders = await bibleNotesService.getFolders(user.id);
             setFolders(fetchedFolders);
 
+            // Update cache
+            localStorage.setItem(foldersCacheKey, JSON.stringify(fetchedFolders));
+
             // Also update global stats while we're at it
             const stats = await bibleNotesService.getStats(user.id);
-            setGlobalStats({
+            const formattedStats = {
                 total: stats.total,
                 favourites: stats.favourites,
                 unfiledCount: stats.byFolder['unfiled'] || 0
-            });
+            };
+
+            setGlobalStats(formattedStats);
+            localStorage.setItem(statsCacheKey, JSON.stringify(formattedStats));
+
         } catch (error) {
             console.error('Error fetching folders/stats:', error);
         }

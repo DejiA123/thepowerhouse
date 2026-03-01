@@ -50,6 +50,24 @@ const AnnouncementsHub = () => {
   };
 
   const fetchAnnouncements = async () => {
+    // Phase 1: Try reading from cache for instant load
+    const cacheKey = 'announcements_hub_cache';
+    const cachedData = localStorage.getItem(cacheKey);
+    let hasCache = false;
+
+    if (cachedData) {
+      try {
+        const parsedAnnouncements = JSON.parse(cachedData);
+        if (Array.isArray(parsedAnnouncements) && parsedAnnouncements.length > 0) {
+          setAnnouncements(parsedAnnouncements);
+          hasCache = true;
+        }
+      } catch (error) {
+        console.error('Failed to parse cached announcements', error);
+      }
+    }
+
+    // Phase 2: Fetch accurate real data from server
     const { data: announcementsData } = await supabase
       .from('announcements')
       .select('*')
@@ -76,7 +94,8 @@ const AnnouncementsHub = () => {
       }));
 
       setAnnouncements(announcementsWithProfiles);
-    } else {
+      localStorage.setItem(cacheKey, JSON.stringify(announcementsWithProfiles));
+    } else if (!hasCache) {
       setAnnouncements([]);
     }
   };

@@ -58,6 +58,24 @@ const NewsPage = () => {
   };
 
   const fetchEvents = async () => {
+    // Phase 1: Try reading from cache for instant load
+    const cacheKey = 'news_events_cache';
+    const cachedData = localStorage.getItem(cacheKey);
+    let hasCache = false;
+
+    if (cachedData) {
+      try {
+        const parsedEvents = JSON.parse(cachedData);
+        if (Array.isArray(parsedEvents) && parsedEvents.length > 0) {
+          setEvents(parsedEvents);
+          hasCache = true;
+        }
+      } catch (error) {
+        console.error('Failed to parse cached events', error);
+      }
+    }
+
+    // Phase 2: Fetch accurate real data from server
     const { data, error } = await supabase
       .from('events')
       .select('*')
@@ -69,7 +87,8 @@ const NewsPage = () => {
 
     if (data) {
       setEvents(data);
-    } else {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } else if (!hasCache) {
       setEvents([]);
     }
   };
