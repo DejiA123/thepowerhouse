@@ -36,7 +36,7 @@ export type DeepPartial<T> = {
  * Extract function property names
  */
 export type FunctionPropertyNames<T> = {
-    [K in keyof T]: T[K] extends Function ? K : never;
+    [K in keyof T]: T[K] extends ((...args: any[]) => any) ? K : never;
 }[keyof T];
 
 /**
@@ -144,7 +144,7 @@ export function hasProperty<T, K extends string>(
 export class TypedEventEmitter<
     Events extends Record<string, any[]>
 > {
-    private listeners = new Map<keyof Events, Set<Function>>();
+    private listeners = new Map<keyof Events, Set<(...args: any[]) => void>>();
 
     on<K extends keyof Events>(
         event: K,

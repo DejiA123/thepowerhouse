@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { pushNotificationService } from "./pushNotificationService";
 
 export interface GroupChat {
     id: string;
@@ -317,17 +318,15 @@ export class GroupChatService {
 
         // Trigger notifications for other members
         if (chatMessage) {
-            import("./pushNotificationService").then(({ pushNotificationService }) => {
-                const senderName = chatMessage.user?.user_metadata?.full_name || chatMessage.user?.email || 'Someone';
-                pushNotificationService.notifyGroupMembers(
-                    chatId,
-                    '', // Group name can be fetched if needed
-                    user.id,
-                    senderName,
-                    chatMessage.content,
-                    chatMessage.id
-                );
-            });
+            const senderName = chatMessage.user?.user_metadata?.full_name || chatMessage.user?.email || 'Someone';
+            pushNotificationService.notifyGroupMembers(
+                chatId,
+                '', // Group name can be fetched if needed
+                user.id,
+                senderName,
+                chatMessage.content,
+                chatMessage.id
+            );
 
             // BROADCAST message immediately for real-time responsiveness (bypasses DB listener lag)
             this.sendSignal(chatId, 'new-message', chatMessage);
