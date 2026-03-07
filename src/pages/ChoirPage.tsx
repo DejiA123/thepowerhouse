@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -43,8 +44,28 @@ import {
     Grid,
     List as ListIcon,
     Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet, Upload, Image, Globe, ExternalLink, Globe2,
-    Lock, Unlock
+    Lock, Unlock, Youtube, History, Info
 } from "lucide-react";
+
+// Cache Keys
+const getCacheKey = (location: string, type: string, weekDate: string) => `choir_cache_${location}_${type}_${weekDate}`;
+
+const saveToCache = (location: string, type: string, weekDate: string, data: any) => {
+    try {
+        localStorage.setItem(getCacheKey(location, type, weekDate), JSON.stringify(data));
+    } catch (e) {
+        console.warn("Failed to save to cache", e);
+    }
+};
+
+const getFromCache = (location: string, type: string, weekDate: string) => {
+    try {
+        const cached = localStorage.getItem(getCacheKey(location, type, weekDate));
+        return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+        return null;
+    }
+};
 
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -417,6 +438,34 @@ const DEFAULT_GALWAY_SCHEDULE: ScheduleItem[] = [
 
 const DEFAULT_GALWAY_PRAISE_ROSTER = ["Rekky", "Kido", "YP Sodiq", "Merit", "RP Zainab"];
 const DEFAULT_GALWAY_PRAYER_ROSTER = ["Pastor Deji", "Rekky", "Kido", "YP Sodiq", "Merit", "RP Zainab"];
+
+const SetlistSkeleton = () => (
+    <div className="space-y-3 pt-4">
+        {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between p-3 bg-white/40 dark:bg-slate-800/40 rounded-xl border border-transparent animate-pulse">
+                <div className="flex items-center gap-3 flex-1">
+                    <Skeleton className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700" />
+                    <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700" />
+                        <Skeleton className="h-3 w-1/2 bg-slate-200 dark:bg-slate-700" />
+                    </div>
+                </div>
+                <Skeleton className="w-12 h-6 rounded-lg bg-slate-200 dark:bg-slate-700" />
+            </div>
+        ))}
+    </div>
+);
+
+const FocusSongSkeleton = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-6 md:p-10">
+        {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-4 animate-pulse">
+                <div className="w-full aspect-video rounded-[2rem] bg-white/10" />
+                <Skeleton className="h-6 w-3/4 bg-white/20 mx-2" />
+            </div>
+        ))}
+    </div>
+);
 
 const AcademyCourseCard = ({ course, onAccess }: { course: any, onAccess: (course: any) => void }) => {
     return (
@@ -1741,6 +1790,26 @@ const ChoirPage = () => {
             if (!locationId) return;
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
 
+            // 1. Load from Cache for Instant UI
+            const cachedPraise = getFromCache(locationId, 'praise', weekDateStr);
+            const cachedWorship = getFromCache(locationId, 'worship', weekDateStr);
+            const cachedSpecial = getFromCache(locationId, 'special', weekDateStr);
+            const cachedHymns = getFromCache(locationId, 'hymns', weekDateStr);
+            const cachedLearning = getFromCache(locationId, 'learning', weekDateStr);
+            const cachedInfo = getFromCache(locationId, 'info_map', weekDateStr);
+
+            if (cachedPraise) setPraiseSet(cachedPraise);
+            if (cachedWorship) setWorshipSet(cachedWorship);
+            if (cachedSpecial) setSpecialSet(cachedSpecial);
+            if (cachedHymns) setHymnsSet(cachedHymns);
+            if (cachedLearning) setLearningSet(cachedLearning);
+            if (cachedInfo) {
+                setPraiseInfo({ title: "Praise Set", desc: cachedInfo['praise_desc'] || "" });
+                setWorshipInfo({ title: "Worship Set", desc: cachedInfo['worship_desc'] || "" });
+                setSpecialInfo({ title: "Special Number", desc: cachedInfo['special_desc'] || "" });
+                setHymnsInfo({ title: "Hymns", desc: cachedInfo['hymns_desc'] || "" });
+            }
+
             try {
                 setLoading(true);
                 const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
@@ -1754,6 +1823,14 @@ const ChoirPage = () => {
                     choirService.getInstrumentalResources(locationId),
                     choirService.getCalendarEvents(locationId)
                 ]);
+
+                // 2. Update Cache
+                saveToCache(locationId, 'praise', weekDateStr, fetchedPraise);
+                saveToCache(locationId, 'worship', weekDateStr, fetchedWorship);
+                saveToCache(locationId, 'special', weekDateStr, fetchedSpecial);
+                saveToCache(locationId, 'hymns', weekDateStr, fetchedHymns);
+                saveToCache(locationId, 'learning', weekDateStr, fetchedLearning);
+                saveToCache(locationId, 'info_map', weekDateStr, fetchedInfo);
 
                 setFolders(fetchedFolders as any);
                 setPraiseSet(fetchedPraise as any);
@@ -1778,14 +1855,9 @@ const ChoirPage = () => {
                     setSetlistDate(selectedWeekDate);
 
                     // --- AUTOMATED WEEKLY ARCHIVE TRIGGER ---
-                    // Fetch the absolute "last known main week" from a global key if possible,
-                    // or just check against the 'date' row in the main setlist info.
-                    // For now, let's just check if we need to archive the PREVIOUS week.
-                    const lastKnownWeekStr = fetchedInfo['last_archived_week']; // We might need to add this key
+                    const lastKnownWeekStr = fetchedInfo['last_archived_week'];
                     const currentMondayStr = startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
 
-                    // If 'date' info key exists, it means we've used the old system.
-                    // We'll use FETCHED_INFO['date'] as a trigger for a one-time migration/archive if it's old.
                     if (fetchedInfo['date']) {
                         const dbDate = new Date(fetchedInfo['date']);
                         const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -4223,12 +4295,6 @@ const ChoirPage = () => {
                                                     )}>
                                                         {prayerChecklist[name] && <Check className="w-6 h-6" strokeWidth={4} />}
                                                     </div>
-
-                                                    {memberStats.missedWeeks > 0 && !prayerChecklist[name] && (
-                                                        <div className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-black flex items-center gap-1">
-                                                            MISSED {memberStats.missedWeeks} {memberStats.missedWeeks === 1 ? 'WEEK' : 'WEEKS'}
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 <div className="relative z-10 space-y-1">
@@ -4239,18 +4305,12 @@ const ChoirPage = () => {
                                                         {name}
                                                     </span>
 
-                                                    {isMissedLastWeek && !prayerChecklist[name] ? (
-                                                        <span className="text-red-400 text-[10px] font-bold block">
-                                                            DID NOT PRAY LAST WEEK
-                                                        </span>
-                                                    ) : (
-                                                        <span className={cn(
-                                                            "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
-                                                            prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
-                                                        )}>
-                                                            {prayerChecklist[name] ? "Completed" : "Pending"}
-                                                        </span>
-                                                    )}
+                                                    <span className={cn(
+                                                        "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
+                                                        prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
+                                                    )}>
+                                                        {prayerChecklist[name] ? "Completed" : "Pending"}
+                                                    </span>
                                                 </div>
                                             </button>
                                         );
@@ -4699,8 +4759,11 @@ const ChoirPage = () => {
                                     )}
                                 </div>
 
-                                {/* Consolidated Hero Container for all focus songs (Vocalists) */}
-                                {learningSet.length > 0 ? (
+                                {loading && learningSet.length === 0 ? (
+                                    <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 group/hero">
+                                        <FocusSongSkeleton />
+                                    </Card>
+                                ) : learningSet.length > 0 ? (
                                     <Card className="relative overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 rounded-[2.5rem] p-1 group/hero">
                                         <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none group-hover/hero:bg-white/20"></div>
 
@@ -4879,28 +4942,34 @@ const ChoirPage = () => {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3 pt-4">
-                                            <SortableContext
-                                                items={praiseSet.map(s => s.id)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                {praiseSet.map((song, i) => (
-                                                    <SortableSetSongCard
-                                                        key={song.id}
-                                                        song={song}
-                                                        index={i}
-                                                        onPlay={playVideo}
-                                                        onEdit={startEditSetSong}
-                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('praise', id))}
-                                                        onViewLyrics={(lyrics, title) => {
-                                                            setPreviewLyrics({ title, content: lyrics });
-                                                            setIsPreviewLyricsOpen(true);
-                                                        }}
-                                                        isLocked={isLocked}
-                                                    />
-                                                ))}
-                                            </SortableContext>
-                                            {praiseSet.length === 0 && (
-                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                            {loading && praiseSet.length === 0 ? (
+                                                <SetlistSkeleton />
+                                            ) : (
+                                                <>
+                                                    <SortableContext
+                                                        items={praiseSet.map(s => s.id)}
+                                                        strategy={verticalListSortingStrategy}
+                                                    >
+                                                        {praiseSet.map((song, i) => (
+                                                            <SortableSetSongCard
+                                                                key={song.id}
+                                                                song={song}
+                                                                index={i}
+                                                                onPlay={playVideo}
+                                                                onEdit={startEditSetSong}
+                                                                onRemove={(id, title) => requestDeletion(title, () => removeSetSong('praise', id))}
+                                                                onViewLyrics={(lyrics, title) => {
+                                                                    setPreviewLyrics({ title, content: lyrics });
+                                                                    setIsPreviewLyricsOpen(true);
+                                                                }}
+                                                                isLocked={isLocked}
+                                                            />
+                                                        ))}
+                                                    </SortableContext>
+                                                    {praiseSet.length === 0 && !loading && (
+                                                        <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                    )}
+                                                </>
                                             )}
                                         </CardContent>
                                     </Card>
@@ -4940,28 +5009,34 @@ const ChoirPage = () => {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3 pt-4">
-                                            <SortableContext
-                                                items={worshipSet.map(s => s.id)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                {worshipSet.map((song, i) => (
-                                                    <SortableSetSongCard
-                                                        key={song.id}
-                                                        song={song}
-                                                        index={i}
-                                                        onPlay={playVideo}
-                                                        onEdit={startEditSetSong}
-                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('worship', id))}
-                                                        onViewLyrics={(lyrics, title) => {
-                                                            setPreviewLyrics({ title, content: lyrics });
-                                                            setIsPreviewLyricsOpen(true);
-                                                        }}
-                                                        isLocked={isLocked}
-                                                    />
-                                                ))}
-                                            </SortableContext>
-                                            {worshipSet.length === 0 && (
-                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                            {loading && worshipSet.length === 0 ? (
+                                                <SetlistSkeleton />
+                                            ) : (
+                                                <>
+                                                    <SortableContext
+                                                        items={worshipSet.map(s => s.id)}
+                                                        strategy={verticalListSortingStrategy}
+                                                    >
+                                                        {worshipSet.map((song, i) => (
+                                                            <SortableSetSongCard
+                                                                key={song.id}
+                                                                song={song}
+                                                                index={i}
+                                                                onPlay={playVideo}
+                                                                onEdit={startEditSetSong}
+                                                                onRemove={(id, title) => requestDeletion(title, () => removeSetSong('worship', id))}
+                                                                onViewLyrics={(lyrics, title) => {
+                                                                    setPreviewLyrics({ title, content: lyrics });
+                                                                    setIsPreviewLyricsOpen(true);
+                                                                }}
+                                                                isLocked={isLocked}
+                                                            />
+                                                        ))}
+                                                    </SortableContext>
+                                                    {worshipSet.length === 0 && !loading && (
+                                                        <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                    )}
+                                                </>
                                             )}
                                         </CardContent>
                                     </Card>
