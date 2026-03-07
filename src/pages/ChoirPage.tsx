@@ -936,10 +936,60 @@ const ChoirPage = () => {
 <li><strong>Perfect 4th</strong> (strong and bold) — The first two notes of <em>"Amazing Grace"</em> ("A-ma-…")</li>
 <li><strong>Perfect 5th</strong> (wide and powerful) — The first two notes of <em>"Way Maker"</em> ("Way Ma-…")</li>
 </ul>
-<p><strong>Practice tip:</strong> Sing the song fragment, then sing just the two notes without the words. Soon you'll recognise the interval anywhere.</p>
+<p><strong>Practice tip:</strong> Sing the song fragment, then sing just the two notes without the words. Soon you'll recognise the interval anywhere.</p>`
+                        },
+                        {
+                            title: "Understanding Gospel Harmony Parts (SAT)",
+                            content: `<h3>The Roles of Soprano, Alto, and Tenor</h3>
+<p>In Gospel music, we typically use a three-part harmony system (SAT). Each part has a specific "job" to do to create that rich, full sound.</p>
 
-<h3>Exercise: Harmonise a Gospel Song</h3>
-<p>Pick a simple song your choir knows well (e.g. <em>"This Is the Day"</em> or <em>"He's Able"</em>). Follow these steps:</p>
+<div class="space-y-4 my-4">
+    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+        <h4 class="font-bold text-blue-700 dark:text-blue-400 uppercase text-xs mb-2">Soprano (The Top / Melody)</h4>
+        <p class="text-sm">The highest female voice. Your job is to lead the melody. You are the "top" of the sound. Everyone else listens to you for the words and timing.</p>
+    </div>
+    <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
+        <h4 class="font-bold text-purple-700 dark:text-purple-400 uppercase text-xs mb-2">Alto (The Middle / Richness)</h4>
+        <p class="text-sm">The lower female voice. You fill in the "meat" of the chord. Your part adds warmth and complexity. You sit right under the soprano.</p>
+    </div>
+    <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+        <h4 class="font-bold text-indigo-700 dark:text-indigo-400 uppercase text-xs mb-2">Tenor (The Bottom / Foundation)</h4>
+        <p class="text-sm">The male voice (usually). You provide the solid foundation. Even though you are the lowest part in SAT, you are often the highest male part, giving the harmony its driving force.</p>
+    </div>
+</div>
+
+<h3>Example: The C-Major Chord (C - E - G)</h3>
+<p>When all three parts sing together at the same time, they form a <strong>Chord</strong>. Here is how that chord is usually split:</p>
+<ul class="list-disc pl-5 space-y-2">
+    <li><strong>Soprano:</strong> Sings the <strong>G</strong> (The 5th - Bright and clear)</li>
+    <li><strong>Alto:</strong> Sings the <strong>E</strong> (The 3rd - Warm and sweet)</li>
+    <li><strong>Tenor:</strong> Sings the <strong>C</strong> (The Root - Strong and grounded)</li>
+</ul>
+
+<h3>Practical Exercise: Harmonising "Total Praise"</h3>
+<p>Listen to the final "Amen" in Richard Smallwood's <em>"Total Praise"</em>. It is one of the most famous examples of Gospel harmony moving together.</p>
+<ol class="list-decimal pl-5 space-y-2 mt-2">
+    <li><strong>First Note:</strong> Tenor on Ab, Alto on C, Soprano on Eb (An Ab Major Chord).</li>
+    <li><strong>Movement:</strong> Each part moves to the next note in their scale to create the next chord.</li>
+    <li><strong>Practice Tip:</strong> Try to isolate just the Tenor line first, then the Alto, then the Soprano. Can you hear how they "lock" together?</li>
+</ol>
+
+<div class="mt-6 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800">
+    <h4 class="font-bold text-orange-700 dark:text-orange-400 mb-2">🎓 Best Practice Resources</h4>
+    <p class="text-sm mb-3">To practice these parts by ear, watch these highly recommended tutorials:</p>
+    <div class="grid gap-2">
+        <a href="https://www.youtube.com/watch?v=0kI6_uI6WkQ" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
+            📺 How Great Thou Art (SAT Part Breakdown)
+        </a>
+        <a href="https://www.youtube.com/watch?v=Vl0XvB4n1w8" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
+            📺 To God Be The Glory (Full Harmony Tutorial)
+        </a>
+    </div>
+</div>`
+                        },
+                        {
+                            title: "Exercise: Harmonise a Gospel Song",
+                            content: `<p>Pick a simple song your choir knows well (e.g. <em>"This Is the Day"</em> or <em>"He's Able"</em>). Follow these steps:</p>
 <ol>
 <li><strong>Sing the melody</strong> together first so everyone knows it.</li>
 <li><strong>Find a third above:</strong> While one group sings the melody note, a second group sings the note three scale steps higher. It should sound bright and sweet.</li>
