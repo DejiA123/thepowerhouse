@@ -935,7 +935,6 @@ const ChoirPage = () => {
 <li><strong>Major 3rd</strong> (a bright, happy jump) — The first two notes of <em>"Oh Happy Day"</em> ("Oh Hap-…")</li>
 <li><strong>Perfect 4th</strong> (strong and bold) — The first two notes of <em>"Amazing Grace"</em> ("A-ma-…")</li>
 <li><strong>Perfect 5th</strong> (wide and powerful) — The first two notes of <em>"Way Maker"</em> ("Way Ma-…")</li>
-<li><strong>Octave</strong> (the same note, higher) — The first two notes of <em>"Somewhere Over the Rainbow"</em> ("Some-where…")</li>
 </ul>
 <p><strong>Practice tip:</strong> Sing the song fragment, then sing just the two notes without the words. Soon you'll recognise the interval anywhere.</p>
 
