@@ -971,12 +971,12 @@ const ChoirPage = () => {
     <li><strong>Bass:</strong> Sings the <strong>C</strong> (The Root - Low anchor foundation)</li>
 </ul>
 
-<h3>Practical Exercise: Harmonising "Total Praise"</h3>
-<p>Listen to the final "Amen" in Richard Smallwood's <em>"Total Praise"</em>. It is one of the most famous examples of SATB Gospel harmony moving together.</p>
+<h3>Practical Exercise: Harmonising "Amazing Grace"</h3>
+<p>Try singing the first line of <em>"Amazing Grace"</em>. This simple melody is perfect for practicing how SATB parts move in blocks (homophony).</p>
 <ol class="list-decimal pl-5 space-y-2 mt-2">
-    <li><strong>First Note:</strong> Bass on Ab, Tenor on Ab (octave up), Alto on C, Soprano on Eb (An Ab Major Chord).</li>
-    <li><strong>Movement:</strong> Each part moves to the next note in their scale to create the next chord.</li>
-    <li><strong>Practice Tip:</strong> Try to isolate just the Bass line first to feel the foundation, then add the other parts one by one.</li>
+    <li><strong>The Melody:</strong> Soprano starts on the Root (e.g., C), Alto on the 5th below (G), Tenor on the 3rd below (E), and Bass on the Low C foundation.</li>
+    <li><strong>The Movement:</strong> As the melody moves from "A-ma-..." to "...zing", notice how the Bass anchors the chord change while the inner parts (Alto & Tenor) shift to fill the harmony.</li>
+    <li><strong>Practice Tip:</strong> Record yourself singing the Soprano part, then try to sing the Alto or Bass line along with your recording to hear the blend.</li>
 </ol>
 
 <div class="mt-6 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800">
@@ -986,7 +986,7 @@ const ChoirPage = () => {
         <a href="https://www.youtube.com/watch?v=RFgoLuuKa7E" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
             📺 How Great Thou Art (SATB Harmony Tutorial)
         </a>
-        <a href="https://www.youtube.com/watch?v=ksh7jWse2qo" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
+        <a href="https://youtu.be/Cxp4XKegLwk" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
             📺 To God Be The Glory (Full SATB Tutorial)
         </a>
     </div>
