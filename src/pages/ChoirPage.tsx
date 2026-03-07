@@ -939,9 +939,9 @@ const ChoirPage = () => {
 <p><strong>Practice tip:</strong> Sing the song fragment, then sing just the two notes without the words. Soon you'll recognise the interval anywhere.</p>`
                         },
                         {
-                            title: "Understanding Gospel Harmony Parts (SAT)",
-                            content: `<h3>The Roles of Soprano, Alto, and Tenor</h3>
-<p>In Gospel music, we typically use a three-part harmony system (SAT). Each part has a specific "job" to do to create that rich, full sound.</p>
+                            title: "Understanding Gospel Harmony Parts (SATB)",
+                            content: `<h3>The Roles of Soprano, Alto, Tenor, and Bass</h3>
+<p>In Gospel music, we often use a four-part harmony system (SATB). Each part has a specific "job" to do to create that rich, full sound.</p>
 
 <div class="space-y-4 my-4">
     <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
@@ -953,36 +953,41 @@ const ChoirPage = () => {
         <p class="text-sm">The lower female voice. You fill in the "meat" of the chord. Your part adds warmth and complexity. You sit right under the soprano.</p>
     </div>
     <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
-        <h4 class="font-bold text-indigo-700 dark:text-indigo-400 uppercase text-xs mb-2">Tenor (The Bottom / Foundation)</h4>
-        <p class="text-sm">The male voice (usually). You provide the solid foundation. Even though you are the lowest part in SAT, you are often the highest male part, giving the harmony its driving force.</p>
+        <h4 class="font-bold text-indigo-700 dark:text-indigo-400 uppercase text-xs mb-2">Tenor (The High Harmony / Foundation)</h4>
+        <p class="text-sm">The highest male voice (usually). You provide the driving force of the harmony. You sit just below the alto part and often sing the root or fifth in higher octaves.</p>
+    </div>
+    <div class="p-4 bg-slate-50 dark:bg-slate-900/20 rounded-xl border border-slate-100 dark:border-slate-800">
+        <h4 class="font-bold text-slate-700 dark:text-slate-400 uppercase text-xs mb-2">Bass (The Bottom / Foundation)</h4>
+        <p class="text-sm">The lowest male voice. Your job is the "anchor." You provide the root of the chord and the deep resonance that makes the choir sound massive and powerful.</p>
     </div>
 </div>
 
 <h3>Example: The C-Major Chord (C - E - G)</h3>
-<p>When all three parts sing together at the same time, they form a <strong>Chord</strong>. Here is how that chord is usually split:</p>
+<p>When all four parts sing together, they form a <strong>Chord</strong>. Here is how that chord is usually split in SATB:</p>
 <ul class="list-disc pl-5 space-y-2">
     <li><strong>Soprano:</strong> Sings the <strong>G</strong> (The 5th - Bright and clear)</li>
     <li><strong>Alto:</strong> Sings the <strong>E</strong> (The 3rd - Warm and sweet)</li>
-    <li><strong>Tenor:</strong> Sings the <strong>C</strong> (The Root - Strong and grounded)</li>
+    <li><strong>Tenor:</strong> Sings the <strong>C</strong> (The Root - High foundation)</li>
+    <li><strong>Bass:</strong> Sings the <strong>C</strong> (The Root - Low anchor foundation)</li>
 </ul>
 
 <h3>Practical Exercise: Harmonising "Total Praise"</h3>
-<p>Listen to the final "Amen" in Richard Smallwood's <em>"Total Praise"</em>. It is one of the most famous examples of Gospel harmony moving together.</p>
+<p>Listen to the final "Amen" in Richard Smallwood's <em>"Total Praise"</em>. It is one of the most famous examples of SATB Gospel harmony moving together.</p>
 <ol class="list-decimal pl-5 space-y-2 mt-2">
-    <li><strong>First Note:</strong> Tenor on Ab, Alto on C, Soprano on Eb (An Ab Major Chord).</li>
+    <li><strong>First Note:</strong> Bass on Ab, Tenor on Ab (octave up), Alto on C, Soprano on Eb (An Ab Major Chord).</li>
     <li><strong>Movement:</strong> Each part moves to the next note in their scale to create the next chord.</li>
-    <li><strong>Practice Tip:</strong> Try to isolate just the Tenor line first, then the Alto, then the Soprano. Can you hear how they "lock" together?</li>
+    <li><strong>Practice Tip:</strong> Try to isolate just the Bass line first to feel the foundation, then add the other parts one by one.</li>
 </ol>
 
 <div class="mt-6 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800">
     <h4 class="font-bold text-orange-700 dark:text-orange-400 mb-2">🎓 Best Practice Resources</h4>
     <p class="text-sm mb-3">To practice these parts by ear, watch these highly recommended tutorials:</p>
     <div class="grid gap-2">
-        <a href="https://www.youtube.com/watch?v=0kI6_uI6WkQ" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
-            📺 How Great Thou Art (SAT Part Breakdown)
+        <a href="https://www.youtube.com/watch?v=RFgoLuuKa7E" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
+            📺 How Great Thou Art (SATB Harmony Tutorial)
         </a>
-        <a href="https://www.youtube.com/watch?v=Vl0XvB4n1w8" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
-            📺 To God Be The Glory (Full Harmony Tutorial)
+        <a href="https://www.youtube.com/watch?v=ksh7jWse2qo" target="_blank" class="text-blue-600 hover:underline text-sm font-medium flex items-center gap-2">
+            📺 To God Be The Glory (Full SATB Tutorial)
         </a>
     </div>
 </div>`
