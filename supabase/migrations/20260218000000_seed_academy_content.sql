@@ -1,7 +1,7 @@
 -- Update "The Power of Prayer in Choir" Lesson Content
 UPDATE public.choir_academy_modules
 SET content = '<h1>The Power of Prayer in Choir</h1>
-<p>Prayer is not just a ritual we perform before we sing; it is the engine that drives the spiritual impact of our worship. Scientific studies and spiritual traditions alike suggest that synchronization happens when we pray together, but for us, it is about alignment with the Father''s heart.</p>
+<p>Prayer is not something we just do before we sing; it is the engine that drives the spiritual impact of our worship. Scientific studies and spiritual traditions alike suggest that synchronization happens when we pray together, but for us, it is about alignment with the Father''s heart.</p>
 <h2>1. The Spiritual Mandate (2 Chronicles 20:21-22)</h2>
 <p>When King Jehoshaphat appointed singers to go out before the army, they didn''t just sing songs; they proclaimed the holiness of God. The victory was won not because of their vocal prowess, but because their praise was rooted in a deep reliance on God—which is the definition of prayer.</p>
 <h2>2. Vocal & Spiritual Connection</h2>
