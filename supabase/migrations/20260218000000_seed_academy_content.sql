@@ -3,7 +3,7 @@ UPDATE public.choir_academy_modules
 SET content = '<h1>The Power of Prayer in Choir</h1>
 <p>Prayer is not something we just do before we sing; it is the engine that drives the spiritual impact of our worship. Scientific studies and spiritual traditions alike suggest that synchronization happens when we pray together, but for us, it is about alignment with the Father''s heart.</p>
 <h2>1. The Spiritual Mandate (2 Chronicles 20:21-22)</h2>
-<p>When King Jehoshaphat appointed singers to go out before the army, they didn''t just sing songs; they proclaimed the holiness of God. The victory was won not because of their vocal prowess, but because their praise was rooted in a deep reliance on God—which is the definition of prayer.</p>
+<p>When King Jehoshaphat appointed singers to go out before the army, they didn''t just sing songs; they proclaimed the holiness of God. The victory was won not because of their vocal prowess, but because their praise was rooted in a deep reliance on God.</p>
 <h2>2. Vocal & Spiritual Connection</h2>
 <p>A prayerful heart releases tension. When you are spiritually aligned, your "instrument" (your body) is more relaxed, allowing for better breath control and resonance. More importantly, prayer sharpens your spiritual ears, helping you to hear what the Spirit is doing in the room and enabling you to "echo" that with your voice.</p>
 <h2>3. The ''Secret Place'' Lifestyle</h2>
