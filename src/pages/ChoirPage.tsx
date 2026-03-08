@@ -1232,7 +1232,7 @@ const ChoirPage = () => {
                     duration: "2 Hours",
                     level: "Beginner",
                     description: "A plain-English guide to sound, music, and how it all works — starting from zero.",
-                    image: "/assets/academy/vocal_lessons_101.png",
+                    image: "/assets/academy/music_101_basics.png",
                     modules: [
                         {
                             title: "What Is Music?",
@@ -1293,7 +1293,7 @@ const ChoirPage = () => {
                     duration: "2.5 Hours",
                     level: "Beginner",
                     description: "Understanding chords, keys, and why certain notes sound beautiful together.",
-                    image: "/assets/academy/vocal_harmony_uploaded_v2.jpg",
+                    image: "/assets/academy/music_101_chords.png",
                     modules: [
                         {
                             title: "What Is a Chord?",
@@ -1384,7 +1384,7 @@ const ChoirPage = () => {
                     duration: "1.5 Hours",
                     level: "Beginner",
                     description: "The heartbeat of music — understanding beat, tempo, and time signatures.",
-                    image: "/assets/academy/singing_in_unity.png",
+                    image: "/assets/academy/music_101_rhythm.png",
                     modules: [
                         {
                             title: "The Beat & The Tempo",
@@ -1431,7 +1431,7 @@ const ChoirPage = () => {
                     duration: "1.5 Hours",
                     level: "Beginner",
                     description: "How everything you learned comes to life in Sunday worship and Gospel music.",
-                    image: "/assets/academy/worship_leading_excellence.png",
+                    image: "/assets/academy/music_101_church.png",
                     modules: [
                         {
                             title: "How a Worship Song Is Built",
