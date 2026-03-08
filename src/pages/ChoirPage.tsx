@@ -1219,6 +1219,252 @@ const ChoirPage = () => {
                     ]
                 }
             ]
+        },
+        {
+            title: "Music 101",
+            icon: <BookOpen className="w-6 h-6" />,
+            description: "Everything about music, explained so simply that anyone can understand it.",
+            courses: [
+                {
+                    id: "music-101-foundations",
+                    title: "What Is Music? The Absolute Basics",
+                    category: "Foundations",
+                    duration: "2 Hours",
+                    level: "Beginner",
+                    description: "A plain-English guide to sound, music, and how it all works — starting from zero.",
+                    image: "/assets/academy/vocal_lessons_101.png",
+                    modules: [
+                        {
+                            title: "What Is Music?",
+                            content: `<h3>Music in Plain English</h3>
+<p>Music is <strong>organised sound</strong>. That's it. When you clap your hands, that's sound. When you clap in a <em>pattern</em> — that starts to become music. When someone adds a melody on top — that's fully music.</p>
+<p>Every piece of music you have ever heard — from a lullaby to a Gospel anthem — is built from just <strong>three basic ingredients</strong>:</p>
+<ul class="list-none space-y-3 my-4">
+    <li class="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><span class="text-2xl">🎵</span><div><strong>Notes (Pitch)</strong> — How high or low a sound is. A bird tweet is a high pitch. A lion's roar is a low pitch. In music, we give pitches specific names.</div></li>
+    <li class="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"><span class="text-2xl">⏱️</span><div><strong>Rhythm (Time)</strong> — When sounds happen and for how long. A steady beat is the clock of music. Without rhythm, notes are just random sounds floating in the air.</div></li>
+    <li class="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"><span class="text-2xl">🔊</span><div><strong>Dynamics (Volume)</strong> — How loud or soft. Music that never changes volume is boring. The rise and fall of volume is what gives music emotion.</div></li>
+</ul>
+<h3>Why Does Music Affect Us So Deeply?</h3>
+<p>Science shows that music activates the same part of the brain as food and love. That's why a song can make you cry, or give you chills, or make you want to dance. For us in the church, that's not a coincidence — it's by God's design. The Bible is full of music: Psalms were <em>songs</em>, the Levites were professional musicians, and there is singing in Heaven right now (Revelation 5:9).</p>`
+                        },
+                        {
+                            title: "What Is a Note?",
+                            content: `<h3>A Note Is Simply One Sound With a Name</h3>
+<p>Imagine a piano keyboard. Each key you press makes a different sound — some sound higher, some sound lower. Each of those sounds is called a <strong>note</strong>.</p>
+<p>In Western music (the system we use in church), there are only <strong>12 different notes</strong>. That's it. Every song ever written uses some combination of these same 12 notes. They are:</p>
+<div class="grid grid-cols-6 gap-2 my-4 text-center">
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">C</div>
+    <div class="p-2 bg-slate-800 dark:bg-slate-600 rounded-lg shadow font-bold text-white">C#</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">D</div>
+    <div class="p-2 bg-slate-800 dark:bg-slate-600 rounded-lg shadow font-bold text-white">D#</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">E</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">F</div>
+    <div class="p-2 bg-slate-800 dark:bg-slate-600 rounded-lg shadow font-bold text-white">F#</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">G</div>
+    <div class="p-2 bg-slate-800 dark:bg-slate-600 rounded-lg shadow font-bold text-white">G#</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">A</div>
+    <div class="p-2 bg-slate-800 dark:bg-slate-600 rounded-lg shadow font-bold text-white">A#</div>
+    <div class="p-2 bg-white dark:bg-slate-800 rounded-lg shadow font-bold text-blue-600">B</div>
+</div>
+<p>The <strong>white notes</strong> (C, D, E, F, G, A, B) are called <strong>natural notes</strong>. The <strong>black notes</strong> (C#, D#, F#, G#, A#) are called <strong>sharps</strong> or <strong>flats</strong>. After B, the whole 12-note pattern repeats again, but higher. This repeating group is called an <strong>Octave</strong>.</p>
+<h3>The Do-Re-Mi Connection</h3>
+<p>You probably already know these notes — you just knew them by different names! Do, Re, Mi, Fa, Sol, La, Ti are just another way of singing C, D, E, F, G, A, B. This is called <em>solfège</em>, and it's exactly what we use in choir when we "sol-fa" a song.</p>`
+                        },
+                        {
+                            title: "What Is a Scale?",
+                            content: `<h3>A Scale Is a Musical Staircase</h3>
+<p>A <strong>scale</strong> is a set of notes arranged in order from low to high (or high to low). Think of it like climbing a staircase — each step is one note. The most important scale to know is the <strong>Major Scale</strong>.</p>
+<h3>The C Major Scale — The "Mother" of All Scales</h3>
+<p>Play (or sing) these notes in order: <strong>C – D – E – F – G – A – B – C</strong></p>
+<p>That's it. That's a major scale. You've heard it thousands of times. It's the "Do Re Mi" sound. It sounds <em>happy</em> and <em>bright</em>.</p>
+<div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+    <h4 class="font-bold text-amber-700 dark:text-amber-400 mb-2">🎹 Why Does This Matter for Church?</h4>
+    <p class="text-sm">When the choir director says <em>"We're singing in the key of G"</em>, they mean the song is built on the G Major Scale (G–A–B–C–D–E–F#–G). Every note the choir sings and every chord the band plays comes from that same staircase of notes.</p>
+</div>
+<h3>Major vs Minor — Happy vs Sad</h3>
+<p>The other important scale is the <strong>Minor Scale</strong>. The only difference is that a few of the steps are slightly lower, which gives it a darker, sadder, or more intense sound. Think of the difference between a celebration song and a deep, moving worship ballad — one is likely Major, the other Minor.</p>`
+                        }
+                    ]
+                },
+                {
+                    id: "music-101-chords",
+                    title: "Chords, Keys & Harmony",
+                    category: "Theory",
+                    duration: "2.5 Hours",
+                    level: "Beginner",
+                    description: "Understanding chords, keys, and why certain notes sound beautiful together.",
+                    image: "/assets/academy/vocal_harmony_uploaded_v2.jpg",
+                    modules: [
+                        {
+                            title: "What Is a Chord?",
+                            content: `<h3>A Chord Is Three or More Notes Played Together</h3>
+<p>When a pianist plays a chord on Sunday morning, they are pressing multiple keys at the exact same time. Those notes blend together to create one rich, unified sound. That's a chord.</p>
+<h3>The Most Basic Chord: The Triad</h3>
+<p>The simplest chord is called a <strong>triad</strong> ("tri" = three). It's made of three notes. Here's how you build one:</p>
+<ol class="list-decimal pl-5 space-y-2 my-3">
+    <li>Start on any note (this is called the <strong>Root</strong>)</li>
+    <li>Skip one step on the scale (this is called the <strong>Third</strong>)</li>
+    <li>Skip one more step (this is called the <strong>Fifth</strong>)</li>
+</ol>
+<div class="my-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+    <h4 class="font-bold mb-3">📖 Real Example: The C Major Chord</h4>
+    <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="p-3 bg-white dark:bg-slate-700 rounded-lg shadow">
+            <div class="text-2xl font-black text-blue-600">C</div>
+            <div class="text-xs mt-1 text-slate-500">The Root<br/>(1st note)</div>
+        </div>
+        <div class="p-3 bg-white dark:bg-slate-700 rounded-lg shadow">
+            <div class="text-2xl font-black text-green-600">E</div>
+            <div class="text-xs mt-1 text-slate-500">The Third<br/>(3rd note)</div>
+        </div>
+        <div class="p-3 bg-white dark:bg-slate-700 rounded-lg shadow">
+            <div class="text-2xl font-black text-purple-600">G</div>
+            <div class="text-xs mt-1 text-slate-500">The Fifth<br/>(5th note)</div>
+        </div>
+    </div>
+    <p class="text-sm mt-3 text-slate-600 dark:text-slate-400">Play C + E + G together on a piano and you hear a <strong>C Major Chord</strong>. It sounds happy and resolved.</p>
+</div>
+<h3>Major Chords vs Minor Chords</h3>
+<ul class="space-y-2 my-3">
+    <li class="flex gap-3 items-start"><span class="text-lg">😊</span><div><strong>Major Chord</strong> — Bright, happy, confident sound. (e.g., C Major — C, E, G)</div></li>
+    <li class="flex gap-3 items-start"><span class="text-lg">😢</span><div><strong>Minor Chord</strong> — Darker, more emotional sound. Made by lowering the Third by one step. (e.g., C Minor — C, E♭, G)</div></li>
+</ul>`
+                        },
+                        {
+                            title: "What Is a Key?",
+                            content: `<h3>The "Key" Is the Home Base of a Song</h3>
+<p>When a song is in a <strong>key</strong>, it means the song is built around one "home" note and chord — the one it always feels like it wants to return to.</p>
+<h3>The 3 Most Important Chords (The "Magic 3")</h3>
+<p>In any key, there are three chords that appear in almost every Gospel and Worship song ever written:</p>
+<div class="space-y-3 my-4">
+    <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+        <h4 class="font-bold text-green-700 dark:text-green-400">Chord 1 — The "Home" (Tonic)</h4>
+        <p class="text-sm">The most settled, resolved chord. Songs start and end here. In the key of C, this is the <strong>C chord</strong>.</p>
+    </div>
+    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+        <h4 class="font-bold text-blue-700 dark:text-blue-400">Chord 4 — The "Journey" (Subdominant)</h4>
+        <p class="text-sm">A gentle move away from home. Creates warmth. In the key of C, this is the <strong>F chord</strong>.</p>
+    </div>
+    <div class="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+        <h4 class="font-bold text-orange-700 dark:text-orange-400">Chord 5 — The "Tension" (Dominant)</h4>
+        <p class="text-sm">Creates tension that DEMANDS to go back home. In the key of C, this is the <strong>G chord</strong>.</p>
+    </div>
+</div>
+<p>You can play <em>hundreds</em> of songs using just Chord 1, Chord 4, and Chord 5. Songs like <em>"How Great Is Our God"</em>, <em>"10,000 Reasons"</em>, and <em>"Way Maker"</em> are built almost entirely on these three chords.</p>`
+                        },
+                        {
+                            title: "Reading a Chord Chart",
+                            content: `<h3>What Is a Chord Chart?</h3>
+<p>A <strong>chord chart</strong> is the most common way music is written for church bands and choirs. Unlike complex sheet music, it simply shows you <em>what chord to play</em> and <em>when</em>.</p>
+<h3>Example: "Amazing Grace" (Key of G)</h3>
+<div class="font-mono bg-slate-900 text-green-400 p-4 rounded-xl my-4 text-sm leading-relaxed">
+    <p>Verse 1:</p>
+    <p>[ G ] Amazing Grace, how sweet the sound,</p>
+    <p>That[ C ]saved a wretch like [ G ]me.</p>
+    <p>I[ G ]once was lost but [ Em ]now am found,</p>
+    <p>Was[ C ]blind but now I [ G ]see.</p>
+</div>
+<p>The letters in <strong>[ brackets ]</strong> show you which chord to play. When a new bracket appears, you change chord.</p>
+<h3>Common Chord Names You'll See</h3>
+<ul class="space-y-2 my-3 text-sm">
+    <li><strong>G</strong> — G Major (simple, bright)</li>
+    <li><strong>Gm</strong> — G Minor (darker)</li>
+    <li><strong>G7</strong> — G Dominant 7th (very tense, wants to resolve)</li>
+    <li><strong>Gmaj7</strong> — G Major 7th (lush and dreamy)</li>
+    <li><strong>Gsus4</strong> — Suspended chord (floating, unresolved — very common in modern worship)</li>
+    <li><strong>Gadd9</strong> — Major with an extra colour (open and spacious)</li>
+</ul>`
+                        }
+                    ]
+                },
+                {
+                    id: "music-101-rhythm",
+                    title: "Rhythm, Beat & Time",
+                    category: "Rhythm",
+                    duration: "1.5 Hours",
+                    level: "Beginner",
+                    description: "The heartbeat of music — understanding beat, tempo, and time signatures.",
+                    image: "/assets/academy/singing_in_unity.png",
+                    modules: [
+                        {
+                            title: "The Beat & The Tempo",
+                            content: `<h3>The Beat Is the Clock of Music</h3>
+<p>The <strong>beat</strong> is the steady, regular pulse underneath every song. It's what you naturally tap your foot to. The speed of the beat is called the <strong>tempo</strong>, measured in <strong>BPM (Beats Per Minute)</strong>.</p>
+<ul class="space-y-2 my-4">
+    <li class="flex items-center gap-3"><span class="w-24 font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">40-60 BPM</span><span>Slow ballad. Deep, meditative worship. (e.g. "Draw Me Close")</span></li>
+    <li class="flex items-center gap-3"><span class="w-24 font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">70-90 BPM</span><span>Medium feel. Congregational anthems. (e.g. "10,000 Reasons")</span></li>
+    <li class="flex items-center gap-3"><span class="w-24 font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">100-130 BPM</span><span>Upbeat praise. Energy and movement. (e.g. "Way Maker")</span></li>
+    <li class="flex items-center gap-3"><span class="w-24 font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">130+ BPM</span><span>Fast Gospel. Dance and celebration.</span></li>
+</ul>
+<h3>The Downbeat & Upbeat</h3>
+<p>In a 4-beat bar, beats <strong>1 and 3</strong> are strong beats (the "downbeat"). Beats <strong>2 and 4</strong> are weaker (the "backbeat"). Gospel music is famous for emphasising beats 2 and 4 — it's what gives it that driving, soulful feel.</p>`
+                        },
+                        {
+                            title: "Time Signatures — What the Numbers Mean",
+                            content: `<h3>Time Signatures in Plain English</h3>
+<p>At the beginning of a song, you sometimes see two numbers stacked — like <strong>4/4</strong> or <strong>3/4</strong>. This is the <strong>time signature</strong>.</p>
+<ul class="space-y-2 my-3">
+    <li>The <strong>top number</strong> tells you HOW MANY beats are in each bar</li>
+    <li>The <strong>bottom number</strong> tells you what type of beat (4 = a normal quarter-note beat)</li>
+</ul>
+<div class="space-y-3 my-4">
+    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+        <h4 class="font-bold mb-1">4/4 — "Common Time" (Most church songs)</h4>
+        <p class="text-sm">4 beats per bar. Count: <em>1-2-3-4, 1-2-3-4...</em> This is by far the most common.</p>
+    </div>
+    <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+        <h4 class="font-bold mb-1">3/4 — "Waltz Time" (Hymns & ballads)</h4>
+        <p class="text-sm">3 beats per bar. Count: <em>1-2-3, 1-2-3...</em> "Amazing Grace" is in 3/4. It has that gentle swaying feel.</p>
+    </div>
+    <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+        <h4 class="font-bold mb-1">6/8 — "Gospel Shuffle" feel</h4>
+        <p class="text-sm">6 beats per bar, felt in 2 groups of 3. It gives that rolling, flowing feel common in Gospel music.</p>
+    </div>
+</div>`
+                        }
+                    ]
+                },
+                {
+                    id: "music-101-gospel",
+                    title: "Music in the Church Context",
+                    category: "Applied",
+                    duration: "1.5 Hours",
+                    level: "Beginner",
+                    description: "How everything you learned comes to life in Sunday worship and Gospel music.",
+                    image: "/assets/academy/worship_leading_excellence.png",
+                    modules: [
+                        {
+                            title: "How a Worship Song Is Built",
+                            content: `<h3>Anatomy of a Worship Song</h3>
+<p>Every song in a worship service has a structure. Knowing the parts helps you follow along quickly in rehearsal and on stage.</p>
+<div class="space-y-3 my-4">
+    <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-l-4 border-blue-500"><strong>Intro</strong> — The instrumental or vocal opening. Sets the key and tempo.</div>
+    <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border-l-4 border-slate-400"><strong>Verse</strong> — Tells the story. Usually quieter. The congregation is listening.</div>
+    <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border-l-4 border-green-500"><strong>Pre-Chorus (Build)</strong> — Builds energy and tension before the chorus.</div>
+    <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border-l-4 border-amber-500"><strong>Chorus</strong> — The main message. Loudest, most memorable. The congregation joins in fully.</div>
+    <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border-l-4 border-purple-500"><strong>Bridge</strong> — A different section, usually emotionally climactic. Often goes to a new chord feeling.</div>
+    <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border-l-4 border-red-500"><strong>Tag / Vamp</strong> — A short repeated phrase at the end. Often where the Spirit moves deepest.</div>
+</div>`
+                        },
+                        {
+                            title: "Music Theory Glossary — Your Quick Reference",
+                            content: `<h3>The Words You'll Hear at Rehearsal</h3>
+<div class="space-y-2 my-4">
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Pitch</span><span>How high or low a note is.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Octave</span><span>The same note, 12 steps higher or lower. It sounds like the "same" note, just in a different range.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Interval</span><span>The distance between two notes. E.g., from C to G is a "Fifth".</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Harmony</span><span>Two or more notes sung together that sound good. Each choir part (S, A, T, B) is a harmony line.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Melody</span><span>The main tune — the part you hum or whistle. Usually sung by the Soprano or lead vocalist.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Modulation</span><span>When the whole song shifts to a new key, usually for the final chorus. It sounds like a "lift".</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Dynamics</span><span>The volume of the music. A choir that controls dynamics is a powerful choir.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Bar / Measure</span><span>A group of beats. In 4/4 time, every 4 beats = 1 bar.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Sol-Fa</span><span>Do-Re-Mi-Fa-Sol-La-Ti. Used when learning a harmony part by ear.</span></div>
+    <div class="flex gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg"><span class="font-bold w-28 shrink-0 text-blue-600">Vamp</span><span>A repeated chord pattern played over and over while the worship leader prays or speaks.</span></div>
+</div>`
+                        }
+                    ]
+                }
+            ]
         }
     ], []);
 
