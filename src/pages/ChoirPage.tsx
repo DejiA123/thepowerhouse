@@ -44,7 +44,7 @@ import {
     Grid,
     List as ListIcon,
     Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet, Upload, Image, Globe, ExternalLink, Globe2,
-    Lock, Unlock, Youtube, History, Info
+    Lock, Unlock, Youtube, History, Info, Sun, Coins
 } from "lucide-react";
 
 // Cache Keys
@@ -1635,6 +1635,8 @@ const ChoirPage = () => {
     const [worshipSet, setWorshipSet] = useState<WeeklySetSong[]>([]);
     const [specialSet, setSpecialSet] = useState<WeeklySetSong[]>([]);
     const [hymnsSet, setHymnsSet] = useState<WeeklySetSong[]>([]);
+    const [thanksgivingSet, setThanksgivingSet] = useState<WeeklySetSong[]>([]);
+    const [offeringSet, setOfferingSet] = useState<WeeklySetSong[]>([]);
     const [learningSet, setLearningSet] = useState<WeeklySetSong[]>([]);
 
     // Setlist Descriptions State
@@ -1642,10 +1644,12 @@ const ChoirPage = () => {
     const [worshipInfo, setWorshipInfo] = useState({ title: "Worship Set", desc: "" });
     const [specialInfo, setSpecialInfo] = useState({ title: "Special Number", desc: "" });
     const [hymnsInfo, setHymnsInfo] = useState({ title: "Hymns", desc: "" });
+    const [thanksgivingInfo, setThanksgivingInfo] = useState({ title: "Thanksgiving Set", desc: "" });
+    const [offeringInfo, setOfferingInfo] = useState({ title: "Offering Set", desc: "" });
 
     // UI States for Edit Setlist Info
     const [isEditSetInfoOpen, setIsEditSetInfoOpen] = useState(false);
-    const [editingSetInfoType, setEditingSetInfoType] = useState<'praise' | 'worship' | 'special' | 'hymns' | null>(null);
+    const [editingSetInfoType, setEditingSetInfoType] = useState<'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering' | null>(null);
     const [tempSetInfo, setTempSetInfo] = useState({ title: "", desc: "" });
 
     // UI States for Folder/Song Management
@@ -1665,7 +1669,7 @@ const ChoirPage = () => {
 
     // UI States for Setlist Management
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
-    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | null>(null);
+    const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | 'thanksgiving' | 'offering' | null>(null);
     const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, lyrics?: string, library_song_id?: string }>({
         title: "",
         key: "",
@@ -2050,16 +2054,22 @@ const ChoirPage = () => {
             else if (worshipSet.some(s => String(s.id) === String(active.id))) targetType = 'worship';
             else if (specialSet.some(s => String(s.id) === String(active.id))) targetType = 'special';
             else if (hymnsSet.some(s => String(s.id) === String(active.id))) targetType = 'hymns';
+            else if (thanksgivingSet.some(s => String(s.id) === String(active.id))) targetType = 'thanksgiving';
+            else if (offeringSet.some(s => String(s.id) === String(active.id))) targetType = 'offering';
 
             if (!targetType) return;
 
             const set = targetType === 'praise' ? praiseSet :
                 targetType === 'worship' ? worshipSet :
-                    targetType === 'special' ? specialSet : hymnsSet;
+                    targetType === 'special' ? specialSet :
+                        targetType === 'hymns' ? hymnsSet :
+                            targetType === 'thanksgiving' ? thanksgivingSet : offeringSet;
 
             const setSetter = targetType === 'praise' ? setPraiseSet :
                 targetType === 'worship' ? setWorshipSet :
-                    targetType === 'special' ? setSpecialSet : setHymnsSet;
+                    targetType === 'special' ? setSpecialSet :
+                        targetType === 'hymns' ? setHymnsSet :
+                            targetType === 'thanksgiving' ? setThanksgivingSet : setOfferingSet;
 
             const oldIndex = set.findIndex((song) => String(song.id) === String(active.id));
             const newIndex = set.findIndex((song) => String(song.id) === String(over.id));
@@ -2095,6 +2105,8 @@ const ChoirPage = () => {
             const cachedWorship = getFromCache(locationId, 'worship', weekDateStr);
             const cachedSpecial = getFromCache(locationId, 'special', weekDateStr);
             const cachedHymns = getFromCache(locationId, 'hymns', weekDateStr);
+            const cachedThanksgiving = getFromCache(locationId, 'thanksgiving', weekDateStr);
+            const cachedOffering = getFromCache(locationId, 'offering', weekDateStr);
             const cachedLearning = getFromCache(locationId, 'learning', weekDateStr);
             const cachedInfo = getFromCache(locationId, 'info_map', weekDateStr);
 
@@ -2102,22 +2114,28 @@ const ChoirPage = () => {
             if (cachedWorship) setWorshipSet(cachedWorship);
             if (cachedSpecial) setSpecialSet(cachedSpecial);
             if (cachedHymns) setHymnsSet(cachedHymns);
+            if (cachedThanksgiving) setThanksgivingSet(cachedThanksgiving);
+            if (cachedOffering) setOfferingSet(cachedOffering);
             if (cachedLearning) setLearningSet(cachedLearning);
             if (cachedInfo) {
                 setPraiseInfo({ title: "Praise Set", desc: cachedInfo['praise_desc'] || "" });
                 setWorshipInfo({ title: "Worship Set", desc: cachedInfo['worship_desc'] || "" });
                 setSpecialInfo({ title: "Special Number", desc: cachedInfo['special_desc'] || "" });
                 setHymnsInfo({ title: "Hymns", desc: cachedInfo['hymns_desc'] || "" });
+                setThanksgivingInfo({ title: "Thanksgiving Set", desc: cachedInfo['thanksgiving_desc'] || "" });
+                setOfferingInfo({ title: "Offering Set", desc: cachedInfo['offering_desc'] || "" });
             }
 
             try {
                 setLoading(true);
-                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
+                const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedThanksgiving, fetchedOffering, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(locationId),
                     choirService.getWeeklySetlist('praise', locationId, weekDateStr),
                     choirService.getWeeklySetlist('worship', locationId, weekDateStr),
                     choirService.getWeeklySetlist('special', locationId, weekDateStr),
                     choirService.getWeeklySetlist('hymns', locationId, weekDateStr),
+                    choirService.getWeeklySetlist('thanksgiving', locationId, weekDateStr),
+                    choirService.getWeeklySetlist('offering', locationId, weekDateStr),
                     choirService.getLearningSongs(locationId, weekDateStr),
                     choirService.getAllSetlistInfo(locationId, weekDateStr),
                     choirService.getInstrumentalResources(locationId),
@@ -2129,6 +2147,8 @@ const ChoirPage = () => {
                 saveToCache(locationId, 'worship', weekDateStr, fetchedWorship);
                 saveToCache(locationId, 'special', weekDateStr, fetchedSpecial);
                 saveToCache(locationId, 'hymns', weekDateStr, fetchedHymns);
+                saveToCache(locationId, 'thanksgiving', weekDateStr, fetchedThanksgiving);
+                saveToCache(locationId, 'offering', weekDateStr, fetchedOffering);
                 saveToCache(locationId, 'learning', weekDateStr, fetchedLearning);
                 saveToCache(locationId, 'info_map', weekDateStr, fetchedInfo);
 
@@ -2137,6 +2157,8 @@ const ChoirPage = () => {
                 setWorshipSet(fetchedWorship as any);
                 setSpecialSet(fetchedSpecial as any);
                 setHymnsSet(fetchedHymns as any);
+                setThanksgivingSet(fetchedThanksgiving as any);
+                setOfferingSet(fetchedOffering as any);
                 setLearningSet(fetchedLearning as any);
                 setInstrResources(fetchedInstr);
                 setCalendarEvents(fetchedEvents);
@@ -2146,6 +2168,8 @@ const ChoirPage = () => {
                 setWorshipInfo({ title: "Worship Set", desc: fetchedInfo['worship_desc'] || "" });
                 setSpecialInfo({ title: "Special Number", desc: fetchedInfo['special_desc'] || "" });
                 setHymnsInfo({ title: "Hymns", desc: fetchedInfo['hymns_desc'] || "" });
+                setThanksgivingInfo({ title: "Thanksgiving Set", desc: fetchedInfo['thanksgiving_desc'] || "" });
+                setOfferingInfo({ title: "Offering Set", desc: fetchedInfo['offering_desc'] || "" });
 
                 // Check "This Week" (Legacy Date) reference only for This Week selection
                 const isThisWeek = weekDateStr === startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
@@ -2442,6 +2466,16 @@ const ChoirPage = () => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
+                    } else if (newSong.set_type === 'thanksgiving') {
+                        setThanksgivingSet(prev => {
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
+                    } else if (newSong.set_type === 'offering') {
+                        setOfferingSet(prev => {
+                            if (prev.some(s => s.id === newSong.id)) return prev;
+                            return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
+                        });
                     }
                 } else if (payload.eventType === 'UPDATE') {
                     const updated = payload.new as any;
@@ -2453,6 +2487,10 @@ const ChoirPage = () => {
                         setSpecialSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
                     } else if (updated.set_type === 'hymns') {
                         setHymnsSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    } else if (updated.set_type === 'thanksgiving') {
+                        setThanksgivingSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
+                    } else if (updated.set_type === 'offering') {
+                        setOfferingSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
                     }
                 } else if (payload.eventType === 'DELETE') {
                     const deleted = payload.old as any;
@@ -2461,6 +2499,8 @@ const ChoirPage = () => {
                     setWorshipSet(prev => prev.filter(s => s.id !== deleted.id));
                     setSpecialSet(prev => prev.filter(s => s.id !== deleted.id));
                     setHymnsSet(prev => prev.filter(s => s.id !== deleted.id));
+                    setThanksgivingSet(prev => prev.filter(s => s.id !== deleted.id));
+                    setOfferingSet(prev => prev.filter(s => s.id !== deleted.id));
                 }
             })
             .subscribe();
@@ -2498,6 +2538,12 @@ const ChoirPage = () => {
                             break;
                         case 'worship_desc':
                             setWorshipInfo(prev => ({ ...prev, desc: updatedInfo.value }));
+                            break;
+                        case 'thanksgiving_desc':
+                            setThanksgivingInfo(prev => ({ ...prev, desc: updatedInfo.value }));
+                            break;
+                        case 'offering_desc':
+                            setOfferingInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
                         case 'learning_songs_json':
                             try {
@@ -2598,9 +2644,13 @@ const ChoirPage = () => {
 
 
     // -- Handlers for Setlist Info --
-    const openEditSetInfo = (type: 'praise' | 'worship' | 'special' | 'hymns') => {
+    const openEditSetInfo = (type: 'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering') => {
         setEditingSetInfoType(type);
-        const info = type === 'praise' ? praiseInfo : worshipInfo;
+        const info = type === 'praise' ? praiseInfo :
+            type === 'worship' ? worshipInfo :
+                type === 'special' ? specialInfo :
+                    type === 'hymns' ? hymnsInfo :
+                        type === 'thanksgiving' ? thanksgivingInfo : offeringInfo;
         setTempSetInfo({ ...info });
         setIsEditSetInfoOpen(true);
     };
@@ -2608,7 +2658,11 @@ const ChoirPage = () => {
     const saveSetInfo = async () => {
         if (!editingSetInfoType) return;
         try {
-            const key = editingSetInfoType === 'praise' ? 'praise_desc' : 'worship_desc';
+            const key = editingSetInfoType === 'praise' ? 'praise_desc' :
+                editingSetInfoType === 'worship' ? 'worship_desc' :
+                    editingSetInfoType === 'special' ? 'special_desc' :
+                        editingSetInfoType === 'hymns' ? 'hymns_desc' :
+                            editingSetInfoType === 'thanksgiving' ? 'thanksgiving_desc' : 'offering_desc';
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
             await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!, weekDateStr);
             setIsEditSetInfoOpen(false);
@@ -2627,6 +2681,8 @@ const ChoirPage = () => {
                 choirService.clearWeeklySetlist(locationId, weekDateStr),
                 choirService.updateSetlistInfo('praise_desc', "", locationId, weekDateStr),
                 choirService.updateSetlistInfo('worship_desc', "", locationId, weekDateStr),
+                choirService.updateSetlistInfo('thanksgiving_desc', "", locationId, weekDateStr),
+                choirService.updateSetlistInfo('offering_desc', "", locationId, weekDateStr),
                 choirService.saveLearningSongs([], locationId, weekDateStr) // Clear learning JSON
             ]);
         } catch (e) {
@@ -2656,9 +2712,11 @@ const ChoirPage = () => {
         praise: WeeklySetSong[],
         worship: WeeklySetSong[],
         special: WeeklySetSong[],
-        hymns: WeeklySetSong[]
+        hymns: WeeklySetSong[],
+        thanksgiving: WeeklySetSong[],
+        offering: WeeklySetSong[]
     ) => {
-        if (praise.length === 0 && worship.length === 0 && special.length === 0 && hymns.length === 0) {
+        if (praise.length === 0 && worship.length === 0 && special.length === 0 && hymns.length === 0 && thanksgiving.length === 0 && offering.length === 0) {
             return { success: false, message: "Setlists are empty - nothing to archive" };
         }
 
@@ -2737,6 +2795,34 @@ const ChoirPage = () => {
                 ));
             }
 
+            if (thanksgiving.length > 0) {
+                const thanksgivingFolder = await choirService.createFolder("Thanksgiving Set", locId, mainFolder.id);
+                archivePromises.push(...thanksgiving.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: thanksgivingFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locId)
+                ));
+            }
+
+            if (offering.length > 0) {
+                const offeringFolder = await choirService.createFolder("Offering Set", locId, mainFolder.id);
+                archivePromises.push(...offering.map(song =>
+                    choirService.addSongToFolder({
+                        folder_id: offeringFolder.id,
+                        title: song.title,
+                        key: song.key,
+                        artist: song.artist,
+                        url: song.url,
+                        notes: song.instrumental_notes || ''
+                    }, locId)
+                ));
+            }
+
             if (archivePromises.length > 0) {
                 await Promise.all(archivePromises);
             }
@@ -2760,7 +2846,9 @@ const ChoirPage = () => {
                     praiseSet,
                     worshipSet,
                     specialSet,
-                    hymnsSet
+                    hymnsSet,
+                    thanksgivingSet,
+                    offeringSet
                 );
 
                 if (!result.success) {
@@ -2905,7 +2993,7 @@ const ChoirPage = () => {
     };
 
     // -- Handlers for Setlists --
-    const openAddSetSong = (type: 'praise' | 'worship' | 'learning' | 'special' | 'hymns') => {
+    const openAddSetSong = (type: 'praise' | 'worship' | 'learning' | 'special' | 'hymns' | 'thanksgiving' | 'offering') => {
         setActiveSetType(type);
         setNewSetSong({ title: "", key: "", artist: "", url: "" });
         setIsAddToSetOpen(true);
@@ -2964,7 +3052,9 @@ const ChoirPage = () => {
                     sort_order: activeSetType === 'praise' ? praiseSet.length :
                         activeSetType === 'worship' ? worshipSet.length :
                             activeSetType === 'special' ? specialSet.length :
-                                activeSetType === 'hymns' ? hymnsSet.length : 0
+                                activeSetType === 'hymns' ? hymnsSet.length :
+                                    activeSetType === 'thanksgiving' ? thanksgivingSet.length :
+                                        activeSetType === 'offering' ? offeringSet.length : 0
                 }, locationId!);
                 // Note: State update will happen via real-time subscription
             }
@@ -2996,14 +3086,18 @@ const ChoirPage = () => {
         }
     };
 
-    const clearSet = (type: 'praise' | 'worship' | 'special' | 'hymns') => {
+    const clearSet = (type: 'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering') => {
         const setName = type === 'praise' ? 'Praise Set' :
             type === 'worship' ? 'Worship Set' :
-                type === 'special' ? 'Special Number Set' : 'Hymns Set';
+                type === 'special' ? 'Special Number Set' :
+                    type === 'thanksgiving' ? 'Thanksgiving Set' :
+                        type === 'offering' ? 'Offering Set' : 'Hymns Set';
 
         const currentSet = type === 'praise' ? praiseSet :
             type === 'worship' ? worshipSet :
-                type === 'special' ? specialSet : hymnsSet;
+                type === 'special' ? specialSet :
+                    type === 'thanksgiving' ? thanksgivingSet :
+                        type === 'offering' ? offeringSet : hymnsSet;
 
         if (currentSet.length === 0) {
             toast.info(`${setName} is already empty`);
@@ -4041,7 +4135,12 @@ const ChoirPage = () => {
                 >
                     <DialogHeader className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] border-b border-slate-100 dark:border-slate-800">
                         <DialogTitle className="text-xl font-bold">
-                            {activeSetType === 'learning' ? 'Add Learning Focus Song' : `Add to ${activeSetType === 'praise' ? 'Praise' : 'Worship'} Set`}
+                            {activeSetType === 'learning' ? 'Add Learning Focus Song' :
+                                `Add to ${activeSetType === 'praise' ? 'Praise' :
+                                    activeSetType === 'worship' ? 'Worship' :
+                                        activeSetType === 'thanksgiving' ? 'Thanksgiving' :
+                                            activeSetType === 'offering' ? 'Offering' :
+                                                activeSetType === 'special' ? 'Special Number' : 'Hymns'} Set`}
                         </DialogTitle>
                         <DialogDescription>
                             Enter the details of the song you want to add to the setlist.
@@ -5343,6 +5442,128 @@ const ChoirPage = () => {
 
                                     {locationId === 'national' && (
                                         <>
+                                            {/* Thanksgiving Set */}
+                                            <Card className="border-none shadow-lg bg-orange-50/50 dark:bg-orange-900/10 border-t-4 border-orange-500">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                                    <div className="space-y-1">
+                                                        <CardTitle className="text-orange-700 dark:text-orange-400 flex items-center">
+                                                            <Sun className="w-5 h-5 mr-2" />
+                                                            {thanksgivingInfo.title}
+                                                        </CardTitle>
+                                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('thanksgiving')}>
+                                                            <CardDescription className="cursor-pointer group-hover:text-orange-600 transition-colors">
+                                                                {thanksgivingInfo.desc}
+                                                            </CardDescription>
+                                                            <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        {isAdmin && !isLocked && (
+                                                            <>
+                                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('thanksgiving')} title="Clear all songs from Thanksgiving Set">
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-orange-600 hover:bg-orange-100/50" onClick={() => openAddSetSong('thanksgiving')}>
+                                                                    <Plus className="w-5 h-5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3 pt-4">
+                                                    {loading && thanksgivingSet.length === 0 ? (
+                                                        <SetlistSkeleton />
+                                                    ) : (
+                                                        <>
+                                                            <SortableContext
+                                                                items={thanksgivingSet.map(s => s.id)}
+                                                                strategy={verticalListSortingStrategy}
+                                                            >
+                                                                {thanksgivingSet.map((song, i) => (
+                                                                    <SortableSetSongCard
+                                                                        key={song.id}
+                                                                        song={song}
+                                                                        index={i}
+                                                                        onPlay={playVideo}
+                                                                        onEdit={startEditSetSong}
+                                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('thanksgiving', id))}
+                                                                        onViewLyrics={(lyrics, title) => {
+                                                                            setPreviewLyrics({ title, content: lyrics });
+                                                                            setIsPreviewLyricsOpen(true);
+                                                                        }}
+                                                                        isLocked={isLocked}
+                                                                    />
+                                                                ))}
+                                                            </SortableContext>
+                                                            {thanksgivingSet.length === 0 && !loading && (
+                                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+
+                                            {/* Offering Set */}
+                                            <Card className="border-none shadow-lg bg-emerald-50/50 dark:bg-emerald-900/10 border-t-4 border-emerald-500">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                                    <div className="space-y-1">
+                                                        <CardTitle className="text-emerald-700 dark:text-emerald-400 flex items-center">
+                                                            <Coins className="w-5 h-5 mr-2" />
+                                                            {offeringInfo.title}
+                                                        </CardTitle>
+                                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => openEditSetInfo('offering')}>
+                                                            <CardDescription className="cursor-pointer group-hover:text-emerald-600 transition-colors">
+                                                                {offeringInfo.desc}
+                                                            </CardDescription>
+                                                            <Edit3 className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-all" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        {isAdmin && !isLocked && (
+                                                            <>
+                                                                <Button size="icon" variant="ghost" className="text-red-600 hover:bg-red-100/50" onClick={() => clearSet('offering')} title="Clear all songs from Offering Set">
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-100/50" onClick={() => openAddSetSong('offering')}>
+                                                                    <Plus className="w-5 h-5" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3 pt-4">
+                                                    {loading && offeringSet.length === 0 ? (
+                                                        <SetlistSkeleton />
+                                                    ) : (
+                                                        <>
+                                                            <SortableContext
+                                                                items={offeringSet.map(s => s.id)}
+                                                                strategy={verticalListSortingStrategy}
+                                                            >
+                                                                {offeringSet.map((song, i) => (
+                                                                    <SortableSetSongCard
+                                                                        key={song.id}
+                                                                        song={song}
+                                                                        index={i}
+                                                                        onPlay={playVideo}
+                                                                        onEdit={startEditSetSong}
+                                                                        onRemove={(id, title) => requestDeletion(title, () => removeSetSong('offering', id))}
+                                                                        onViewLyrics={(lyrics, title) => {
+                                                                            setPreviewLyrics({ title, content: lyrics });
+                                                                            setIsPreviewLyricsOpen(true);
+                                                                        }}
+                                                                        isLocked={isLocked}
+                                                                    />
+                                                                ))}
+                                                            </SortableContext>
+                                                            {offeringSet.length === 0 && !loading && (
+                                                                <p className="text-center text-sm text-slate-400 py-4 italic">No songs added yet.</p>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+
                                             {/* Special Number - National Only */}
                                             <Card className="border-none shadow-lg bg-indigo-50/50 dark:bg-indigo-900/10 border-t-4 border-indigo-500">
                                                 <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -6112,6 +6333,46 @@ const ChoirPage = () => {
                                             )}
                                         </CardContent>
                                     </Card>
+
+                                    {locationId === 'national' && (
+                                        <>
+                                            {/* Thanksgiving Set for Band */}
+                                            <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                                <div className="bg-orange-600 p-4 text-white">
+                                                    <h3 className="font-bold flex items-center gap-2">
+                                                        <Sun className="w-5 h-5" /> Thanksgiving Set
+                                                    </h3>
+                                                </div>
+                                                <CardContent className="p-4 space-y-4">
+                                                    {thanksgivingSet.length === 0 ? (
+                                                        <p className="text-center py-8 text-slate-400">No songs in thanksgiving set</p>
+                                                    ) : (
+                                                        thanksgivingSet.map((song) => (
+                                                            <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin && !isLocked} />
+                                                        ))
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+
+                                            {/* Offering Set for Band */}
+                                            <Card className="border-none shadow-lg bg-white/90 dark:bg-slate-800/90 overflow-hidden">
+                                                <div className="bg-emerald-600 p-4 text-white">
+                                                    <h3 className="font-bold flex items-center gap-2">
+                                                        <Coins className="w-5 h-5" /> Offering Set
+                                                    </h3>
+                                                </div>
+                                                <CardContent className="p-4 space-y-4">
+                                                    {offeringSet.length === 0 ? (
+                                                        <p className="text-center py-8 text-slate-400">No songs in offering set</p>
+                                                    ) : (
+                                                        offeringSet.map((song) => (
+                                                            <BandSongCard key={song.id} song={song} allLibrarySongs={allLibrarySongs} onUpdate={handleUpdateBandDetails} isAdmin={isAdmin && !isLocked} />
+                                                        ))
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </TabsContent>
