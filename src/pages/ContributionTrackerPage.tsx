@@ -38,7 +38,6 @@ const INITIAL_DATA: Record<string, Contribution[]> = {
         { name: "Borja", months: [5, 5, 5, 5, 5, 5, null, null, null, null, null, null] },
         { name: "Sister Rekky", months: [5, 5, 5, 5, 5, null, null, null, null, null, null, null] },
         { name: "Tomi", months: [5, 5, 5, null, null, null, null, null, null, null, null, null] },
-        { name: "Lola", months: [null, null, null, null, null, null, null, null, null, null, null, null] },
     ],
     "2026": [
         { name: "Min. Nenette", months: Array(12).fill(null) },
@@ -151,6 +150,14 @@ const ContributionTrackerPage = () => {
             ...newData[selectedYear],
             { name: "New Member", months: Array(12).fill(null) }
         ];
+        setContributionData(newData);
+        saveToSupabase(newData);
+    };
+
+    const deleteMember = (index: number) => {
+        if (!isAdmin) return;
+        const newData = { ...contributionData };
+        newData[selectedYear] = newData[selectedYear].filter((_, i) => i !== index);
         setContributionData(newData);
         saveToSupabase(newData);
     };
@@ -308,11 +315,21 @@ const ContributionTrackerPage = () => {
                                         )}>
                                             <TableCell className="pl-8 py-6 font-black text-slate-800 dark:text-slate-100 text-sm italic tracking-tight">
                                                 {isAdmin ? (
-                                                    <Input
-                                                        value={row.name}
-                                                        onChange={(e) => updateMemberName(idx, e.target.value)}
-                                                        className="h-8 bg-transparent border-none p-0 focus-visible:ring-0 font-black italic text-indigo-600 dark:text-indigo-400"
-                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <Input
+                                                            value={row.name}
+                                                            onChange={(e) => updateMemberName(idx, e.target.value)}
+                                                            className="h-8 bg-transparent border-none p-0 focus-visible:ring-0 font-black italic text-indigo-600 dark:text-indigo-400"
+                                                        />
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                            onClick={() => deleteMember(idx)}
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
                                                 ) : (
                                                     row.name
                                                 )}
