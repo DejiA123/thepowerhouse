@@ -2258,9 +2258,10 @@ const ChoirPage = () => {
                 }
 
                 // Fetch Praise Roster
-                if (fetchedInfo['praise_roster']) {
+                const praiseRosterKey = `praise_roster${suffix}`;
+                if (fetchedInfo[praiseRosterKey]) {
                     try {
-                        setPraiseRoster(JSON.parse(fetchedInfo['praise_roster']));
+                        setPraiseRoster(JSON.parse(fetchedInfo[praiseRosterKey]));
                     } catch (e) {
                         console.error("Error parsing praise roster:", e);
                         setPraiseRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
@@ -2270,9 +2271,10 @@ const ChoirPage = () => {
                 }
 
                 // Fetch Prayer Roster
-                if (fetchedInfo['prayer_roster']) {
+                const prayerRosterKey = `prayer_roster${suffix}`;
+                if (fetchedInfo[prayerRosterKey]) {
                     try {
-                        setPrayerRoster(JSON.parse(fetchedInfo['prayer_roster']));
+                        setPrayerRoster(JSON.parse(fetchedInfo[prayerRosterKey]));
                     } catch (e) {
                         console.error("Error parsing prayer roster:", e);
                         setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
@@ -2569,10 +2571,10 @@ const ChoirPage = () => {
                         case 'weekly_schedule':
                             try { setWeeklySchedule(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
-                        case 'praise_roster':
+                        case `praise_roster${suffix}`:
                             try { setPraiseRoster(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
-                        case 'prayer_roster':
+                        case `prayer_roster${suffix}`:
                             try { setPrayerRoster(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
                     }
@@ -3563,8 +3565,8 @@ const ChoirPage = () => {
     const handleSaveSchedule = async (updatedSchedule: ScheduleItem[]) => {
         if (!locationId) return;
         try {
-            await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId);
-
+            const weekDateStr = format(selectedWeekDate, 'yyyy-MM-dd');
+            await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId, weekDateStr);
         } catch (e) {
             console.error(e);
             toast.error("Failed to save schedule");
@@ -3620,8 +3622,10 @@ const ChoirPage = () => {
     const handleSaveRoster = async (rosterType: 'praise' | 'prayer', updatedRoster: string[]) => {
         if (!locationId) return;
         try {
-            const infoKey = rosterType === 'praise' ? 'praise_roster' : 'prayer_roster';
-            await choirService.updateSetlistInfo(infoKey, JSON.stringify(updatedRoster), locationId);
+            const suffix = locationId === 'national' ? `_d${selectedDay}` : "";
+            const infoKey = (rosterType === 'praise' ? 'praise_roster' : 'prayer_roster') + suffix;
+            const weekDateStr = format(selectedWeekDate, 'yyyy-MM-dd');
+            await choirService.updateSetlistInfo(infoKey, JSON.stringify(updatedRoster), locationId, weekDateStr);
             toast.success("Roster updated");
         } catch (e) {
             console.error(e);

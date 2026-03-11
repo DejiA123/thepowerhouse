@@ -188,13 +188,20 @@ export const supabaseAudioService = {
 
     // New Testament books (B##): B01-B11 don't have padding, B12 onwards do
     // Old Testament books (A##) always have padding to make book name + underscores = 12 characters
+    // SPECIAL CASE: Revelation (B27) chapters 9-22 on archive.org do NOT have padding, 
+    // unlike chapters 1-8 which follow the A## style padding (Revelation__).
     let fileName;
     const bookNumber = parseInt(bookCode.substring(1));
-    if (bookCode.startsWith('B') && bookNumber >= 1 && bookNumber <= 11) {
+    const isRevelation = normalizedBook === 'Revelation';
+
+    if (isRevelation && chapter >= 9) {
+      // Revelation 9-22: B27___09_RevelationENGKJVN1DA.mp3 (No padding)
+      fileName = `${bookCode}${separator}${chapterStr}_${bookName}${versionCode}.mp3`;
+    } else if (bookCode.startsWith('B') && bookNumber >= 1 && bookNumber <= 11) {
       // New Testament format (B01-B11): B01___01_MatthewENGKJVN1DA.mp3
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${versionCode}.mp3`;
     } else {
-      // Old Testament or NT B12+: A01___01_Genesis_____ENGKJVO1DA.mp3 or B12___04_Colossians__ENGKJVN1DA.mp3
+      // Old Testament or NT B12+ (including Revelation 1-8): A01___01_Genesis_____ENGKJVO1DA.mp3
       const paddingNeeded = Math.max(0, 12 - bookName.length);
       const underscores = '_'.repeat(paddingNeeded);
       fileName = `${bookCode}${separator}${chapterStr}_${bookName}${underscores}${versionCode}.mp3`;
