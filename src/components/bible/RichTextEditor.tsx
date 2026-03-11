@@ -88,7 +88,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
 
 
+  const editorRef = useRef<any>(null);
+
   const editor = useEditor({
+    onCreate: ({ editor }) => {
+      editorRef.current = editor;
+    },
     extensions: [
       StarterKit.configure({
         bulletList: { keepMarks: true, keepAttributes: false },
@@ -152,6 +157,31 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
         if (readOnly && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
           return true;
         }
+
+        if (event.key === 'Enter') {
+          const editorInstance = editorRef.current;
+          if (editorInstance) {
+            // Special fix for mobile: trim trailing space before Enter
+            // Many mobile keyboards add a space after a word/punctuation which stays there on Enter
+            const { selection, doc } = editorInstance.state;
+            const { $from, empty } = selection;
+            
+            if (empty && $from.pos > 0) {
+              const prevChar = doc.textBetween($from.pos - 1, $from.pos);
+              if (prevChar === ' ') {
+                editorInstance.chain().deleteRange({ from: $from.pos - 1, to: $from.pos }).run();
+              }
+            }
+
+            if (event.shiftKey) {
+              editorInstance.chain().focus().setHardBreak().run();
+            } else {
+              editorInstance.chain().focus().splitBlock().run();
+            }
+            return true;
+          }
+        }
+
         return false;
       },
       handleTextInput: () => readOnly,
