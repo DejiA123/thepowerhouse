@@ -40,22 +40,22 @@ const INITIAL_DATA: Record<string, Contribution[]> = {
         { name: "Tomi", months: [5, 5, 5, null, null, null, null, null, null, null, null, null] },
     ],
     "2026": [
-        { name: "Min. Nenette", months: Array(12).fill(null) },
-        { name: "YP Sodiq", months: Array(12).fill(null) },
-        { name: "AP Zainab", months: Array(12).fill(null) },
-        { name: "Njuare", months: Array(12).fill(null) },
-        { name: "Min. Mercy", months: Array(12).fill(null) },
-        { name: "Min. Merit", months: Array(12).fill(null) },
-        { name: "Sister. Mercy", months: Array(12).fill(null) },
-        { name: "Kido", months: Array(12).fill(null) },
-        { name: "Min. Kingsley", months: Array(12).fill(null) },
-        { name: "Joanne", months: Array(12).fill(null) },
-        { name: "Pastor Deji", months: Array(12).fill(null) },
-        { name: "AP Mr's Ojo", months: Array(12).fill(null) },
-        { name: "Borja", months: Array(12).fill(null) },
-        { name: "Sister Rekky", months: Array(12).fill(null) },
-        { name: "Tomi", months: Array(12).fill(null) },
-        { name: "Lola", months: Array(12).fill(null) },
+        { name: "Min. Nenette", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "YP Sodiq", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "AP Zainab", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Njuare", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Min. Mercy", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Min. Merit", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Sister. Mercy", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Kido", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Min. Kingsley", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Joanne", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Pastor Deji", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "AP Mr's Ojo", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Borja", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Sister Rekky", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Tomi", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
+        { name: "Lola", months: [5, 5, null, null, null, null, null, null, null, null, null, null] },
     ]
 };
 
@@ -66,6 +66,7 @@ const ContributionTrackerPage = () => {
     const [selectedYear, setSelectedYear] = useState("2026");
     const [contributionData, setContributionData] = useState(INITIAL_DATA);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
     // Admin State
     const [isAdmin, setIsAdmin] = useState(false);
@@ -81,6 +82,7 @@ const ContributionTrackerPage = () => {
                 if (savedData) {
                     setContributionData(savedData);
                 }
+                setIsDataLoaded(true);
             } catch (error) {
                 console.error("Failed to fetch contributions:", error);
                 toast.error("Failed to load contribution data. Using offline defaults.");
@@ -92,6 +94,10 @@ const ContributionTrackerPage = () => {
     }, []);
 
     const saveToSupabase = async (newData: Record<string, Contribution[]>) => {
+        if (!isDataLoaded) {
+            console.warn("Attempted to save contributions before data was loaded. Aborting to prevent data loss.");
+            return;
+        }
         try {
             await choirService.saveContributions(newData, "National");
         } catch (error) {
