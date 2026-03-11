@@ -22,7 +22,10 @@ export interface ChoirFolder {
 
 export interface WeeklySetSong {
     id: string;
-    set_type: 'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering';
+    set_type: 'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering' | 
+              'praise_d1' | 'worship_d1' | 'special_d1' | 'hymns_d1' | 'thanksgiving_d1' | 'offering_d1' |
+              'praise_d2' | 'worship_d2' | 'special_d2' | 'hymns_d2' | 'thanksgiving_d2' | 'offering_d2' |
+              'praise_d3' | 'worship_d3' | 'special_d3' | 'hymns_d3' | 'thanksgiving_d3' | 'offering_d3';
     title: string;
     key: string;
     artist: string;

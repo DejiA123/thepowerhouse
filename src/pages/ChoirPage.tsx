@@ -1668,6 +1668,7 @@ const ChoirPage = () => {
     const [songToEdit, setSongToEdit] = useState({ title: "", key: "", artist: "", url: "", notes: "" });
 
     // UI States for Setlist Management
+    const [selectedDay, setSelectedDay] = useState<'1' | '2' | '3'>('1');
     const [isAddToSetOpen, setIsAddToSetOpen] = useState(false);
     const [activeSetType, setActiveSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | 'thanksgiving' | 'offering' | null>(null);
     const [newSetSong, setNewSetSong] = useState<{ title: string, key: string, artist: string, url: string, lyrics?: string, library_song_id?: string }>({
@@ -2101,14 +2102,17 @@ const ChoirPage = () => {
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
 
             // 1. Load from Cache for Instant UI
-            const cachedPraise = getFromCache(locationId, 'praise', weekDateStr);
-            const cachedWorship = getFromCache(locationId, 'worship', weekDateStr);
-            const cachedSpecial = getFromCache(locationId, 'special', weekDateStr);
-            const cachedHymns = getFromCache(locationId, 'hymns', weekDateStr);
-            const cachedThanksgiving = getFromCache(locationId, 'thanksgiving', weekDateStr);
-            const cachedOffering = getFromCache(locationId, 'offering', weekDateStr);
-            const cachedLearning = getFromCache(locationId, 'learning', weekDateStr);
-            const cachedInfo = getFromCache(locationId, 'info_map', weekDateStr);
+            const getDaySuffix = () => (locationId === 'national' ? `_d${selectedDay}` : '');
+            const suffix = getDaySuffix();
+
+            const cachedPraise = getFromCache(locationId, `praise${suffix}`, weekDateStr);
+            const cachedWorship = getFromCache(locationId, `worship${suffix}`, weekDateStr);
+            const cachedSpecial = getFromCache(locationId, `special${suffix}`, weekDateStr);
+            const cachedHymns = getFromCache(locationId, `hymns${suffix}`, weekDateStr);
+            const cachedThanksgiving = getFromCache(locationId, `thanksgiving${suffix}`, weekDateStr);
+            const cachedOffering = getFromCache(locationId, `offering${suffix}`, weekDateStr);
+            const cachedLearning = getFromCache(locationId, `learning${suffix}`, weekDateStr);
+            const cachedInfo = getFromCache(locationId, `info_map${suffix}`, weekDateStr);
 
             if (cachedPraise) setPraiseSet(cachedPraise);
             if (cachedWorship) setWorshipSet(cachedWorship);
@@ -2118,24 +2122,31 @@ const ChoirPage = () => {
             if (cachedOffering) setOfferingSet(cachedOffering);
             if (cachedLearning) setLearningSet(cachedLearning);
             if (cachedInfo) {
-                setPraiseInfo({ title: "Praise Set", desc: cachedInfo['praise_desc'] || "" });
-                setWorshipInfo({ title: "Worship Set", desc: cachedInfo['worship_desc'] || "" });
-                setSpecialInfo({ title: "Special Number", desc: cachedInfo['special_desc'] || "" });
-                setHymnsInfo({ title: "Hymns", desc: cachedInfo['hymns_desc'] || "" });
-                setThanksgivingInfo({ title: "Thanksgiving Set", desc: cachedInfo['thanksgiving_desc'] || "" });
-                setOfferingInfo({ title: "Offering Set", desc: cachedInfo['offering_desc'] || "" });
+                setPraiseInfo({ title: "Praise Set", desc: cachedInfo[`praise_desc${suffix}`] || "" });
+                setWorshipInfo({ title: "Worship Set", desc: cachedInfo[`worship_desc${suffix}`] || "" });
+                setSpecialInfo({ title: "Special Number", desc: cachedInfo[`special_desc${suffix}`] || "" });
+                setHymnsInfo({ title: "Hymns", desc: cachedInfo[`hymns_desc${suffix}`] || "" });
+                setThanksgivingInfo({ title: "Thanksgiving Set", desc: cachedInfo[`thanksgiving_desc${suffix}`] || "" });
+                setOfferingInfo({ title: "Offering Set", desc: cachedInfo[`offering_desc${suffix}`] || "" });
             }
 
             try {
                 setLoading(true);
+                const pType = `praise${suffix}` as any;
+                const wType = `worship${suffix}` as any;
+                const sType = `special${suffix}` as any;
+                const hType = `hymns${suffix}` as any;
+                const tType = `thanksgiving${suffix}` as any;
+                const oType = `offering${suffix}` as any;
+
                 const [fetchedFolders, fetchedPraise, fetchedWorship, fetchedSpecial, fetchedHymns, fetchedThanksgiving, fetchedOffering, fetchedLearning, fetchedInfo, fetchedInstr, fetchedEvents] = await Promise.all([
                     choirService.getFolders(locationId),
-                    choirService.getWeeklySetlist('praise', locationId, weekDateStr),
-                    choirService.getWeeklySetlist('worship', locationId, weekDateStr),
-                    choirService.getWeeklySetlist('special', locationId, weekDateStr),
-                    choirService.getWeeklySetlist('hymns', locationId, weekDateStr),
-                    choirService.getWeeklySetlist('thanksgiving', locationId, weekDateStr),
-                    choirService.getWeeklySetlist('offering', locationId, weekDateStr),
+                    choirService.getWeeklySetlist(pType, locationId, weekDateStr),
+                    choirService.getWeeklySetlist(wType, locationId, weekDateStr),
+                    choirService.getWeeklySetlist(sType, locationId, weekDateStr),
+                    choirService.getWeeklySetlist(hType, locationId, weekDateStr),
+                    choirService.getWeeklySetlist(tType, locationId, weekDateStr),
+                    choirService.getWeeklySetlist(oType, locationId, weekDateStr),
                     choirService.getLearningSongs(locationId, weekDateStr),
                     choirService.getAllSetlistInfo(locationId, weekDateStr),
                     choirService.getInstrumentalResources(locationId),
@@ -2143,14 +2154,14 @@ const ChoirPage = () => {
                 ]);
 
                 // 2. Update Cache
-                saveToCache(locationId, 'praise', weekDateStr, fetchedPraise);
-                saveToCache(locationId, 'worship', weekDateStr, fetchedWorship);
-                saveToCache(locationId, 'special', weekDateStr, fetchedSpecial);
-                saveToCache(locationId, 'hymns', weekDateStr, fetchedHymns);
-                saveToCache(locationId, 'thanksgiving', weekDateStr, fetchedThanksgiving);
-                saveToCache(locationId, 'offering', weekDateStr, fetchedOffering);
-                saveToCache(locationId, 'learning', weekDateStr, fetchedLearning);
-                saveToCache(locationId, 'info_map', weekDateStr, fetchedInfo);
+                saveToCache(locationId, `praise${suffix}`, weekDateStr, fetchedPraise);
+                saveToCache(locationId, `worship${suffix}`, weekDateStr, fetchedWorship);
+                saveToCache(locationId, `special${suffix}`, weekDateStr, fetchedSpecial);
+                saveToCache(locationId, `hymns${suffix}`, weekDateStr, fetchedHymns);
+                saveToCache(locationId, `thanksgiving${suffix}`, weekDateStr, fetchedThanksgiving);
+                saveToCache(locationId, `offering${suffix}`, weekDateStr, fetchedOffering);
+                saveToCache(locationId, `learning${suffix}`, weekDateStr, fetchedLearning);
+                saveToCache(locationId, `info_map${suffix}`, weekDateStr, fetchedInfo);
 
                 setFolders(fetchedFolders as any);
                 setPraiseSet(fetchedPraise as any);
@@ -2164,12 +2175,12 @@ const ChoirPage = () => {
                 setCalendarEvents(fetchedEvents);
 
                 // Handling descriptions for the selected week
-                setPraiseInfo({ title: "Praise Set", desc: fetchedInfo['praise_desc'] || "" });
-                setWorshipInfo({ title: "Worship Set", desc: fetchedInfo['worship_desc'] || "" });
-                setSpecialInfo({ title: "Special Number", desc: fetchedInfo['special_desc'] || "" });
-                setHymnsInfo({ title: "Hymns", desc: fetchedInfo['hymns_desc'] || "" });
-                setThanksgivingInfo({ title: "Thanksgiving Set", desc: fetchedInfo['thanksgiving_desc'] || "" });
-                setOfferingInfo({ title: "Offering Set", desc: fetchedInfo['offering_desc'] || "" });
+                setPraiseInfo({ title: "Praise Set", desc: fetchedInfo[`praise_desc${suffix}`] || "" });
+                setWorshipInfo({ title: "Worship Set", desc: fetchedInfo[`worship_desc${suffix}`] || "" });
+                setSpecialInfo({ title: "Special Number", desc: fetchedInfo[`special_desc${suffix}`] || "" });
+                setHymnsInfo({ title: "Hymns", desc: fetchedInfo[`hymns_desc${suffix}`] || "" });
+                setThanksgivingInfo({ title: "Thanksgiving Set", desc: fetchedInfo[`thanksgiving_desc${suffix}`] || "" });
+                setOfferingInfo({ title: "Offering Set", desc: fetchedInfo[`offering_desc${suffix}`] || "" });
 
                 // Check "This Week" (Legacy Date) reference only for This Week selection
                 const isThisWeek = weekDateStr === startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
@@ -2307,7 +2318,7 @@ const ChoirPage = () => {
             }
         };
         fetchData();
-    }, [locationId, selectedWeekDate]);
+    }, [locationId, selectedWeekDate, selectedDay]);
 
     // Sync state with URL params (Deep Linking)
     useEffect(() => {
@@ -2442,36 +2453,36 @@ const ChoirPage = () => {
                 // For DELETE events, we allow it to proceed regardless of metadata presence as IDs are unique.
                 if (payload.eventType !== 'DELETE' && item.week_date !== weekDateStr) return;
 
-                console.log('Setlist change for current week:', payload);
+                const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
 
                 if (payload.eventType === 'INSERT') {
                     const newSong = payload.new as any;
-                    if (newSong.set_type === 'praise') {
+                    if (newSong.set_type === `praise${suffix}`) {
                         setPraiseSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
-                    } else if (newSong.set_type === 'worship') {
+                    } else if (newSong.set_type === `worship${suffix}`) {
                         setWorshipSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
-                    } else if (newSong.set_type === 'special') {
+                    } else if (newSong.set_type === `special${suffix}`) {
                         setSpecialSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
-                    } else if (newSong.set_type === 'hymns') {
+                    } else if (newSong.set_type === `hymns${suffix}`) {
                         setHymnsSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
-                    } else if (newSong.set_type === 'thanksgiving') {
+                    } else if (newSong.set_type === `thanksgiving${suffix}`) {
                         setThanksgivingSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
                         });
-                    } else if (newSong.set_type === 'offering') {
+                    } else if (newSong.set_type === `offering${suffix}`) {
                         setOfferingSet(prev => {
                             if (prev.some(s => s.id === newSong.id)) return prev;
                             return [...prev, newSong].sort((a, b) => a.sort_order - b.sort_order);
@@ -2479,17 +2490,17 @@ const ChoirPage = () => {
                     }
                 } else if (payload.eventType === 'UPDATE') {
                     const updated = payload.new as any;
-                    if (updated.set_type === 'praise') {
+                    if (updated.set_type === `praise${suffix}`) {
                         setPraiseSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
-                    } else if (updated.set_type === 'worship') {
+                    } else if (updated.set_type === `worship${suffix}`) {
                         setWorshipSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
-                    } else if (updated.set_type === 'special') {
+                    } else if (updated.set_type === `special${suffix}`) {
                         setSpecialSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
-                    } else if (updated.set_type === 'hymns') {
+                    } else if (updated.set_type === `hymns${suffix}`) {
                         setHymnsSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
-                    } else if (updated.set_type === 'thanksgiving') {
+                    } else if (updated.set_type === `thanksgiving${suffix}`) {
                         setThanksgivingSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
-                    } else if (updated.set_type === 'offering') {
+                    } else if (updated.set_type === `offering${suffix}`) {
                         setOfferingSet(prev => prev.map(s => s.id === updated.id ? updated : s).sort((a, b) => a.sort_order - b.sort_order));
                     }
                 } else if (payload.eventType === 'DELETE') {
@@ -2519,30 +2530,32 @@ const ChoirPage = () => {
                 const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
                 const info = (payload.new || payload.old) as any;
 
-                // Only update local state if the change belongs to the currently viewed week
-                // EXCEPT for global keys like 'date' if they are still used (though we transitioned away)
                 if (info.week_date && info.week_date !== weekDateStr) return;
-
-                console.log('Setlist info change for current week:', payload);
 
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                     const updatedInfo = payload.new as any;
+                    const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
 
                     switch (updatedInfo.info_type) {
                         case 'date':
-                            // This might be global, so we update legacy state if someone else touches it
                             setSetlistDate(new Date(updatedInfo.value));
                             break;
-                        case 'praise_desc':
+                        case `praise_desc${suffix}`:
                             setPraiseInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
-                        case 'worship_desc':
+                        case `worship_desc${suffix}`:
                             setWorshipInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
-                        case 'thanksgiving_desc':
+                        case `special_desc${suffix}`:
+                            setSpecialInfo(prev => ({ ...prev, desc: updatedInfo.value }));
+                            break;
+                        case `hymns_desc${suffix}`:
+                            setHymnsInfo(prev => ({ ...prev, desc: updatedInfo.value }));
+                            break;
+                        case `thanksgiving_desc${suffix}`:
                             setThanksgivingInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
-                        case 'offering_desc':
+                        case `offering_desc${suffix}`:
                             setOfferingInfo(prev => ({ ...prev, desc: updatedInfo.value }));
                             break;
                         case 'learning_songs_json':
@@ -2553,7 +2566,6 @@ const ChoirPage = () => {
                                 console.error('Failed to parse learning songs:', e);
                             }
                             break;
-                        // Roster/Schedule are currently global per location, let's keep them that way or update if needed
                         case 'weekly_schedule':
                             try { setWeeklySchedule(JSON.parse(updatedInfo.value)); } catch (e) { }
                             break;
@@ -2639,7 +2651,7 @@ const ChoirPage = () => {
                 supabase.removeChannel(sub);
             });
         };
-    }, [locationId, selectedWeekDate]);
+    }, [locationId, selectedWeekDate, selectedDay]);
 
 
 
@@ -2658,13 +2670,14 @@ const ChoirPage = () => {
     const saveSetInfo = async () => {
         if (!editingSetInfoType) return;
         try {
-            const key = editingSetInfoType === 'praise' ? 'praise_desc' :
+            const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
+            const key = (editingSetInfoType === 'praise' ? 'praise_desc' :
                 editingSetInfoType === 'worship' ? 'worship_desc' :
                     editingSetInfoType === 'special' ? 'special_desc' :
                         editingSetInfoType === 'hymns' ? 'hymns_desc' :
-                            editingSetInfoType === 'thanksgiving' ? 'thanksgiving_desc' : 'offering_desc';
+                            editingSetInfoType === 'thanksgiving' ? 'thanksgiving_desc' : 'offering_desc') + suffix;
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
-            await choirService.updateSetlistInfo(key, tempSetInfo.desc, locationId!, weekDateStr);
+            await choirService.updateSetlistInfo(key as any, tempSetInfo.desc, locationId!, weekDateStr);
             setIsEditSetInfoOpen(false);
 
         } catch (e) {
@@ -2677,12 +2690,13 @@ const ChoirPage = () => {
         if (!locationId) return;
         try {
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
             await Promise.all([
-                choirService.clearWeeklySetlist(locationId, weekDateStr),
-                choirService.updateSetlistInfo('praise_desc', "", locationId, weekDateStr),
-                choirService.updateSetlistInfo('worship_desc', "", locationId, weekDateStr),
-                choirService.updateSetlistInfo('thanksgiving_desc', "", locationId, weekDateStr),
-                choirService.updateSetlistInfo('offering_desc', "", locationId, weekDateStr),
+                choirService.clearWeeklySetlist(locationId, weekDateStr, locationId === 'national' ? selectedDay : undefined),
+                choirService.updateSetlistInfo(`praise_desc${suffix}`, "", locationId, weekDateStr),
+                choirService.updateSetlistInfo(`worship_desc${suffix}`, "", locationId, weekDateStr),
+                choirService.updateSetlistInfo(`thanksgiving_desc${suffix}`, "", locationId, weekDateStr),
+                choirService.updateSetlistInfo(`offering_desc${suffix}`, "", locationId, weekDateStr),
                 choirService.saveLearningSongs([], locationId, weekDateStr) // Clear learning JSON
             ]);
         } catch (e) {
@@ -3040,8 +3054,9 @@ const ChoirPage = () => {
                 });
                 // Add song to database - real-time subscription will update the UI
                 const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const actualType = locationId === 'national' ? `${activeSetType}_d${selectedDay}` : activeSetType;
                 await choirService.addWeeklySong({
-                    set_type: activeSetType,
+                    set_type: actualType as any,
                     title: newSetSong.title,
                     key: newSetSong.key,
                     artist: newSetSong.artist,
@@ -3049,12 +3064,11 @@ const ChoirPage = () => {
                     lyrics: newSetSong.lyrics,
                     library_song_id: newSetSong.library_song_id || null,
                     week_date: weekDateStr,
-                    sort_order: activeSetType === 'praise' ? praiseSet.length :
-                        activeSetType === 'worship' ? worshipSet.length :
-                            activeSetType === 'special' ? specialSet.length :
-                                activeSetType === 'hymns' ? hymnsSet.length :
-                                    activeSetType === 'thanksgiving' ? thanksgivingSet.length :
-                                        activeSetType === 'offering' ? offeringSet.length : 0
+                    sort_order: (activeSetType === 'praise' ? praiseSet :
+                        activeSetType === 'worship' ? worshipSet :
+                            activeSetType === 'special' ? specialSet :
+                                activeSetType === 'hymns' ? hymnsSet :
+                                    activeSetType === 'thanksgiving' ? thanksgivingSet : offeringSet).length
                 }, locationId!);
                 // Note: State update will happen via real-time subscription
             }
@@ -5304,6 +5318,29 @@ const ChoirPage = () => {
                                         </Popover>
                                     </div>
                                 </div>
+
+                                {/* Day Selection (National Only) */}
+                                {locationId === 'national' && (
+                                    <div className="flex justify-center mb-10 mt-2">
+                                        <div className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-md p-1.5 rounded-[2rem] border border-blue-100 dark:border-blue-900/30 flex gap-1 shadow-xl ring-1 ring-white/20">
+                                            {(['1', '2', '3'] as const).map((day) => (
+                                                <Button
+                                                    key={day}
+                                                    variant="ghost"
+                                                    onClick={() => setSelectedDay(day)}
+                                                    className={cn(
+                                                        "rounded-full px-8 py-3 text-sm font-black transition-all duration-300 min-w-[120px]",
+                                                        selectedDay === day
+                                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30 transform scale-105"
+                                                            : "text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600"
+                                                    )}
+                                                >
+                                                    Day {day}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="grid md:grid-cols-2 gap-6">
                                     {/* Praise Set */}
