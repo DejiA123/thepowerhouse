@@ -347,9 +347,9 @@ export const choirService = {
     },
 
     async updateSetlistInfo(infoType: string, value: string, location: string, weekDate?: string) {
-        // Upsert mechanism with location and weekDate
-        const payload: any = { info_type: infoType, value, location };
-        if (weekDate) payload.week_date = weekDate;
+        // Use a fixed date for global records to ensure upsert onConflict works correctly (NULL != NULL in SQL)
+        const normalizedDate = weekDate || '1900-01-01';
+        const payload: any = { info_type: infoType, value, location, week_date: normalizedDate };
 
         const { data, error } = await supabase
             .from('choir_setlist_info' as any)
@@ -549,9 +549,21 @@ export const choirService = {
             .select('value')
             .eq('info_type', 'choir_contributions_json')
             .eq('location', location)
+            .eq('week_date', '1900-01-01')
             .maybeSingle();
 
         if (error) {
+            // Fallback for transition period: check for NULL if 1900-01-01 not found
+            const { data: oldData, error: oldError } = await supabase
+                .from('choir_setlist_info' as any)
+                .select('value')
+                .eq('info_type', 'choir_contributions_json')
+                .eq('location', location)
+                .is('week_date', null)
+                .maybeSingle();
+
+            if (!oldError && oldData) return JSON.parse((oldData as any).value);
+            
             console.error("Error fetching contributions", error);
             return null;
         }

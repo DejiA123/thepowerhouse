@@ -80,7 +80,15 @@ const ContributionTrackerPage = () => {
                 setIsLoading(true);
                 const savedData = await choirService.getContributions("National");
                 if (savedData) {
-                    setContributionData(savedData);
+                    setContributionData(prev => {
+                        const merged = { ...prev, ...savedData };
+                        // If saved 2026 data is empty (no payments), keep the INITIAL_DATA's Jan/Feb restoration
+                        const has2026Payments = (savedData["2026"] || []).some(m => m.months.some(v => v !== null));
+                        if (!has2026Payments) {
+                            merged["2026"] = INITIAL_DATA["2026"];
+                        }
+                        return merged;
+                    });
                 }
                 setIsDataLoaded(true);
             } catch (error) {
