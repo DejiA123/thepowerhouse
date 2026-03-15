@@ -3,7 +3,7 @@
 
 UPDATE public.choir_academy_modules
 SET content = '<h1>The Power of Prayer in Choir</h1>
-<p>Prayer is not something we just do before we sing; it is the engine that drives the spiritual impact of our worship. There is a synchronisation that happens when we pray together, we align ourseves to the heart of God almighty. The primary purpose of our prayer is to <strong>invite the Holy Spirit</strong> to take control of our rehearsal and ministry.</p>
+<p>Prayer is not something we just do before we sing; it is the engine that drives the spiritual impact of our worship. There is a synchronisation that happens when we pray together, we align ourseves to the heart of God almighty. The primary purpose of our prayer is to <strong>invite the Holy Spirit</strong> to take control of our rehearsal and ministration.</p>
 
 <h2>1. The Spiritual Mandate (2 Chronicles 20:21-22)</h2>
 <p>When King Jehoshaphat appointed singers to go out before the army, he didn''t just pick talented people; he <strong>prayed and consulted with God</strong> first. They didn''t just sing songs; they proclaimed the holiness of God. The victory was won because their praise was rooted in a deep reliance on God. This teaches us that our public worship is only as deep as our private devotion.</p>
