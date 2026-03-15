@@ -122,8 +122,7 @@ export const AddModuleDialog = ({ isOpen, onClose, locationId }: AddModuleDialog
                     <div className="max-w-4xl mx-auto w-full flex justify-end gap-3">
                         <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
                         <Button onClick={handleSubmit} disabled={isSubmitting || !title.trim()} className="min-w-[150px]">
-                            {isSubmitting ? "Creating..." : "Create Application"} {/* Application? typo :D "Create Teaching" or "Publish" */}
-                            Create Teaching
+                            {isSubmitting ? "Creating..." : "Create Teaching"}
                         </Button>
                     </div>
                 </div>

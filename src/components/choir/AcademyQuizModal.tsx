@@ -191,7 +191,7 @@ export const AcademyQuizModal = ({ isOpen, onClose, module }: AcademyQuizModalPr
 
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="!fixed !inset-0 !top-[env(safe-area-inset-top,0px)] !w-full !max-w-none !h-[calc(100dvh-env(safe-area-inset-top,0px))] overflow-hidden flex flex-col items-center justify-center p-6 !rounded-none bg-white dark:bg-slate-900 border-none shadow-2xl">
                     <DialogHeader className="text-center items-center">
                         <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${passed ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                             {passed ? <Award className="w-10 h-10" /> : <XCircle className="w-10 h-10" />}
@@ -233,7 +233,7 @@ export const AcademyQuizModal = ({ isOpen, onClose, module }: AcademyQuizModalPr
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="!fixed sm:!absolute !inset-x-0 !bottom-0 !top-[env(safe-area-inset-top,0px)] !w-full sm:max-w-xl !h-[calc(100dvh-env(safe-area-inset-top,0px))] sm:!h-auto overflow-hidden flex flex-col p-1.5 pt-10 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pt-6 sm:p-6 !transform-none !translate-y-0 sm:!top-[50%] sm:!translate-y-[-50%] !left-0 sm:!left-[50%] !translate-x-0 sm:!translate-x-[-50%] !rounded-none sm:rounded-3xl data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500">
+            <DialogContent className="!fixed !inset-0 !top-[env(safe-area-inset-top,0px)] !w-full !max-w-none !h-[calc(100dvh-env(safe-area-inset-top,0px))] overflow-hidden flex flex-col p-1.5 pt-[calc(3rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:px-12 [&>button]:!top-[calc(1rem+env(safe-area-inset-top,0px))] [&>button]:!right-6 !transform-none !translate-y-0 !left-0 !translate-x-0 !rounded-none data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500 bg-white dark:bg-slate-900 border-none shadow-2xl">
                 <DialogHeader>
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Question {currentQuestionIndex + 1} of {quiz.questions.length}</span>

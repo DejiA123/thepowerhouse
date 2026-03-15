@@ -1,3 +1,6 @@
+-- Expand "The Power of Prayer in Choir" Lesson Content
+-- This migration updates the lesson content to comprehensively cover all 20 quiz questions.
+
 UPDATE public.choir_academy_modules
 SET content = '<h1>The Power of Prayer in Choir</h1>
 <p>Prayer is not something we just do before we sing; it is the engine that drives the spiritual impact of our worship. There is a synchronisation that happens when we pray together, we align ourseves to the heart of God almighty. The primary purpose of our prayer is to <strong>invite the Holy Spirit</strong> to take control of our rehearsal and ministry.</p>
@@ -18,19 +21,5 @@ SET content = '<h1>The Power of Prayer in Choir</h1>
 <p>As a choir, we are intercessors. Through prayer, we "prepare the spiritual ground" of the service, asking God to open the hearts of the congregation through our music. We are like the <strong>Seraphim</strong> Isaiah saw, crying out "Holy, Holy, Holy," constant in our devotion. Even in difficult times, like Paul and Silas in prison (Acts 16), our prayers and songs have the power to break chains and impact the atmosphere.</p>
 
 <h2>6. Seeking Direction</h2>
-<p>We pray for our <strong>Choir Director</strong>, asking for wisdom and spiritual leadership. We also seek God''s direction for <strong>song selection</strong>, ensuring the message align with what the Spirit is doing. The ultimate goal of every prayer session is that <strong>God alone be exalted</strong>.</p>',
-description = 'Why we pray before we sing, and how to maintain a prayerful spirit.'
-WHERE title ILIKE '%Power of Prayer%' OR title ILIKE '%Why we pray%';
-
--- Update "Biblical Foundations of Choir" (Levites) Lesson Content
-UPDATE public.choir_academy_modules
-SET content = '<h1>Biblical Foundations: The Role of the Levites</h1>
-<p>In 1 Chronicles 15:16, David commanded the chiefs of the Levites to appoint their brothers as singers who should play loudly on musical instruments... to raise sounds of joy.</p>
-<h2>1. Set Apart for a Specific Purpose</h2>
-<p>The Levites were not chosen because they were the best singers in Israel; they were chosen and set apart by God. As a member of this choir, you must understand that you are "appointed" for a sacred task. This realisation shifts our perspective from ''performance'' to ''priesthood''.</p>
-<h2>2. The Requirement of Skill (1 Chronicles 25)</h2>
-<p>While the anointing is paramount, the Bible emphasises that the Levites were "skillful" (Kenaniah was head of the singers because he was skillful). We pursue excellence not for our glory, but to ensure that our technical limitations do not distract from the spiritual atmosphere. God deserves our best offering.</p>
-<h2>3. The Priesthood of the Choir</h2>
-<p>A choir member serves as a bridge between the congregation and God. Like the priests of old, we stand in the gap, leading people into the courts of the Lord. This requires holiness, humility, and a heart that beats for the people we lead.</p>',
-description = 'Understanding the spiritual role of a choir member beyond singing, modeled by the Levites.'
-WHERE title ILIKE '%Levites%' OR title ILIKE '%Biblical Foundations%';
+<p>We pray for our <strong>Choir Director</strong>, asking for wisdom and spiritual leadership. We also seek God''s direction for <strong>song selection</strong>, ensuring the message align with what the Spirit is doing. The ultimate goal of every prayer session is that <strong>God alone be exalted</strong>.'
+WHERE title ILIKE '%Power of Prayer%' OR title ILIKE '%Prayer in Choir%';
