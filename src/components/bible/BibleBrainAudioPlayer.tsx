@@ -167,13 +167,19 @@ export const BibleBrainAudioPlayer = ({
 
         // Check if we need to move to the next book
         if (currentBookInfo && nextChapter > currentBookInfo.chapters) {
-          const currentBookIndex = allBooks.findIndex(b => b.apiName === book);
-          if (currentBookIndex < allBooks.length - 1 && onBookChange) {
-            const nextBook = allBooks[currentBookIndex + 1];
-            console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
-            onBookChange(nextBook.apiName, 1);
+          if (preferences.loopBook && onChapterChange) {
+            // Loop Book is ON — restart from chapter 1 of this book
+            console.log(`🔁 Loop Book: Restarting ${book} from chapter 1`);
+            onChapterChange(1);
           } else {
-            console.log(`🎵 Reached end of Bible - no more books to auto-play`);
+            const currentBookIndex = allBooks.findIndex(b => b.apiName === book);
+            if (currentBookIndex < allBooks.length - 1 && onBookChange) {
+              const nextBook = allBooks[currentBookIndex + 1];
+              console.log(`🎵 Moving to next book: ${nextBook.name} chapter 1`);
+              onBookChange(nextBook.apiName, 1);
+            } else {
+              console.log(`🎵 Reached end of Bible - no more books to auto-play`);
+            }
           }
         } else if (onChapterChange) {
           onChapterChange(nextChapter);
@@ -207,7 +213,7 @@ export const BibleBrainAudioPlayer = ({
     };
     // Note: onChapterChange and onBookChange are now wrapped in useCallback in BiblePage.tsx 
     // to ensure stable references, preventing unnecessary re-creation of event listeners
-  }, [book, chapter, onChapterChange, onBookChange, preferences.autoPlayNext]);
+  }, [book, chapter, onChapterChange, onBookChange, preferences.autoPlayNext, preferences.loopBook]);
 
   const loadAudio = async () => {
     try {

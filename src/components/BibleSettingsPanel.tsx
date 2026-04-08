@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Book, Volume2, Type, Palette, Settings } from "lucide-react";
+import { ChevronLeft, Book, Volume2, Type, Palette, Settings, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { EnhancedBibleVersionSelector } from "@/components/bible/EnhancedBibleVersionSelector";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 
 interface BibleSettingsPanelProps {
   onBack: () => void;
@@ -26,10 +27,11 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
     setRedLetters,
     setAutoPlayNext,
     setLoopChapter,
+    setLoopBook,
     resetPreferences
   } = useBiblePreferences();
 
-  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext } = useGlobalAudio();
+  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
 
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +222,12 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
                     setLoopChapter(false);
                     setGlobalLoopChapter(false);
                   }
+
+                  // If turning OFF Auto-Play, also turn OFF Loop Book (it depends on Auto-Play)
+                  if (!checked && preferences.loopBook) {
+                    setLoopBook(false);
+                    setGlobalLoopBook(false);
+                  }
                 }}
               />
             </div>
@@ -240,6 +248,42 @@ export const BibleSettingsPanel = ({ onBack }: BibleSettingsPanelProps) => {
                   if (checked && preferences.autoPlayNext) {
                     setAutoPlayNext(false);
                     setGlobalAutoPlayNext(false);
+                  }
+                  // Also turn OFF Loop Book (mutually exclusive)
+                  if (checked && preferences.loopBook) {
+                    setLoopBook(false);
+                    setGlobalLoopBook(false);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Loop Book */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Loop Book
+                </p>
+                <p className="text-sm text-muted-foreground">Repeat entire book from chapter 1 when last chapter finishes</p>
+              </div>
+              <Switch
+                checked={preferences.loopBook}
+                onCheckedChange={(checked) => {
+                  setLoopBook(checked);
+                  setGlobalLoopBook(checked);
+
+                  if (checked) {
+                    // Loop Book requires Auto-Play Next
+                    if (!preferences.autoPlayNext) {
+                      setAutoPlayNext(true);
+                      setGlobalAutoPlayNext(true);
+                    }
+                    // Turn OFF Loop Chapter (mutually exclusive)
+                    if (preferences.loopChapter) {
+                      setLoopChapter(false);
+                      setGlobalLoopChapter(false);
+                    }
                   }
                 }}
               />

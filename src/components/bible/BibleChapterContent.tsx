@@ -341,7 +341,7 @@ export const BibleChapterContent = ({
             selectedChapter,
             selectedVersion!,
             autoPlayNext,
-            false
+            false // loopChapter — loopBook is managed by setLoopBook() in GlobalAudioContext
           );
           onAutoPlayTriggered?.();
         } catch (error) {
@@ -418,7 +418,7 @@ export const BibleChapterContent = ({
           selectedChapter,
           selectedVersion,
           autoPlayNext,
-          false // loopChapter
+          false // loopChapter — loopBook is managed by setLoopBook() in GlobalAudioContext
         );
       } catch (error) {
         console.error('🎵 Error playing audio via global context:', error);

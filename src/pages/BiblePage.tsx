@@ -73,7 +73,15 @@ const BiblePage = () => {
     setAutoPlayNext,
   } = useBiblePreferences();
 
-  const { setChapterChangeCallback, setBookChangeCallback } = useGlobalAudio();
+  const { setChapterChangeCallback, setBookChangeCallback, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
+
+  // Sync saved loopBook preference into GlobalAudioContext ref once preferences are loaded.
+  // This is needed because GlobalAudioContext initialises with loopBook=false.
+  useEffect(() => {
+    if (isLoaded && preferences.loopBook) {
+      setGlobalLoopBook(true);
+    }
+  }, [isLoaded]); // only run once when preferences finish loading from localStorage
 
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);

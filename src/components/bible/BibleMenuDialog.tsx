@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Type, Settings, Play } from "lucide-react";
+import { Type, Settings, Play, BookOpen } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
@@ -25,8 +25,8 @@ export const BibleMenuDialog = ({
   onViewHighlights,
   onViewNotes
 }: BibleMenuDialogProps) => {
-  const { preferences, setAutoPlayNext, setLoopChapter } = useBiblePreferences();
-  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext } = useGlobalAudio();
+  const { preferences, setAutoPlayNext, setLoopChapter, setLoopBook } = useBiblePreferences();
+  const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
 
   // Local state for font size slider to allow changes before saving
   const [localFontSize, setLocalFontSize] = useState(() => {
@@ -211,6 +211,12 @@ export const BibleMenuDialog = ({
                       setGlobalLoopChapter(false);
                     }
 
+                    // If turning OFF Auto-Play, also turn OFF Loop Book (it depends on Auto-Play)
+                    if (!checked && preferences.loopBook) {
+                      setLoopBook(false);
+                      setGlobalLoopBook(false);
+                    }
+
                     onSettingsChange?.();
                   }}
                   className="data-[state=checked]:bg-primary"
@@ -241,6 +247,11 @@ export const BibleMenuDialog = ({
                       setAutoPlayNext(false);
                       setGlobalAutoPlayNext(false);
                     }
+                    // Also turn OFF Loop Book (mutually exclusive)
+                    if (checked && preferences.loopBook) {
+                      setLoopBook(false);
+                      setGlobalLoopBook(false);
+                    }
 
                     onSettingsChange?.();
                   }}
@@ -249,6 +260,44 @@ export const BibleMenuDialog = ({
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Repeat current chapter when audio finishes playing
+              </p>
+            </div>
+
+            {/* Loop Book */}
+            <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <span className="font-medium text-slate-800 dark:text-slate-200">Loop Book</span>
+                </div>
+                <Switch
+                  id="loop-book"
+                  checked={preferences.loopBook}
+                  onCheckedChange={(checked) => {
+                    console.log('Loop book changed to:', checked);
+                    setLoopBook(checked);
+                    setGlobalLoopBook(checked);
+
+                    if (checked) {
+                      // Loop Book requires Auto-Play Next to be ON
+                      if (!preferences.autoPlayNext) {
+                        setAutoPlayNext(true);
+                        setGlobalAutoPlayNext(true);
+                      }
+                      // Turn OFF Loop Chapter (mutually exclusive)
+                      if (preferences.loopChapter) {
+                        setLoopChapter(false);
+                        setGlobalLoopChapter(false);
+                      }
+                    }
+
+                    onSettingsChange?.();
+                  }}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Repeat entire book from chapter 1 when the last chapter finishes
               </p>
             </div>
 

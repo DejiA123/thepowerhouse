@@ -6,6 +6,7 @@ export interface BiblePreferences {
   preferredChapter: number;
   autoPlayNext: boolean;
   loopChapter: boolean;
+  loopBook: boolean;
   fontSize: number;
   ttsVoice: string;
   ttsRate: number;
@@ -22,6 +23,7 @@ const DEFAULT_PREFERENCES: BiblePreferences = {
   preferredChapter: 1,
   autoPlayNext: true,
   loopChapter: false,
+  loopBook: false,
   fontSize: 16,
   ttsVoice: 'default',
   ttsRate: 1.0,
@@ -234,6 +236,10 @@ export const useBiblePreferences = () => {
     setPreferences(prev => ({ ...prev, loopChapter: loop }));
   };
 
+  const setLoopBook = (loop: boolean) => {
+    setPreferences(prev => ({ ...prev, loopBook: loop }));
+  };
+
   const setFontSize = (fontSize: number) => {
     console.log(`🎯 useBiblePreferences [${hookId}]: setFontSize called with:`, fontSize);
     console.log(`🎯 useBiblePreferences [${hookId}]: Current preferences before change:`, preferences);
@@ -299,6 +305,7 @@ export const useBiblePreferences = () => {
     setReadingPosition,
     setAutoPlayNext,
     setLoopChapter,
+    setLoopBook,
     setFontSize,
     setTtsVoice,
     setTtsRate,

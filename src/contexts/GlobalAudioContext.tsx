@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
+import { normalizeBookApiName } from '@/components/bible/bookUtils';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -11,6 +12,7 @@ interface PersistedAudioState {
   version: string;
   autoPlayNext: boolean;
   loopChapter: boolean;
+  loopBook: boolean;
   isPlaying: boolean;
   timestamp: number;
 }
@@ -55,6 +57,7 @@ interface GlobalAudioState {
   currentVersion: string;
   autoPlayNext: boolean;
   loopChapter: boolean;
+  loopBook: boolean;
   audioUrl?: string;
   hasAudio: boolean;
   // Generic Track Support
@@ -78,6 +81,7 @@ interface GlobalAudioContextType {
   reset: () => void;
   setAutoPlayNext: (enabled: boolean) => void;
   setLoopChapter: (enabled: boolean) => void;
+  setLoopBook: (enabled: boolean) => void;
   goToNextChapter: () => void;
   goToPreviousChapter: () => void;
   setChapterChangeCallback: (callback: (chapter: number, isAutoPlay: boolean) => void) => void;
@@ -105,6 +109,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     currentVersion: 'kjv',
     autoPlayNext: false,
     loopChapter: false,
+    loopBook: false,
     audioUrl: undefined,
     hasAudio: false,
     trackTitle: '',
@@ -125,7 +130,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const isAutoAdvancingRef = useRef<boolean>(false);
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
-  const nextChapterUrlRef = useRef<string | null>(null);
+  const nextChapterUrlRef = useRef<{ url: string; book: string; chapter: number } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const autoAdvanceRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -161,19 +166,29 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let nextChapter = chapter + 1;
 
       if (bookInfo && nextChapter > bookInfo.chapters) {
-        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === book.toLowerCase());
-        if (currentBookIndex < allBooks.length - 1) {
-          nextBook = allBooks[currentBookIndex + 1].apiName;
+        // Check if loopBook is enabled
+        if (audioStateRef.current.loopBook) {
+          // Loop Book: prefetch chapter 1 of the same book
           nextChapter = 1;
         } else {
-          nextChapterUrlRef.current = null;
-          return;
+          const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === book.toLowerCase());
+          if (currentBookIndex < allBooks.length - 1) {
+            nextBook = allBooks[currentBookIndex + 1].apiName;
+            nextChapter = 1;
+          } else {
+            nextChapterUrlRef.current = null;
+            return;
+          }
         }
       }
 
       console.log(`🎵 Prefetching next chapter URL: ${nextBook} ${nextChapter}`);
       const url = await supabaseAudioService.getAudioUrl(nextBook, nextChapter, version);
-      nextChapterUrlRef.current = url;
+      if (url) {
+        nextChapterUrlRef.current = { url, book: nextBook, chapter: nextChapter };
+      } else {
+        nextChapterUrlRef.current = null;
+      }
     } catch (error) {
       console.error('Failed to prefetch next chapter:', error);
       nextChapterUrlRef.current = null;
@@ -222,15 +237,37 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     autoPlayNext = false,
     loopChapter = false
   ) => {
+    // NOTE: loopBook is intentionally NOT a parameter.
+    // It is read from audioStateRef.current so setLoopBook() is the single source of truth.
+    // This prevents any caller with a stale value from overwriting the user's toggle preference.
+    const normalizedBook = normalizeBookApiName(book);
     setAudioState(prev => ({ ...prev, isLoading: true }));
+
+
+    // Always read loopBook from the live ref — never from a parameter
+    const loopBook = audioStateRef.current.loopBook;
+
+    // Immediately sync the ref to reflect the new state (prevents handleEnded from seeing stale metadata)
+    audioStateRef.current = {
+      ...audioStateRef.current,
+      currentBook: normalizedBook,
+      currentChapter: chapter,
+      currentVersion: version,
+      autoPlayNext,
+      loopChapter,
+      loopBook,
+      isLoading: true
+    };
 
     try {
       let audioUrl = null;
       if (nextChapterUrlRef.current &&
+        nextChapterUrlRef.current.book === normalizedBook &&
+        nextChapterUrlRef.current.chapter === chapter &&
         audioStateRef.current.autoPlayNext &&
         isAutoAdvancingRef.current) {
         console.log('🎵 Using prefetched audio URL for smooth transition');
-        audioUrl = nextChapterUrlRef.current;
+        audioUrl = nextChapterUrlRef.current.url;
       } else {
         audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
       }
@@ -245,13 +282,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const displayBookName = formatBookName(book);
 
-      setAudioState(prev => ({
-        ...prev,
-        currentBook: book,
+      const newState = {
+        ...audioStateRef.current,
+        currentBook: normalizedBook,
         currentChapter: chapter,
         currentVersion: version,
         autoPlayNext,
         loopChapter,
+        loopBook,   // always from audioStateRef.current — set only via setLoopBook()
         audioUrl,
         hasAudio: true,
         isLoading: false,
@@ -261,7 +299,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         trackImage: '/church-logo.png',
         currentTime: 0,
         duration: 0
-      }));
+      };
+
+      setAudioState(newState);
+      audioStateRef.current = newState;
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
@@ -284,7 +325,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Persist state for recovery if the app/tab gets killed
       persistAudioState({
-        book, chapter, version, autoPlayNext, loopChapter,
+        book, chapter, version, autoPlayNext, loopChapter, loopBook,
         isPlaying: true, timestamp: Date.now()
       });
 
@@ -353,6 +394,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       currentVersion: 'kjv',
       autoPlayNext: false,
       loopChapter: false,
+      loopBook: false,
       audioUrl: undefined,
       hasAudio: false,
       trackTitle: '',
@@ -369,7 +411,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (isAutoAdvancingRef.current) return;
     isAutoAdvancingRef.current = true;
 
-    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioStateRef.current;
+    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter, loopBook } = audioStateRef.current;
+    console.log(`🔁 goToNextChapter: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopChapter=${loopChapter} loopBook=${loopBook}`);
     if (!currentBook) {
       isAutoAdvancingRef.current = false;
       return;
@@ -385,16 +428,27 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         chapterChangeCallbackRef.current(nextChapter, true);
       }
     } else if (bookInfo) {
-      const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-      if (currentBookIndex < allBooks.length - 1) {
-        const nextBook = allBooks[currentBookIndex + 1];
-        playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter);
-        if (bookChangeCallbackRef.current) {
-          bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+      // Reached the last chapter of the book
+      if (loopBook) {
+        // Loop Book is ON — go back to chapter 1 of THIS book
+        console.log(`🔁 Loop Book: Restarting ${currentBook} from chapter 1`);
+        playBibleChapterMP3(currentBook, 1, currentVersion, autoPlayNext, loopChapter);
+        if (chapterChangeCallbackRef.current) {
+          chapterChangeCallbackRef.current(1, true);
         }
       } else {
-        console.log('End of Bible');
-        reset();
+        // Normal behaviour — advance to the next book
+        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
+        if (currentBookIndex < allBooks.length - 1) {
+          const nextBook = allBooks[currentBookIndex + 1];
+          playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter);
+          if (bookChangeCallbackRef.current) {
+            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
+          }
+        } else {
+          console.log('End of Bible');
+          reset();
+        }
       }
     }
 
@@ -405,7 +459,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [playBibleChapterMP3, reset]);
 
   const goToPreviousChapter = useCallback(() => {
-    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioStateRef.current;
+    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter, loopBook } = audioStateRef.current;
     if (!currentBook) return;
 
     const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
@@ -446,8 +500,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handleEnded = () => {
-      const { loopChapter, autoPlayNext, currentBook, currentChapter } = audioStateRef.current;
-      console.log(`🎵 handleEnded fired: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loop=${loopChapter}`);
+      const { loopChapter, autoPlayNext, currentBook, currentChapter, loopBook } = audioStateRef.current;
+      console.log(`🎵 handleEnded fired: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopChapter=${loopChapter} loopBook=${loopBook}`);
 
       // Clear any pending retry
       if (autoAdvanceRetryRef.current) {
@@ -581,6 +635,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           // Only auto-recover if the state is less than 2 hours old
           if (staleMs < 2 * 60 * 60 * 1000) {
             console.warn('🎵 Visibility recovery: restoring persisted session', persisted);
+            // Restore the loopBook preference into the ref BEFORE playing
+            if (persisted.loopBook) {
+              audioStateRef.current = { ...audioStateRef.current, loopBook: true };
+            }
             playBibleChapterMP3(
               persisted.book,
               persisted.chapter,
@@ -645,6 +703,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [releaseWakeLock]);
 
   const setAutoPlayNext = useCallback((enabled: boolean) => {
+    // Update the ref immediately so event listeners (handleEnded) see the new value
+    audioStateRef.current = { ...audioStateRef.current, autoPlayNext: enabled };
     setAudioState(prev => ({ ...prev, autoPlayNext: enabled }));
   }, []);
 
@@ -653,6 +713,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (audio) {
       audio.loop = enabled;
     }
+  }, []);
+
+  const setLoopBook = useCallback((enabled: boolean) => {
+    // Update the ref immediately so event listeners (handleEnded → goToNextChapter) see the new value
+    audioStateRef.current = { ...audioStateRef.current, loopBook: enabled };
+    setAudioState(prev => ({ ...prev, loopBook: enabled }));
   }, []);
 
   const setChapterChangeCallback = useCallback((callback: (chapter: number, isAutoPlay: boolean) => void) => {
@@ -685,6 +751,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     reset,
     setAutoPlayNext,
     setLoopChapter,
+    setLoopBook,
     goToNextChapter,
     goToPreviousChapter,
     setChapterChangeCallback,
