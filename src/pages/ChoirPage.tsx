@@ -2693,19 +2693,36 @@ const ChoirPage = () => {
         try {
             const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
             const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
+
+            if (locationId === 'national') {
+                // ─── NATIONAL PAGE ───────────────────────────────────────────────
+                // ALL sections (Praise, Worship, Special Number, Hymns, Thanksgiving,
+                // Offering, and New Songs Focus) are fully protected from bulk clearing.
+                // Songs must be removed individually by an admin using the trash button.
+                toast.info("National setlist is protected. Remove songs individually if needed.");
+                return;
+            }
+
+
+            // ─── NON-NATIONAL LOCATIONS ──────────────────────────────────────────
+            // Clear all songs and all descriptions for the selected week.
             await Promise.all([
-                choirService.clearWeeklySetlist(locationId, weekDateStr, locationId === 'national' ? selectedDay : undefined),
+                choirService.clearWeeklySetlist(locationId, weekDateStr),
                 choirService.updateSetlistInfo(`praise_desc${suffix}`, "", locationId, weekDateStr),
                 choirService.updateSetlistInfo(`worship_desc${suffix}`, "", locationId, weekDateStr),
+                choirService.updateSetlistInfo(`special_desc${suffix}`, "", locationId, weekDateStr),
+                choirService.updateSetlistInfo(`hymns_desc${suffix}`, "", locationId, weekDateStr),
                 choirService.updateSetlistInfo(`thanksgiving_desc${suffix}`, "", locationId, weekDateStr),
                 choirService.updateSetlistInfo(`offering_desc${suffix}`, "", locationId, weekDateStr),
-                choirService.saveLearningSongs([], locationId, weekDateStr) // Clear learning JSON
+                choirService.saveLearningSongs([], locationId, weekDateStr),
             ]);
         } catch (e) {
             console.error(e);
             toast.error("Failed to clear setlists");
         }
     };
+
+
 
     const handleClearLearningSongs = () => {
         if (!locationId) return;

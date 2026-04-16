@@ -317,7 +317,34 @@ export const choirService = {
         if (error) throw error;
     },
 
-    async clearWeeklySetlist(location: string, weekDate?: string) {
+    async clearWeeklySetlist(location: string, weekDate?: string, selectedDay?: number, excludeTypes?: string[]) {
+        // Build the set_type values to delete. If excludeTypes is provided, skip those.
+        // We delete by location (and optionally week_date), then filter out excluded types after fetch
+        // to keep the query simple, since Supabase doesn't support "NOT IN" easily in chained deletes.
+        // Instead: fetch IDs to delete, then delete only those IDs.
+        if (excludeTypes && excludeTypes.length > 0) {
+            // Fetch all IDs for this week/location that are NOT in the exclude list
+            let query = supabase
+                .from('choir_weekly_set_songs' as any)
+                .select('id, set_type')
+                .eq('location', location);
+            if (weekDate) query = query.eq('week_date', weekDate);
+            const { data, error: fetchError } = await query;
+            if (fetchError) throw fetchError;
+            const idsToDelete = (data as any[])
+                .filter(row => !excludeTypes.includes(row.set_type))
+                .map(row => row.id);
+            if (idsToDelete.length > 0) {
+                const { error } = await supabase
+                    .from('choir_weekly_set_songs' as any)
+                    .delete()
+                    .in('id', idsToDelete);
+                if (error) throw error;
+            }
+            return;
+        }
+
+        // Default: delete everything for the location/week
         let query = supabase
             .from('choir_weekly_set_songs' as any)
             .delete()
@@ -330,6 +357,7 @@ export const choirService = {
         const { error } = await query;
         if (error) throw error;
     },
+
 
     // --- Setlist Info (Date & Descriptions) ---
     async getSetlistInfo(infoType: string, location: string, weekDate?: string) {
