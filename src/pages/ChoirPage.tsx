@@ -2095,11 +2095,16 @@ const ChoirPage = () => {
         }
     };
 
+    // For national location, use a fixed permanent date so songs persist across weeks.
+    const NATIONAL_PERMANENT_DATE = '1900-01-01';
+    const getEffectiveWeekDate = (locId: string) =>
+        locId === 'national' ? NATIONAL_PERMANENT_DATE : selectedWeekDate.toISOString().split('T')[0];
+
     // Initial Data Fetch
     useEffect(() => {
         const fetchData = async () => {
             if (!locationId) return;
-            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            const weekDateStr = getEffectiveWeekDate(locationId);
 
             // 1. Load from Cache for Instant UI
             const getDaySuffix = () => (locationId === 'national' ? `_d${selectedDay}` : '');
@@ -2448,7 +2453,7 @@ const ChoirPage = () => {
                 table: 'choir_weekly_set_songs',
                 filter: `location=eq.${locationId}`
             }, (payload) => {
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 const item = (payload.new || payload.old) as any;
 
                 // Only update local state if the change belongs to the currently viewed week.
@@ -2529,7 +2534,7 @@ const ChoirPage = () => {
                 table: 'choir_setlist_info',
                 filter: `location=eq.${locationId}`
             }, (payload) => {
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 const info = (payload.new || payload.old) as any;
 
                 if (info.week_date && info.week_date !== weekDateStr) return;
@@ -2678,7 +2683,7 @@ const ChoirPage = () => {
                     editingSetInfoType === 'special' ? 'special_desc' :
                         editingSetInfoType === 'hymns' ? 'hymns_desc' :
                             editingSetInfoType === 'thanksgiving' ? 'thanksgiving_desc' : 'offering_desc') + suffix;
-            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            const weekDateStr = getEffectiveWeekDate(locationId!);
             await choirService.updateSetlistInfo(key as any, tempSetInfo.desc, locationId!, weekDateStr);
             setIsEditSetInfoOpen(false);
 
@@ -2691,7 +2696,7 @@ const ChoirPage = () => {
     const handleClearSetlist = async () => {
         if (!locationId) return;
         try {
-            const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+            const weekDateStr = getEffectiveWeekDate(locationId);
             const suffix = locationId === 'national' ? `_d${selectedDay}` : '';
 
             if (locationId === 'national') {
@@ -2728,7 +2733,7 @@ const ChoirPage = () => {
         if (!locationId) return;
         requestDeletion("'New Songs Focus' section", async () => {
             try {
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId);
                 await choirService.saveLearningSongs([], locationId, weekDateStr);
             } catch (e) {
                 console.error(e);
@@ -3058,7 +3063,7 @@ const ChoirPage = () => {
                     created_at: new Date().toISOString()
                 };
                 const updatedList = [...learningSet, newSong];
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 console.log('Adding weekly song to DB:', {
@@ -3072,7 +3077,7 @@ const ChoirPage = () => {
                     location: locationId
                 });
                 // Add song to database - real-time subscription will update the UI
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 const actualType = locationId === 'national' ? `${activeSetType}_d${selectedDay}` : activeSetType;
                 await choirService.addWeeklySong({
                     set_type: actualType as any,
@@ -3104,7 +3109,7 @@ const ChoirPage = () => {
         try {
             if (type === 'learning') {
                 const updatedList = learningSet.filter(s => s.id !== id);
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 // Delete from database - real-time subscription will update the UI
@@ -3195,7 +3200,7 @@ const ChoirPage = () => {
                     }
                     return s;
                 });
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
             } else {
                 // Must be Praise or Worship (DB)
@@ -3255,7 +3260,7 @@ const ChoirPage = () => {
                 });
 
                 const updatedList = [...learningSet, ...newSongs];
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 await choirService.saveLearningSongs(updatedList, locationId!, weekDateStr);
                 setLearningSet(updatedList);
 
@@ -3263,7 +3268,7 @@ const ChoirPage = () => {
                 setImportText("");
 
             } else {
-                const weekDateStr = selectedWeekDate.toISOString().split('T')[0];
+                const weekDateStr = getEffectiveWeekDate(locationId!);
                 const results = await Promise.all(lines.map(async (line, idx) => {
                     const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
                     const currentSetLength = importSetType === 'praise' ? praiseSet.length :
@@ -3582,7 +3587,7 @@ const ChoirPage = () => {
     const handleSaveSchedule = async (updatedSchedule: ScheduleItem[]) => {
         if (!locationId) return;
         try {
-            const weekDateStr = format(selectedWeekDate, 'yyyy-MM-dd');
+            const weekDateStr = getEffectiveWeekDate(locationId);
             await choirService.updateSetlistInfo('weekly_schedule', JSON.stringify(updatedSchedule), locationId, weekDateStr);
         } catch (e) {
             console.error(e);
@@ -3641,7 +3646,7 @@ const ChoirPage = () => {
         try {
             const suffix = locationId === 'national' ? `_d${selectedDay}` : "";
             const infoKey = (rosterType === 'praise' ? 'praise_roster' : 'prayer_roster') + suffix;
-            const weekDateStr = format(selectedWeekDate, 'yyyy-MM-dd');
+            const weekDateStr = getEffectiveWeekDate(locationId);
             await choirService.updateSetlistInfo(infoKey, JSON.stringify(updatedRoster), locationId, weekDateStr);
             toast.success("Roster updated");
         } catch (e) {
