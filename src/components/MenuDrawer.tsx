@@ -43,7 +43,6 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
 
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
-    { name: "News", path: "/news", icon: Calendar },
     { name: "Bible", path: "/bible", icon: Book },
     { name: "Notes", path: "/bible-notes", icon: FileText },
     { name: "Give", path: "/give", icon: Heart },
@@ -71,34 +70,9 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
         </SheetHeader>
         <div className="flex flex-col h-full">
           <div className="space-y-1 overflow-y-auto flex-1 custom-scrollbar pr-2">
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              const Icon = item.icon;
-
-              return (
-                <Button
-                  key={item.path}
-                  variant="ghost"
-                  className={`w-full justify-start h-12 rounded-xl transition-all duration-200 ${isActive
-                    ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
-                    }`}
-                  onClick={() => {
-                    navigate(item.path);
-                    setMenuOpen(false);
-                  }}
-                >
-                  <div className={`p-2 rounded-lg mr-3 ${isActive ? 'bg-indigo-100' : 'bg-gray-100 group-hover:bg-indigo-100'}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  {item.name}
-                </Button>
-              );
-            })}
-
             {/* Custom Shortcuts Section */}
             {(shortcuts.length > 0 || user) && (
-              <div className="mt-6 space-y-1">
+              <div className="mb-6 space-y-1">
                 <div className="flex items-center justify-between px-2 mb-2">
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Your Shortcuts</span>
                   <Button 
@@ -148,8 +122,34 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
                     Add Shortcuts
                   </Button>
                 )}
+                <div className="h-px bg-indigo-50 my-4 mx-2" />
               </div>
             )}
+
+            {menuItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              const Icon = item.icon;
+
+              return (
+                <Button
+                  key={item.path}
+                  variant="ghost"
+                  className={`w-full justify-start h-12 rounded-xl transition-all duration-200 ${isActive
+                    ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
+                    }`}
+                  onClick={() => {
+                    navigate(item.path);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <div className={`p-2 rounded-lg mr-3 ${isActive ? 'bg-indigo-100' : 'bg-gray-100 group-hover:bg-indigo-100'}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  {item.name}
+                </Button>
+              );
+            })}
           </div>
 
           <div className="mt-auto border-t border-indigo-50 pt-4 pb-8 space-y-2">

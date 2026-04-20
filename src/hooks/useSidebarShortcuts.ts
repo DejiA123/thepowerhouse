@@ -32,6 +32,7 @@ export const useSidebarShortcuts = () => {
     shortcuts: context.shortcuts,
     loading: context.loading,
     addShortcut: context.addShortcut,
+    updateShortcut: context.updateShortcut,
     removeShortcut: context.removeShortcut,
     refresh: context.refresh
   };

@@ -15,6 +15,7 @@ interface ShortcutsContextType {
   shortcuts: SidebarShortcut[];
   loading: boolean;
   addShortcut: (shortcut: Omit<SidebarShortcut, 'id'>) => Promise<void>;
+  updateShortcut: (id: string, updates: Partial<SidebarShortcut>) => Promise<void>;
   removeShortcut: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
