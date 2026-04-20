@@ -3,16 +3,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Home, Book, Calendar, Heart, Info, Users, Video,
   MessageSquare, MapPin, Settings, LogOut, FileText, Shield,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Bookmark
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
+import SidebarCustomizer from "./SidebarCustomizer";
+import { Sparkles, PlusCircle } from "lucide-react";
 
 const DesktopSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { shortcuts } = useSidebarShortcuts();
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     return saved ? JSON.parse(saved) : false;
@@ -26,6 +31,7 @@ const DesktopSidebar = () => {
     { name: "Home", path: "/", icon: Home },
     { name: "News", path: "/news", icon: Calendar },
     { name: "Bible", path: "/bible", icon: Book },
+    { name: "Notes", path: "/bible-notes", icon: FileText },
     { name: "Give", path: "/give", icon: Heart },
     { name: "Resources", path: "/resources", icon: Info },
   ];
@@ -148,6 +154,68 @@ const DesktopSidebar = () => {
           ))}
         </div>
 
+        {/* Custom Shortcuts */}
+        {(shortcuts.length > 0 || user) && (
+          <div className="space-y-1">
+            {!collapsed && (
+              <div className="px-3 mb-3 mt-4 flex items-center justify-between group/title">
+                <div className="flex items-center gap-3 opacity-80 flex-1">
+                  <div className="h-px bg-border/60 flex-1" />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80 whitespace-nowrap">
+                    Shortcuts
+                  </p>
+                  <div className="h-px bg-border/60 flex-1" />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6 ml-2 text-muted-foreground hover:text-primary transition-colors rounded-lg"
+                  onClick={() => setShowCustomizer(true)}
+                  title="Customize Shortcuts"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+            {collapsed && <div className="mx-4 my-4 h-px bg-border/60" />}
+
+            <div className="space-y-0.5">
+              {shortcuts.map((item) => {
+                const Icon = ICON_MAP[item.icon] || Bookmark;
+                return (
+                  <NavItem 
+                    key={item.id} 
+                    item={{ ...item, icon: Icon }} 
+                  />
+                )
+              })}
+              
+              {shortcuts.length === 0 && !collapsed && (
+                 <Button
+                    variant="ghost"
+                    onClick={() => setShowCustomizer(true)}
+                    className="w-full justify-start h-10 px-3 text-xs text-muted-foreground hover:text-primary transition-all rounded-xl border border-dashed border-border/40 hover:border-primary/30"
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Add shortcuts
+                  </Button>
+              )}
+
+              {collapsed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowCustomizer(true)}
+                  className="w-9 h-9 mx-auto flex items-center justify-center text-muted-foreground hover:text-primary transition-all rounded-lg hover:bg-primary/10"
+                  title="Add Shortcuts"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Secondary Navigation */}
         <div className="space-y-1">
           {!collapsed && (
@@ -213,6 +281,11 @@ const DesktopSidebar = () => {
           </button>
         )}
       </div>
+
+      <SidebarCustomizer 
+        isOpen={showCustomizer} 
+        onClose={() => setShowCustomizer(false)} 
+      />
     </aside>
   );
 };

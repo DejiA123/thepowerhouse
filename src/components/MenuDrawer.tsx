@@ -1,4 +1,4 @@
-
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,13 +12,13 @@ import {
   Calendar,
   Heart,
   Info,
-  Settings,
-  Video,
-  MessageSquare,
-  MapPin,
   FileText,
-  Shield
+  Shield,
+  PlusCircle,
+  Bookmark
 } from "lucide-react";
+import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
+import SidebarCustomizer from "./SidebarCustomizer";
 
 interface MenuDrawerProps {
   menuOpen: boolean;
@@ -27,6 +27,8 @@ interface MenuDrawerProps {
 
 const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
   const { user, signOut } = useAuth();
+  const { shortcuts } = useSidebarShortcuts();
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,6 +41,7 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
     { name: "Home", path: "/", icon: Home },
     { name: "News", path: "/news", icon: Calendar },
     { name: "Bible", path: "/bible", icon: Book },
+    { name: "Notes", path: "/bible-notes", icon: FileText },
     { name: "Give", path: "/give", icon: Heart },
     { name: "Resources", path: "/resources", icon: Info },
     { name: "Social Circle", path: "/social", icon: Users },
@@ -88,6 +91,61 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
                 </Button>
               );
             })}
+
+            {/* Custom Shortcuts Section */}
+            {(shortcuts.length > 0 || user) && (
+              <div className="mt-6 space-y-1">
+                <div className="flex items-center justify-between px-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Your Shortcuts</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-indigo-400 hover:text-indigo-600 rounded-lg"
+                    onClick={() => setShowCustomizer(true)}
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                
+                {shortcuts.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  const Icon = ICON_MAP[item.icon] || PlusCircle;
+
+                  return (
+                    <Button
+                      key={item.id}
+                      variant="ghost"
+                      className={`w-full justify-start h-12 rounded-xl transition-all duration-200 ${isActive
+                        ? "bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
+                        }`}
+                      onClick={() => {
+                        navigate(item.path);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <div className={`p-2 rounded-lg mr-3 ${isActive ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      {item.name}
+                    </Button>
+                  );
+                })}
+
+                {shortcuts.length === 0 && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-12 rounded-xl text-gray-400 hover:text-indigo-600 border border-dashed border-gray-200"
+                    onClick={() => setShowCustomizer(true)}
+                  >
+                    <div className="p-2 rounded-lg mr-3 bg-gray-50">
+                      <PlusCircle className="w-4 h-4" />
+                    </div>
+                    Add Shortcuts
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-auto border-t border-indigo-50 pt-4 pb-8 space-y-2">
@@ -134,6 +192,10 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
           </div>
         </div>
       </SheetContent>
+      <SidebarCustomizer 
+        isOpen={showCustomizer} 
+        onClose={() => setShowCustomizer(false)} 
+      />
     </Sheet>
   );
 };
