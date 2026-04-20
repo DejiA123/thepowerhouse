@@ -170,8 +170,11 @@ const SidebarCustomizer = ({ isOpen, onClose }: SidebarCustomizerProps) => {
                               isEditing ? "border-primary/50 shadow-sm bg-accent/50" : "hover:border-primary/20"
                             )}
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
+                            <div 
+                              className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer group/name" 
+                              onClick={() => !isEditing && handleStartEdit(shortcut.id, shortcut.name)}
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover/name:text-primary transition-colors shrink-0">
                                 <Icon className="w-4 h-4" />
                               </div>
                               <div className="min-w-0 flex-1">
@@ -187,16 +190,16 @@ const SidebarCustomizer = ({ isOpen, onClose }: SidebarCustomizerProps) => {
                                         if (e.key === 'Escape') setEditingId(null);
                                       }}
                                     />
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50" onClick={() => handleSaveEdit(shortcut.id)}>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); handleSaveEdit(shortcut.id); }}>
                                       <Check className="w-4 h-4" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingId(null)}>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>
                                       <X className="w-4 h-4" />
                                     </Button>
                                   </div>
                                 ) : (
                                   <>
-                                    <p className="text-sm font-medium truncate">{shortcut.name}</p>
+                                    <p className="text-sm font-medium truncate group-hover/name:text-primary transition-colors underline-offset-2 decoration-primary/30 group-hover/name:underline">{shortcut.name}</p>
                                     <p className="text-[10px] text-muted-foreground truncate">{shortcut.path}</p>
                                   </>
                                 )}
