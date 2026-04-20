@@ -25,6 +25,7 @@ import FellowshipGroupPage from "@/pages/FellowshipGroupPage";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { GlobalAudioProvider } from "@/contexts/GlobalAudioContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import SocialMediaPage from "@/pages/SocialMediaPage";
 import BibleNotesPage from "@/pages/BibleNotesPage";
 import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
@@ -356,10 +357,12 @@ const App = () => {
               <ScrollToTop />
               <TooltipProvider>
                 <NotificationProvider>
-                  <CallProvider>
-                    <CallManager />
-                    <AppRoutes />
-                  </CallProvider>
+                  <ShortcutsProvider>
+                    <CallProvider>
+                      <CallManager />
+                      <AppRoutes />
+                    </CallProvider>
+                  </ShortcutsProvider>
                 </NotificationProvider>
               </TooltipProvider>
             </Router>
