@@ -125,8 +125,19 @@ export const ShortcutsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await saveToSupabase(updatedShortcuts);
   };
 
+  const updateShortcut = async (id: string, updates: Partial<SidebarShortcut>) => {
+    const updatedShortcuts = shortcuts.map(s => 
+      s.id === id ? { ...s, ...updates } : s
+    );
+    
+    // Optimistic local update
+    setShortcuts(updatedShortcuts);
+    
+    await saveToSupabase(updatedShortcuts);
+  };
+
   return (
-    <ShortcutsContext.Provider value={{ shortcuts, loading, addShortcut, removeShortcut, refresh: fetchShortcuts }}>
+    <ShortcutsContext.Provider value={{ shortcuts, loading, addShortcut, updateShortcut, removeShortcut, refresh: fetchShortcuts }}>
       {children}
     </ShortcutsContext.Provider>
   );
