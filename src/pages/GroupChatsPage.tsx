@@ -562,48 +562,48 @@ const GroupChatsPage = () => {
 
             {/* Chat Window */}
             <div className={cn(
-                "flex-1 flex flex-col h-full relative overflow-hidden bg-white dark:bg-[#0b141a]",
+                "flex-1 flex flex-col h-full min-h-0 relative overflow-hidden bg-white dark:bg-[#0b141a]",
                 selectedChat ? "flex" : "hidden md:flex"
             )}>
                 {selectedChat ? (
                     <>
                         {/* Modern Chat Header */}
-                        <div className="h-[90px] px-8 flex items-center justify-between shrink-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-5">
-                                <Button variant="ghost" size="icon" className="md:hidden rounded-full hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setSelectedChat(null)}>
+                        <div className="h-[76px] md:h-[90px] px-3 md:px-8 flex items-center justify-between shrink-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-3 md:gap-5 min-w-0">
+                                <Button variant="ghost" size="icon" className="md:hidden rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0" onClick={() => setSelectedChat(null)}>
                                     <ArrowLeft className="w-5 h-5 text-slate-600" />
                                 </Button>
-                                <div className="relative">
-                                    <div className="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-xl overflow-hidden ring-4 ring-indigo-500/10">
+                                <div className="relative shrink-0">
+                                    <div className="w-11 h-11 md:w-14 md:h-14 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-xl overflow-hidden ring-4 ring-indigo-500/10">
                                         {selectedChat.avatar_url ? (
                                             <img src={selectedChat.avatar_url} className="w-full h-full object-cover" />
                                         ) : (
-                                            React.createElement(getIconComponent(selectedChat.icon), { className: "w-6 h-6 text-white" })
+                                            React.createElement(getIconComponent(selectedChat.icon), { className: "w-5 h-5 md:w-6 md:h-6 text-white" })
                                         )}
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-500 border-[3px] border-white dark:border-slate-900 shadow-sm" />
+                                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-4 md:h-4 rounded-full bg-green-500 border-[3px] border-white dark:border-slate-900 shadow-sm" />
                                 </div>
-                                <div className="cursor-pointer group py-1" onClick={() => { fetchParticipants(); setShowParticipants(true); }}>
-                                    <h2 className="font-black text-slate-900 dark:text-white leading-none group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-xl mb-1">{selectedChat.name}</h2>
+                                <div className="cursor-pointer group py-1 min-w-0" onClick={() => { fetchParticipants(); setShowParticipants(true); }}>
+                                    <h2 className="font-black text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight text-base md:text-xl mb-1 truncate">{selectedChat.name}</h2>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                        <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">Community Active</p>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                                        <p className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.16em] md:tracking-[0.2em] leading-none truncate">Community Active</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl gap-1">
-                                    <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 shadow-none transition-all" onClick={() => startCall(selectedChat.id, 'video')}>
+                            <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                                <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-0.5 md:gap-1">
+                                    <Button variant="ghost" size="icon" className="rounded-xl w-9 h-9 md:w-10 md:h-10 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 shadow-none transition-all" onClick={() => startCall(selectedChat.id, 'video')}>
                                         <Video className="w-4 h-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 shadow-none transition-all" onClick={() => startCall(selectedChat.id, 'audio')}>
+                                    <Button variant="ghost" size="icon" className="rounded-xl w-9 h-9 md:w-10 md:h-10 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 shadow-none transition-all" onClick={() => startCall(selectedChat.id, 'audio')}>
                                         <Phone className="w-4 h-4" />
                                     </Button>
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="rounded-2xl w-10 h-10 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                        <Button variant="ghost" size="icon" className="rounded-2xl w-9 h-9 md:w-10 md:h-10 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
                                             <MoreVertical className="w-5 h-5" />
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -636,7 +636,7 @@ const GroupChatsPage = () => {
                             </div>
 
                             <ScrollArea className="h-full absolute inset-0 z-10" ref={scrollAreaRef}>
-                                <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col min-h-full">
+                                <div className="max-w-4xl mx-auto px-4 md:px-6 py-5 md:py-8 flex flex-col min-h-full">
                                     <div className="flex-1" /> {/* Push content to bottom if few messages */}
                                     <div className="flex flex-col gap-4">
                                         {messages.map((message) => {
@@ -671,10 +671,10 @@ const GroupChatsPage = () => {
                                                             onMouseUp={handleTouchEnd}
                                                             onMouseLeave={handleTouchEnd}
                                                             className={cn(
-                                                                "px-6 py-4 shadow-xl overflow-hidden relative backdrop-blur-sm transition-transform active:scale-[0.98] select-none",
+                                                                "px-5 md:px-6 py-3.5 md:py-4 shadow-xl overflow-hidden relative backdrop-blur-sm transition-transform active:scale-[0.98] select-none",
                                                                 isOwn
-                                                                    ? "bg-indigo-600 text-white rounded-[28px] rounded-tr-none shadow-indigo-600/20"
-                                                                    : "bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-[28px] rounded-tl-none border border-slate-100/50 dark:border-slate-700/50 shadow-slate-200/50"
+                                                                    ? "bg-indigo-600 text-white rounded-[24px] md:rounded-[28px] rounded-tr-none shadow-indigo-600/20"
+                                                                    : "bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-[24px] md:rounded-[28px] rounded-tl-none border border-slate-100/50 dark:border-slate-700/50 shadow-slate-200/50"
                                                             )}>
                                                             <div className="text-[15px] leading-relaxed whitespace-pre-wrap break-words font-semibold">
                                                                 {message.content}
@@ -745,12 +745,12 @@ const GroupChatsPage = () => {
                         </div>
 
                         {/* Modern Floating Chat Input Area */}
-                        <div className="px-8 py-6 bg-white dark:bg-[#0b141a] border-t border-slate-100 dark:border-slate-800/50 shrink-0">
-                            <div className="max-w-4xl mx-auto flex items-end gap-4">
-                                <Button variant="ghost" size="icon" className="rounded-full w-14 h-14 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0 active:scale-90 shadow-sm mb-0.5">
-                                    <Plus className="w-6 h-6 text-slate-500" />
+                        <div className="px-3 md:px-8 py-3 md:py-6 bg-white dark:bg-[#0b141a] border-t border-slate-100 dark:border-slate-800/50 shrink-0">
+                            <div className="max-w-4xl mx-auto flex items-end gap-2 md:gap-4">
+                                <Button variant="ghost" size="icon" className="rounded-full w-11 h-11 md:w-14 md:h-14 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0 active:scale-90 shadow-sm mb-0.5">
+                                    <Plus className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
                                 </Button>
-                                <div className="flex-1 bg-slate-100 dark:bg-slate-800/80 rounded-[32px] flex items-end px-6 py-2 groups/input-focus ring-1 ring-slate-200 dark:ring-slate-700 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all shadow-inner">
+                                <div className="flex-1 bg-slate-100 dark:bg-slate-800/80 rounded-[28px] md:rounded-[32px] flex items-end px-4 md:px-6 py-1 md:py-2 groups/input-focus ring-1 ring-slate-200 dark:ring-slate-700 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all shadow-inner min-w-0">
                                     <textarea
                                         value={newMessage}
                                         onChange={(e) => setNewMessage(e.target.value)}
@@ -761,7 +761,7 @@ const GroupChatsPage = () => {
                                             }
                                         }}
                                         placeholder="Write your message..."
-                                        className="flex-1 border-none bg-transparent focus:outline-none py-3 min-h-[50px] max-h-[150px] text-[15px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 resize-none scrollbar-none"
+                                        className="flex-1 border-none bg-transparent focus:outline-none py-2.5 md:py-3 min-h-[44px] md:min-h-[50px] max-h-[120px] md:max-h-[150px] text-[15px] font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 resize-none scrollbar-none min-w-0"
                                         disabled={sending}
                                         rows={1}
                                         style={{ height: 'auto' }}
@@ -777,13 +777,13 @@ const GroupChatsPage = () => {
                                     <Button
                                         onClick={handleSendMessage}
                                         disabled={sending}
-                                        className="rounded-full w-14 h-14 p-0 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-600/30 hover:scale-110 active:scale-90 transition-all shrink-0 mb-0.5"
+                                        className="rounded-full w-11 h-11 md:w-14 md:h-14 p-0 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-600/30 hover:scale-110 active:scale-90 transition-all shrink-0 mb-0.5"
                                     >
-                                        <Send className="w-6 h-6 text-white" />
+                                        <Send className="w-5 h-5 md:w-6 md:h-6 text-white" />
                                     </Button>
                                 ) : (
-                                    <Button variant="ghost" size="icon" className="group rounded-full w-14 h-14 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all shrink-0 active:scale-90 shadow-sm mb-0.5">
-                                        <Mic className="w-6 h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                    <Button variant="ghost" size="icon" className="group rounded-full w-11 h-11 md:w-14 md:h-14 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-all shrink-0 active:scale-90 shadow-sm mb-0.5">
+                                        <Mic className="w-5 h-5 md:w-6 md:h-6 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                                     </Button>
                                 )}
                             </div>
