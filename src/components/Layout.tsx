@@ -210,8 +210,8 @@ const Layout = ({ children }: LayoutProps) => {
           <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
         )}
 
-        {/* Header - mobile shows full header, desktop shows compact top bar */}
-        {showChrome && location.pathname !== '/bible' && !(location.pathname === '/group-chats' && !isMobile) && location.pathname !== '/follow-up' && (
+        {/* Header - mobile shows full header (not on group-chats; chat has its own header) */}
+        {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
           <>
             {isMobile && (
               <>
@@ -222,22 +222,27 @@ const Layout = ({ children }: LayoutProps) => {
           </>
         )}
 
+        {/* Safe-area top fill for group-chats on mobile (no app header above) */}
+        {isMobile && location.pathname === '/group-chats' && (
+          <div className="shrink-0 bg-background" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
+        )}
+
         {/* Main Content */}
         <main
           id="main-content"
           className={cn(
-            "flex-1",
+            "flex-1 min-h-0",
             isMobile && location.pathname === '/group-chats' && "pb-[90px]",
             location.pathname === '/bible' || location.pathname === '/group-chats' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
           <div className={cn(
-            "min-h-full",
             location.pathname === '/group-chats'
               ? "h-full overflow-hidden"
-              : showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible'
-                ? "pb-[90px]"
-                : ""
+              : "min-h-full",
+            location.pathname !== '/group-chats' && showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible'
+              ? "pb-[90px]"
+              : ""
           )}>
             {children}
           </div>

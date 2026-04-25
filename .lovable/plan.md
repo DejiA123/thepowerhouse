@@ -1,30 +1,35 @@
+I found the mobile group chat is currently trapped inside several nested `h-full`/`overflow-hidden` containers, while the messages use Radix `ScrollArea` positioned absolutely. On mobile this can prevent touch scrolling from reaching the actual messages viewport, and it can also make the chat content sit behind the app chrome/header area.
 
-# Improve Choir Academy Lesson Content
+Plan:
 
-## What's Changing
-Three modules in the Choir Academy will be rewritten with clearer, more practical, beginner-friendly content and exercises.
+1. Fix the `/group-chats` layout sizing in `src/components/Layout.tsx`
+   - Keep the app header and bottom navigation visible on mobile.
+   - Make the main content a true bounded flex child with `min-h-0` so the chat can calculate its available height correctly.
+   - Avoid page-level scrolling for group chats; only the message list should scroll.
 
-## 1. The Mechanics of Resonance (Vocal Lessons 101)
-- Explain what the soft palate is in simple terms (the fleshy area at the back of the roof of your mouth)
-- Add a "yawn test" so beginners can feel the soft palate lifting
-- Provide step-by-step vowel shaping instructions with tongue position guidance
-- Add a mirror self-check so users know they're doing it right
+2. Fix the chat window structure in `src/pages/GroupChatsPage.tsx`
+   - Make the chat window a strict vertical flex layout:
+     ```text
+     Chat header: fixed/shrink-0
+     Messages: flex-1 min-h-0 overflow-y-auto
+     Input: fixed/shrink-0
+     Bottom nav: outside chat, still visible
+     ```
+   - Remove the absolute-positioned `ScrollArea` for the messages on mobile and replace it with a normal flex scrolling container.
+   - Add `min-h-0` to the chat message area and parent containers so mobile browsers allow inner scrolling.
 
-## 2. Interval Ear Training (Vocal Harmony & Blending)
-- Replace abstract music theory with well-known Gospel song references (e.g. "Amazing Grace," "How Great Is Our God," "Way Maker")
-- Teach intervals by singing along to familiar melodies -- e.g. the first two notes of a song = a specific interval
-- Add a practical "Harmonise a Gospel Song" exercise where beginners pick a simple song and learn to add a basic third above or below
-- Keep it choir-focused so anyone can follow along even without music theory background
+3. Keep the chat header always visible
+   - Ensure the Main Forum header row with the chat name, video call icon, phone icon, and menu never scrolls away with messages.
+   - Keep it above the message list with `shrink-0` and a stable z-index.
 
-## 3. Dynamic Sensitivity in Groups
-- Explain "The Pyramid of Sound" with a clear visual analogy (building blocks)
-- Add a practical group volume exercise: start singing at level 3/10 and gradually build, then bring it back down
-- Include a "Listen and Adjust" exercise where singers practise matching the volume of the person next to them
-- Add tips like "if you can't hear the person next to you, you're too loud"
+4. Preserve auto-scroll behavior without breaking manual scroll
+   - Keep the existing automatic scroll-to-bottom when entering a chat and when sending/receiving messages.
+   - Make the scroll target work against the actual messages scroller rather than the whole page.
 
-## Technical Details
-- All changes are in a single file: `src/pages/ChoirPage.tsx` (lines 864-898)
-- The content and exercises properties of each module object will be updated
-- Existing exercise types (`vowel-practice`) will be preserved; new structured exercises added where the modules currently have none
-- No new components or dependencies needed
-- The existing build errors in `ChoirPage.tsx` (unrelated type errors) will also be fixed as part of this change
+5. Verify the fix
+   - Run TypeScript/build checks.
+   - Test mobile sizing at the reported viewport around `390x674`, confirming:
+     - messages can be scrolled up/down,
+     - the chat header remains visible,
+     - the input stays visible above the bottom navigation,
+     - the desktop group chat layout is not regressed.
