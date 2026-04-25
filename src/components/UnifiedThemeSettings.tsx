@@ -65,7 +65,7 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
             color_theme: updated.colorTheme,
             custom_primary_color: updated.customPrimaryColor,
             custom_background_color: updated.customBackgroundColor
-          }, {
+          } as any, {
             onConflict: 'user_id'
           });
 

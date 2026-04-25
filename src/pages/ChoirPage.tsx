@@ -2049,7 +2049,7 @@ const ChoirPage = () => {
         // Only proceed if active and over are different and NOT a folder drop
         if (active.id !== over.id) {
             // Determine set type
-            let targetType: 'praise' | 'worship' | 'special' | 'hymns' | null = null;
+            let targetType: 'praise' | 'worship' | 'special' | 'hymns' | 'thanksgiving' | 'offering' | null = null;
 
             if (praiseSet.some(s => String(s.id) === String(active.id))) targetType = 'praise';
             else if (worshipSet.some(s => String(s.id) === String(active.id))) targetType = 'worship';
