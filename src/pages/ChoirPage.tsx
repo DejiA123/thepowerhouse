@@ -2195,28 +2195,41 @@ const ChoirPage = () => {
                     setSetlistDate(selectedWeekDate);
 
                     // --- AUTOMATED WEEKLY ARCHIVE TRIGGER ---
-                    const lastKnownWeekStr = fetchedInfo['last_archived_week'];
-                    const currentMondayStr = startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString().split('T')[0];
-
                     if (fetchedInfo['date']) {
                         const dbDate = new Date(fetchedInfo['date']);
                         const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
 
-                        if (locationId !== 'national' && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
-                            console.log("New week detected! Archiving previous week...");
+                        // Targeted city locations for automated archiving
+                        const cityLocations = ['galway', 'dublin', 'kildare', 'athlone'];
+
+                        if (cityLocations.includes(locationId) && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
+                            console.log(`New week detected for ${locationId}! Archiving previous week's Praise & Worship...`);
                             try {
+                                const prevWeekStr = dbDate.toISOString().split('T')[0];
+
+                                // Fetch previous week's data specifically for archiving (Praise & Worship only per user request)
+                                const [oldPraise, oldWorship] = await Promise.all([
+                                    choirService.getWeeklySetlist('praise', locationId, prevWeekStr),
+                                    choirService.getWeeklySetlist('worship', locationId, prevWeekStr)
+                                ]);
+
                                 await archiveWeeklySetlist(
                                     locationId,
                                     dbDate,
                                     fetchedFolders as ChoirFolder[],
-                                    fetchedPraise as unknown as WeeklySetSong[],
-                                    fetchedWorship as unknown as WeeklySetSong[],
-                                    fetchedSpecial as unknown as WeeklySetSong[],
-                                    fetchedHymns as unknown as WeeklySetSong[]
+                                    oldPraise as unknown as WeeklySetSong[],
+                                    oldWorship as unknown as WeeklySetSong[],
+                                    [], // Do not archive Special Number
+                                    [], // Do not archive Hymns
+                                    [], // Do not archive Thanksgiving
+                                    []  // Do not archive Offering
                                 );
 
                                 // Update the date so we don't trigger again
                                 await choirService.updateSetlistInfo('date', currentMonday.toISOString(), locationId);
+
+                                // Update last_archived_week for reporting
+                                await choirService.updateSetlistInfo('last_archived_week', currentMonday.toISOString().split('T')[0], locationId);
                             } catch (err) {
                                 console.error("Archive failed:", err);
                             }
@@ -2877,16 +2890,19 @@ const ChoirPage = () => {
 
         requestDeletion("this week's setlist (archive)", async () => {
             try {
+                const cityLocations = ['galway', 'dublin', 'kildare', 'athlone'];
+                const isCity = cityLocations.includes(locationId);
+
                 const result = await archiveWeeklySetlist(
                     locationId,
                     setlistDate,
                     folders,
                     praiseSet,
                     worshipSet,
-                    specialSet,
-                    hymnsSet,
-                    thanksgivingSet,
-                    offeringSet
+                    isCity ? [] : specialSet,
+                    isCity ? [] : hymnsSet,
+                    isCity ? [] : thanksgivingSet,
+                    isCity ? [] : offeringSet
                 );
 
                 if (!result.success) {
