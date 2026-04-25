@@ -635,7 +635,11 @@ const GroupChatsPage = () => {
                                 <div className="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-blue-100 dark:bg-blue-900 rounded-full blur-[120px]" />
                             </div>
 
-                            <ScrollArea className="h-full absolute inset-0 z-10" ref={scrollAreaRef}>
+                            <div
+                                ref={scrollAreaRef}
+                                className="absolute inset-0 z-10 overflow-y-auto overscroll-contain"
+                                style={{ WebkitOverflowScrolling: 'touch' }}
+                            >
                                 <div className="max-w-4xl mx-auto px-4 md:px-6 py-5 md:py-8 flex flex-col min-h-full">
                                     <div className="flex-1" /> {/* Push content to bottom if few messages */}
                                     <div className="flex flex-col gap-4">
@@ -741,7 +745,7 @@ const GroupChatsPage = () => {
                                         <div ref={messagesEndRef} className="h-4 w-full shrink-0" />
                                     </div>
                                 </div>
-                            </ScrollArea>
+                            </div>
                         </div>
 
                         {/* Modern Floating Chat Input Area */}
