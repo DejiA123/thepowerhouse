@@ -197,7 +197,7 @@ const Layout = ({ children }: LayoutProps) => {
       className={cn(
         "fixed inset-0 flex w-full text-foreground bg-background overscroll-none overflow-x-hidden",
         isMobile ? "flex-col" : "flex-row",
-        location.pathname === '/group-chats' && "overflow-hidden"
+        location.pathname === '/group-chats' && !isMobile && "overflow-hidden"
       )}
     >
       {/* Desktop Sidebar - only on desktop */}
@@ -206,12 +206,12 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Main column */}
       <div id="app-main-wrapper" className="flex flex-col flex-1 min-w-0">
         {/* Background fill for status bar - mobile only */}
-        {isMobile && location.pathname !== '/bible' && (location.pathname === '/group-chats' || location.pathname === '/follow-up' || !showChrome) && (
+        {isMobile && location.pathname !== '/bible' && ((location.pathname === '/group-chats' && !isMobile) || location.pathname === '/follow-up' || !showChrome) && (
           <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
         )}
 
         {/* Header - mobile shows full header, desktop shows compact top bar */}
-        {showChrome && location.pathname !== '/bible' && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && (
+        {showChrome && location.pathname !== '/bible' && !(location.pathname === '/group-chats' && !isMobile) && location.pathname !== '/follow-up' && (
           <>
             {isMobile && (
               <>
@@ -232,14 +232,14 @@ const Layout = ({ children }: LayoutProps) => {
         >
           <div className={cn(
             "min-h-full",
-            showChrome && isMobile && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && location.pathname !== '/bible' ? "pb-[90px]" : (location.pathname === '/group-chats' ? "h-full overflow-hidden" : "")
+            showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible' ? "pb-[90px]" : (location.pathname === '/group-chats' && !isMobile ? "h-full overflow-hidden" : "")
           )}>
             {children}
           </div>
         </main>
 
         {/* Bottom Nav - mobile only */}
-        {isMobile && showChrome && location.pathname !== '/group-chats' && location.pathname !== '/follow-up' && <BottomNavigation />}
+        {isMobile && showChrome && location.pathname !== '/follow-up' && <BottomNavigation />}
 
         {/* Global Mini Player for Background Audio */}
         <GlobalMiniPlayer />

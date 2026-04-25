@@ -1622,6 +1622,7 @@ export type Database = {
           created_at: string | null
           id: string
           notifications_enabled: boolean | null
+          sidebar_shortcuts: Json | null
           theme: string | null
           updated_at: string | null
           user_id: string
@@ -1631,6 +1632,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           notifications_enabled?: boolean | null
+          sidebar_shortcuts?: Json | null
           theme?: string | null
           updated_at?: string | null
           user_id: string
@@ -1640,6 +1642,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           notifications_enabled?: boolean | null
+          sidebar_shortcuts?: Json | null
           theme?: string | null
           updated_at?: string | null
           user_id?: string
