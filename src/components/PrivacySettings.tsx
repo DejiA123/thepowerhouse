@@ -71,7 +71,7 @@ export const PrivacySettings = ({ onBack }: PrivacySettingsProps) => {
           show_reading_activity: updated.showReadingActivity,
           allow_notifications: updated.allowNotifications,
           share_progress: updated.shareProgress,
-        });
+        } as any);
 
       if (error) throw error;
 
