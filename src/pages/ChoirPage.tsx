@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
+import { SongwritingStudio } from "@/components/choir/SongwritingStudio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1718,6 +1719,7 @@ const ChoirPage = () => {
     // Saturday Prayer Accountability State
     const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
     const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
+    const [isSongwritingOpen, setIsSongwritingOpen] = useState(false);
 
     const [prayerStats, setPrayerStats] = useState<PrayerStats>({ lastResetDate: new Date().toISOString(), userStats: {} });
 
@@ -4679,6 +4681,17 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* Songwriting Studio Modal - Galway Only */}
+            {locationId === 'galway' && (
+                <SongwritingStudio
+                    open={isSongwritingOpen}
+                    onOpenChange={setIsSongwritingOpen}
+                    locationId={locationId}
+                    isAdmin={isAdmin}
+                    user={user}
+                />
+            )}
+
             {/* Saturday Prayer Accountability Modal - Galway Only */}
             <Dialog open={isPrayerAccountabilityOpen} onOpenChange={setIsPrayerAccountabilityOpen}>
                 <DialogContent className="max-w-4xl p-0 h-[100dvh] w-full md:h-auto overflow-hidden bg-slate-900 border-none rounded-none md:rounded-[2rem] shadow-2xl z-[201] [&>button]:hidden" aria-describedby="prayer-accountability-desc">
@@ -5106,10 +5119,11 @@ const ChoirPage = () => {
                             </Button>
                             {locationId === 'galway' && (
                                 <Button
-                                    className="bg-indigo-500/30 text-white hover:bg-indigo-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
-                                    onClick={() => setIsPrayerAccountabilityOpen(true)}
+                                    className="bg-indigo-500/30 text-white hover:bg-indigo-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold"
+                                    onClick={() => setIsSongwritingOpen(true)}
                                 >
-                                    1 Hour Saturday Prayer Accountability
+                                    <Music className="w-4 h-4 mr-2" />
+                                    Songwriting Studio
                                 </Button>
                             )}
                             {locationId === 'national' && (
