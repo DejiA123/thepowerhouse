@@ -417,7 +417,7 @@ export const choirService = {
             .eq('location', location);
 
         if (weekDate) {
-            query = query.eq('week_date', weekDate);
+            query = query.in('week_date', [weekDate, '1900-01-01']);
         }
 
         const { data, error } = await query;
@@ -425,7 +425,12 @@ export const choirService = {
         if (error) throw error;
 
         const infoMap: Record<string, string> = {};
-        data.forEach((item: any) => {
+        
+        // Sort so that global records ('1900-01-01') are processed first, 
+        // allowing specific weekDate records to overwrite them if there's a key collision.
+        const sortedData = [...data].sort((a: any, b: any) => a.week_date === '1900-01-01' ? -1 : 1);
+        
+        sortedData.forEach((item: any) => {
             infoMap[item.info_type] = item.value;
         });
         return infoMap;
