@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
+import { SongwritingStudio } from "@/components/choir/SongwritingStudio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +45,7 @@ import {
     Grid,
     List as ListIcon,
     Archive, Zap, Waves, GripVertical, RotateCcw, RotateCw, Check, Wallet, Upload, Image, Globe, ExternalLink, Globe2,
-    Lock, Unlock, Youtube, History, Info, Sun, Coins
+    Lock, Unlock, Youtube, History, Info, Sun, Coins, PenTool
 } from "lucide-react";
 
 // Cache Keys
@@ -105,15 +106,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const PRAYER_TEAM = ['Rekky', 'Pastor Deji', 'RP Zainab', 'YP Sodiq', 'Borja', 'Bro Kingsley', 'Min. Mercy', 'Min. Merit', 'Kido', 'Denise'];
 
-interface PrayerStats {
-    lastResetDate: string; // ISO string
-    userStats: Record<string, {
-        missedWeeks: number;
-        lastWeekStatus: 'completed' | 'missed';
-    }>;
-}
 
 const parseLyrics = (lyrics?: string) => {
     if (!lyrics) return { text: "", imageUrl: null };
@@ -1715,17 +1708,8 @@ const ChoirPage = () => {
     const [isFolderOptionsOpen, setIsFolderOptionsOpen] = useState(false);
     const [folderForOptions, setFolderForOptions] = useState<any>(null);
 
-    // Saturday Prayer Accountability State
-    const [prayerChecklist, setPrayerChecklist] = useState<Record<string, boolean>>({});
-    const [isPrayerAccountabilityOpen, setIsPrayerAccountabilityOpen] = useState(false);
-
-    const [prayerStats, setPrayerStats] = useState<PrayerStats>({ lastResetDate: new Date().toISOString(), userStats: {} });
-
-    const togglePrayer = async (name: string) => {
-        const newState = { ...prayerChecklist, [name]: !prayerChecklist[name] };
-        setPrayerChecklist(newState); // Optimistic UI
-        await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(newState), locationId!);
-    };
+    // Songwriting Studio State
+    const [isSongwritingOpen, setIsSongwritingOpen] = useState(false);
 
     // Unified Deletion Confirmation States
     const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
@@ -1801,71 +1785,7 @@ const ChoirPage = () => {
         window.open(`https://www.google.com/search?q=${query}`, '_blank');
     };
 
-    const handleManualResetPrayer = async () => {
-        try {
-            // 1. Reset Checklist
-            const emptyChecklist = {};
-            await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(emptyChecklist), locationId!);
-            setPrayerChecklist(emptyChecklist);
 
-            // 2. Reset Stats (clear missed weeks and last week status for everyone)
-            const newStats: PrayerStats = {
-                lastResetDate: new Date().toISOString(),
-                userStats: {} // Clearing userStats will make everyone appear as 'completed' with 0 missed weeks by default logic
-            };
-            await choirService.updateSetlistInfo('prayer_accountability_stats', JSON.stringify(newStats), locationId!);
-            setPrayerStats(newStats);
-
-            toast.success("Prayer checklist and historical stats have been fully reset.");
-        } catch (error) {
-            console.error("Error resetting prayer checklist:", error);
-            toast.error("Failed to reset prayer accountability");
-        }
-    };
-
-    const checkWeeklyReset = async (checklist: Record<string, boolean>, currentStats: PrayerStats) => {
-        const lastReset = new Date(currentStats.lastResetDate);
-        const now = new Date();
-        const nextSat = nextSaturday(lastReset);
-        nextSat.setHours(23, 59, 59, 999); // Ensure Saturday is fully over
-
-        // If we have passed the next Saturday from the last reset date
-        if (now > nextSat) {
-            console.log("Processing Weekly Prayer Reset...");
-            const newStats: PrayerStats = {
-                lastResetDate: now.toISOString(), // Update reset date to now
-                userStats: { ...currentStats.userStats }
-            };
-
-            PRAYER_TEAM.forEach(member => {
-                const hasPrayed = checklist[member];
-                const currentMemberStats = newStats.userStats[member] || { missedWeeks: 0, lastWeekStatus: 'completed' };
-
-                if (!hasPrayed) {
-                    newStats.userStats[member] = {
-                        missedWeeks: currentMemberStats.missedWeeks + 1,
-                        lastWeekStatus: 'missed'
-                    };
-                } else {
-                    newStats.userStats[member] = {
-                        missedWeeks: 0, // Reset streak if they prayed
-                        lastWeekStatus: 'completed'
-                    };
-                }
-            });
-
-            // 1. Save new stats
-            await choirService.updateSetlistInfo('prayer_accountability_stats', JSON.stringify(newStats), locationId!);
-
-            // 2. Clear checklist
-            const emptyChecklist = {};
-            await choirService.updateSetlistInfo('prayer_checklist', JSON.stringify(emptyChecklist), locationId!);
-
-            // 3. Update local state
-            setPrayerStats(newStats);
-            setPrayerChecklist(emptyChecklist);
-        }
-    };
 
     // Team Roster States
     const [praiseRoster, setPraiseRoster] = useState<string[]>([]);
@@ -2302,33 +2222,7 @@ const ChoirPage = () => {
                 }
 
                 // Fetch Prayer Checklist & Stats
-                let currentChecklist: Record<string, boolean> = {};
-                if (fetchedInfo['prayer_checklist']) {
-                    try {
-                        currentChecklist = JSON.parse(fetchedInfo['prayer_checklist']);
-                        setPrayerChecklist(currentChecklist);
-                    } catch (e) {
-                        console.error("Error parsing prayer checklist:", e);
-                    }
-                }
 
-                let currentStats: PrayerStats = {
-                    lastResetDate: startOfWeek(addDays(new Date(), -7), { weekStartsOn: 0 }).toISOString(),
-                    userStats: {}
-                };
-                if (fetchedInfo['prayer_accountability_stats']) {
-                    try {
-                        currentStats = JSON.parse(fetchedInfo['prayer_accountability_stats']);
-                        setPrayerStats(currentStats);
-                    } catch (e) {
-                        console.error("Error parsing prayer stats:", e);
-                    }
-                }
-
-                // Trigger weekly reset check
-                if (locationId === 'galway') {
-                    checkWeeklyReset(currentChecklist, currentStats);
-                }
 
             } catch (error) {
                 console.error("Error fetching choir data:", error);
@@ -4679,112 +4573,14 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Saturday Prayer Accountability Modal - Galway Only */}
-            <Dialog open={isPrayerAccountabilityOpen} onOpenChange={setIsPrayerAccountabilityOpen}>
-                <DialogContent className="max-w-4xl p-0 h-[100dvh] w-full md:h-auto overflow-hidden bg-slate-900 border-none rounded-none md:rounded-[2rem] shadow-2xl z-[201] [&>button]:hidden" aria-describedby="prayer-accountability-desc">
-                    <div className="relative w-full h-full overflow-y-auto no-scrollbar">
-                        <Card className="bg-gradient-to-br from-indigo-900 to-blue-900 border-none shadow-none overflow-hidden relative text-white rounded-none md:rounded-[2rem] min-h-full">
-
-
-
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setIsPrayerAccountabilityOpen(false)}
-                                className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] right-6 z-50 p-2 bg-black/20 hover:bg-black/40 text-white/70 hover:text-white rounded-full transition-all backdrop-blur-sm"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-
-                            <CardHeader className="pb-4 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 pt-[calc(2rem+env(safe-area-inset-top))]">
-                                <div className="space-y-1 pr-12">
-                                    <DialogTitle className="flex items-center gap-3 text-white text-2xl md:text-3xl font-black">
-                                        Saturday Prayer Accountability
-                                    </DialogTitle>
-                                    <p id="prayer-accountability-desc" className="sr-only">
-                                        Check off your name after completing your one-hour prayer session on Saturday.
-                                    </p>
-                                    <CardDescription className="text-blue-200 font-medium text-lg md:text-xl flex items-center gap-2 pt-2">
-                                        <Calendar className="w-5 h-5 text-blue-300" />
-                                        {format(new Date().getDay() === 6 ? new Date() : nextSaturday(new Date()), "EEEE, do 'of' MMMM yyyy")}
-                                    </CardDescription>
-                                </div>
-                                <div className="px-6 py-3 bg-white/10 rounded-full border border-white/20 backdrop-blur-sm w-fit">
-                                    <span className="text-base font-bold text-white flex items-center gap-2">
-                                        <Clock className="w-5 h-5 text-yellow-300" />
-                                        1 Hour Prayer
-                                    </span>
-                                </div>
-                            </CardHeader>
-
-                            <CardContent className="relative z-10 pb-[calc(4rem+env(safe-area-inset-bottom))] px-8">
-                                <p className="text-blue-100/70 mb-8 max-w-2xl text-lg">
-                                    Each member in the choir is required to pray for at least one hour for the choir every Saturday. Tick your name when you've completed your prayer!
-                                </p>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {PRAYER_TEAM.map(name => {
-                                        const memberStats = prayerStats.userStats[name] || { missedWeeks: 0, lastWeekStatus: 'completed' };
-                                        const isMissedLastWeek = memberStats.lastWeekStatus === 'missed';
-
-                                        return (
-                                            <button
-                                                key={name}
-                                                onClick={() => togglePrayer(name)}
-                                                className={cn(
-                                                    "p-6 rounded-3xl border transition-all duration-300 group text-left relative overflow-hidden h-36 flex flex-col justify-between",
-                                                    prayerChecklist[name]
-                                                        ? "bg-white text-indigo-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.02] z-10"
-                                                        : "bg-white/5 hover:bg-white/10 border-white/10 text-white backdrop-blur-sm hover:scale-[1.02]"
-                                                )}
-                                            >
-                                                {prayerChecklist[name] && (
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-white via-indigo-50 to-blue-100 opacity-100" />
-                                                )}
-
-                                                <div className="relative z-10 flex justify-between items-start w-full">
-                                                    <div className={cn(
-                                                        "w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300",
-                                                        prayerChecklist[name]
-                                                            ? "border-indigo-600 bg-indigo-600 text-white shadow-lg"
-                                                            : "border-white/30 group-hover:border-white/60"
-                                                    )}>
-                                                        {prayerChecklist[name] && <Check className="w-6 h-6" strokeWidth={4} />}
-                                                    </div>
-                                                </div>
-
-                                                <div className="relative z-10 space-y-1">
-                                                    <span className={cn(
-                                                        "font-black text-lg block truncate transition-colors",
-                                                        prayerChecklist[name] ? "text-indigo-900" : "text-blue-100"
-                                                    )}>
-                                                        {name}
-                                                    </span>
-
-                                                    <span className={cn(
-                                                        "text-xs uppercase tracking-[0.1em] font-black block transition-colors",
-                                                        prayerChecklist[name] ? "text-indigo-600" : "text-white/40"
-                                                    )}>
-                                                        {prayerChecklist[name] ? "Completed" : "Pending"}
-                                                    </span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </CardContent>
-
-                            <div className="p-8 flex items-center justify-center gap-4 relative z-10">
-                                <Button
-                                    onClick={() => setIsPrayerAccountabilityOpen(false)}
-                                    className="bg-white/10 hover:bg-white/20 text-white border-none rounded-2xl px-8 h-12 font-bold"
-                                >
-                                    Close Checklist
-                                </Button>
-                            </div>
-                        </Card>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Songwriting Studio Modal - Galway Only */}
+            {locationId === 'galway' && (
+                <SongwritingStudio
+                    locationId={locationId}
+                    isOpen={isSongwritingOpen}
+                    onClose={() => setIsSongwritingOpen(false)}
+                />
+            )}
 
             {/* Edit Library Song Dialog */}
             < Dialog open={isEditSongOpen} onOpenChange={setIsEditSongOpen} >
@@ -5106,10 +4902,11 @@ const ChoirPage = () => {
                             </Button>
                             {locationId === 'galway' && (
                                 <Button
-                                    className="bg-indigo-500/30 text-white hover:bg-indigo-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
-                                    onClick={() => setIsPrayerAccountabilityOpen(true)}
+                                    className="bg-violet-500/30 text-white hover:bg-violet-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
+                                    onClick={() => setIsSongwritingOpen(true)}
                                 >
-                                    1 Hour Saturday Prayer Accountability
+                                    <PenTool className="w-4 h-4 mr-2" />
+                                    Songwriting Studio
                                 </Button>
                             )}
                             {locationId === 'national' && (
