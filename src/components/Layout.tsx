@@ -6,7 +6,6 @@ import BottomNavigation from "./BottomNavigation";
 import DesktopSidebar from "./DesktopSidebar";
 import GlobalMiniPlayer from "./GlobalMiniPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { AnimatePresence, motion } from "framer-motion";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -232,19 +231,15 @@ const Layout = ({ children }: LayoutProps) => {
         <main
           id="main-content"
           className={cn(
-            "flex-1 min-h-0",
+            "flex-1 min-h-0 relative bg-background",
             isMobile && location.pathname === '/group-chats' && "pb-[90px]",
             location.pathname === '/bible' || location.pathname === '/group-chats' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
+          <div
               key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeInOut" }}
               className={cn(
+                "page-enter bg-background",
                 location.pathname === '/group-chats'
                   ? "h-full overflow-hidden"
                   : "min-h-full",
@@ -254,8 +249,7 @@ const Layout = ({ children }: LayoutProps) => {
               )}
             >
               {children}
-            </motion.div>
-          </AnimatePresence>
+            </div>
         </main>
 
         {/* Bottom Nav - mobile only */}

@@ -93,8 +93,8 @@ try {
 }
 
 const LoadingSpinner = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+  <div className="min-h-screen bg-background flex items-center justify-center" style={{ backgroundColor: 'hsl(var(--background))' }}>
+    <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
   </div>
 );
 

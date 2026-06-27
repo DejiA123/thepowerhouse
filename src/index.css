@@ -21,6 +21,27 @@
 #main-content {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  background-color: hsl(var(--background));
+}
+
+/* ── Seamless page transition ── */
+/* Pure CSS animation runs on the GPU compositor thread — no JS animation loop,
+   no React unmount/mount gap, no white flash. */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-enter {
+  animation: pageEnter 0.15s cubic-bezier(0.2, 0, 0, 1) both;
+  /* Force GPU layer so opacity is composited, not painted */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Tap feedback utility — use on interactive cards/buttons for native feel */

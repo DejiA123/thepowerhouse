@@ -58,6 +58,16 @@
 </head>
 
 <body>
+  <script>
+    // Apply theme background BEFORE React mounts to prevent white flash
+    (function() {
+      var theme = localStorage.getItem('theme') || 'light';
+      var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var bg = isDark ? '#0a0a0a' : '#ffffff';
+      document.documentElement.style.backgroundColor = bg;
+      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+    })();
+  </script>
   <div id="root"></div>
   <style>
     /* Prevent blue rubber-band background bleed behind the notch/status area on iOS Safari */
