@@ -14,6 +14,24 @@
   /* IE and Edge */
   scrollbar-width: none;
   /* Firefox */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Native-feel momentum scrolling on main content */
+#main-content {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Tap feedback utility — use on interactive cards/buttons for native feel */
+.tap-feedback {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+  will-change: transform;
+}
+
+.tap-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.85;
 }
 
 /* Custom animations for email confirmation page */

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Book, Calendar, Heart, Info } from "lucide-react";
+import { motion } from "framer-motion";
 
 const BottomNavigation = () => {
   const location = useLocation();
@@ -18,19 +19,16 @@ const BottomNavigation = () => {
   return (
     <nav
       id="nav-v12-force-lift"
-      data-version="v18-safari-decoupled-low"
-      className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white dark:bg-black backdrop-blur-lg"
+      className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl"
       style={{
-        boxShadow: '0 -1px 3px rgba(0,0,0,0.08)',
-        // 5px for Safari browser; PWA stays 24px via index.css !important
+        boxShadow: '0 -1px 6px rgba(0,0,0,0.06)',
         paddingBottom: isIPhone ? '5px' : '10px'
       }}
       onTouchStart={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.preventDefault()}
       draggable="false"
     >
       <div
-        className="w-full h-[60px] flex justify-around touch-none select-none items-start pt-2"
+        className="w-full h-[60px] flex justify-around items-start pt-1.5 relative"
       >
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;
@@ -40,33 +38,43 @@ const BottomNavigation = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-start py-0 px-4 min-w-0 flex-1 touch-none group h-full"
+              className="flex flex-col items-center justify-start py-0 px-4 min-w-0 flex-1 h-full relative z-10"
               draggable="false"
             >
-              <Icon
-                className={`w-[22px] h-[22px] transition-colors duration-200 mb-1 ${isActive
-                  ? "text-primary shadow-sm"
-                  : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
-                  }`}
-              />
-              <span
-                className={`text-[12px] leading-none transition-colors duration-200 ${isActive
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground dark:text-gray-400 group-hover:text-primary"
-                  }`}
-                draggable="false"
+              <motion.div
+                className="flex flex-col items-center relative"
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
               >
-                {item.name}
-              </span>
+                {/* Animated active pill behind the icon */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabPill"
+                    className="absolute -inset-x-2 -inset-y-1 bg-primary/10 dark:bg-primary/20 rounded-2xl"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <Icon
+                  className={`w-[22px] h-[22px] transition-colors duration-200 mb-1 relative z-10 ${isActive
+                    ? "text-primary"
+                    : "text-muted-foreground dark:text-gray-400"
+                    }`}
+                />
+                <span
+                  className={`text-[11px] leading-none transition-all duration-200 relative z-10 ${isActive
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground dark:text-gray-400"
+                    }`}
+                  draggable="false"
+                >
+                  {item.name}
+                </span>
+              </motion.div>
             </Link>
           );
         })}
       </div>
-      {/* Tiny v18 tag to confirm update */}
-      <div className="absolute top-0 right-1 text-[6px] text-gray-300 opacity-30 select-none pointer-events-none">
-        v18
-      </div>
-    </nav >
+    </nav>
   );
 };
 

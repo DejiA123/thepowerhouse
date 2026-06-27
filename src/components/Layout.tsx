@@ -6,6 +6,7 @@ import BottomNavigation from "./BottomNavigation";
 import DesktopSidebar from "./DesktopSidebar";
 import GlobalMiniPlayer from "./GlobalMiniPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -216,7 +217,7 @@ const Layout = ({ children }: LayoutProps) => {
             {isMobile && (
               <>
                 <Header />
-                <div className="h-20 sm:h-24 shrink-0" style={{ marginTop: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
+                <div className="h-16 sm:h-20 shrink-0" style={{ marginTop: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
               </>
             )}
           </>
@@ -236,16 +237,25 @@ const Layout = ({ children }: LayoutProps) => {
             location.pathname === '/bible' || location.pathname === '/group-chats' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
-          <div className={cn(
-            location.pathname === '/group-chats'
-              ? "h-full overflow-hidden"
-              : "min-h-full",
-            location.pathname !== '/group-chats' && showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible'
-              ? "pb-[90px]"
-              : ""
-          )}>
-            {children}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeInOut" }}
+              className={cn(
+                location.pathname === '/group-chats'
+                  ? "h-full overflow-hidden"
+                  : "min-h-full",
+                location.pathname !== '/group-chats' && showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible'
+                  ? "pb-[90px]"
+                  : ""
+              )}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {/* Bottom Nav - mobile only */}
