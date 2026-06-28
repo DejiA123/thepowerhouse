@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react';
+import SearchAndReplace from '@sereneinserenade/tiptap-search-and-replace';
 
 interface RichTextEditorProps {
   content: string;
@@ -37,6 +38,7 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   compact?: boolean;
   autoFocus?: boolean;
+  searchTerm?: string;
 }
 
 export interface RichTextEditorHandle {
@@ -51,7 +53,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   className = '',
   readOnly = false,
   compact = false,
-  autoFocus = false
+  autoFocus = false,
+  searchTerm = ''
 }, ref) => {
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const [isTouchActive, setIsTouchActive] = useState(false);
@@ -116,6 +119,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
         nested: true,
         HTMLAttributes: { class: 'task-item' },
       }),
+      SearchAndReplace.configure({ searchResultClass: 'bg-yellow-200 dark:bg-yellow-900/60 text-yellow-900 dark:text-yellow-100 font-bold rounded-sm' }),
     ],
     content: content,
     editable: !readOnly,
@@ -133,9 +137,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
     editorProps: {
       attributes: {
         class: cn(
-          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:!my-0 [&_p]:!py-0 [&_p]:!leading-[1.4] [&_p]:!min-h-[1.4em] text-[16px]',
+          'prose max-w-none focus:outline-none text-gray-900 dark:text-gray-100 [&_p]:my-4 [&_p]:leading-relaxed [&_p]:min-h-[1.5em] [&_p]:first:mt-0 [&_p]:last:mb-0 text-[16px]',
           compact ? 'prose-xs p-0' : 'prose-sm sm:prose lg:prose-lg xl:prose-2xl p-1',
-          'select-text cursor-text touch-action-manipulation',
+          'select-text cursor-text',
           '[&_table]:border-collapse [&_table]:w-full [&_table]:my-6',
           '[&_table_td]:border [&_table_td]:border-gray-200 dark:[&_table_td]:border-gray-800 [&_table_td]:p-2 [&_table_td]:min-w-[100px]',
           '[&_table_th]:border [&_table_th]:border-gray-200 dark:[&_table_th]:border-gray-800 [&_table_th]:p-2 [&_table_th]:bg-gray-50 dark:[&_table_th]:bg-gray-900 [&_table_th]:font-bold',
@@ -203,6 +207,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
     }
   }, [editor, content]);
 
+  useEffect(() => {
+    if (editor && searchTerm !== undefined) {
+      editor.commands.setSearchTerm(searchTerm);
+    }
+  }, [editor, searchTerm]);
+
 
 
   useImperativeHandle(ref, () => ({
@@ -266,6 +276,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
               </ToolbarButton>
               <ToolbarButton isActive={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline">
                 <UnderlineIcon className="w-5 h-5" />
+              </ToolbarButton>
+              <ToolbarButton 
+                 isActive={editor.isActive('highlight')} 
+                 onClick={() => editor.chain().focus().toggleHighlight().run()} 
+                 title="Highlight"
+                 activeColor="text-yellow-600 bg-yellow-100 dark:bg-yellow-900/40"
+              >
+                <Highlighter className="w-5 h-5" />
               </ToolbarButton>
             </div>
 
@@ -371,6 +389,44 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 relative overflow-hidden", className)}
       style={{ height: containerHeight }}
     >
+      {/* Text Selection Bubble Menu for Mobile/Desktop */}
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ editor, state, from, to }) => {
+          return !editor.isActive('table') && from !== to && !editor.isActive('image');
+        }}
+        tippyOptions={{ duration: 100, appendTo: () => document.body, placement: 'top' }}
+        className="pointer-events-auto z-[9999]"
+      >
+        <div className="flex items-center gap-1 bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-md text-white p-1.5 rounded-[1.2rem] shadow-2xl animate-in fade-in zoom-in-95 duration-200 pointer-events-auto border border-white/10">
+          <ToolbarButton 
+             isActive={editor.isActive('bold')} 
+             onClick={() => editor.chain().focus().toggleBold().run()} 
+             className="text-white hover:bg-white/20 hover:text-white"
+             activeColor="bg-white/20 text-white shadow-sm"
+          >
+            <Bold className="w-5 h-5" />
+          </ToolbarButton>
+          <ToolbarButton 
+             isActive={editor.isActive('italic')} 
+             onClick={() => editor.chain().focus().toggleItalic().run()} 
+             className="text-white hover:bg-white/20 hover:text-white"
+             activeColor="bg-white/20 text-white shadow-sm"
+          >
+            <Italic className="w-5 h-5" />
+          </ToolbarButton>
+          <div className="w-px h-6 bg-white/20 mx-1"></div>
+          <ToolbarButton 
+             isActive={editor.isActive('highlight')} 
+             onClick={() => editor.chain().focus().toggleHighlight().run()} 
+             className="text-white hover:bg-yellow-500/30 hover:text-yellow-200"
+             activeColor="bg-yellow-500 text-yellow-50 shadow-md shadow-yellow-500/20"
+          >
+            <Highlighter className="w-5 h-5" />
+          </ToolbarButton>
+        </div>
+      </BubbleMenu>
+
       {/* Table Bubble Menu */}
       <BubbleMenu
         editor={editor}
@@ -423,9 +479,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       )} style={{
         WebkitOverflowScrolling: 'touch',
         isolation: 'isolate',
-        touchAction: 'pan-y'
+        touchAction: 'auto'
       }}>
-        <div className="absolute inset-0 z-0 bg-transparent min-h-full" style={{ touchAction: 'none', pointerEvents: 'none' }} />
         <EditorContent editor={editor} className="min-h-full relative z-10" />
         {editor && editor.getText().trim().length === 0 && !readOnly && (
           <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">

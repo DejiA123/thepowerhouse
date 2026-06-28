@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatBookDisplayName } from "./bookUtils";
+import RichTextEditor from "./RichTextEditor";
 
 interface BibleNote {
   id: string;
@@ -276,14 +277,16 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
-        <DialogHeader className="p-4 border-none sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-4">
-          <DialogTitle className="flex items-center justify-center gap-2 text-center w-full text-sm font-semibold">
-            <FileText className="w-4 h-4 text-blue-600" />
-            My Notes - {getLocationText()}
+      <DialogContent className="fixed w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-slate-50 dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
+        <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl z-20 pt-8 pb-4 shadow-sm">
+          <DialogTitle className="flex items-center justify-center gap-3 text-center w-full text-lg font-black text-slate-900 dark:text-slate-100">
+            <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-xl">
+              <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            Reflections - {getLocationText()}
           </DialogTitle>
-          <DialogDescription className="text-center">
-            Create, edit, and manage your Bible study notes for this chapter or verse.
+          <DialogDescription className="text-center text-slate-500 font-medium">
+            Capture your insights, prayers, and study notes for this passage.
           </DialogDescription>
         </DialogHeader>
 
@@ -321,15 +324,16 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
               </div>
             </div>
 
-            <div>
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Note Content *</label>
-              <Textarea
-                value={newNote.note_text}
-                onChange={(e) => setNewNote(prev => ({ ...prev, note_text: e.target.value }))}
-                placeholder="Write your note here... You can include insights, questions, prayers, applications, or any thoughts about this passage."
-                className="min-h-[100px] ios-input-fix"
-                data-ios-selection="true"
-              />
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-950 flex flex-col">
+                <RichTextEditor
+                  content={newNote.note_text}
+                  onChange={(content) => setNewNote(prev => ({ ...prev, note_text: content }))}
+                  placeholder="Write your reflection here..."
+                  toolbarPosition="bottom"
+                />
+              </div>
             </div>
 
             <div>
@@ -422,11 +426,11 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
 
             <Button
               onClick={saveNote}
-              disabled={!newNote.note_text.trim() || loading}
-              className="w-full"
+              disabled={!newNote.note_text.trim() || newNote.note_text === '<p></p>' || loading}
+              className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              {loading ? 'Saving...' : 'Save Note'}
+              <Plus className="w-5 h-5 mr-2" />
+              {loading ? 'Saving...' : 'Save Reflection'}
             </Button>
           </div>
 
@@ -481,14 +485,15 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                           </div>
                         </div>
 
-                        <div>
+                        <div className="flex flex-col gap-2">
                           <label className="text-sm font-medium">Note Content</label>
-                          <Textarea
-                            value={editingNote.note_text}
-                            onChange={(e) => setEditingNote(prev => prev ? { ...prev, note_text: e.target.value } : null)}
-                            className="min-h-[80px] select-text cursor-text ios-input-fix"
-                            data-ios-selection="true"
-                          />
+                          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-950 flex flex-col">
+                            <RichTextEditor
+                              content={editingNote.note_text}
+                              onChange={(content) => setEditingNote(prev => prev ? { ...prev, note_text: content } : null)}
+                              toolbarPosition="bottom"
+                            />
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-4">
@@ -533,11 +538,18 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
                     ) : (
                       <>
                         <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             {note.title && (
-                              <h4 className="font-medium text-foreground mb-1 text-center w-full select-text">{note.title}</h4>
+                              <h4 className="font-bold text-foreground mb-2 text-center w-full select-text text-lg">{note.title}</h4>
                             )}
-                            <p className="text-sm leading-relaxed text-muted-foreground select-text">{note.note_text}</p>
+                            <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 select-text pointer-events-none prose-sm dark:prose-invert">
+                              <RichTextEditor
+                                content={note.note_text}
+                                readOnly={true}
+                                compact={true}
+                                onChange={() => {}}
+                              />
+                            </div>
                           </div>
                           <div className="flex gap-1">
                             <Button

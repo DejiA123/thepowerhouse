@@ -218,6 +218,8 @@ const BibleNotesPage = () => {
         folder_id: undefined as string | undefined
     });
     const [editingNote, setEditingNote] = useState<BibleNote | null>(null);
+    const [isSearchingInNote, setIsSearchingInNote] = useState(false);
+    const [noteSearchTerm, setNoteSearchTerm] = useState('');
 
     // Refs
     const backButtonRef = useRef<HTMLButtonElement>(null);
@@ -1463,8 +1465,8 @@ const BibleNotesPage = () => {
                                         </Button>
                                     </div>
 
-                                    {/* Perfectly Centered Title with absolute positioning */}
-                                    <div className="absolute inset-x-0 flex justify-center items-center px-12 pointer-events-none">
+                                    {/* Perfectly Centered Title with absolute positioning (or Search bar) */}
+                                    <div className="absolute inset-x-0 flex justify-center items-center px-12 pointer-events-none z-10">
                                         <div className="w-full max-w-[65%] sm:max-w-md pointer-events-auto">
                                             {isInlineEditing ? (
                                                 <Input
@@ -1474,6 +1476,36 @@ const BibleNotesPage = () => {
                                                     autoFocus={false}
                                                     className="text-base sm:text-lg md:text-xl font-bold text-center bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white w-full"
                                                 />
+                                            ) : isSearchingInNote ? (
+                                                <div className="relative flex items-center w-full animate-in fade-in zoom-in-95 duration-200">
+                                                    <Search className="absolute left-3 w-4 h-4 text-gray-400" />
+                                                    <Input
+                                                        autoFocus
+                                                        value={noteSearchTerm}
+                                                        onChange={(e) => {
+                                                            setNoteSearchTerm(e.target.value);
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Escape') {
+                                                                setIsSearchingInNote(false);
+                                                                setNoteSearchTerm('');
+                                                            }
+                                                        }}
+                                                        placeholder="Find in note..."
+                                                        className="pl-9 pr-10 h-10 rounded-full bg-gray-100/50 dark:bg-gray-800/50 border-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                                                    />
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        onClick={() => {
+                                                            setIsSearchingInNote(false);
+                                                            setNoteSearchTerm('');
+                                                        }}
+                                                        className="absolute right-1 w-8 h-8 rounded-full text-gray-400 hover:text-gray-600"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
                                             ) : (
                                                 <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white text-center truncate whitespace-nowrap px-1">
                                                     {selectedNote.title || getNoteTitleFallback(selectedNote.note_text)}
@@ -1519,6 +1551,17 @@ const BibleNotesPage = () => {
                                             </Button>
                                         ) : (
                                             <>
+                                                {!isSearchingInNote && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => setIsSearchingInNote(true)}
+                                                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full h-10 w-10 flex-none hidden xs:flex"
+                                                        title="Search in note"
+                                                    >
+                                                        <Search className="w-5 h-5" />
+                                                    </Button>
+                                                )}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
@@ -1666,6 +1709,7 @@ const BibleNotesPage = () => {
                                                     <RichTextEditor
                                                         content={selectedNote.note_text}
                                                         readOnly={true}
+                                                        searchTerm={isSearchingInNote ? noteSearchTerm : ''}
                                                         onChange={async (content) => {
                                                             // Allow direct saving from preview (e.g. table edits)
                                                             try {
