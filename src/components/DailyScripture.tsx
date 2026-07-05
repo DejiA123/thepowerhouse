@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Book } from "lucide-react";
-import { getTodaysScripture } from "@/utils/dailyScriptureUtils";
+import { Book, Shuffle } from "lucide-react";
+import { getTodaysScripture, getRandomScripture } from "@/utils/dailyScriptureUtils";
 
 const DailyScripture = () => {
+  const [scripture, setScripture] = useState(getTodaysScripture());
   const [randomIndex, setRandomIndex] = useState(0);
 
-  const todaysScripture = getTodaysScripture();
   // List of Shorts IDs
   const shortsIds = [
     "JGUmWeuY4pU", "GA4qFuKt-2I", "dAh8tG6jxDI", "BxFJPCG9vMU", "EjGuZW77aVU",
@@ -24,6 +24,10 @@ const DailyScripture = () => {
   const refreshVideo = () => {
     const newIndex = Math.floor(Math.random() * shortsIds.length);
     setRandomIndex(newIndex);
+  };
+
+  const handleShuffle = () => {
+    setScripture(getRandomScripture(scripture.reference));
   };
 
   useEffect(() => {
@@ -53,6 +57,15 @@ const DailyScripture = () => {
                 <h3 className="font-bold text-lg text-gray-900 leading-tight">Today's Scripture</h3>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShuffle}
+              className="h-9 w-9 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-all duration-200"
+              title="Shuffle scripture"
+            >
+              <Shuffle className="w-4 h-4" />
+            </Button>
           </div>
         </CardHeader>
 
@@ -60,10 +73,10 @@ const DailyScripture = () => {
           {/* Scripture Section */}
           <div className="text-center px-4">
             <h4 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600 mb-3 leading-relaxed">
-              "{todaysScripture.verse}"
+              "{scripture.verse}"
             </h4>
             <p className="inline-block px-4 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-sm tracking-wide">
-              {todaysScripture.reference}
+              {scripture.reference}
             </p>
           </div>
 
