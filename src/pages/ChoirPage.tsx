@@ -372,7 +372,7 @@ const SortableSetSongCard = ({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition: transition || 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+        transition, // Let dnd-kit handle transitions during sorting. Fallbacks cause dragging lag/jitter loops.
         zIndex: isDragging ? 50 : undefined,
         opacity: isDragging ? 0.2 : 1,
     };
@@ -1890,8 +1890,16 @@ const ChoirPage = () => {
         const { active } = event;
         console.log('🎯 Drag Started:', { activeId: active.id, activeData: active.data });
 
-        // Find the song in praise, worship OR learning sets
-        const song = [...praiseSet, ...worshipSet, ...learningSet].find(s => String(s.id) === String(active.id));
+        // Find the song in all sets to display correctly in the DragOverlay
+        const song = [
+            ...praiseSet,
+            ...worshipSet,
+            ...specialSet,
+            ...hymnsSet,
+            ...thanksgivingSet,
+            ...offeringSet,
+            ...learningSet
+        ].find(s => String(s.id) === String(active.id));
 
         if (song) {
             console.log('✅ Found Song for Overlay:', song.title);
