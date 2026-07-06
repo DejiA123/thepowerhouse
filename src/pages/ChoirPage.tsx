@@ -274,14 +274,15 @@ const SetSongCard = ({
         >
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                 {/* DRAG HANDLE - Only this area initiates drag */}
-                {!isLocked && (
-                    <div
-                        {...dragHandleProps}
-                        className="p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing touch-none"
-                    >
-                        <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                )}
+                <div
+                    {...dragHandleProps}
+                    className={cn(
+                        "p-2 sm:p-3 -ml-1 sm:-ml-2 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing touch-none",
+                        isLocked ? "hidden" : "block"
+                    )}
+                >
+                    <GripVertical className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
                 {index !== undefined && <span className="text-blue-500 font-bold w-4 text-center text-xs sm:text-base">{index + 1}</span>}
                 {/* CLICKABLE CONTENT AREA - Opens edit dialog */}
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onEdit(song)}>
@@ -1865,9 +1866,15 @@ const ChoirPage = () => {
     const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
+        useSensor(MouseSensor, {
             activationConstraint: {
-                distance: 3,
+                distance: 5,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 200,
+                tolerance: 5,
             },
         }),
         useSensor(KeyboardSensor, {
