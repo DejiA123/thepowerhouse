@@ -83,6 +83,7 @@ import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
     DndContext,
     closestCenter,
+    closestCorners,
     rectIntersection,
     KeyboardSensor,
     PointerSensor,
@@ -370,8 +371,8 @@ const SortableSetSongCard = ({
     } = useSortable({ id: song.id, disabled: isLocked });
 
     const style = {
-        transform: CSS.Translate.toString(transform),
-        transition,
+        transform: CSS.Transform.toString(transform),
+        transition: transition || 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
         zIndex: isDragging ? 50 : undefined,
         opacity: isDragging ? 0.2 : 1,
     };
@@ -2000,7 +2001,11 @@ const ChoirPage = () => {
                             targetType === 'thanksgiving' ? setThanksgivingSet : setOfferingSet;
 
             const oldIndex = set.findIndex((song) => String(song.id) === String(active.id));
-            const newIndex = set.findIndex((song) => String(song.id) === String(over.id));
+            let newIndex = set.findIndex((song) => String(song.id) === String(over.id));
+
+            if (newIndex === -1 && String(over.id) === targetType) {
+                newIndex = set.length - 1;
+            }
 
             if (oldIndex === -1 || newIndex === -1) return;
 
@@ -4934,7 +4939,7 @@ const ChoirPage = () => {
             <div id="main-content" className="container mx-auto px-2 sm:px-4 py-8 -mt-6 relative z-10">
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCenter}
+                    collisionDetection={closestCorners}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
@@ -5229,6 +5234,7 @@ const ChoirPage = () => {
                                             ) : (
                                                 <>
                                                     <SortableContext
+                                                        id="praise"
                                                         items={praiseSet.map(s => s.id)}
                                                         strategy={verticalListSortingStrategy}
                                                     >
@@ -5296,6 +5302,7 @@ const ChoirPage = () => {
                                             ) : (
                                                 <>
                                                     <SortableContext
+                                                        id="worship"
                                                         items={worshipSet.map(s => s.id)}
                                                         strategy={verticalListSortingStrategy}
                                                     >
@@ -5359,6 +5366,7 @@ const ChoirPage = () => {
                                                     ) : (
                                                         <>
                                                             <SortableContext
+                                                                id="thanksgiving"
                                                                 items={thanksgivingSet.map(s => s.id)}
                                                                 strategy={verticalListSortingStrategy}
                                                             >
@@ -5420,6 +5428,7 @@ const ChoirPage = () => {
                                                     ) : (
                                                         <>
                                                             <SortableContext
+                                                                id="offering"
                                                                 items={offeringSet.map(s => s.id)}
                                                                 strategy={verticalListSortingStrategy}
                                                             >
@@ -5483,6 +5492,7 @@ const ChoirPage = () => {
                                                 </CardHeader>
                                                 <CardContent className="space-y-3 pt-4">
                                                     <SortableContext
+                                                        id="special"
                                                         items={specialSet.map(s => s.id)}
                                                         strategy={verticalListSortingStrategy}
                                                     >
@@ -5544,6 +5554,7 @@ const ChoirPage = () => {
                                                 </CardHeader>
                                                 <CardContent className="space-y-3 pt-4">
                                                     <SortableContext
+                                                        id="hymns"
                                                         items={hymnsSet.map(s => s.id)}
                                                         strategy={verticalListSortingStrategy}
                                                     >
