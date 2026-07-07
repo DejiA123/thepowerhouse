@@ -78,6 +78,7 @@ import {
 import { choirService, ChoirFolder, WeeklySetSong, ChoirCalendarEvent } from "@/services/choirService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
@@ -1633,6 +1634,7 @@ const ChoirPage = () => {
     const [thanksgivingSet, setThanksgivingSet] = useState<WeeklySetSong[]>([]);
     const [offeringSet, setOfferingSet] = useState<WeeklySetSong[]>([]);
     const [learningSet, setLearningSet] = useState<WeeklySetSong[]>([]);
+    const isReorderingRef = useRef(false);
 
     // Setlist Descriptions State
     const [praiseInfo, setPraiseInfo] = useState({ title: "Praise Set", desc: "" });
@@ -1867,15 +1869,9 @@ const ChoirPage = () => {
     const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
 
     const sensors = useSensors(
-        useSensor(MouseSensor, {
+        useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 5,
-            },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 200,
-                tolerance: 5,
             },
         }),
         useSensor(KeyboardSensor, {
@@ -2017,8 +2013,12 @@ const ChoirPage = () => {
 
             if (oldIndex === -1 || newIndex === -1) return;
 
-            const newSet = arrayMove(set, oldIndex, newIndex);
+            const newSet = arrayMove(set, oldIndex, newIndex).map((song, idx) => ({
+                ...song,
+                sort_order: idx
+            }));
             setSetter(newSet as any);
+            isReorderingRef.current = true;
 
             try {
                 // Update sort_order in DB
@@ -2031,6 +2031,10 @@ const ChoirPage = () => {
             } catch (e) {
                 console.error(e);
                 toast.error("Failed to save new order");
+            } finally {
+                setTimeout(() => {
+                    isReorderingRef.current = false;
+                }, 2000);
             }
         }
     };
@@ -2380,6 +2384,10 @@ const ChoirPage = () => {
                 table: 'choir_weekly_set_songs',
                 filter: `location=eq.${locationId}`
             }, (payload) => {
+                if (isReorderingRef.current) {
+                    console.log("⏳ Ignoring Realtime payload during active local drag-reorder to prevent UI feedback loops");
+                    return;
+                }
                 const weekDateStr = getEffectiveWeekDate(locationId!);
                 const item = (payload.new || payload.old) as any;
 
@@ -6338,26 +6346,29 @@ const ChoirPage = () => {
                     </Tabs>
 
                     {/* GLOBAL DRAG OVERLAY */}
-                    <DragOverlay dropAnimation={{
-                        sideEffects: defaultDropAnimationSideEffects({
-                            styles: {
-                                active: { opacity: '0.4' },
-                            },
-                        }),
-                    }}>
-                        {activeDragItem ? (
-                            <SetSongCard
-                                song={activeDragItem}
-                                index={0} // Index doesn't matter for overlay
-                                onPlay={() => { }}
-                                onEdit={() => { }}
-                                onRemove={() => { }}
-                                onViewLyrics={() => { }}
-                                isOverlay={true}
-                                isLocked={isLocked}
-                            />
-                        ) : null}
-                    </DragOverlay>
+                    {createPortal(
+                        <DragOverlay dropAnimation={{
+                            sideEffects: defaultDropAnimationSideEffects({
+                                styles: {
+                                    active: { opacity: '0.4' },
+                                },
+                            }),
+                        }}>
+                            {activeDragItem ? (
+                                <SetSongCard
+                                    song={activeDragItem}
+                                    index={0} // Index doesn't matter for overlay
+                                    onPlay={() => { }}
+                                    onEdit={() => { }}
+                                    onRemove={() => { }}
+                                    onViewLyrics={() => { }}
+                                    isOverlay={true}
+                                    isLocked={isLocked}
+                                />
+                            ) : null}
+                        </DragOverlay>,
+                        document.body
+                    )}
                 </DndContext>
 
                 {/* Course Detail Modal */}
