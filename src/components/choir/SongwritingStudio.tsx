@@ -113,6 +113,11 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     const [isNamePromptOpen, setIsNamePromptOpen] = useState(false);
     const [tempName, setTempName] = useState("");
 
+    // Deletion state
+    const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+    const [deletePasswordInput, setDeletePasswordInput] = useState("");
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
     const getEffectiveUserId = useCallback(() => {
         if (user?.id) return user.id;
         let guestId = localStorage.getItem("choir_guest_user_id");
@@ -207,20 +212,22 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     };
 
     // ── Submit Entry ───────────────────────────────────────────────────────────
-    const submitEntry = async (forcedName?: string) => {
+    const submitEntry = async (forcedName?: any) => {
         const hasContent = sections.some((s) => s.content.trim().length > 0);
         if (!hasContent) {
             toast.error("Please write at least one section");
             return;
         }
 
+        const nameParam = typeof forcedName === "string" ? forcedName : undefined;
+
         // If not logged in and we don't have a guest name saved yet, prompt for it
-        if (!user && !localStorage.getItem("choir_guest_user_name") && !forcedName) {
+        if (!user && !localStorage.getItem("choir_guest_user_name") && !nameParam) {
             setIsNamePromptOpen(true);
             return;
         }
 
-        const activeName = forcedName || getUserName();
+        const activeName = nameParam || getUserName();
         const activeUserId = getEffectiveUserId();
 
         const entry: SongwritingEntry = {
@@ -271,6 +278,31 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
             await choirService.updateSetlistInfo("songwriting_entries", JSON.stringify(updatedEntries), locationId);
         } catch (err) {
             console.error("Failed to update likes", err);
+        }
+    };
+
+    const handleDeleteEntry = async () => {
+        if (deletePasswordInput !== "2026") {
+            toast.error("Incorrect password");
+            return;
+        }
+        if (!deletingEntryId) return;
+
+        const updatedEntries = allEntries.filter((e) => e.id !== deletingEntryId);
+        try {
+            await choirService.updateSetlistInfo("songwriting_entries", JSON.stringify(updatedEntries), locationId);
+            setAllEntries(updatedEntries);
+            if (myEntry?.id === deletingEntryId) {
+                setMyEntry(null);
+                setSongTitle("");
+                setSections([{ id: Math.random().toString(36).substring(2, 15), type: "verse", content: "" }]);
+            }
+            toast.success("Contribution deleted successfully");
+            setIsDeleteConfirmOpen(false);
+            setDeletingEntryId(null);
+            setDeletePasswordInput("");
+        } catch (err) {
+            toast.error("Failed to delete contribution");
         }
     };
 
@@ -560,6 +592,16 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                                                                 <Edit3 className="w-3.5 h-3.5" />Edit
                                                                             </button>
                                                                         )}
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setDeletingEntryId(entry.id);
+                                                                                setDeletePasswordInput("");
+                                                                                setIsDeleteConfirmOpen(true);
+                                                                            }}
+                                                                            className="ml-auto flex items-center gap-1 text-xs font-bold text-white/20 hover:text-rose-400 transition-all"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -625,7 +667,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                         </div>
 
                                         <div className="pt-2 pb-4">
-                                            <Button onClick={submitEntry} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white rounded-2xl h-14 font-black text-base shadow-lg shadow-violet-500/20 transition-all active:scale-[0.98]">
+                                            <Button onClick={() => submitEntry()} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white rounded-2xl h-14 font-black text-base shadow-lg shadow-violet-500/20 transition-all active:scale-[0.98]">
                                                 <Send className="w-5 h-5 mr-2" />{myEntry ? "Update Contribution" : "Share Contribution"}
                                             </Button>
                                         </div>
@@ -764,6 +806,57 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                 <Button
                                     variant="ghost"
                                     onClick={() => setIsNamePromptOpen(false)}
+                                    className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl h-11"
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={isDeleteConfirmOpen} onOpenChange={(open) => { setIsDeleteConfirmOpen(open); if (!open) { setDeletingEntryId(null); setDeletePasswordInput(""); } }}>
+                    <DialogContent className="max-w-md p-6 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-[210] text-white">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center">
+                                    <Trash2 className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-lg font-black text-white">
+                                        Delete Contribution
+                                    </DialogTitle>
+                                    <p className="text-xs text-white/50">
+                                        Enter the password to permanently delete this song.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest">
+                                    Password
+                                </label>
+                                <Input
+                                    type="password"
+                                    placeholder="Enter password..."
+                                    value={deletePasswordInput}
+                                    onChange={(e) => setDeletePasswordInput(e.target.value)}
+                                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 rounded-xl h-12 focus-visible:ring-rose-500/50"
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleDeleteEntry(); }}
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    onClick={handleDeleteEntry}
+                                    className="flex-1 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-xl h-11 font-bold"
+                                >
+                                    Delete
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => { setIsDeleteConfirmOpen(false); setDeletingEntryId(null); setDeletePasswordInput(""); }}
                                     className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl h-11"
                                 >
                                     Cancel
