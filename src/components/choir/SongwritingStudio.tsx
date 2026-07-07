@@ -109,8 +109,25 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     // Loading
     const [isLoading, setIsLoading] = useState(true);
 
+    // Guest name prompt state
+    const [isNamePromptOpen, setIsNamePromptOpen] = useState(false);
+    const [tempName, setTempName] = useState("");
+
+    const getEffectiveUserId = useCallback(() => {
+        if (user?.id) return user.id;
+        let guestId = localStorage.getItem("choir_guest_user_id");
+        if (!guestId) {
+            guestId = `guest_${Math.random().toString(36).substring(2, 15)}`;
+            localStorage.setItem("choir_guest_user_id", guestId);
+        }
+        return guestId;
+    }, [user?.id]);
+
     const getUserName = useCallback(() => {
-        return user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Anonymous";
+        if (user) {
+            return user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Anonymous";
+        }
+        return localStorage.getItem("choir_guest_user_name") || "Guest";
     }, [user]);
 
     // ── Load Data ──────────────────────────────────────────────────────────────
@@ -127,7 +144,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
             if (entriesRecord?.value) {
                 const entries: SongwritingEntry[] = JSON.parse(entriesRecord.value);
                 setAllEntries(entries);
-                const mine = entries.find((e) => e.userId === user?.id);
+                const mine = entries.find((e) => e.userId === getEffectiveUserId());
                 if (mine) {
                     setMyEntry(mine);
                     setSections(mine.sections);
@@ -144,7 +161,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
         } finally {
             setIsLoading(false);
         }
-    }, [locationId, user?.id]);
+    }, [locationId, getEffectiveUserId]);
 
     useEffect(() => {
         if (isOpen) loadData();
@@ -190,21 +207,26 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     };
 
     // ── Submit Entry ───────────────────────────────────────────────────────────
-    const submitEntry = async () => {
-        if (!user) {
-            toast.error("You must be signed in to contribute");
-            return;
-        }
+    const submitEntry = async (forcedName?: string) => {
         const hasContent = sections.some((s) => s.content.trim().length > 0);
         if (!hasContent) {
             toast.error("Please write at least one section");
             return;
         }
 
+        // If not logged in and we don't have a guest name saved yet, prompt for it
+        if (!user && !localStorage.getItem("choir_guest_user_name") && !forcedName) {
+            setIsNamePromptOpen(true);
+            return;
+        }
+
+        const activeName = forcedName || getUserName();
+        const activeUserId = getEffectiveUserId();
+
         const entry: SongwritingEntry = {
             id: myEntry?.id || Math.random().toString(36).substring(2, 15),
-            userId: user.id,
-            userName: getUserName(),
+            userId: activeUserId,
+            userName: activeName,
             sections: sections.filter((s) => s.content.trim().length > 0),
             title: songTitle.trim() || "Untitled",
             timestamp: new Date().toISOString(),
@@ -226,13 +248,23 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
         }
     };
 
+    const handleNameSubmit = async () => {
+        if (!tempName.trim()) {
+            toast.error("Please enter your name");
+            return;
+        }
+        localStorage.setItem("choir_guest_user_name", tempName.trim());
+        setIsNamePromptOpen(false);
+        await submitEntry(tempName.trim());
+    };
+
     // ── Like Handler ───────────────────────────────────────────────────────────
     const toggleLike = async (entryId: string) => {
-        if (!user) return;
+        const activeUserId = getEffectiveUserId();
         const updatedEntries = allEntries.map((e) => {
             if (e.id !== entryId) return e;
-            const alreadyLiked = e.likes.includes(user.id);
-            return { ...e, likes: alreadyLiked ? e.likes.filter((uid) => uid !== user.id) : [...e.likes, user.id] };
+            const alreadyLiked = e.likes.includes(activeUserId);
+            return { ...e, likes: alreadyLiked ? e.likes.filter((uid) => uid !== activeUserId) : [...e.likes, activeUserId] };
         });
         setAllEntries(updatedEntries);
         try {
@@ -478,8 +510,8 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                         ) : (
                                             <>
                                                 {allEntries.map((entry, idx) => {
-                                                    const isOwn = entry.userId === user?.id;
-                                                    const isLiked = user ? entry.likes.includes(user.id) : false;
+                                                    const isOwn = entry.userId === getEffectiveUserId();
+                                                    const isLiked = entry.likes.includes(getEffectiveUserId());
                                                     return (
                                                         <motion.div key={entry.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className={cn("flex gap-3", isOwn ? "flex-row-reverse" : "flex-row")}>
                                                             {/* Avatar */}
@@ -687,6 +719,59 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                         )}
                     </div>
                 </div>
+                {/* Contributor Name Prompt Dialog */}
+                <Dialog open={isNamePromptOpen} onOpenChange={setIsNamePromptOpen}>
+                    <DialogContent className="max-w-md p-6 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-[210] text-white">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                                    <Users className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-lg font-black text-white">
+                                        Tell Us Your Name
+                                    </DialogTitle>
+                                    <p className="text-xs text-white/50">
+                                        You are sharing as a guest. Please enter your name.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest">
+                                    Your Name
+                                </label>
+                                <Input
+                                    placeholder="Enter your name (e.g. Samuel)..."
+                                    value={tempName}
+                                    onChange={(e) => setTempName(e.target.value)}
+                                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 rounded-xl h-12 focus-visible:ring-violet-500/50 text-white"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            handleNameSubmit();
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    onClick={handleNameSubmit}
+                                    className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white rounded-xl h-11 font-bold"
+                                >
+                                    Share Contribution
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setIsNamePromptOpen(false)}
+                                    className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl h-11"
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </DialogContent>
         </Dialog>
     );
