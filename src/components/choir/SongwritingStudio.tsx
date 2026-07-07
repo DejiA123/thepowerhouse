@@ -591,8 +591,8 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                             )}
                         </motion.div>
 
-                        {/* Archive & Start New Week — admin only */}
-                        {user && activeView !== "archive" && (
+                        {/* Archive & Start New Week */}
+                        {activeView !== "archive" && (
                             <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
                                 <button
                                     onClick={() => setIsArchiveConfirmOpen(true)}
