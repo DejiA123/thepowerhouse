@@ -50,6 +50,14 @@ interface CollabDraft {
     lastEditedAt: string;
 }
 
+interface ArchivedSession {
+    weekLabel: string;
+    weekDate: string;
+    archivedAt: string;
+    theme: WeeklyTheme | null;
+    entries: SongwritingEntry[];
+}
+
 // ── Step definitions ───────────────────────────────────────────────────────────
 
 const STEPS = [
@@ -83,7 +91,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     const { user } = useAuth();
     const feedEndRef = useRef<HTMLDivElement>(null);
 
-    const [activeView, setActiveView] = useState<"write" | "feed" | "collab">("feed");
+    const [activeView, setActiveView] = useState<"write" | "feed" | "collab" | "archive">("feed");
 
     // Theme
     const [theme, setTheme] = useState<WeeklyTheme | null>(null);
@@ -112,6 +120,12 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
     // Guest name prompt state
     const [isNamePromptOpen, setIsNamePromptOpen] = useState(false);
     const [tempName, setTempName] = useState("");
+
+    // Archives
+    const [archiveSessions, setArchiveSessions] = useState<ArchivedSession[]>([]);
+    const [expandedArchiveId, setExpandedArchiveId] = useState<string | null>(null);
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
 
     // Deletion state
     const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
@@ -168,9 +182,71 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
         }
     }, [locationId, getEffectiveUserId]);
 
+    // ── Load Archives ──────────────────────────────────────────────────────────
+    const loadArchives = useCallback(async () => {
+        if (!locationId) return;
+        try {
+            const index = await choirService.getArchiveIndex(locationId);
+            if (!index.length) { setArchiveSessions([]); return; }
+            const sessions = await Promise.all(
+                index.map(async (weekDate) => {
+                    const session = await choirService.getArchiveSession(locationId, weekDate);
+                    return session as ArchivedSession | null;
+                })
+            );
+            setArchiveSessions(
+                (sessions.filter(Boolean) as ArchivedSession[]).sort(
+                    (a, b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime()
+                )
+            );
+        } catch (err) {
+            console.error("Failed to load archives", err);
+        }
+    }, [locationId]);
+
+    // ── Archive Current Week ───────────────────────────────────────────────────
+    const archiveCurrentWeek = async () => {
+        if (!locationId) return;
+        setIsArchiving(true);
+        try {
+            const now = new Date();
+            const weekDate = now.toISOString().split("T")[0];
+            const weekLabel = `Week of ${now.toLocaleDateString("en-IE", { month: "long", day: "numeric", year: "numeric" })}`;
+            const session: ArchivedSession = {
+                weekLabel,
+                weekDate,
+                archivedAt: now.toISOString(),
+                theme,
+                entries: allEntries,
+            };
+            await choirService.saveArchiveSession(session, locationId, weekDate);
+            const index = await choirService.getArchiveIndex(locationId);
+            if (!index.includes(weekDate)) {
+                await choirService.updateArchiveIndex([...index, weekDate], locationId);
+            }
+            // Clear current session
+            await choirService.updateSetlistInfo("songwriting_theme", JSON.stringify(null), locationId);
+            await choirService.updateSetlistInfo("songwriting_entries", JSON.stringify([]), locationId);
+            setTheme(null);
+            setAllEntries([]);
+            setMyEntry(null);
+            setSongTitle("");
+            setSections([{ id: Math.random().toString(36).substring(2, 15), type: "verse", content: "" }]);
+            await loadArchives();
+            setIsArchiveConfirmOpen(false);
+            setActiveView("archive");
+            toast.success("This week has been archived! 📚");
+        } catch (err) {
+            console.error("Archive failed", err);
+            toast.error("Failed to archive this week");
+        } finally {
+            setIsArchiving(false);
+        }
+    };
+
     useEffect(() => {
-        if (isOpen) loadData();
-    }, [isOpen, loadData]);
+        if (isOpen) { loadData(); loadArchives(); }
+    }, [isOpen, loadData, loadArchives]);
 
     useEffect(() => {
         if (activeView === "feed") {
@@ -422,28 +498,31 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
 
                         {/* View Tabs */}
                         <div className="px-4 md:px-6 pb-4">
-                            <div className="flex gap-2 bg-white/5 rounded-2xl p-1.5 backdrop-blur-sm border border-white/5">
+                            <div className="flex gap-1.5 bg-white/5 rounded-2xl p-1.5 backdrop-blur-sm border border-white/5">
                                 {[
                                     { id: "feed" as const, label: "Feed", icon: MessageCircle, count: allEntries.length },
                                     { id: "write" as const, label: "Write", icon: PenTool, count: undefined },
                                     { id: "collab" as const, label: "Collab", icon: GitMerge, count: undefined },
+                                    { id: "archive" as const, label: "Past", icon: Clock, count: archiveSessions.length || undefined },
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveView(tab.id)}
                                         className={cn(
-                                            "flex-1 flex items-center justify-center gap-1.5 md:gap-2 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300",
+                                            "flex-1 flex items-center justify-center gap-1 py-2.5 rounded-xl text-[11px] md:text-xs font-bold transition-all duration-300",
                                             activeView === tab.id
-                                                ? "bg-white text-slate-900 shadow-lg shadow-white/10"
+                                                ? tab.id === "archive"
+                                                    ? "bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20"
+                                                    : "bg-white text-slate-900 shadow-lg shadow-white/10"
                                                 : "text-white/50 hover:text-white/80 hover:bg-white/5"
                                         )}
                                     >
-                                        <tab.icon className="w-4 h-4" />
+                                        <tab.icon className="w-3.5 h-3.5" />
                                         {tab.label}
                                         {tab.count !== undefined && tab.count > 0 && (
                                             <span className={cn(
-                                                "min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-black px-1",
-                                                activeView === tab.id ? "bg-violet-500 text-white" : "bg-white/10 text-white/60"
+                                                "min-w-[16px] h-[16px] flex items-center justify-center rounded-full text-[9px] font-black px-1",
+                                                activeView === tab.id ? "bg-white/20 text-white" : "bg-white/10 text-white/60"
                                             )}>
                                                 {tab.count}
                                             </span>
@@ -511,6 +590,19 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                 </div>
                             )}
                         </motion.div>
+
+                        {/* Archive & Start New Week — admin only */}
+                        {user && activeView !== "archive" && (
+                            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+                                <button
+                                    onClick={() => setIsArchiveConfirmOpen(true)}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-amber-500/30 text-amber-400/70 hover:text-amber-300 hover:border-amber-400/50 hover:bg-amber-500/5 text-xs font-bold transition-all duration-200"
+                                >
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Archive This Week & Start Fresh
+                                </button>
+                            </motion.div>
+                        )}
 
                         {/* Loading */}
                         {isLoading ? (
@@ -610,6 +702,128 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                                 })}
                                                 <div ref={feedEndRef} />
                                             </>
+                                        )}
+                                    </motion.div>
+                                )}
+
+                                {/* ── ARCHIVE VIEW ────────────────────────── */}
+                                {activeView === "archive" && (
+                                    <motion.div key="archive" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4 pb-4">
+                                        {archiveSessions.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/10 flex items-center justify-center">
+                                                    <Clock className="w-8 h-8 text-amber-400/30" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-white/50 font-bold">No past sessions yet</p>
+                                                    <p className="text-white/30 text-sm mt-1">Archived weeks will appear here once you close a session.</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            archiveSessions.map((session, idx) => {
+                                                const isExpanded = expandedArchiveId === session.weekDate;
+                                                return (
+                                                    <motion.div
+                                                        key={session.weekDate}
+                                                        initial={{ opacity: 0, y: 12 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ delay: idx * 0.06 }}
+                                                        className="rounded-2xl border border-white/8 overflow-hidden"
+                                                        style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.07) 0%, rgba(15,15,30,0.6) 100%)" }}
+                                                    >
+                                                        {/* Session Header */}
+                                                        <button
+                                                            onClick={() => setExpandedArchiveId(isExpanded ? null : session.weekDate)}
+                                                            className="w-full flex items-center gap-3 p-4 text-left group"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 flex items-center justify-center shrink-0">
+                                                                <span className="text-lg">📚</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-black text-white/90 truncate">{session.theme?.title || "Untitled Session"}</p>
+                                                                <p className="text-xs text-amber-300/60 font-medium mt-0.5">{session.weekLabel}</p>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span className="text-[10px] font-bold bg-white/5 border border-white/10 text-white/40 rounded-full px-2 py-0.5">
+                                                                    {session.entries.length} songs
+                                                                </span>
+                                                                <motion.div
+                                                                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                                                                    transition={{ duration: 0.2 }}
+                                                                    className="text-white/30 group-hover:text-white/60 transition-colors"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                </motion.div>
+                                                            </div>
+                                                        </button>
+
+                                                        {/* Scripture badges */}
+                                                        {session.theme?.scriptures && session.theme.scriptures.length > 0 && (
+                                                            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                                                                {session.theme.scriptures.map((s, i) => (
+                                                                    <Badge key={i} variant="outline" className="bg-amber-500/10 text-amber-200 border-amber-500/20 text-[10px] font-bold">📖 {s}</Badge>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Expanded entries */}
+                                                        <AnimatePresence>
+                                                            {isExpanded && (
+                                                                <motion.div
+                                                                    key="expanded"
+                                                                    initial={{ height: 0, opacity: 0 }}
+                                                                    animate={{ height: "auto", opacity: 1 }}
+                                                                    exit={{ height: 0, opacity: 0 }}
+                                                                    transition={{ duration: 0.25 }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="border-t border-white/5 px-4 py-3 space-y-3">
+                                                                        {session.theme?.description && (
+                                                                            <p className="text-xs text-white/40 italic pb-1">{session.theme.description}</p>
+                                                                        )}
+                                                                        {session.entries.length === 0 ? (
+                                                                            <p className="text-white/30 text-xs italic text-center py-3">No songs were shared this week.</p>
+                                                                        ) : (
+                                                                            session.entries.map((entry) => (
+                                                                                <div key={entry.id} className="rounded-xl bg-white/3 border border-white/6 overflow-hidden">
+                                                                                    <div className="px-3 pt-3 pb-1.5 flex items-center justify-between">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xs font-black text-white">
+                                                                                                {entry.userName.charAt(0).toUpperCase()}
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <span className="text-xs font-black text-white/80">{entry.userName}</span>
+                                                                                                {entry.title && entry.title !== "Untitled" && (
+                                                                                                    <span className="ml-2 text-[10px] text-white/40">· {entry.title}</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-1 text-rose-400/60 text-[10px] font-bold">
+                                                                                            <Heart className="w-3 h-3 fill-current" />
+                                                                                            {entry.likes.length}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="px-3 pb-3 space-y-2">
+                                                                                        {entry.sections.map((section) => {
+                                                                                            const meta = SECTION_TYPES.find((s) => s.value === section.type);
+                                                                                            return (
+                                                                                                <div key={section.id}>
+                                                                                                    <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{meta?.emoji} {meta?.label}</span>
+                                                                                                    <p className="text-xs text-white/70 whitespace-pre-wrap leading-relaxed mt-0.5">{section.content}</p>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))
+                                                                        )}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </motion.div>
+                                                );
+                                            })
                                         )}
                                     </motion.div>
                                 )}
@@ -857,6 +1071,53 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                                 <Button
                                     variant="ghost"
                                     onClick={() => { setIsDeleteConfirmOpen(false); setDeletingEntryId(null); setDeletePasswordInput(""); }}
+                                    className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl h-11"
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Archive Confirmation Dialog */}
+                <Dialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
+                    <DialogContent className="max-w-md p-6 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-[210] text-white">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                                    <Clock className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-lg font-black text-white">
+                                        Archive This Week?
+                                    </DialogTitle>
+                                    <p className="text-xs text-white/50">
+                                        This will save all songs to Past Sessions and start fresh.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-1">
+                                <p className="text-xs font-bold text-amber-300">What will happen:</p>
+                                <ul className="text-xs text-amber-200/70 space-y-1 list-disc list-inside">
+                                    <li>Current theme &amp; all {allEntries.length} contributions will be saved</li>
+                                    <li>The studio will reset for a new week</li>
+                                    <li>You can view this week in the Past Sessions tab anytime</li>
+                                </ul>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    onClick={archiveCurrentWeek}
+                                    disabled={isArchiving}
+                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl h-11 font-bold disabled:opacity-60"
+                                >
+                                    {isArchiving ? "Archiving..." : "📚 Archive & Start Fresh"}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setIsArchiveConfirmOpen(false)}
                                     className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl h-11"
                                 >
                                     Cancel

@@ -409,6 +409,27 @@ export const choirService = {
         return this.updateSetlistInfo('learning_songs_json', JSON.stringify(songs), location, weekDate);
     },
 
+    // --- Songwriting Session Archives ---
+    async getArchiveIndex(location: string): Promise<string[]> {
+        const record = await this.getSetlistInfo('songwriting_archive_index', location);
+        if (!record?.value) return [];
+        try { return JSON.parse(record.value); } catch { return []; }
+    },
+
+    async updateArchiveIndex(index: string[], location: string) {
+        return this.updateSetlistInfo('songwriting_archive_index', JSON.stringify(index), location);
+    },
+
+    async getArchiveSession(location: string, weekDate: string) {
+        const record = await this.getSetlistInfo('songwriting_archive', location, weekDate);
+        if (!record?.value) return null;
+        try { return JSON.parse(record.value); } catch { return null; }
+    },
+
+    async saveArchiveSession(session: object, location: string, weekDate: string) {
+        return this.updateSetlistInfo('songwriting_archive', JSON.stringify(session), location, weekDate);
+    },
+
     // Helper to get all info at once for a location
     async getAllSetlistInfo(location: string, weekDate?: string) {
         let query = supabase
