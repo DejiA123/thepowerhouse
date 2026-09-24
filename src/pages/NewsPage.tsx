@@ -1,319 +1,365 @@
-
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CalendarDays, CalendarPlus, Church, Clock, MoreHorizontal, Pencil, Settings, Share2, Trash2 } from "lucide-react";
 import AnnouncementsHub from "@/components/AnnouncementsHub";
 import EventsManager from "@/components/EventsManager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Clock, MapPin, Star, Settings, ArrowRight, Trash2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { EmptyState, ListGroup, ListRow, Page, PageHeader, SectionLabel, Segmented } from "@/components/page/PageKit";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Event = Tables<"events">;
+type Tab = "events" | "updates" | "past";
+
+const CACHE_KEY = "news_events_cache";
+const FEATURE_IMAGE = "/lovable-uploads/Praise.png";
+
+const readCache = (): Event[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// event_date is a plain "YYYY-MM-DD"; parse it as a local date so it never shifts a day
+const eventDay = (e: Event) => {
+  const [y, m, d] = e.event_date.slice(0, 10).split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const daysUntil = (e: Event) => Math.round((eventDay(e).getTime() - startOfToday().getTime()) / 86400000);
+
+const countdown = (e: Event) => {
+  const n = daysUntil(e);
+  if (n <= 0) return "Today";
+  if (n === 1) return "Tomorrow";
+  if (n < 7) return `In ${n} days`;
+  if (n < 14) return "Next week";
+  return `In ${n} days`;
+};
+
+const formatTime = (time: string | null) =>
+  time ? new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+
+const whenLine = (e: Event) =>
+  [eventDay(e).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" }), formatTime(e.event_time), e.location]
+    .filter(Boolean)
+    .join(" · ");
+
+/** A calendar file works on iPhone, Android and desktop without any account. */
+const addToCalendar = (e: Event) => {
+  const day = eventDay(e);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const ymd = `${day.getFullYear()}${pad(day.getMonth() + 1)}${pad(day.getDate())}`;
+  let when: string;
+  if (e.event_time) {
+    const [h, m] = e.event_time.split(":").map(Number);
+    const start = new Date(day);
+    start.setHours(h || 0, m || 0, 0, 0);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    const stamp = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    when = `DTSTART:${stamp(start)}\r\nDTEND:${stamp(end)}`;
+  } else {
+    const next = new Date(day);
+    next.setDate(next.getDate() + 1);
+    when = `DTSTART;VALUE=DATE:${ymd}\r\nDTEND;VALUE=DATE:${next.getFullYear()}${pad(next.getMonth() + 1)}${pad(next.getDate())}`;
+  }
+  const esc = (s: string) => s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//The Power House//Events//EN",
+    "BEGIN:VEVENT",
+    `UID:${e.id}@thepowerhouse`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+    when,
+    `SUMMARY:${esc(e.title)}`,
+    e.description ? `DESCRIPTION:${esc(e.description)}` : "",
+    e.location ? `LOCATION:${esc(e.location)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ]
+    .filter(Boolean)
+    .join("\r\n");
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${e.title.replace(/[^\w\s-]/g, "").trim() || "event"}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+
+const shareEvent = async (e: Event) => {
+  const text = `${e.title} — ${whenLine(e)}`;
+  try {
+    if (navigator.share) await navigator.share({ title: e.title, text, url: `${location.origin}/news` });
+    else {
+      await navigator.clipboard.writeText(`${text}\n${location.origin}/news`);
+      appAlert("Event copied", "Paste it anywhere to share.", "success");
+    }
+  } catch {
+    /* share sheet dismissed */
+  }
+};
+
+const DateTile = ({ e, muted }: { e: Event; muted?: boolean }) => {
+  const d = eventDay(e);
+  return (
+    <span
+      className={cn(
+        "flex w-[52px] shrink-0 flex-col items-center rounded-[14px] py-1.5",
+        muted ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" : "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300",
+      )}
+    >
+      <span className="text-[10.5px] font-bold uppercase tracking-wider">{d.toLocaleDateString([], { month: "short" })}</span>
+      <span className="font-outfit text-xl font-bold leading-none">{d.getDate()}</span>
+    </span>
+  );
+};
 
 const NewsPage = () => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [events, setEvents] = useState<Event[]>(readCache);
+  const [tab, setTab] = useState<Tab>("events");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isManageEventsOpen, setIsManageEventsOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [editEventId, setEditEventId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     fetchEvents();
-    if (user) {
-      checkAdminStatus();
-    }
-
-    // Ensure page starts at top
-    ['app-layout-root', 'app-main-wrapper', 'main-content'].forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollTop = 0;
-      }
+    ["app-layout-root", "app-main-wrapper", "main-content"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.scrollTop = 0;
     });
+    if (!user) return;
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .in("role", ["administrator", "pastor"])
+      .then(({ data }) => setIsAdmin(!!data?.length));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const displayEvents = useMemo(() => {
-    return events;
-  }, [events]);
-
-  const checkAdminStatus = async () => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user?.id)
-      .eq('is_active', true)
-      .in('role', ['administrator', 'pastor']);
-
-    if (data && data.length > 0) {
-      setIsAdmin(true);
-    }
-  };
-
   const fetchEvents = async () => {
-    // Phase 1: Try reading from cache for instant load
-    const cacheKey = 'news_events_cache';
-    const cachedData = localStorage.getItem(cacheKey);
-    let hasCache = false;
-
-    if (cachedData) {
-      try {
-        const parsedEvents = JSON.parse(cachedData);
-        if (Array.isArray(parsedEvents) && parsedEvents.length > 0) {
-          setEvents(parsedEvents);
-          hasCache = true;
-        }
-      } catch (error) {
-        console.error('Failed to parse cached events', error);
-      }
-    }
-
-    // Phase 2: Fetch accurate real data from server
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('event_date', { ascending: true });
-
+    const { data, error } = await supabase.from("events").select("*").order("event_date", { ascending: true });
     if (error) {
       console.error("Error fetching events:", error);
+      return;
     }
-
-    if (data) {
-      setEvents(data);
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-    } else if (!hasCache) {
-      setEvents([]);
+    setEvents(data || []);
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data || []));
+    } catch {
+      /* storage full */
     }
   };
 
-
-
   const deleteEvent = async (eventId: string) => {
-    const { error } = await supabase.from('events').delete().eq('id', eventId);
-    if (error) {
-      toast({ title: "Error deleting event", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Event deleted" });
-      setEvents(prev => prev.filter(e => e.id !== eventId));
-    }
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
+    if (error) appAlert("Couldn't delete the event", error.message, "error");
+    else setEvents((prev) => prev.filter((e) => e.id !== eventId));
     setDeleteConfirmId(null);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const { upcoming, past } = useMemo(() => {
+    const visible = events.filter((e) => e.is_active !== false);
     return {
-      day: date.getDate(),
-      month: date.toLocaleDateString('en-US', { month: 'short' }),
-      full: date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+      upcoming: visible.filter((e) => daysUntil(e) >= 0).sort((a, b) => eventDay(a).getTime() - eventDay(b).getTime()),
+      past: visible.filter((e) => daysUntil(e) < 0).sort((a, b) => eventDay(b).getTime() - eventDay(a).getTime()),
     };
+  }, [events]);
+
+  // The next featured event, or simply the next one coming up
+  const featured = upcoming.find((e) => e.is_featured) ?? upcoming[0];
+  const rest = upcoming.filter((e) => e !== featured);
+
+  const openEditor = (id: string | null) => {
+    setEditEventId(id);
+    setManageOpen(true);
   };
 
-  const formatTime = (timeString: string | null) => {
-    if (!timeString) return '';
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-
+  const adminMenu = (e: Event, light?: boolean) =>
+    isAdmin && (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            onClick={(ev) => ev.stopPropagation()}
+            className={cn(
+              "rounded-full p-1.5",
+              light ? "bg-white/20 text-white backdrop-blur hover:bg-white/30" : "text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800",
+            )}
+            aria-label="Event options"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => openEditor(e.id)}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setDeleteConfirmId(e.id)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 space-y-12 pb-20">
-      {/* Immersive Hero Section */}
-      <div className="relative overflow-hidden bg-slate-900 pt-4 pb-24 sm:pt-8 sm:pb-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-slate-900 to-slate-900 z-0" />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-700/20 rounded-full blur-3xl opacity-50" />
-        <div className="absolute top-1/2 -right-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl opacity-50" />
+    <Page>
+      <PageHeader
+        eyebrow={new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}
+        title="News"
+        action={
+          isAdmin && (
+            <Button onClick={() => openEditor(null)} variant="secondary" className="h-9 rounded-full px-3.5 font-semibold">
+              <Settings className="mr-1.5 h-4 w-4" /> Manage
+            </Button>
+          )
+        }
+      />
 
-        <div className="relative z-10 container mx-auto px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <Badge variant="outline" className="mb-6 border-blue-500/50 text-blue-400 px-3 py-1 text-xs uppercase tracking-widest font-bold bg-blue-500/5">
-              Updates & Announcements
-            </Badge>
-            <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl mb-6 leading-tight">
-              Stay <span className="text-blue-400">Connected</span> with Our Community.
-            </h1>
-            <p className="text-lg leading-8 text-slate-300 mb-10 max-w-xl text-balance">
-              Get the latest news, upcoming events, and important announcements from our church family.
-            </p>
-            <div className="flex items-center gap-x-6">
-              {isAdmin && (
-                <Button
-                  onClick={() => setIsManageEventsOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white shadow-xl shadow-blue-500/20 transition-all active:scale-95 group"
-                >
-                  <Settings className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-500" />
-                  Manage Events
-                </Button>
-              )}
-              <Button
-                variant="link"
-                className="text-slate-300 hover:text-white transition-colors"
-                onClick={() => {
-                  const element = document.getElementById('announcements-sidebar');
-                  element?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                View All Announcements <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Segmented<Tab>
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "events", label: "Events" },
+          { value: "updates", label: "Updates" },
+          { value: "past", label: "Past" },
+        ]}
+      />
 
-      <div className="container mx-auto px-6 lg:px-8 space-y-16">
-
-        {/* Featured Events Vertical List */}
-        {displayEvents.length > 0 && (
-          <div className="flex flex-col gap-8">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Upcoming Events</h2>
-            </div>
-            {displayEvents.map((event) => (
-              <Card key={event.id} className="group border-none bg-slate-900 text-white overflow-hidden shadow-2xl relative min-h-[450px] flex flex-col justify-end transition-all hover:shadow-blue-500/10">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2073')] bg-cover bg-center brightness-50 group-hover:scale-105 transition-transform duration-1000" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent z-0" />
-
-                <div className="relative z-10 p-8 sm:p-12 space-y-6 max-w-3xl">
-                  <div className="flex items-center gap-3">
-                    <span className="text-white/60 text-sm font-medium flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-blue-400" />
-                      {formatDate(event.event_date).full}
-                    </span>
-                  </div>
-
-                  <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-                    {event.title}
-                  </h2>
-                  <p className="text-lg text-slate-300 leading-relaxed font-medium line-clamp-3">
-                    {event.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-6 items-center pt-4">
-                    {event.event_time && (
-                      <div className="flex items-center gap-2 text-slate-300 font-bold border-r border-white/10 pr-6 uppercase tracking-wider text-xs">
-                        <Clock className="w-5 h-5 text-blue-400" />
-                        {formatTime(event.event_time)}
-                      </div>
-                    )}
-                    {event.location && (
-                      <div className="flex items-center gap-2 text-slate-300 font-bold uppercase tracking-wider text-xs">
-                        <MapPin className="w-5 h-5 text-blue-400" />
-                        {event.location}
-                      </div>
-                    )}
-                    <div className="sm:ml-auto flex items-center gap-3 w-full sm:w-auto">
-                      {isAdmin && (
-                        <>
-                          <Button
-                            variant="secondary"
-                            onClick={() => {
-                              setEditEventId(event.id);
-                              setIsManageEventsOpen(true);
-                            }}
-                            className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 font-bold"
-                          >
-                            <Settings className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            onClick={() => setDeleteConfirmId(event.id)}
-                            className="bg-red-500/20 hover:bg-red-500/40 text-red-300 backdrop-blur-md border border-red-500/30 font-bold"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                      <Button className="flex-1 sm:flex-none bg-white text-slate-900 hover:bg-blue-50 font-black px-8 py-6 h-auto transition-all active:scale-95 shadow-xl shadow-black/50">
-                        Join Us This Week
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Announcements & Newsletter - Centered Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <div id="announcements-sidebar" className="space-y-8 scroll-mt-24 w-full">
-            {/* Announcements Hub */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm relative overflow-hidden h-full">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16" />
-              <AnnouncementsHub />
-            </div>
-          </div>
-
-          <div className="space-y-8 w-full">
-            {/* Newsletter CTA */}
-            <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden group h-full flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500" />
-              <div className="relative z-10 space-y-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <Star className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="text-xl font-black tracking-tight">Stay in the Loop</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Subscribe to our weekly newsletter for exclusive updates and highlights.
-                </p>
-                <div className="space-y-3 pt-2">
-                  <Input
-                    placeholder="Enter your email"
-                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
-                  />
-                  <Button className="w-full bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/20">
-                    Subscribe Now
-                  </Button>
+      {tab === "events" && (
+        <div className="animate-in fade-in duration-200">
+          {featured ? (
+            <div className="relative h-[280px] overflow-hidden rounded-[26px] bg-slate-900 text-white shadow-xl shadow-slate-900/20 md:h-[340px]">
+              <img src={FEATURE_IMAGE} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_20%]" />
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/5 via-slate-900/30 to-slate-900/90" />
+              <div className="absolute inset-x-3.5 top-3.5 flex items-start justify-between">
+                <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-slate-900">{countdown(featured)}</span>
+                {adminMenu(featured, true)}
+              </div>
+              <div className="absolute inset-x-4 bottom-4 md:inset-x-6 md:bottom-6">
+                <p className="text-[12.5px] font-bold uppercase tracking-wider text-white/90">{whenLine(featured)}</p>
+                <h2 className="mt-1 font-outfit text-[27px] font-extrabold leading-tight tracking-tight md:text-4xl">{featured.title}</h2>
+                {featured.description && <p className="mt-0.5 line-clamp-2 text-sm text-white/85">{featured.description}</p>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => addToCalendar(featured)}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-[13px] font-semibold text-slate-900 active:scale-95"
+                  >
+                    <CalendarPlus className="h-4 w-4" /> Add to calendar
+                  </button>
+                  <button
+                    onClick={() => shareEvent(featured)}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/20 px-3.5 py-2 text-[13px] font-semibold backdrop-blur active:scale-95"
+                  >
+                    <Share2 className="h-4 w-4" /> Share
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          ) : (
+            <EmptyState icon={CalendarDays} title="No upcoming events">
+              New events will show up here. Past events are under “Past”.
+            </EmptyState>
+          )}
 
-      {/* Delete Confirmation Dialog */}
+          <SectionLabel>Coming up</SectionLabel>
+          <ListGroup>
+            <ListRow
+              leading={
+                <span className="flex h-[46px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
+                  <Church className="h-5 w-5" />
+                </span>
+              }
+              title="Sunday Service"
+              subtitle="Every Sunday · 10:00 · Galway · Dublin · Kildare · Athlone"
+              onClick={() => navigate("/services")}
+            />
+            {rest.map((e) => (
+              <ListRow
+                key={e.id}
+                leading={<DateTile e={e} />}
+                title={e.title}
+                subtitle={[formatTime(e.event_time), e.location, countdown(e)].filter(Boolean).join(" · ")}
+                trailing={
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => addToCalendar(e)}
+                      className="rounded-full p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                      aria-label={`Add ${e.title} to calendar`}
+                    >
+                      <CalendarPlus className="h-5 w-5" />
+                    </button>
+                    {adminMenu(e)}
+                  </div>
+                }
+              />
+            ))}
+          </ListGroup>
+
+          <SectionLabel>Latest updates</SectionLabel>
+          <AnnouncementsHub />
+        </div>
+      )}
+
+      {tab === "updates" && (
+        <div className="animate-in fade-in duration-200">
+          <AnnouncementsHub />
+        </div>
+      )}
+
+      {tab === "past" && (
+        <div className="animate-in fade-in duration-200">
+          {past.length ? (
+            <ListGroup>
+              {past.map((e) => (
+                <ListRow
+                  key={e.id}
+                  leading={<DateTile e={e} muted />}
+                  title={e.title}
+                  subtitle={[eventDay(e).getFullYear(), formatTime(e.event_time), e.location].filter(Boolean).join(" · ")}
+                  trailing={adminMenu(e)}
+                />
+              ))}
+            </ListGroup>
+          ) : (
+            <EmptyState icon={Clock} title="No past events" />
+          )}
+        </div>
+      )}
+
+      {/* Delete confirmation */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="w-5 h-5" />
-              Delete Event
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this event? This action cannot be undone.
-            </DialogDescription>
+            <DialogTitle>Delete this event?</DialogTitle>
+            <DialogDescription>It will be removed for everyone. This can't be undone.</DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setDeleteConfirmId(null)}
-            >
+            <Button variant="outline" className="flex-1 rounded-full" onClick={() => setDeleteConfirmId(null)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              className="flex-1"
-              onClick={() => deleteConfirmId && deleteEvent(deleteConfirmId)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
+            <Button variant="destructive" className="flex-1 rounded-full" onClick={() => deleteConfirmId && deleteEvent(deleteConfirmId)}>
               Delete
             </Button>
           </div>
@@ -322,47 +368,31 @@ const NewsPage = () => {
 
       {isAdmin && (
         <Dialog
-          open={isManageEventsOpen}
+          open={manageOpen}
           onOpenChange={(open) => {
-            setIsManageEventsOpen(open);
+            setManageOpen(open);
             if (!open) {
               setEditEventId(null);
-              fetchEvents(); // Refresh events when closing management
+              fetchEvents();
             }
           }}
         >
-          <DialogContent className="w-full h-[100dvh] max-w-none m-0 p-0 rounded-none border-none shadow-none bg-white dark:bg-slate-950 flex flex-col overflow-hidden fixed inset-0 top-0 left-0 translate-x-0 translate-y-0 z-[200] [&>button]:z-[310] [&>button]:right-6 [&>button]:top-[calc(env(safe-area-inset-top)+1.5rem)] sm:[&>button]:top-8 [&>button]:h-11 [&>button]:w-11 [&>button]:bg-transparent [&>button]:opacity-100 [&>button]:transition-all [&>button]:duration-200 [&>button]:hover:scale-125 [&>button]:active:scale-95 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-7 [&>button_svg]:w-7 [&>button_svg]:text-slate-900 [&>button_svg]:dark:text-white [&>button_svg]:transition-none [&>button]:!ring-0 [&>button]:!outline-none [&>button]:!focus:ring-0 [&>button]:!focus:outline-none [&>button]:!focus-visible:ring-0 [&>button]:!focus-visible:outline-none [&>button]:border-none [&>button]:shadow-none">
-            <div
-              className="p-8 sm:p-12 border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 pr-20 sm:pr-32"
-              style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}
-            >
-              <div className="max-w-6xl mx-auto flex flex-col gap-2">
-                <DialogHeader>
-                  <div className="flex items-center gap-4 mb-1">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
-                      <Settings className="w-6 h-6 animate-spin-slow" />
-                    </div>
-                    <div>
-                      <DialogTitle className="text-2xl sm:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
-                        Events Control
-                      </DialogTitle>
-                      <DialogDescription className="text-xs sm:text-sm font-bold text-indigo-500 uppercase tracking-[0.2em]">
-                        Admin Command Center
-                      </DialogDescription>
-                    </div>
-                  </div>
-                </DialogHeader>
-              </div>
+          <DialogContent className="fixed inset-0 left-0 top-0 z-[200] m-0 flex h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-none bg-background p-0 [&>button]:right-5 [&>button]:top-[calc(env(safe-area-inset-top)+1.1rem)] [&>button]:z-[310]">
+            <div className="border-b px-5 pb-4 pr-16" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+              <DialogHeader className="text-left">
+                <DialogTitle className="font-outfit text-2xl font-extrabold">Manage events</DialogTitle>
+                <DialogDescription>Create, edit and feature church events</DialogDescription>
+              </DialogHeader>
             </div>
-            <div className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/50">
-              <div className="max-w-6xl mx-auto p-6 sm:p-12">
+            <div className="flex-1 overflow-y-auto bg-slate-50/60 dark:bg-slate-950">
+              <div className="mx-auto max-w-5xl p-4 sm:p-8">
                 <EventsManager initialEditEventId={editEventId} />
               </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </Page>
   );
 };
 

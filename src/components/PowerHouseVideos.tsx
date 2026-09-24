@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -104,140 +102,103 @@ const PowerHouseVideos = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const embedSrc = (video: VideoData & { isLive?: boolean }) =>
+    video.id === "live_stream"
+      ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=0`
+      : `https://www.youtube-nocookie.com/embed/${video.id}?autoplay=0`;
+
   return (
-    <div className="relative overflow-hidden rounded-[2.5rem] p-1 shadow-2xl shadow-indigo-100/50">
-      {/* Animated border gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 opacity-30 animate-pulse"></div>
+    <section className="rounded-[26px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800 md:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400">
+            <Video className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-outfit text-xl font-bold leading-tight text-foreground md:text-2xl">Latest sermons</h2>
+            <p className="text-xs text-muted-foreground">From The Power House on YouTube</p>
+          </div>
+        </div>
+        <a
+          href={channelUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+        >
+          All <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
 
-      <Card className="relative border-0 shadow-none bg-white/80 backdrop-blur-xl text-gray-800 overflow-hidden rounded-[2.3rem]">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 -mt-24 -mr-24 w-96 h-96 bg-blue-100 rounded-full blur-3xl pointer-events-none opacity-50"></div>
-        <div className="absolute bottom-0 left-0 -mb-24 -ml-24 w-96 h-96 bg-purple-100 rounded-full blur-3xl pointer-events-none opacity-50"></div>
-
-        <CardContent className="relative z-10 p-6 md:p-10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
-                <Video className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 leading-tight">Latest Sermons</h2>
-                <p className="text-sm text-indigo-500 font-semibold tracking-wide uppercase">Watch & Transformed</p>
-              </div>
+      {isLoading ? (
+        <div className="flex aspect-video items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/60">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : !activeVideo ? (
+        <a
+          href={channelUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex aspect-video flex-col items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white"
+        >
+          <Play className="h-10 w-10" />
+          <span className="font-semibold">Watch on YouTube</span>
+        </a>
+      ) : (
+        <div className="grid items-start gap-5 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg">
+              <iframe
+                className="h-full w-full"
+                src={embedSrc(activeVideo)}
+                title={activeVideo.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                loading="lazy"
+                {...({ fetchpriority: "low" } as any)}
+              ></iframe>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(channelUrl, '_blank')}
-              className="rounded-full border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 font-bold px-6 h-10 transition-all"
-            >
-              <span>View All</span>
-              <ExternalLink className="w-4 h-4 ml-2" />
-            </Button>
+            <div className="mt-3 px-1">
+              {activeVideo.isLive ? (
+                <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
+                  <Radio className="h-3 w-3" /> Live now
+                </span>
+              ) : (
+                <p className="text-xs font-semibold text-muted-foreground">{activeVideo.pubDate}</p>
+              )}
+              <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-foreground">{activeVideo.title}</h3>
+            </div>
           </div>
 
-          {isLoading ? (
-            <div className="flex justify-center items-center h-[400px]">
-              <div className="flex flex-col items-center space-y-4">
-                <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                <p className="text-indigo-400 font-bold animate-pulse">Loading amazing content...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Main Player */}
-              <div className="lg:col-span-8 space-y-6">
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur opacity-25 transition duration-1000 group-hover:opacity-40"></div>
-                  <div className="relative aspect-video w-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/50 bg-black">
-                    {activeVideo && (
-                      <iframe
-                        className="w-full h-full"
-                        src={activeVideo.id === "live_stream"
-                          ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=0`
-                          : `https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=0`
-                        }
-                        title={activeVideo.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                        loading="lazy"
-                        {...({ fetchpriority: "low" } as any)}
-                      ></iframe>
-                    )}
-                  </div>
-                </div>
-                {activeVideo && (
-                  <div className="px-2">
-                    <h3 className="text-2xl font-black text-gray-900 leading-tight line-clamp-2 mb-2">{activeVideo.title}</h3>
-                    <div className="flex items-center space-x-2">
-                      {activeVideo.isLive ? (
-                        <div className="flex items-center space-x-2 px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black uppercase tracking-widest animate-pulse">
-                          <Radio className="w-3 h-3" />
-                          <span>Live Now</span>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                          <p className="text-sm font-bold text-indigo-500">{activeVideo.pubDate}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Video List */}
-              <div className="lg:col-span-4 space-y-4">
-                <h3 className="text-lg font-black text-gray-900 px-1 border-b border-indigo-50 pb-2">Up Next</h3>
-                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                  {videos.map((video) => (
-                    <div
+          {videos.length > 1 && (
+            <div className="lg:col-span-4">
+              <p className="mb-2 px-1 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Up next</p>
+              <div className="-mx-1 max-h-[440px] space-y-1 overflow-y-auto px-1">
+                {videos
+                  .filter((v) => v.id !== activeVideo.id)
+                  .slice(0, 8)
+                  .map((video) => (
+                    <button
                       key={video.id}
                       onClick={() => setActiveVideo(video)}
-                      className={`flex gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-300 group border ${activeVideo?.id === video.id
-                        ? "bg-indigo-50 border-indigo-200 shadow-sm"
-                        : "bg-white border-transparent hover:border-indigo-100 hover:shadow-md"
-                        }`}
+                      className="flex w-full gap-3 rounded-2xl p-1.5 text-left transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800/60"
                     >
-                      <div className="relative w-28 flex-shrink-0 aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-indigo-100 transition-all">
-                        <img
-                          src={video.thumbnail}
-                          alt={video.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        <div className={`absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] ${activeVideo?.id === video.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-                          <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-indigo-600 shadow-lg">
-                            <Play className="w-4 h-4 translate-x-0.5 fill-current" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col justify-center min-w-0">
-                        <h4 className={`text-sm font-bold line-clamp-2 leading-tight mb-1 transition-colors ${activeVideo?.id === video.id ? 'text-indigo-600' : 'text-gray-900 group-hover:text-indigo-500'}`}>
-                          {video.title}
-                        </h4>
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{video.pubDate}</span>
-                      </div>
-                    </div>
+                      <span className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
+                        <img src={video.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      </span>
+                      <span className="min-w-0 py-0.5">
+                        <span className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground">{video.title}</span>
+                        <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">{video.pubDate}</span>
+                      </span>
+                    </button>
                   ))}
-                </div>
               </div>
             </div>
           )}
-
-          <div className="text-center mt-12">
-            <Button
-              onClick={() => window.open(channelUrl, '_blank')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-10 py-7 shadow-xl shadow-indigo-200 text-lg font-black transition-all hover:scale-105 active:scale-95 group"
-            >
-              Watch More on YouTube
-              <ExternalLink className="w-5 h-5 ml-3 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      )}
+    </section>
   );
 };
 

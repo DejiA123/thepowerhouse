@@ -110,14 +110,14 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     };
   }, [query, version]);
 
-  const run = useCallback(async (text: string) => {
+  const run = useCallback(async (text: string, withAi = true) => {
     const q = text.trim();
     if (q.length < 2) return;
     const id = ++runId.current;
     setSubmitted(q);
     setAi([]);
     setWords([]);
-    setLoadingAi(true);
+    setLoadingAi(withAi);
     setLoadingWords(true);
 
     const next = [q, ...readRecent().filter((r) => r.toLowerCase() !== q.toLowerCase())].slice(0, 8);
@@ -128,9 +128,11 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     }
     setRecent(next);
 
-    aiResults(q, version)
-      .then((r) => id === runId.current && setAi(r))
-      .finally(() => id === runId.current && setLoadingAi(false));
+    if (withAi) {
+      aiResults(q, version)
+        .then((r) => id === runId.current && setAi(r))
+        .finally(() => id === runId.current && setLoadingAi(false));
+    }
     wordResults(q, version)
       .then((r) => id === runId.current && setWords(r))
       .finally(() => id === runId.current && setLoadingWords(false));
@@ -141,7 +143,9 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
     const q = query.trim();
     if (q.length < 3 || q === submitted) return;
     if (parseReference(q)) return; // references are instant; no need to search
-    const t = setTimeout(() => run(q), 650);
+    // Word matches as you type; the AI (free daily quota) only for 3+ word phrases after a pause
+    const words = q.split(/\s+/).filter(Boolean).length;
+    const t = setTimeout(() => run(q, words >= 3), words >= 3 ? 1100 : 650);
     return () => clearTimeout(t);
   }, [query, submitted, run]);
 

@@ -9,6 +9,7 @@ import EventCountdown from "@/components/EventCountdown";
 import LocationsSection from "@/components/LocationsSection";
 import PowerHouseVideos from "@/components/PowerHouseVideos";
 import NotificationPrompt from "@/components/notifications/NotificationPrompt";
+import HomeToday, { type HomeBanner } from "@/components/home/HomeToday";
 
 const HomePage = () => {
   const { user } = useAuth();
@@ -35,59 +36,49 @@ const HomePage = () => {
     navigate("/give");
   };
 
-  const handleWebsiteClick = () => {
-    window.open("https://www.thepowerhouseinternational.org/", "_blank");
-  };
-
-  const mainCards = [
+  const banners: HomeBanner[] = [
     {
       title: "New Here?",
+      subtitle: "Start your journey with us",
       onClick: handleNewHereClick,
-      image: "url('/lovable-uploads/This.jpg')",
-      fallbackColor: "bg-gradient-to-br from-blue-500 to-blue-700"
+      image: "/lovable-uploads/This.jpg",
+      position: "center 10%",
+      fallback: "bg-gradient-to-br from-blue-500 to-blue-700",
     },
     {
       title: "Serve",
+      subtitle: "Find your place on a team",
       onClick: handleServeClick,
-      image: "url('/lovable-uploads/next.jpg')",
-      fallbackColor: "bg-gradient-to-br from-green-500 to-green-700"
+      image: "/lovable-uploads/next.jpg",
+      position: "center 5%",
+      fallback: "bg-gradient-to-br from-green-500 to-green-700",
     },
     {
       title: "Building Campaign",
+      subtitle: "Build the house with us",
       onClick: handleBuildingCampaignClick,
-      image: "url('/lovable-uploads/PastorSadi.JPG')",
-      fallbackColor: "bg-gradient-to-br from-purple-500 to-purple-700"
+      image: "/lovable-uploads/PastorSadi.JPG",
+      position: "0% 20%",
+      fallback: "bg-gradient-to-br from-purple-500 to-purple-700",
     },
     {
       title: "Life Groups",
+      subtitle: "Grow in community",
       onClick: handleLifeGroupsClick,
-      image: "url('/lovable-uploads/Praise.png')",
-      fallbackColor: "bg-gradient-to-br from-orange-500 to-orange-700"
-    }
+      image: "/lovable-uploads/Praise.png",
+      position: "center 8%",
+      fallback: "bg-gradient-to-br from-orange-500 to-orange-700",
+    },
+    {
+      title: "Give Online",
+      subtitle: "Tithes, offerings and seeds",
+      onClick: handleGiveClick,
+      image: "/lovable-uploads/UpdatedPic.jpg",
+      position: "20% 10%",
+      fallback: "bg-gradient-to-br from-red-500 to-red-700",
+      cta: "Give now",
+    },
   ];
-
-  const quickActions: Array<{
-    title: string;
-    sections?: string[];
-    onClick: () => void;
-  }> = [
-      {
-        title: "Website",
-        onClick: handleWebsiteClick,
-      },
-      {
-        title: "Social Media",
-        onClick: () => navigate("/social-media"),
-      },
-      {
-        title: "Past Teachings",
-        onClick: () => window.open("https://www.youtube.com/@thepowerhouseintl/videos", "_blank"),
-      },
-      {
-        title: "Beginning The Journey",
-        onClick: () => navigate("/resources"),
-      }
-    ];
 
   const campusFellowships = [
     { name: "Believers Connect UoG", subtitle: "University of Galway" },
@@ -122,100 +113,12 @@ const HomePage = () => {
         <NotificationPrompt />
       </div>
 
-      {/* Main Feature Cards & Give Online Combined */}
-      <div className="max-w-[1400px] mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 px-4 pt-4 mb-6">
-          {mainCards.map((card, index) => (
-            <div
-              key={index}
-              className={`relative overflow-hidden h-48 md:h-56 lg:h-64 flex items-end cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl rounded-2xl ${card.fallbackColor} min-h-[192px] group`}
-              style={{
-                backgroundImage: card.image,
-                backgroundSize: index === 0 ? 'cover' : index === 1 ? 'cover' : 'cover',
-                backgroundPosition: index === 0 ? 'center 10%' : index === 1 ? 'center 5%' : index === 2 ? '0% 20%' : index === 3 ? 'center 8%' : 'center',
-                backgroundRepeat: 'no-repeat',
-                WebkitTransform: 'translateZ(0)',
-                transform: 'translateZ(0)',
-                WebkitBackfaceVisibility: 'hidden',
-                willChange: 'transform, background-image'
-              }}
-              onClick={card.onClick}
-            >
-              {/* Dark gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity group-hover:via-black/50"></div>
-
-              <div className="relative z-10 p-6 text-white w-full">
-                <div className="h-1 w-12 bg-primary rounded-full mb-3 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
-                <h2 className="text-2xl xl:text-3xl font-bold mb-1 text-white tracking-tight">{card.title}</h2>
-              </div>
-            </div>
-          ))}
-
-          {/* Give Online Card Integrated into Array */}
-          <div
-            className="relative overflow-hidden h-48 md:h-56 lg:h-64 flex items-end justify-center cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl rounded-2xl bg-gradient-to-br from-red-500 to-red-700 shadow-lg group md:col-span-2 lg:col-span-1"
-            style={{
-              backgroundImage: "url('/lovable-uploads/UpdatedPic.jpg')",
-              backgroundSize: 'cover',
-              backgroundPosition: '20% 10%',
-              backgroundRepeat: 'no-repeat',
-              display: 'block',
-              visibility: 'visible',
-              opacity: 1
-            }}
-            onClick={handleGiveClick}
-          >
-            {/* Dark gradient overlay for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20 md:to-transparent transition-opacity group-hover:via-black/70 rounded-2xl"></div>
-
-            <div className="relative z-10 p-5 xl:p-6 text-white w-full text-center flex flex-col items-center justify-end h-full">
-              <div className="h-1 w-12 bg-primary rounded-full mb-3 mx-auto shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
-              <h2 className="text-2xl xl:text-3xl font-bold mb-4 text-white tracking-tight text-shadow">Give Online</h2>
-              <Button className="bg-white text-black hover:bg-gray-100 font-bold px-6 py-4 xl:px-8 xl:py-5 text-sm xl:text-base rounded-full shadow-xl transition-transform group-hover:scale-105">
-                Give Now
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Action Cards - Premium Grid */}
-      <div className="px-4 mb-2 max-w-[1400px] mx-auto">
-        <h3 className="text-lg font-bold text-foreground mb-3 px-1">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {quickActions.map((action, index) => (
-            <div
-              key={index}
-              className={`relative overflow-hidden rounded-2xl p-4 md:p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-white/10 ${index === 0 ? "bg-gradient-to-br from-cyan-500 to-blue-600 shadow-blue-500/20" :
-                index === 1 ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-purple-500/20" :
-                  index === 2 ? "bg-gradient-to-br from-amber-500 to-red-600 shadow-orange-500/20" :
-                    "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20"
-                }`}
-              onClick={action.onClick}
-            >
-              {/* Glass shine effect */}
-              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/20 to-transparent opacity-50"></div>
-
-              <div className="relative z-10 flex flex-col h-full justify-between min-h-[100px] md:min-h-[120px]">
-                <div className="bg-white/20 w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center backdrop-blur-sm mb-3">
-                  {index === 0 ? <Map className="w-5 h-5 md:w-6 md:h-6 text-white" /> :
-                    index === 1 ? <Heart className="w-5 h-5 md:w-6 md:h-6 text-white" /> :
-                      index === 2 ? <Book className="w-5 h-5 md:w-6 md:h-6 text-white" /> :
-                        <Calendar className="w-5 h-5 md:w-6 md:h-6 text-white" />}
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg md:text-xl leading-tight">{action.title}</h3>
-                  {action.sections && (
-                    <p className="text-white/80 text-xs md:text-sm mt-1 truncate">
-                      {action.sections.join(", ")}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Greeting, photo banners, verse of the day, continue & shortcuts */}
+      <HomeToday
+        banners={banners}
+        websiteUrl="https://www.thepowerhouseinternational.org/"
+        teachingsUrl="https://www.youtube.com/@thepowerhouseintl/videos"
+      />
 
       {/* Campus Fellowships - Premium Redesign */}
       <div className="px-4 mb-8 max-w-[1400px] mx-auto mt-6">
@@ -280,7 +183,7 @@ const HomePage = () => {
 
       {/* Daily Scripture */}
       <div className="px-4 mb-6 max-w-[1400px] mx-auto">
-        <DailyScripture />
+        <DailyScripture showVerse={false} />
       </div>
 
       {/* Connect & Grow - Premium Redesign */}

@@ -1,12 +1,10 @@
-
 import DepartmentsHub from "@/components/DepartmentsHub";
+import { Page } from "@/components/page/PageKit";
 
-const GroupsPage = () => {
-  return (
-    <div className="p-4">
-      <DepartmentsHub />
-    </div>
-  );
-};
+const GroupsPage = () => (
+  <Page>
+    <DepartmentsHub />
+  </Page>
+);
 
 export default GroupsPage;

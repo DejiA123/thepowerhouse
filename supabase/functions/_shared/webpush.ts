@@ -18,7 +18,7 @@ export interface PushSubscriptionRow {
 }
 
 export interface PushPayload {
-  kind: 'chat' | 'call' | 'call-missed' | 'choir' | 'test' | 'general';
+  kind: 'chat' | 'call' | 'call-missed' | 'choir' | 'prayer' | 'test' | 'general';
   title: string;
   body: string;
   url: string;

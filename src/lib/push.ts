@@ -220,6 +220,7 @@ type PushEvent =
   | { type: 'call'; callId: string }
   | { type: 'call-missed'; callId: string }
   | { type: 'choir-song'; table: 'weekly' | 'library'; ids: string[] }
+  | { type: 'prayer-prayed'; prayerRequestId: string }
   | { type: 'test' };
 
 /**

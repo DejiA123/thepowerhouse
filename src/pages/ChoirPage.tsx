@@ -633,7 +633,7 @@ const BackingTrackCard = ({
     return (
         <Card className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative select-none">
             {isAdmin && !isLocked && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                <div className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
@@ -3646,6 +3646,64 @@ const ChoirPage = () => {
 
     const activeFolder = folders.find(f => f.id === activeFolderId);
 
+    // Folder order that follows how the choir actually uses them:
+    //  • "Previous Week's Setlist" always first in the library
+    //  • inside it, the most recent week first
+    //  • inside a week, sets in service order (Praise → Worship → … → Offering)
+    //  • everything else keeps the order it was created in
+    const SET_FOLDER_ORDER = ['praise', 'worship', 'special', 'hymn', 'thanksgiving', 'offering'];
+    const isPreviousWeeksFolder = (name?: string) => /previous\s+week/i.test(name || '');
+    const setFolderRank = (name: string) => {
+        const lower = name.toLowerCase();
+        const i = SET_FOLDER_ORDER.findIndex((key) => lower.includes(key));
+        return i === -1 ? SET_FOLDER_ORDER.length : i;
+    };
+    const createdAt = (f: ChoirFolder) => new Date((f as any).created_at || 0).getTime();
+    // "Monday, September 21st 2026", "21st of September Song", "Sept 28" …
+    const isDatedFolder = (name: string) =>
+        /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/i.test(name) && /\b\d{1,2}(st|nd|rd|th)?\b/i.test(name);
+    const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    /** Date written in a folder name ("24th of August Song"); the year comes from when it was created. */
+    const folderDate = (f: ChoirFolder) => {
+        const monthMatch = f.name.toLowerCase().match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/);
+        const dayMatch = f.name.match(/\b(\d{1,2})(st|nd|rd|th)?\b/);
+        const yearMatch = f.name.match(/\b(20\d{2})\b/);
+        const created = createdAt(f);
+        if (!monthMatch || !dayMatch) return created;
+        const createdYear = new Date(created || Date.now()).getFullYear();
+        let date = new Date(yearMatch ? Number(yearMatch[1]) : createdYear, MONTHS.indexOf(monthMatch[1]), Number(dayMatch[1]));
+        // Archived in early January for a late-December service → previous year
+        if (!yearMatch && created && date.getTime() - created > 14 * 86_400_000) {
+            date = new Date(createdYear - 1, date.getMonth(), date.getDate());
+        }
+        return date.getTime();
+    };
+    const childFolders = (parentId: string | null): ChoirFolder[] => {
+        const children = folders.filter((f) => (f.parent_id ?? null) === parentId);
+        const parent = parentId ? folders.find((f) => f.id === parentId) : null;
+        if (!parentId) {
+            // 0: Previous Week's Setlist · 1: date-named setlist folders (newest first) · 2: everything else
+            const group = (f: ChoirFolder) => (isPreviousWeeksFolder(f.name) ? 0 : isDatedFolder(f.name) ? 1 : 2);
+            return [...children].sort((a, b) => {
+                const ga = group(a);
+                const gb = group(b);
+                if (ga !== gb) return ga - gb;
+                return ga === 1 ? folderDate(b) - folderDate(a) : createdAt(a) - createdAt(b);
+            });
+        }
+        if (parent && isPreviousWeeksFolder(parent.name)) {
+            // Newest week first, by the date in the folder name (archiving can happen late)
+            return [...children].sort((a, b) => folderDate(b) - folderDate(a));
+        }
+        return [...children].sort((a, b) => setFolderRank(a.name) - setFolderRank(b.name) || createdAt(a) - createdAt(b));
+    };
+    // Library › Previous Week's Setlist › 21st of September Song › Praise Set
+    const activeFolderPath: ChoirFolder[] = [];
+    for (let f = activeFolder; f; f = f.parent_id ? folders.find((x) => x.id === f!.parent_id) : undefined) {
+        activeFolderPath.unshift(f);
+        if (activeFolderPath.length > 12) break;
+    }
+
     // Flatten all songs from library for various lookups and selection
     const allLibrarySongs = useMemo(() => {
         return folders.flatMap(f => (f.songs || []).map(s => ({ ...s, folderName: f.name })));
@@ -3710,7 +3768,7 @@ const ChoirPage = () => {
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{item.title}</h3>
                                             {isAdmin && !isLocked && (
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditScheduleItem(item)}>
                                                         <Edit3 className="w-4 h-4" />
                                                     </Button>
@@ -4308,7 +4366,7 @@ const ChoirPage = () => {
                                                 <Button
                                                     size="icon"
                                                     variant="destructive"
-                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
+                                                    className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
                                                     onClick={() => {
                                                         const { text } = parseLyrics(newSetSong.lyrics || "");
                                                         setNewSetSong({
@@ -4550,7 +4608,7 @@ const ChoirPage = () => {
                                                 <Button
                                                     size="icon"
                                                     variant="destructive"
-                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
+                                                    className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
                                                     onClick={() => {
                                                         const { text } = parseLyrics(editingSetlistSongData.lyrics);
                                                         setEditingSetlistSongData({
@@ -4744,7 +4802,7 @@ const ChoirPage = () => {
                                                 <Button
                                                     size="icon"
                                                     variant="destructive"
-                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
+                                                    className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity rounded-full shadow-lg"
                                                     onClick={() => {
                                                         const { text } = parseLyrics(songToEdit.notes);
                                                         setSongToEdit({
@@ -5627,17 +5685,33 @@ const ChoirPage = () => {
                                         <div className="flex items-center gap-2">
                                             <FolderOpen className="w-5 h-5 text-blue-500" />
                                             {activeFolderId ? (
-                                                <div className="flex items-center gap-1 overflow-hidden">
+                                                <div className="flex min-w-0 items-center gap-1">
                                                     <Button
                                                         variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setActiveFolderId(null)}
-                                                        className="text-slate-500 hover:text-blue-600 h-7 px-2 text-xs"
+                                                        size="icon"
+                                                        onClick={() => setActiveFolderId(activeFolder?.parent_id ?? null)}
+                                                        className="h-8 w-8 shrink-0 rounded-full text-slate-500 hover:text-blue-600"
+                                                        aria-label="Up one folder"
                                                     >
-                                                        Library
+                                                        <ArrowLeft className="h-4 w-4" />
                                                     </Button>
-                                                    <span className="text-slate-300">/</span>
-                                                    <span className="font-semibold text-blue-600 truncate max-w-[150px]">{activeFolder?.name}</span>
+                                                    <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Folder path">
+                                                        <button onClick={() => setActiveFolderId(null)} className="rounded-md px-1.5 py-1 text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-700">
+                                                            Library
+                                                        </button>
+                                                        {activeFolderPath.map((f, i) => (
+                                                            <span key={f.id} className="flex items-center gap-0.5">
+                                                                <span className="text-slate-300">/</span>
+                                                                {i === activeFolderPath.length - 1 ? (
+                                                                    <span className="max-w-[180px] truncate px-1.5 py-1 font-semibold text-blue-600">{f.name}</span>
+                                                                ) : (
+                                                                    <button onClick={() => setActiveFolderId(f.id)} className="max-w-[140px] truncate rounded-md px-1.5 py-1 text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-700">
+                                                                        {f.name}
+                                                                    </button>
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                    </nav>
                                                 </div>
                                             ) : (
                                                 <span className="font-semibold text-slate-700 dark:text-slate-200 pl-2">Folders</span>
@@ -5852,9 +5926,13 @@ const ChoirPage = () => {
 
                                     <CardContent className="p-6 flex-1 overflow-y-auto">
                                         {!activeFolderId ? (
-                                            // Folder Grid View (Root only)
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                {folders.filter(f => !f.parent_id).map(folder => (
+                                            // Folder list (root): "Previous Week's Setlist" pinned first
+                                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                                {childFolders(null).map(folder => {
+                                                    const pinned = isPreviousWeeksFolder(folder.name);
+                                                    const latest = pinned ? childFolders(folder.id)[0]?.name : undefined;
+                                                    const itemCount = (folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length);
+                                                    return (
                                                     <DroppableFolder
                                                         key={folder.id}
                                                         id={`folder-${folder.id}`}
@@ -5865,24 +5943,34 @@ const ChoirPage = () => {
                                                                 setIsFolderOptionsOpen(true);
                                                             }
                                                         }}
-                                                        className="bg-white dark:bg-slate-700/50 p-4 rounded-xl border border-slate-200 dark:border-slate-600 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer group flex flex-col items-center text-center gap-3 relative"
+                                                        className={cn(
+                                                            "group relative flex cursor-pointer items-center gap-3 rounded-2xl text-left transition-all active:scale-[0.99]",
+                                                            pinned
+                                                                ? "bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 p-4 text-white shadow-lg shadow-blue-900/20 md:col-span-2"
+                                                                : "border border-slate-200 bg-white p-3 hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-blue-500"
+                                                        )}
                                                     >
-                                                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-300 group-hover:text-blue-600 group-hover:bg-blue-100 transition-colors">
-                                                            <FolderOpen className="w-8 h-8" />
+                                                        <div className={cn(
+                                                            "flex shrink-0 items-center justify-center rounded-xl",
+                                                            pinned ? "h-12 w-12 bg-white/20 text-white" : "h-11 w-11 bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                                                        )}>
+                                                            <FolderOpen className={pinned ? "h-6 w-6" : "h-5 w-5"} />
                                                         </div>
-                                                        <div>
-                                                            <h3 className="font-semibold text-slate-800 dark:text-slate-100">{folder.name}</h3>
-                                                            <p className="text-xs text-slate-400">
-                                                                {(folder.songs?.length || 0) + (folders.filter(f => f.parent_id === folder.id).length)} items
+                                                        <div className="min-w-0 flex-1">
+                                                            <h3 className={cn("font-semibold", pinned ? "text-[17px] leading-snug text-white" : "truncate text-slate-800 dark:text-slate-100")}>{folder.name}</h3>
+                                                            <p className={cn("truncate text-xs", pinned ? "text-white/80" : "text-slate-400")}>
+                                                                {latest ? `Latest: ${latest}` : `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`}
                                                             </p>
                                                         </div>
+                                                        {pinned && <span className="hidden shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-blue-700 sm:inline-flex">Pinned</span>}
+                                                        {!(isAdmin && !isLocked) && <ChevronRight className={cn("h-5 w-5 shrink-0", pinned ? "text-white/70" : "text-slate-300")} />}
 
                                                         {isAdmin && !isLocked && (
-                                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                            <div className="shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button size="icon" variant="ghost" className="h-6 w-6">
-                                                                            <MoreVertical className="w-4 h-4 text-slate-400" />
+                                                                        <Button size="icon" variant="ghost" className={cn("h-8 w-8 rounded-full", pinned && "text-white hover:bg-white/20 hover:text-white")}>
+                                                                            <MoreVertical className={cn("w-4 h-4", pinned ? "text-white/80" : "text-slate-400")} />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
@@ -5897,7 +5985,8 @@ const ChoirPage = () => {
                                                             </div>
                                                         )}
                                                     </DroppableFolder>
-                                                ))}
+                                                    );
+                                                })}
                                                 {folders.filter(f => !f.parent_id).length === 0 && (
                                                     <div className="col-span-full py-12 text-center text-slate-400">
                                                         <Folder className="w-12 h-12 mx-auto mb-3 opacity-20" />
@@ -5916,7 +6005,7 @@ const ChoirPage = () => {
                                                     <div className="space-y-3">
                                                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subfolders</h4>
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                            {folders.filter(f => f.parent_id === activeFolderId).map(folder => (
+                                                            {childFolders(activeFolderId).map(folder => (
                                                                 <DroppableFolder
                                                                     key={folder.id}
                                                                     id={`folder-${folder.id}`}
@@ -5932,7 +6021,7 @@ const ChoirPage = () => {
                                                                         </p>
                                                                     </div>
                                                                     {isAdmin && !isLocked && (
-                                                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                        <div className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                             <DropdownMenu>
                                                                                 <DropdownMenuTrigger asChild>
                                                                                     <Button size="icon" variant="ghost" className="h-6 w-6">
@@ -5972,7 +6061,7 @@ const ChoirPage = () => {
                                                                             {song.artist && <p className="text-xs text-slate-500 truncate">{song.artist}</p>}
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <div className="flex items-center gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                                                                         {song.url && (
                                                                             <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => song.url && playVideo(song.url, song.title)}>
                                                                                 <PlayCircle className="w-4 h-4" />
@@ -6116,7 +6205,7 @@ const ChoirPage = () => {
                                         instrResources.filter(r => r.type !== 'Backing Track' && !r.type.includes('vocal-101')).map((resource) => (
                                             <Card key={resource.id} className="group hover:shadow-xl transition-all duration-300 border-none shadow-md bg-white/80 dark:bg-slate-800/80 overflow-hidden relative">
                                                 {isAdmin && !isLocked && (
-                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                                    <div className="absolute top-2 right-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button size="icon" variant="secondary" className="h-8 w-8 bg-white/90 dark:bg-slate-800/90 shadow-sm">
@@ -7107,7 +7196,7 @@ const ChoirPage = () => {
                                                         </div>
                                                         <div className="flex flex-col gap-2 items-end">
                                                             {isAdmin && !isLocked && (
-                                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                                                <div className="flex gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all transform md:translate-y-2 md:group-hover:translate-y-0">
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"

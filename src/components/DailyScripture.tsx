@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Book, Shuffle } from "lucide-react";
 import { getTodaysScripture, getRandomScripture } from "@/utils/dailyScriptureUtils";
 
-const DailyScripture = () => {
+const DailyScripture = ({ showVerse = true }: { showVerse?: boolean }) => {
   const [scripture, setScripture] = useState(getTodaysScripture());
   const [randomIndex, setRandomIndex] = useState(0);
 
@@ -54,10 +54,10 @@ const DailyScripture = () => {
                 <Book className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-gray-900 leading-tight">Today's Scripture</h3>
+                <h3 className="font-bold text-lg text-gray-900 leading-tight">{showVerse ? "Today's Scripture" : 'Daily inspiration'}</h3>
               </div>
             </div>
-            <Button
+            {showVerse && <Button
               variant="ghost"
               size="icon"
               onClick={handleShuffle}
@@ -65,20 +65,20 @@ const DailyScripture = () => {
               title="Shuffle scripture"
             >
               <Shuffle className="w-4 h-4" />
-            </Button>
+            </Button>}
           </div>
         </CardHeader>
 
         <CardContent className="relative z-10 space-y-8">
           {/* Scripture Section */}
-          <div className="text-center px-4">
+          {showVerse && <div className="text-center px-4">
             <h4 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600 mb-3 leading-relaxed">
               "{scripture.verse}"
             </h4>
             <p className="inline-block px-4 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold text-sm tracking-wide">
               {scripture.reference}
             </p>
-          </div>
+          </div>}
 
           {/* Shorts Display */}
           <div className="flex flex-col items-center">

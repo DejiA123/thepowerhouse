@@ -1,139 +1,92 @@
-
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Music, MapPin, ChevronRight, Users, Mic2, Star, ArrowLeft, Wallet, Globe } from "lucide-react";
+import { ChevronRight, Globe, Mic2, Music, Star, Users } from "lucide-react";
+import { ListGroup, ListRow, Page, PageHeader, SectionLabel } from "@/components/page/PageKit";
+
+const BRANCHES = [
+  { id: "galway", name: "Galway Choir", icon: Star, tile: "bg-blue-600 text-white" },
+  { id: "kildare", name: "Kildare Choir", icon: Music, tile: "bg-amber-500 text-white" },
+  { id: "athlone", name: "Athlone Choir", icon: Mic2, tile: "bg-emerald-500 text-white" },
+  { id: "dublin", name: "Dublin Choir", icon: Users, tile: "bg-rose-500 text-white" },
+];
+
+const LAST_KEY = "choir_last_location";
+
+const readLast = () => {
+  try {
+    return localStorage.getItem(LAST_KEY);
+  } catch {
+    return null;
+  }
+};
 
 const ChoirPortalPage = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const last = BRANCHES.find((b) => b.id === readLast());
 
-    const branches = [
-        {
-            id: "galway",
-            name: "Galway Choir",
-            location: "Galway",
-            color: "from-blue-600 to-indigo-700",
-            icon: <Star className="w-6 h-6" />
-        },
-        {
-            id: "kildare",
-            name: "Kildare Choir",
-            location: "Kildare",
-            color: "from-amber-500 to-orange-600",
-            icon: <Music className="w-6 h-6" />
-        },
-        {
-            id: "athlone",
-            name: "Athlone Choir",
-            location: "Athlone",
-            color: "from-emerald-500 to-teal-600",
-            icon: <Mic2 className="w-6 h-6" />
-        },
-        {
-            id: "dublin",
-            name: "Dublin Choir",
-            location: "Dublin",
-            color: "from-rose-500 to-pink-600",
-            icon: <Users className="w-6 h-6" />
-        }
-    ];
+  const open = (id: string) => {
+    try {
+      localStorage.setItem(LAST_KEY, id);
+    } catch {
+      /* private mode */
+    }
+    navigate(`/groups/choir/${id}`);
+  };
 
-    return (
-        <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-32">
-            {/* Header section with safe area padding */}
-            <div className="relative bg-primary pt-[calc(1.5rem+env(safe-area-inset-top))] pb-20 px-6 rounded-b-[2.5rem] shadow-xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-blue-600 opacity-95" />
-                <div className="absolute inset-0 bg-[url('/patterns/circuit.svg')] opacity-10" />
+  return (
+    <Page>
+      <PageHeader title="Choir" back={{ label: "Ministry Hub", onClick: () => navigate("/groups") }} />
 
-                <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="self-start mb-6 -ml-2 text-blue-200 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
-                        onClick={() => navigate("/groups")}
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span className="text-xs font-medium uppercase tracking-wider">Back to Groups</span>
-                    </Button>
+      {last && (
+        <>
+          <SectionLabel className="mt-1">Jump back in</SectionLabel>
+          <button
+            onClick={() => open(last.id)}
+            className="relative mb-1 flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-rose-700 via-pink-600 to-pink-400 p-4 text-left text-white shadow-lg transition active:scale-[0.99]"
+          >
+            <span className="pointer-events-none absolute -right-9 -top-9 h-36 w-36 rounded-full bg-white/15" />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
+              <last.icon className="h-6 w-6" />
+            </span>
+            <span className="relative min-w-0 flex-1">
+              <span className="block font-outfit text-xl font-bold">{last.name}</span>
+              <span className="block text-[13px] text-white/85">Setlists, songs and rehearsals</span>
+            </span>
+            <span className="relative rounded-full bg-white px-3.5 py-1.5 text-[13px] font-bold text-slate-900">Open</span>
+          </button>
+        </>
+      )}
 
-                    <div className="text-center">
-                        <div className="inline-flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
-                            <Music className="w-6 h-6 text-blue-100" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Choir Portal</h1>
+      <SectionLabel className={last ? undefined : "mt-1"}>National</SectionLabel>
+      <button
+        onClick={() => open("national")}
+        className="relative flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-blue-900 to-blue-700 p-4 text-left text-white shadow-lg shadow-blue-900/20 transition active:scale-[0.99]"
+      >
+        <span className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+          <Globe className="h-6 w-6 text-blue-200" />
+        </span>
+        <span className="relative min-w-0 flex-1">
+          <span className="block text-[11px] font-bold uppercase tracking-wider text-blue-200">Official portal</span>
+          <span className="block font-outfit text-xl font-bold">TPH National Choir</span>
+        </span>
+        <ChevronRight className="relative h-5 w-5 text-white/70" />
+      </button>
 
-                        <div className="flex flex-col items-center gap-6 mb-4">
-                            <button
-                                onClick={() => navigate("/groups/choir/national")}
-                                className="group relative flex items-center gap-4 px-8 py-5 bg-gradient-to-r from-indigo-900 to-blue-900 hover:from-indigo-800 hover:to-blue-800 backdrop-blur-xl border border-indigo-500/30 rounded-[2rem] shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98] w-full max-w-sm"
-                            >
-                                <div className="p-3 bg-white/10 rounded-2xl shadow-inner group-hover:bg-white/20 transition-colors">
-                                    <Globe className="w-6 h-6 text-indigo-400" />
-                                </div>
-                                <div className="text-left flex-1">
-                                    <div className="text-indigo-200 text-[10px] font-black uppercase tracking-widest leading-none mb-1.5 flex items-center gap-1.5">
-                                        <Music className="w-3 h-3 text-emerald-400" />
-                                        Official Portal
-                                    </div>
-                                    <div className="text-white font-black text-lg tracking-tight leading-tight">TPH National Choir</div>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
-
-                                {/* Pulse Glow */}
-                                <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-blue-500/30 rounded-[2rem] blur-lg opacity-50 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                        </div>
-
-                        <p className="text-blue-100/80 text-sm font-medium">Select your branch to access setlists and resources</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="px-4 -mt-10 relative z-20 max-w-4xl mx-auto space-y-4 pb-20">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {branches.map((branch) => (
-                        <Card
-                            key={branch.id}
-                            className="group relative overflow-hidden border-0 shadow-sm cursor-pointer bg-white dark:bg-gray-800 rounded-3xl"
-                            onClick={() => navigate(`/groups/choir/${branch.id}`)}
-                        >
-                            <CardContent className="p-0">
-                                <div className={`h-2 w-full bg-gradient-to-r ${branch.color}`} />
-                                <div className="p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${branch.color} text-white shadow-lg shadow-gray-200 dark:shadow-black/20`}>
-                                            {branch.icon}
-                                        </div>
-                                        <div className="flex items-center text-xs font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
-                                            <MapPin className="w-3 h-3 mr-1" />
-                                            {branch.location}
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                                        {branch.name}
-                                    </h3>
-
-                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700/50">
-                                        <span className="text-xs font-bold text-primary dark:text-blue-400 flex items-center">
-                                            Access Portal
-                                        </span>
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                                            <ChevronRight className="w-4 h-4" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Background Decorative element */}
-                                <div className={`absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br ${branch.color} opacity-[0.03] rounded-full`} />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-
-            </div>
-        </div>
-    );
+      <SectionLabel>Branches</SectionLabel>
+      <ListGroup>
+        {BRANCHES.map((b) => (
+          <ListRow
+            key={b.id}
+            icon={b.icon}
+            iconClassName={b.tile}
+            title={b.name}
+            subtitle="Setlists, songs and rehearsals"
+            onClick={() => open(b.id)}
+          />
+        ))}
+      </ListGroup>
+    </Page>
+  );
 };
 
 export default ChoirPortalPage;

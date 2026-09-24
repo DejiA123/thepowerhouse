@@ -1,105 +1,99 @@
-
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { MessageSquare, Send } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { appAlert } from "@/lib/appAlert";
 
 interface PrayerRequestFormProps {
   onSuccess?: () => void;
 }
 
+const missingColumn = (error: { code?: string; message?: string } | null) =>
+  !!error && (error.code === "PGRST204" || error.code === "42703" || /is_anonymous/.test(error.message || ""));
+
+/** Share a prayer request on the Prayer Wall. Requests are visible to the church family. */
 const PrayerRequestForm = ({ onSuccess }: PrayerRequestFormProps) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  // All requests are public
-  const isPrivate = false;
+  const [hideName, setHideName] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
-  const { toast } = useToast();
 
-  const submitPrayerRequest = async () => {
-    if (!user || !title.trim() || !content.trim()) return;
-
+  const submit = async () => {
+    if (!user || !content.trim()) return;
     setLoading(true);
-
-    const { error } = await supabase
-      .from('prayer_requests')
-      .insert({
-        user_id: user.id,
-        title: title.trim(),
-        content: content.trim(),
-        is_private: false // always public
-      });
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to submit prayer request", variant: "destructive" });
-    } else {
-      setTitle("");
-      setContent("");
-
-      if (onSuccess) onSuccess();
+    const base = {
+      user_id: user.id,
+      // A short title is optional; fall back to the first words of the request
+      title: (title.trim() || content.trim().split(/\s+/).slice(0, 8).join(" ")).slice(0, 120),
+      content: content.trim(),
+      is_private: false,
+    };
+    let { error } = await supabase.from("prayer_requests").insert({ ...base, is_anonymous: hideName } as any);
+    if (missingColumn(error)) {
+      // Database not updated yet: still post, just without the hide-name option
+      ({ error } = await supabase.from("prayer_requests").insert(base));
+      if (!error && hideName) appAlert("Posted with your name", "Hiding names isn't switched on for the church yet.", "info");
     }
-
     setLoading(false);
+    if (error) {
+      appAlert("Couldn't post your request", error.message, "error");
+      return;
+    }
+    setTitle("");
+    setContent("");
+    setHideName(false);
+    onSuccess?.();
   };
 
   if (!user) {
     return (
-      <Card>
-        <CardContent className="p-6 text-center">
-          <p className="text-muted-foreground">Please log in to submit prayer requests</p>
-        </CardContent>
-      </Card>
+      <div className="py-6 text-center">
+        <p className="text-muted-foreground">Sign in to share a prayer request with the church family.</p>
+        <Button onClick={() => navigate("/auth")} className="mt-4 rounded-full bg-blue-600 px-6 hover:bg-blue-700">
+          Sign in
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageSquare className="w-5 h-5" />
-          <span>Submit Prayer Request</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Brief title for your prayer request"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="content">Prayer Request</Label>
-          <Textarea
-            id="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Share your prayer request..."
-            className="min-h-[120px]"
-          />
-        </div>
-
-        <Button
-          onClick={submitPrayerRequest}
-          disabled={loading || !title.trim() || !content.trim()}
-          className="w-full"
-        >
-          <Send className="w-4 h-4 mr-2" />
-          {loading ? 'Submitting...' : 'Submit Prayer Request'}
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <Textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="What would you like prayer for?"
+        className="min-h-[140px] resize-none rounded-2xl text-base leading-relaxed"
+        autoFocus
+      />
+      <Input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Short title (optional)"
+        className="h-11 rounded-xl text-base"
+      />
+      <label className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+        <span>
+          <span className="block text-[15px] font-semibold text-foreground">Hide my name</span>
+          <span className="block text-xs text-muted-foreground">Shows as “Someone from the church” on the wall</span>
+        </span>
+        <Switch checked={hideName} onCheckedChange={setHideName} />
+      </label>
+      <Button
+        onClick={submit}
+        disabled={loading || !content.trim()}
+        className="h-12 w-full rounded-2xl bg-blue-600 text-base font-bold hover:bg-blue-700"
+      >
+        <Send className="mr-2 h-4 w-4" />
+        {loading ? "Posting…" : "Post request"}
+      </Button>
+    </div>
   );
 };
 

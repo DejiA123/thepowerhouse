@@ -151,11 +151,38 @@ export async function referenceResult(ref: ParsedReference, version: string): Pr
 }
 
 /** Ask the edge function what passages the person means, then load their real text. */
+const AI_CACHE_KEY = 'bible_ai_search_cache_v1';
+
+function readAiCache(): Record<string, { at: number; results: any[] }> {
+  try {
+    return JSON.parse(localStorage.getItem(AI_CACHE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeAiCache(query: string, results: any[]) {
+  try {
+    const cache = readAiCache();
+    cache[query] = { at: Date.now(), results };
+    const entries = Object.entries(cache).sort((a, b) => b[1].at - a[1].at).slice(0, 150);
+    localStorage.setItem(AI_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    /* storage full */
+  }
+}
+
 export async function aiResults(query: string, version: string, signal?: AbortSignal): Promise<SmartResult[]> {
-  const { data, error } = await supabase.functions.invoke('bible-smart-search', { body: { query } });
-  if (error || !Array.isArray(data?.results) || signal?.aborted) return [];
+  const cacheKey = query.trim().toLowerCase().replace(/\s+/g, ' ');
+  let references: any[] | null = readAiCache()[cacheKey]?.results ?? null;
+  if (!references) {
+    const { data, error } = await supabase.functions.invoke('bible-smart-search', { body: { query } });
+    if (error || !Array.isArray(data?.results) || signal?.aborted) return [];
+    references = data.results as any[];
+    if (references.length) writeAiCache(cacheKey, references);
+  }
   const loaded = await Promise.all(
-    (data.results as any[]).map(async (r) => {
+    references.map(async (r) => {
       const book = resolveBook(String(r.book || ''));
       if (!book) return null;
       const start = Number(r.verse_start) || 1;

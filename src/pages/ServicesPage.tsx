@@ -1,14 +1,12 @@
-
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, MapPin, Users, Volume2, Eye, ArrowLeft, Phone, Mail, MessageCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Church, Loader2, LocateFixed, Mail, MapPin, MessageCircle, Navigation, Phone, Radio, Sparkles } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
-import { supabase } from "@/integrations/supabase/client";
 import PowerHouseVideos from "@/components/PowerHouseVideos";
-
+import { ListGroup, ListRow, Page, PageHeader, SectionLabel } from "@/components/page/PageKit";
+import { supabase } from "@/integrations/supabase/client";
+import { appAlert } from "@/lib/appAlert";
+import { cn } from "@/lib/utils";
+import { CAMPUSES, directionsUrl, nextSundayLabel, telUrl, useCampus } from "@/data/campuses";
 
 interface LiveService {
   id: string;
@@ -20,323 +18,215 @@ interface LiveService {
   scheduled_time: string;
 }
 
+const STREAMS_URL = "https://www.youtube.com/@thepowerhouseintl/streams";
+
 const ServicesPage = () => {
-  const navigate = useNavigate();
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [isLiveStreamActive, setIsLiveStreamActive] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedStreamService, setSelectedStreamService] = useState<any>(null);
+  const { campus: savedCampus, setCampusId, findNearest, locating } = useCampus();
+  const campus = savedCampus ?? CAMPUSES[0];
+  const [liveNow, setLiveNow] = useState<LiveService | null>(null);
+  const [serviceTime, setServiceTime] = useState(false);
   const [liveServices, setLiveServices] = useState<LiveService[]>([]);
+  const [modalService, setModalService] = useState<LiveService | null>(null);
 
-  // Fetch live services from database and check for live streams
   useEffect(() => {
-    fetchLiveServices();
+    supabase
+      .from("live_services")
+      .select("*")
+      .order("scheduled_time", { ascending: false })
+      .then(({ data }) => data && setLiveServices(data as LiveService[]));
 
-    const checkLiveStatus = async () => {
+    const check = async () => {
       try {
-        // 1. Check Supabase for manually marked live services
-        const { data: liveData } = await supabase
-          .from('live_services')
-          .select('*')
-          .eq('is_live', true)
-          .maybeSingle();
-
-        if (liveData) {
-          setIsLiveStreamActive(true);
-          return;
-        }
-
-        // 2. Time-based simulation (fallback)
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentDay = now.getDay();
-
-        // Sunday 10 AM or Wednesday 7 PM
-        const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 13;
-        const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
-
-        setIsLiveStreamActive(isSundayService || isWednesdayService);
-      } catch (err) {
-        console.error("Error checking live status in ServicesPage:", err);
+        const { data } = await supabase.from("live_services").select("*").eq("is_live", true).maybeSingle();
+        setLiveNow((data as LiveService) ?? null);
+      } catch {
+        setLiveNow(null);
       }
+      // Usual stream times: Sunday 10:00–13:00 and Wednesday 19:00–21:00
+      const now = new Date();
+      const h = now.getHours();
+      setServiceTime((now.getDay() === 0 && h >= 10 && h <= 13) || (now.getDay() === 3 && h >= 19 && h <= 21));
     };
-
-    checkLiveStatus();
-    const interval = setInterval(checkLiveStatus, 60000);
-    return () => clearInterval(interval);
+    check();
+    const t = setInterval(check, 60000);
+    return () => clearInterval(t);
   }, []);
 
-  const fetchLiveServices = async () => {
-    const { data, error } = await supabase
-      .from('live_services')
-      .select('*')
-      .order('scheduled_time', { ascending: false });
-
-    if (data) {
-      setLiveServices(data);
-    }
+  const locate = async () => {
+    const found = await findNearest();
+    if (found) appAlert(`${found.campus.name} is closest`, `About ${Math.round(found.km)} km away`, "success");
+    else appAlert("Couldn't find your location", "Pick your campus from the list instead.", "error");
   };
 
-  const branchServices = [
-    {
-      name: "Galway",
-      address: "The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit, Galway, H91 958A",
-      times: {
-        sunday: "10 AM",
-        bibleStudy: "7 PM",
-        prayer: "7 PM"
-      },
-      phone: "089 953 4714",
-      email: "contact.thepowerhouse@gmail.com",
-      whatsappGroup: "https://chat.whatsapp.com/GalwayGroup"
-    },
-    {
-      name: "Kildare",
-      address: "The Power House International, O'Cola House Lower Eyre Street, Newbridge, W12TK37",
-      times: {
-        sunday: "10 AM",
-        bibleStudy: "7 PM",
-        prayer: "7 PM"
-      },
-      phone: "089 953 5663",
-      email: "contact.thepowerhouse@gmail.com",
-      whatsappGroup: "https://chat.whatsapp.com/KildareGroup"
-    },
-    {
-      name: "Athlone",
-      address: "Unit 22 Athlone Shopping Centre, Sean Costello Street, Athlone, Co. Westmeath, N37 V2Y2",
-      times: {
-        sunday: "10 AM",
-        bibleStudy: "7 PM",
-        prayer: "7 PM"
-      },
-      phone: "089 982 2556",
-      email: "contact.thepowerhouse@gmail.com",
-      whatsappGroup: "https://chat.whatsapp.com/AthloneGroup"
-    },
-    {
-      name: "Dublin",
-      address: "Holiday Inn Express 28-32 O'Connell Street Upper, Rotunda Dublin 1, D01T2X2",
-      times: {
-        sunday: "10 AM",
-        bibleStudy: "8 PM",
-        prayer: "8 PM"
-      },
-      phone: "089 252 7008",
-      email: "contact.thepowerhouse@gmail.com",
-      whatsappGroup: "https://chat.whatsapp.com/DublinGroup"
-    }
+  const actions = [
+    { label: "Directions", icon: Navigation, href: directionsUrl(campus), tint: "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300" },
+    { label: "Call", icon: Phone, href: telUrl(campus), tint: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300" },
+    { label: "WhatsApp", icon: MessageCircle, href: campus.whatsappGroup, tint: "bg-green-50 text-green-600 dark:bg-green-950/50 dark:text-green-300" },
+    { label: "Email", icon: Mail, href: `mailto:${campus.email}`, tint: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" },
   ];
 
-
-
-  const handleWatchLive = (service: any) => {
-    if (service.isLive) {
-      setSelectedStreamService(service);
-      setIsModalOpen(true);
-    } else {
-      window.open(service.streamUrl, '_blank');
-    }
-  };
-
-  const handleWatchLiveService = (liveService: LiveService) => {
-    setSelectedStreamService({
-      ...liveService,
-      isLive: liveService.is_live,
-      name: liveService.title,
-      videoId: liveService.youtube_video_id
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleWatchPrevious = (video: any) => {
-    window.open("https://www.youtube.com/@thepowerhouseintl/videos", '_blank');
-  };
+  const pastStreams = liveServices.filter((s) => !s.is_live && s.youtube_video_id).slice(0, 5);
 
   return (
-    <div className="p-4 space-y-6">
+    <Page wide>
+      <div className="mx-auto max-w-2xl">
+        <PageHeader
+          eyebrow={savedCampus ? "Your campus" : "Our campuses"}
+          title="Services"
+          action={
+            <button
+              onClick={locate}
+              disabled={locating}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-slate-100 px-3.5 text-[13px] font-semibold text-foreground hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:hover:bg-slate-700"
+            >
+              {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+              Nearest
+            </button>
+          }
+        />
 
-      {/* Header */}
-      {/* Header */}
-      <div className="relative mb-8 pt-4 pb-2 px-2 flex flex-col items-center justify-center">
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute left-0 top-4 h-10 w-10 rounded-full bg-background/50 backdrop-blur-md border-border/50 shadow-sm hover:bg-background/80 hover:shadow-md transition-all duration-300"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft className="w-5 h-5 text-foreground/80" />
-        </Button>
-
-        <div className="text-center space-y-2 max-w-2xl mx-auto rounded-3xl p-6 transition-all duration-300">
-          <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-2xl mb-2 backdrop-blur-sm">
-            <Calendar className="w-6 h-6 text-primary" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600 animate-in fade-in zoom-in duration-500">
-            Services
-          </h1>
-          <p className="text-lg text-muted-foreground font-medium max-w-md mx-auto leading-relaxed">
-            Join us for worship, learning, and fellowship
-          </p>
-        </div>
-      </div>
-
-      {/* Branch Services */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">Our Services</h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          {branchServices.map((branch, index) => (
-            <Card key={index} className="overflow-hidden border border-border bg-card/50 hover:bg-card hover:shadow-lg transition-all">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold text-primary flex items-center justify-between">
-                  {branch.name}
-                  <Badge variant="outline" className="ml-2 font-normal text-xs">
-                    In-Person
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-2">
-                {/* Address */}
-                <div className="flex items-start space-x-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-                  <span>{branch.address}</span>
-                </div>
-
-                {/* Service Times */}
-                <div className="space-y-2 bg-muted/30 p-3 rounded-lg border border-border/50">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">Sunday Service</span>
-                    <span className="text-primary font-bold">{branch.times.sunday}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">Bible Study</span>
-                    <span className="text-primary font-bold">{branch.times.bibleStudy}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">Prayer Meeting</span>
-                    <span className="text-primary font-bold">{branch.times.prayer}</span>
-                  </div>
-                </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-foreground/90">{branch.phone}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-foreground/90 truncate">{branch.email}</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    className="w-full text-xs"
-                    onClick={() => window.open(branch.whatsappGroup, '_blank')}
-                  >
-                    <MessageCircle className="w-3 h-3 mr-1.5 text-green-600" />
-                    WhatsApp Group
-                  </Button>
-                  {branch.name !== "Dublin" && (
-                    <Button
-                      variant="default"
-                      className="w-full text-xs"
-                      onClick={() => {
-                        const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(branch.address)}`;
-                        window.open(url, '_blank');
-                      }}
-                    >
-                      <MapPin className="w-3 h-3 mr-1.5" />
-                      Get Directions
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Campus switcher */}
+        <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+          {CAMPUSES.map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              aria-selected={c.id === campus.id}
+              onClick={() => setCampusId(c.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-4 py-2 text-[14px] font-semibold transition active:scale-95",
+                c.id === campus.id
+                  ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
+                  : "border-slate-200 bg-card text-foreground dark:border-slate-700",
+              )}
+            >
+              {c.name}
+            </button>
           ))}
         </div>
-      </div>
 
-      {/* Live Stream Services */}
-      {liveServices.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Live Stream Services</h2>
-          <div className="grid gap-4">
-            {liveServices.map((liveService) => (
-              <Card key={liveService.id} className="overflow-hidden">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-2">{liveService.title}</h3>
-                      <p className="text-foreground mb-2">{liveService.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>{new Date(liveService.scheduled_time).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{new Date(liveService.scheduled_time).toLocaleTimeString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {liveService.is_live && (
-                        <Badge className="bg-red-500 text-white animate-pulse">
-                          🔴 LIVE NOW
-                        </Badge>
-                      )}
-                      <Button
-                        onClick={() => handleWatchLiveService(liveService)}
-                        variant={liveService.is_live ? "default" : "outline"}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        {liveService.is_live ? "Watch Live" : "Watch Recording"}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Campus card */}
+        <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-card shadow-sm dark:border-slate-800">
+          <a
+            href={directionsUrl(campus)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative block h-36 overflow-hidden bg-gradient-to-br from-blue-900 via-blue-700 to-sky-500"
+            aria-label={`Directions to ${campus.name}`}
+          >
+            {/* Street-grid pattern so the header reads as a map */}
+            <span
+              className="absolute inset-0 opacity-25"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(35deg, transparent 46%, rgba(255,255,255,.55) 47%, rgba(255,255,255,.55) 51%, transparent 52%)",
+                backgroundSize: "28px 28px, 28px 28px, 100% 100%",
+              }}
+            />
+            <span className="absolute right-6 top-7 flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+              <MapPin className="h-7 w-7 text-white" fill="currentColor" fillOpacity={0.25} />
+            </span>
+            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-emerald-700">● In person</span>
+            <span className="absolute inset-x-4 bottom-3 text-white">
+              <span className="block font-outfit text-[26px] font-extrabold leading-tight">{campus.name}</span>
+              <span className="block truncate text-[13px] text-white/90">{campus.street}</span>
+            </span>
+          </a>
+          <p className="px-4 pt-3 text-[13px] leading-snug text-muted-foreground">{campus.address}</p>
+          <div className="grid grid-cols-4 gap-1 px-2 pb-3 pt-3">
+            {actions.map((a) => (
+              <a
+                key={a.label}
+                href={a.href}
+                {...(a.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="flex flex-col items-center gap-1.5 rounded-2xl py-1 text-[11.5px] font-semibold text-foreground/80 transition active:scale-95"
+              >
+                <span className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", a.tint)}>
+                  <a.icon className="h-5 w-5" />
+                </span>
+                {a.label}
+              </a>
             ))}
           </div>
         </div>
-      )}
 
+        <SectionLabel>Every week</SectionLabel>
+        <ListGroup>
+          <ListRow
+            icon={Church}
+            title="Sunday Service"
+            subtitle={`Next: ${nextSundayLabel()}`}
+            trailing={<span className="font-outfit text-[17px] font-bold text-blue-600 dark:text-blue-400">{campus.times.sunday}</span>}
+          />
+          <ListRow
+            icon={BookOpen}
+            iconClassName="bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300"
+            title="Bible Study"
+            trailing={<span className="font-outfit text-[17px] font-bold text-blue-600 dark:text-blue-400">{campus.times.bibleStudy}</span>}
+          />
+          <ListRow
+            icon={Sparkles}
+            iconClassName="bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300"
+            title="Prayer Meeting"
+            trailing={<span className="font-outfit text-[17px] font-bold text-blue-600 dark:text-blue-400">{campus.times.prayer}</span>}
+          />
+        </ListGroup>
+        <p className="mt-2 px-1 text-xs text-muted-foreground">
+          {campus.phone} · {campus.email}
+        </p>
 
+        {/* Watch online */}
+        <SectionLabel>Can't make it in person?</SectionLabel>
+        <button
+          onClick={() => (liveNow ? setModalService(liveNow) : window.open(STREAMS_URL, "_blank", "noopener"))}
+          className="flex w-full items-center gap-4 rounded-3xl bg-slate-900 p-4 text-left text-white shadow-lg transition active:scale-[0.99] dark:bg-slate-800"
+        >
+          <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", liveNow ? "bg-red-600" : "bg-white/10")}>
+            <Radio className={cn("h-6 w-6", liveNow && "animate-pulse")} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={cn("block text-xs font-bold uppercase tracking-wider", liveNow || serviceTime ? "text-red-400" : "text-white/60")}>
+              {liveNow ? "● Live now" : serviceTime ? "● Service time" : "Live stream"}
+            </span>
+            <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Watch services live on YouTube"}</span>
+            <span className="block text-[13px] text-white/60">Sundays 10 AM · Wednesdays 7 PM</span>
+          </span>
+        </button>
 
+        {pastStreams.length > 0 && (
+          <>
+            <SectionLabel>Recent streams</SectionLabel>
+            <ListGroup>
+              {pastStreams.map((s) => (
+                <ListRow
+                  key={s.id}
+                  leading={
+                    <span className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
+                      <img src={`https://i.ytimg.com/vi/${s.youtube_video_id}/mqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    </span>
+                  }
+                  title={s.title}
+                  subtitle={new Date(s.scheduled_time).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}
+                  onClick={() => setModalService(s)}
+                />
+              ))}
+            </ListGroup>
+          </>
+        )}
+      </div>
 
-
-      {/* Quick Info */}
-      <Card className="bg-primary text-primary-foreground">
-        <CardContent className="p-6 text-center">
-          <h3 className="text-xl font-bold mb-2">Can't Make It In Person?</h3>
-          <p className="mb-4 opacity-90">Join us online for all our services via live stream</p>
-          <Button
-            variant="secondary"
-            onClick={() => window.open("https://www.youtube.com/@thepowerhouseintl/streams", '_blank')}
-          >
-            <Volume2 className="w-4 h-4 mr-2" />
-            Watch Live Stream
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Power House YouTube Videos (Latest Sermons) */}
-      <div className="pt-4">
+      <div className="mt-8">
         <PowerHouseVideos />
       </div>
 
       <VideoModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        videoId={selectedStreamService?.videoId || selectedStreamService?.youtube_video_id || (selectedStreamService?.isLive ? "UCChannelId" : "")}
-        title={selectedStreamService?.name || selectedStreamService?.title || "Live Stream"}
-        isLive={selectedStreamService?.isLive || false}
+        isOpen={!!modalService}
+        onClose={() => setModalService(null)}
+        videoId={modalService?.youtube_video_id || ""}
+        title={modalService?.title || "Live Stream"}
+        isLive={!!modalService?.is_live}
       />
-    </div>
+    </Page>
   );
 };
 

@@ -221,6 +221,45 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...result });
     }
 
+    // ── Prayer Wall: someone is praying for your request ────────────
+    if (type === 'prayer-prayed') {
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const requestId = typeof body.prayerRequestId === 'string' ? body.prayerRequestId : '';
+      const [{ data: request }, { data: mine }] = await Promise.all([
+        supabaseAdmin.from('prayer_requests').select('id, user_id, title').eq('id', requestId).maybeSingle(),
+        supabaseAdmin
+          .from('prayer_request_prayers')
+          .select('created_at')
+          .eq('prayer_request_id', requestId)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
+      if (!request || !mine || !isFresh(mine.created_at)) return json({ error: 'Not found' }, 404);
+      if (request.user_id === user.id) return json({ ok: true, skipped: 'own-request' });
+
+      const [{ count }, name] = await Promise.all([
+        supabaseAdmin
+          .from('prayer_request_prayers')
+          .select('user_id', { count: 'exact', head: true })
+          .eq('prayer_request_id', requestId),
+        displayName(user.id),
+      ]);
+      const others = Math.max(0, (count ?? 1) - 1);
+      const result = await sendToSubscriptions(await subscriptionsForUsers([request.user_id]), {
+        kind: 'prayer',
+        title: '🙏 Someone is praying for you',
+        body: others > 0
+          ? `${name} and ${others} ${others === 1 ? 'other' : 'others'} are praying for “${truncate(request.title, 60)}”`
+          : `${name} is praying for “${truncate(request.title, 60)}”`,
+        url: '/prayer?tab=mine',
+        // One notification per request that updates, instead of a pile of them
+        tag: `prayer-${request.id}`,
+        renotify: false,
+        data: { prayerRequestId: request.id },
+      }, { ttl: 60 * 60 * 24, urgency: 'normal' });
+      return json({ ok: true, ...result });
+    }
+
     // ── Test notification to this user's own devices ────────────────
     if (type === 'test') {
       let subs: PushSubscriptionRow[] = [];
