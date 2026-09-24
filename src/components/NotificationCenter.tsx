@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import EnableNotificationsCard from '@/components/notifications/EnableNotificationsCard';
+import { pushNotificationService } from '@/services/pushNotificationService';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -104,6 +106,12 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
       Object.entries(updated).forEach(([key, value]) => {
         localStorage.setItem(key, String(value));
       });
+      // The server checks this before sending group chat / call notifications
+      if (user && 'groupNotificationsEnabled' in newSettings) {
+        await pushNotificationService.updatePreferences(user.id, {
+          group_chat_notifications: !!newSettings.groupNotificationsEnabled,
+        });
+      }
 
       toast({
         title: "Settings Updated",
@@ -155,43 +163,8 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Permission Status */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notification Permission
-          </h2>
-
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Browser Notifications</p>
-                <p className="text-sm text-muted-foreground">
-                  Status: {permissionStatus === 'granted' ? 'Enabled' : permissionStatus === 'denied' ? 'Blocked' : 'Not Set'}
-                </p>
-              </div>
-              {permissionStatus === 'granted' ? (
-                <BellRing className="w-6 h-6 text-green-500" />
-              ) : permissionStatus === 'denied' ? (
-                <BellOff className="w-6 h-6 text-red-500" />
-              ) : (
-                <Bell className="w-6 h-6 text-yellow-500" />
-              )}
-            </div>
-
-            {permissionStatus !== 'granted' && (
-              <Button onClick={requestNotificationPermission} className="w-full mt-3">
-                Enable Notifications
-              </Button>
-            )}
-
-            {permissionStatus === 'granted' && (
-              <Button variant="outline" onClick={testNotification} className="w-full mt-3">
-                Test Notification
-              </Button>
-            )}
-          </div>
-        </div>
+        {/* Push notifications on this device (install + permission + subscription) */}
+        <EnableNotificationsCard />
 
         {/* Daily Notifications */}
         <div className="space-y-4">

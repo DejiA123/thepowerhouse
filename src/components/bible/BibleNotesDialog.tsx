@@ -1,32 +1,14 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Trash2, Edit3, Plus, Star, Eye, EyeOff, X } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { formatBookDisplayName } from "./bookUtils";
-import RichTextEditor from "./RichTextEditor";
-
-interface BibleNote {
-  id: string;
-  book: string;
-  chapter: number;
-  verse?: number;
-  note_text: string;
-  title?: string;
-  tags?: string[];
-  category?: string;
-  is_favorite?: boolean;
-  is_private?: boolean;
-  created_at: string;
-  updated_at?: string;
-}
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, NotebookPen, Plus, Star } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
+import { bibleNotesService, type BibleNoteFolder } from '@/services/bibleNotesService';
+import NoteEditor from '@/components/notes/NoteEditor';
+import { notePreview, noteTitle, passageLabel, relativeDate, type NoteRecord } from '@/components/notes/noteUtils';
+import { normalizeBookApiName } from './bookUtils';
 
 interface BibleNotesDialogProps {
   open: boolean;
@@ -36,583 +18,152 @@ interface BibleNotesDialogProps {
   verse?: number;
 }
 
-const NOTE_CATEGORIES = [
-  { id: 'insight', name: 'Insight', color: 'bg-blue-100 text-blue-800', icon: '💡' },
-  { id: 'question', name: 'Question', color: 'bg-yellow-100 text-yellow-800', icon: '❓' },
-  { id: 'prayer', name: 'Prayer', color: 'bg-purple-100 text-purple-800', icon: '🙏' },
-  { id: 'application', name: 'Application', color: 'bg-green-100 text-green-800', icon: '🎯' },
-  { id: 'cross-reference', name: 'Cross Reference', color: 'bg-orange-100 text-orange-800', icon: '🔗' },
-  { id: 'study', name: 'Study', color: 'bg-indigo-100 text-indigo-800', icon: '📚' },
-  { id: 'personal', name: 'Personal', color: 'bg-pink-100 text-pink-800', icon: '❤️' },
-  { id: 'sermon', name: 'Sermon', color: 'bg-red-100 text-red-800', icon: '⛪' },
-];
-
-const DEFAULT_TAGS = [
-  'Important', 'Key Verse', 'Promise', 'Command', 'Warning', 'Comfort',
-  'Prophecy', 'Miracle', 'Parable', 'Prayer', 'Worship', 'Faith', 'Love',
-  'Forgiveness', 'Salvation', 'Grace', 'Mercy', 'Justice', 'Wisdom'
-];
-
+/**
+ * Notes for the passage being read. Opening or creating a note goes straight
+ * into the full-screen editor, which saves automatically.
+ */
 export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: BibleNotesDialogProps) => {
-  const [notes, setNotes] = useState<BibleNote[]>([]);
-  const [newNote, setNewNote] = useState({
-    title: '',
-    note_text: '',
-    category: 'none',
-    tags: [] as string[],
-    is_favorite: false,
-    is_private: false
-  });
-  const [editingNote, setEditingNote] = useState<BibleNote | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [tagInput, setTagInput] = useState('');
-  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const apiBook = normalizeBookApiName(book);
+  const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const [folders, setFolders] = useState<BibleNoteFolder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editor, setEditor] = useState<{ note: NoteRecord | null } | null>(null);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const [{ data }, folderList] = await Promise.all([
+        supabase
+          .from('bible_notes')
+          .select('*')
+          .eq('user_id', user.id)
+          // Older notes may have stored the book name un-normalised
+          .in('book', Array.from(new Set([apiBook, book])))
+          .eq('chapter', chapter)
+          .order('updated_at', { ascending: false }),
+        bibleNotesService.getFolders(user.id).catch(() => [] as BibleNoteFolder[]),
+      ]);
+      setNotes((data || []) as unknown as NoteRecord[]);
+      setFolders(folderList);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, apiBook, chapter]);
 
   useEffect(() => {
-    if (user && open) {
-      fetchNotes();
-    }
-  }, [user, book, chapter, verse, open]);
+    if (open) load();
+  }, [open, load]);
 
-  const fetchNotes = async () => {
-    if (!user) return;
-
-    try {
-      const query = supabase
-        .from('bible_notes')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('book', book)
-        .eq('chapter', chapter);
-
-      if (verse) {
-        query.eq('verse', verse);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotes(data || []);
-    } catch (error) {
-      console.error('Error fetching notes:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load notes",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveNote = async () => {
-    if (!user || !newNote.note_text.trim()) return;
-
-    setLoading(true);
-    try {
-      const noteData = {
-        user_id: user.id,
-        book,
-        chapter,
-        verse,
-        note_text: newNote.note_text.trim(),
-        title: newNote.title.trim() || null,
-        category: (newNote.category && newNote.category !== 'none') ? newNote.category : null,
-        tags: newNote.tags.length > 0 ? newNote.tags : null,
-        is_favorite: newNote.is_favorite,
-        is_private: newNote.is_private,
-      };
-
-      const { error } = await supabase
-        .from('bible_notes')
-        .insert(noteData);
-
-      if (error) throw error;
-
-
-
-      // Reset form
-      setNewNote({
-        title: '',
-        note_text: '',
-        category: 'none',
-        tags: [],
-        is_favorite: false,
-        is_private: false
-      });
-
-      await fetchNotes();
-    } catch (error) {
-      console.error('Error saving note:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save note",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateNote = async () => {
-    if (!editingNote || !editingNote.note_text.trim()) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('bible_notes')
-        .update({
-          note_text: editingNote.note_text.trim(),
-          title: editingNote.title || null,
-          category: (editingNote.category && editingNote.category !== 'none') ? editingNote.category : null,
-          tags: editingNote.tags || null,
-          is_favorite: editingNote.is_favorite,
-          is_private: editingNote.is_private,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingNote.id);
-
-      if (error) throw error;
-
-
-
-      setEditingNote(null);
-      await fetchNotes();
-    } catch (error) {
-      console.error('Error updating note:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update note",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('bible_notes')
-        .delete()
-        .eq('id', noteId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Note Deleted",
-        description: "Your note has been deleted",
-      });
-
-      await fetchNotes();
-    } catch (error) {
-      console.error('Error deleting note:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete note",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleFavorite = async (note: BibleNote) => {
-    try {
-      const { error } = await supabase
-        .from('bible_notes')
-        .update({ is_favorite: !note.is_favorite })
-        .eq('id', note.id);
-
-      if (error) throw error;
-      await fetchNotes();
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  };
-
-  const addTag = (tag: string) => {
-    if (tag.trim() && !newNote.tags.includes(tag.trim())) {
-      setNewNote(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag.trim()]
-      }));
-    }
-    setTagInput('');
-    setShowTagSuggestions(false);
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setNewNote(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  const getCategoryInfo = (categoryId: string) => {
-    return NOTE_CATEGORIES.find(cat => cat.id === categoryId) || NOTE_CATEGORIES[0];
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString([], {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getLocationText = () => {
-    const formattedBook = formatBookDisplayName(book);
-
+  const passage = passageLabel({ book: apiBook, chapter, verse });
+  const chapterLabel = passageLabel({ book: apiBook, chapter });
+  // Notes for this verse first, then the rest of the chapter
+  const sorted = [...notes].sort((a, b) => {
     if (verse) {
-      return `${formattedBook} ${chapter}:${verse}`;
+      const av = a.verse === verse ? 0 : 1;
+      const bv = b.verse === verse ? 0 : 1;
+      if (av !== bv) return av - bv;
     }
-    return `${formattedBook} ${chapter}`;
-  };
+    return (b.updated_at || '').localeCompare(a.updated_at || '');
+  });
+
+  if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-slate-50 dark:bg-gray-950 border-none rounded-none flex flex-col pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
-        <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl z-20 pt-8 pb-4 shadow-sm">
-          <DialogTitle className="flex items-center justify-center gap-3 text-center w-full text-lg font-black text-slate-900 dark:text-slate-100">
-            <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-xl">
-              <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            Reflections - {getLocationText()}
-          </DialogTitle>
-          <DialogDescription className="text-center text-slate-500 font-medium">
-            Capture your insights, prayers, and study notes for this passage.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 ios-scrolling-fix pb-safe">
-          {/* Add New Note */}
-          <div className="space-y-4 p-5 border border-slate-100 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50 shadow-sm">
-            <h3 className="text-lg font-semibold">Add New Note</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Title (Optional)</label>
-                <Input
-                  value={newNote.title}
-                  onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Give your note a title..."
-                  className="text-center font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Category</label>
-                <Select value={newNote.category} onValueChange={(value) => setNewNote(prev => ({ ...prev, category: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Category</SelectItem>
-                    {NOTE_CATEGORIES.map(category => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.icon} {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Note Content *</label>
-              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-950 flex flex-col">
-                <RichTextEditor
-                  content={newNote.note_text}
-                  onChange={(content) => setNewNote(prev => ({ ...prev, note_text: content }))}
-                  placeholder="Write your reflection here..."
-                  toolbarPosition="bottom"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Tags</label>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => {
-                      setTagInput(e.target.value);
-                      setShowTagSuggestions(e.target.value.length > 0);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && tagInput.trim()) {
-                        e.preventDefault();
-                        addTag(tagInput);
-                      }
-                    }}
-                    placeholder="Add tags..."
-                    className="flex-1 select-text cursor-text ios-input-fix"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => addTag(tagInput)}
-                    disabled={!tagInput.trim()}
-                  >
-                    Add
-                  </Button>
-                </div>
-
-                {showTagSuggestions && (
-                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
-                    <div className="text-xs text-muted-foreground mb-2">Suggestions:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {DEFAULT_TAGS
-                        .filter(tag => tag.toLowerCase().includes(tagInput.toLowerCase()))
-                        .map(tag => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                            onClick={() => addTag(tag)}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {newNote.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {newNote.tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-red-100 hover:text-red-800"
-                        onClick={() => removeTag(tag)}
-                      >
-                        {tag} <X className="w-3 h-3 ml-1" />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={newNote.is_favorite}
-                  onChange={(e) => setNewNote(prev => ({ ...prev, is_favorite: e.target.checked }))}
-                  className="rounded"
-                />
-                <span className="text-sm">Mark as favorite</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={newNote.is_private}
-                  onChange={(e) => setNewNote(prev => ({ ...prev, is_private: e.target.checked }))}
-                  className="rounded"
-                />
-                <span className="text-sm">Private note</span>
-              </label>
-            </div>
-
-            <Button
-              onClick={saveNote}
-              disabled={!newNote.note_text.trim() || newNote.note_text === '<p></p>' || loading}
-              className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              {loading ? 'Saving...' : 'Save Reflection'}
-            </Button>
+    <>
+      <Sheet open={open && !editor} onOpenChange={onOpenChange}>
+        <SheetContent
+          side={isMobile ? 'bottom' : 'right'}
+          className="flex max-h-[85dvh] w-full flex-col gap-0 rounded-t-3xl p-0 sm:h-full sm:max-h-none sm:max-w-md sm:rounded-none"
+        >
+          <div className="px-5 pb-3 pt-5">
+            <SheetTitle className="text-xl">Notes · {chapterLabel}</SheetTitle>
+            <SheetDescription>Your reflections on this chapter.</SheetDescription>
           </div>
 
-          {/* Existing Notes Section */}
-          <div className="space-y-4 pt-4">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 px-1">
-              <FileText className="w-5 h-5 text-indigo-500" />
-              Your Notes ({notes.length})
-            </h3>
+          <div className="px-5 pb-3">
+            <button
+              onClick={() => setEditor({ note: null })}
+              className="flex w-full items-center gap-3 rounded-2xl bg-blue-600 px-4 py-3.5 text-left text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 active:scale-[0.99]"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                <Plus className="h-5 w-5" />
+              </span>
+              <span className="flex-1">
+                <span className="block font-semibold">New note</span>
+                <span className="block text-sm text-white/80">on {passage}</span>
+              </span>
+            </button>
+          </div>
 
-            {notes.length === 0 ? (
-              <div className="text-center text-muted-foreground py-16 bg-white dark:bg-slate-900 rounded-[2.5rem] border-2 border-dashed border-slate-100 dark:border-slate-800">
-                <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                <p className="text-lg font-medium">No notes yet for this passage</p>
-                <p className="text-sm opacity-60">Your spiritual reflections will appear here.</p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            {loading && notes.length === 0 ? (
+              <div className="space-y-2 px-2">
+                {[0, 1].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted" />)}
+              </div>
+            ) : sorted.length === 0 ? (
+              <div className="flex flex-col items-center px-6 py-10 text-center">
+                <NotebookPen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-3 font-medium text-foreground">No notes on {chapterLabel} yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">Tap “New note” to capture what God is showing you.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {notes.map((note) => (
-                  <div key={note.id} className="border border-slate-100 dark:border-slate-800 rounded-[2rem] p-6 space-y-4 bg-white dark:bg-slate-900 shadow-sm md:hover:shadow-md transition-shadow">
-                    {editingNote?.id === note.id ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-sm font-medium">Title</label>
-                            <Input
-                              value={editingNote.title || ''}
-                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, title: e.target.value } : null)}
-                              placeholder="Note title..."
-                              className="text-center font-semibold ios-input-fix"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-sm font-medium">Category</label>
-                            <Select
-                              value={editingNote.category || 'none'}
-                              onValueChange={(value) => setEditingNote(prev => prev ? { ...prev, category: value } : null)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">No Category</SelectItem>
-                                {NOTE_CATEGORIES.map(category => (
-                                  <SelectItem key={category.id} value={category.id}>
-                                    {category.icon} {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm font-medium">Note Content</label>
-                          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-950 flex flex-col">
-                            <RichTextEditor
-                              content={editingNote.note_text}
-                              onChange={(content) => setEditingNote(prev => prev ? { ...prev, note_text: content } : null)}
-                              toolbarPosition="bottom"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editingNote.is_favorite || false}
-                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_favorite: e.target.checked } : null)}
-                              className="rounded"
-                            />
-                            <span className="text-sm">Mark as favorite</span>
-                          </label>
-
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editingNote.is_private || false}
-                              onChange={(e) => setEditingNote(prev => prev ? { ...prev, is_private: e.target.checked } : null)}
-                              className="rounded"
-                            />
-                            <span className="text-sm">Private note</span>
-                          </label>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={updateNote}
-                            disabled={loading}
-                            size="sm"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setEditingNote(null)}
-                            size="sm"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            {note.title && (
-                              <h4 className="font-bold text-foreground mb-2 text-center w-full select-text text-lg">{note.title}</h4>
-                            )}
-                            <div className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 select-text pointer-events-none prose-sm dark:prose-invert">
-                              <RichTextEditor
-                                content={note.note_text}
-                                readOnly={true}
-                                compact={true}
-                                onChange={() => {}}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleFavorite(note)}
-                              className={`h-8 w-8 p-0 ${note.is_favorite ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                            >
-                              <Star className={`w-4 h-4 ${note.is_favorite ? 'fill-current' : ''}`} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEditingNote(note)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteNote(note.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {note.category && (
-                            <Badge variant="secondary" className={getCategoryInfo(note.category).color}>
-                              {getCategoryInfo(note.category).icon} {getCategoryInfo(note.category).name}
-                            </Badge>
-                          )}
-                          {note.tags && note.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        <div className="flex justify-between items-center text-xs text-muted-foreground pt-2 border-t">
-                          <div className="flex items-center gap-2">
-                            {note.verse && (
-                              <Badge variant="secondary" className="text-xs">
-                                Verse {note.verse}
-                              </Badge>
-                            )}
-                            {note.is_private && <EyeOff className="w-3 h-3" />}
-                          </div>
-                          <span>{formatDate(note.created_at)}</span>
-                        </div>
-                      </>
+              sorted.map((note) => (
+                <button
+                  key={note.id}
+                  onClick={() => setEditor({ note })}
+                  className="flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-muted/70 active:bg-muted"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate font-semibold text-foreground">{noteTitle(note)}</p>
+                      {note.is_favorite && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
+                    </div>
+                    {notePreview(note, 120) && (
+                      <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{notePreview(note, 120)}</p>
                     )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {note.verse ? `Verse ${note.verse} · ` : ''}
+                      {relativeDate(note.updated_at || note.created_at)}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              ))
             )}
+
+            <button
+              onClick={() => {
+                onOpenChange(false);
+                navigate('/bible-notes', { state: { returnBook: apiBook, returnChapter: chapter } });
+              }}
+              className="mx-2 mt-2 flex w-[calc(100%-1rem)] items-center justify-center gap-1 rounded-xl py-3 text-sm font-medium text-blue-600 hover:bg-muted dark:text-blue-400"
+            >
+              See all notes <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </SheetContent>
+      </Sheet>
+
+      <NoteEditor
+        open={!!editor}
+        userId={user.id}
+        note={editor?.note ?? null}
+        defaults={{ book: apiBook, chapter, verse: verse ?? null }}
+        folders={folders}
+        onClose={() => {
+          setEditor(null);
+          load();
+        }}
+        onSaved={(saved) =>
+          setNotes((prev) => (prev.some((n) => n.id === saved.id) ? prev.map((n) => (n.id === saved.id ? saved : n)) : [saved, ...prev]))
+        }
+        onDeleted={(id) => setNotes((prev) => prev.filter((n) => n.id !== id))}
+      />
+    </>
   );
 };
 

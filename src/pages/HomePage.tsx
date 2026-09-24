@@ -8,47 +8,12 @@ import DailyScripture from "@/components/DailyScripture";
 import EventCountdown from "@/components/EventCountdown";
 import LocationsSection from "@/components/LocationsSection";
 import PowerHouseVideos from "@/components/PowerHouseVideos";
-import { useEffect } from "react";
-import { pushNotificationService } from "@/services/pushNotificationService";
-import { getTodaysScripture } from "@/utils/dailyScriptureUtils";
+import NotificationPrompt from "@/components/notifications/NotificationPrompt";
 
 const HomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("welcome");
-
-  // Check and trigger daily scripture notification
-  useEffect(() => {
-    const handleDailyNotification = async () => {
-      // 1. Check if we've already shown it today
-      const today = new Date().toDateString();
-      const lastShownDate = localStorage.getItem('lastDailyScriptureNotification');
-
-      if (lastShownDate === today) {
-        return; // Already shown today
-      }
-
-      // 2. Request permission (if not already granted)
-      const hasPermission = await pushNotificationService.requestPermission();
-
-      if (hasPermission) {
-        // 3. Get scripture and show notification
-        const scripture = getTodaysScripture();
-        await pushNotificationService.forceShowNotification(
-          "Today's Scripture",
-          `"${scripture.verse}" - ${scripture.reference}`,
-          undefined,
-          false
-        );
-
-        // 4. Mark as shown
-        localStorage.setItem('lastDailyScriptureNotification', today);
-        console.log("✅ Daily scripture notification shown");
-      }
-    };
-
-    handleDailyNotification();
-  }, []);
 
   const handleNewHereClick = () => {
     navigate("/new-here");
@@ -151,6 +116,10 @@ const HomePage = () => {
         >
           Services
         </div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-4 pt-4 empty:hidden">
+        <NotificationPrompt />
       </div>
 
       {/* Main Feature Cards & Give Online Combined */}

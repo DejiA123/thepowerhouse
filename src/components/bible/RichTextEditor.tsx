@@ -39,6 +39,10 @@ interface RichTextEditorProps {
   compact?: boolean;
   autoFocus?: boolean;
   searchTerm?: string;
+  /** Size the editor to the visible viewport (legacy full-screen pages). Off for embedded editors. */
+  fitViewport?: boolean;
+  /** Extra classes for the scrollable content area */
+  contentClassName?: string;
 }
 
 export interface RichTextEditorHandle {
@@ -54,8 +58,12 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   readOnly = false,
   compact = false,
   autoFocus = false,
-  searchTerm = ''
+  searchTerm = '',
+  fitViewport = true,
+  contentClassName = '',
 }, ref) => {
+  // Read-only previews never need viewport sizing (it made every note card screen-tall)
+  const sizeToViewport = fitViewport && !readOnly;
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const [isTouchActive, setIsTouchActive] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -70,7 +78,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
   // Detect iOS keyboard using visualViewport API to resize container
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) return;
+    if (!sizeToViewport || typeof window === 'undefined' || !window.visualViewport) return;
 
     const updateHeight = () => {
       const viewport = window.visualViewport;
@@ -87,7 +95,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       window.visualViewport?.removeEventListener('resize', updateHeight);
       window.visualViewport?.removeEventListener('scroll', updateHeight);
     };
-  }, []);
+  }, [sizeToViewport]);
 
 
 
@@ -125,13 +133,15 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
     editable: !readOnly,
     autofocus: autoFocus,
     onFocus: () => {
-      if (typeof window !== 'undefined') {
+      if (sizeToViewport && typeof window !== 'undefined') {
         window.scrollTo(0, 0);
         document.body.scrollTop = 0;
       }
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       forceUpdate((n) => n + 1);
+      // Only real content changes (setEditable etc. emit empty updates)
+      if (!transaction?.docChanged) return;
       onChange(editor.getHTML());
     },
     editorProps: {
@@ -197,7 +207,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
 
   useEffect(() => {
     if (editor) {
-      editor.setEditable(!readOnly);
+      editor.setEditable(!readOnly, false);
     }
   }, [editor, readOnly]);
 
@@ -244,6 +254,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
     <Button
       variant="ghost"
       size="sm"
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={title}
       className={cn(
@@ -387,7 +399,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
   return (
     <div
       className={cn("flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-950 relative overflow-hidden", className)}
-      style={{ height: containerHeight }}
+      style={sizeToViewport ? { height: containerHeight } : undefined}
     >
       {/* Text Selection Bubble Menu for Mobile/Desktop */}
       <BubbleMenu
@@ -395,7 +407,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
         shouldShow={({ editor, state, from, to }) => {
           return !editor.isActive('table') && from !== to && !editor.isActive('image');
         }}
-        tippyOptions={{ duration: 100, appendTo: () => document.body, placement: 'top' }}
+        options={{ placement: 'top', strategy: 'fixed' }}
         className="pointer-events-auto z-[9999]"
       >
         <div className="flex items-center gap-1 bg-gray-900/95 dark:bg-gray-800/95 backdrop-blur-md text-white p-1.5 rounded-[1.2rem] shadow-2xl animate-in fade-in zoom-in-95 duration-200 pointer-events-auto border border-white/10">
@@ -475,7 +487,10 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       {toolbarPosition === 'top' && !readOnly && renderMenuBar('top')}
 
       <div className={cn(
-        "flex-1 relative overflow-y-auto min-h-0"
+        "flex-1 relative overflow-y-auto min-h-0",
+        // Leave room so the floating toolbar never covers the last lines
+        toolbarPosition === 'bottom' && !readOnly && 'pb-28',
+        contentClassName
       )} style={{
         WebkitOverflowScrolling: 'touch',
         isolation: 'isolate',
@@ -483,7 +498,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(({
       }}>
         <EditorContent editor={editor} className="min-h-full relative z-10" />
         {editor && editor.getText().trim().length === 0 && !readOnly && (
-          <div className="absolute top-6 left-10 text-gray-300 pointer-events-none italic text-xl md:text-2xl font-medium z-0">
+          <div className="absolute left-1 top-1 z-0 pointer-events-none text-lg text-muted-foreground/60">
             {placeholder || 'Select here to write your note...'}
           </div>
         )}

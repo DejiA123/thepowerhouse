@@ -2,64 +2,63 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-
-// Register service worker for PWA and background support
 import { registerSW } from 'virtual:pwa-register';
 
-const updateSW = registerSW({
-  onNeedRefresh() {
-    console.log('🔄 New content available, please refresh.');
-  },
-  onOfflineReady() {
-    console.log('📶 App is ready for offline use.');
+// Service worker: offline app shell + Web Push. New versions activate
+// automatically; the page reloads once so everyone runs the latest build.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    if (!registration) return;
+    // Look for updates when the app returns to the foreground and hourly
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update().catch(() => undefined);
+    });
+    setInterval(() => registration.update().catch(() => undefined), 60 * 60 * 1000);
   },
 });
 
-// Ensure React is available globally for debugging
-(window as any).React = React;
+/** Catches render errors so one broken screen doesn't blank the whole app. */
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
 
-console.log('main.tsx: React loaded:', !!React);
-console.log('main.tsx: React.createContext available:', !!React.createContext);
-console.log('main.tsx: React.forwardRef available:', !!React.forwardRef);
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('App crashed:', error, info.componentStack);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ maxWidth: 360, textAlign: 'center' }}>
+          <img src="/icons/icon-192.png" alt="" width={72} height={72} style={{ margin: '0 auto 16px', borderRadius: 16 }} />
+          <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Something went wrong</h1>
+          <p style={{ color: '#64748b', marginBottom: 20, lineHeight: 1.5 }}>
+            Sorry about that. Reloading usually fixes it.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ background: '#2563eb', color: 'white', border: 0, borderRadius: 999, padding: '12px 28px', fontWeight: 600, fontSize: 16 }}
+          >
+            Reload app
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  console.error('Root element not found');
-  throw new Error('Root element not found');
-}
+if (!rootElement) throw new Error('Root element not found');
 
-// Add error boundary for React loading issues
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-  try {
-    return <>{children}</>;
-  } catch (error) {
-    console.error('React Error Boundary caught:', error);
-    return <div>Loading error. Please refresh the page.</div>;
-  }
-};
-
-try {
-  console.log('main.tsx: Creating React root...');
-  const root = ReactDOM.createRoot(rootElement);
-
-  console.log('main.tsx: Rendering app...');
-  root.render(
-    <React.StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </React.StrictMode>
-  );
-  console.log('main.tsx: App rendered successfully');
-} catch (error) {
-  console.error('main.tsx: Critical error rendering app:', error);
-  // Fallback rendering without StrictMode
-  try {
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(<App />);
-    console.log('main.tsx: Fallback render successful');
-  } catch (fallbackError) {
-    console.error('main.tsx: Fallback render also failed:', fallbackError);
-    rootElement.innerHTML = '<div style="padding: 20px; color: red;">Application failed to load. Please refresh the page.</div>';
-  }
-}
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
+  </React.StrictMode>
+);

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { pushNotificationService } from "./pushNotificationService";
+import { sendPush } from "@/lib/push";
+import { broadcast, onBroadcast, uniqueTopic } from "@/lib/realtime";
 
 export interface GroupChat {
     id: string;
@@ -16,6 +17,23 @@ export interface GroupChat {
     created_by_user: string | null;
 }
 
+export interface ChatSummary extends GroupChat {
+    last_message: { content: string; created_at: string; user_id: string; sender_name?: string } | null;
+    unread: number;
+    last_read_at: string | null;
+}
+
+export interface ChatUser {
+    id: string;
+    email?: string;
+    full_name?: string | null;
+    avatar_url?: string | null;
+    user_metadata?: {
+        full_name?: string;
+        avatar_url?: string;
+    };
+}
+
 export interface ChatMessage {
     id: string;
     chat_id: string;
@@ -24,14 +42,11 @@ export interface ChatMessage {
     created_at: string;
     updated_at: string;
     is_deleted: boolean;
-    user?: {
-        id: string;
-        email?: string;
-        user_metadata?: {
-            full_name?: string;
-            avatar_url?: string;
-        };
-    };
+    user?: ChatUser;
+    /** Client-only: message is still being sent / failed to send */
+    pending?: boolean;
+    failed?: boolean;
+    client_id?: string;
 }
 
 export interface ChatParticipant {
@@ -55,15 +70,6 @@ export interface UserPresence {
     updated_at: string;
 }
 
-export interface GroupAdmin {
-    id: string;
-    chat_id: string;
-    user_id: string;
-    can_add_members: boolean;
-    can_remove_members: boolean;
-    can_edit_info: boolean;
-}
-
 export interface CallSession {
     id: string;
     chat_id: string;
@@ -75,10 +81,45 @@ export interface CallSession {
     ended_at?: string | null;
 }
 
+const MESSAGE_SELECT = `*, user:user_id ( id, email, full_name, avatar_url, user_metadata )`;
+
+const normalizeMessage = (msg: any): ChatMessage => ({
+    ...msg,
+    user: msg.user
+        ? {
+            id: msg.user.id,
+            email: msg.user.email,
+            full_name: msg.user.full_name,
+            avatar_url: msg.user.avatar_url,
+            user_metadata: msg.user.user_metadata || undefined,
+        }
+        : undefined,
+});
+
+/** Display name for a message author. */
+export const senderName = (message: Pick<ChatMessage, 'user'>) =>
+    message.user?.full_name ||
+    message.user?.user_metadata?.full_name ||
+    message.user?.email?.split('@')[0] ||
+    'Member';
+
+export const senderAvatar = (message: Pick<ChatMessage, 'user'>) =>
+    message.user?.avatar_url || message.user?.user_metadata?.avatar_url || null;
+
+export const signalsTopic = (chatId: string) => `chat-signals:${chatId}`;
+
+const currentUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user ?? null;
+};
+
+/** Tell other parts of the app (calls, banners) that my chat list changed. */
+const chatsChanged = () => window.dispatchEvent(new CustomEvent('chats:changed'));
+
 export class GroupChatService {
-    /**
-     * Get all active group chats (both system and custom)
-     */
+    // ── Chat lists ─────────────────────────────────────────────────────
+
+    /** All active chats (community + custom) visible to this user. */
     static async getGroupChats(): Promise<GroupChat[]> {
         const { data, error } = await supabase
             .from('group_chats')
@@ -90,806 +131,425 @@ export class GroupChatService {
             console.error('Error fetching group chats:', error);
             throw error;
         }
-
-        return data || [];
+        return (data || []) as GroupChat[];
     }
 
     /**
-     * Create a custom group chat
+     * Chats I'm a member of, with last message and unread count, most recent first.
      */
-    static async createCustomGroup(
-        name: string,
-        description: string,
-        memberIds: string[]
-    ): Promise<GroupChat> {
-        const { data: { user } } = await supabase.auth.getUser();
+    static async getMyChats(): Promise<ChatSummary[]> {
+        const user = await currentUser();
+        if (!user) return [];
 
-        if (!user) {
-            throw new Error('User must be authenticated');
+        const { data: memberships, error } = await supabase
+            .from('chat_participants')
+            .select('chat_id, last_read_at, joined_at, chat:chat_id ( * )')
+            .eq('user_id', user.id);
+        if (error) throw error;
+
+        const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);
+
+        const summaries = await Promise.all(rows.map(async (m: any) => {
+            const [{ data: last }, { count }] = await Promise.all([
+                supabase
+                    .from('chat_messages')
+                    .select('content, created_at, user_id, user:user_id ( full_name )')
+                    .eq('chat_id', m.chat_id)
+                    .eq('is_deleted', false)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle(),
+                supabase
+                    .from('chat_messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('chat_id', m.chat_id)
+                    .eq('is_deleted', false)
+                    .neq('user_id', user.id)
+                    .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01'),
+            ]);
+
+            return {
+                ...(m.chat as GroupChat),
+                last_read_at: m.last_read_at,
+                unread: count || 0,
+                last_message: last
+                    ? {
+                        content: (last as any).content,
+                        created_at: (last as any).created_at,
+                        user_id: (last as any).user_id,
+                        sender_name: (last as any).user?.full_name || undefined,
+                    }
+                    : null,
+            } as ChatSummary;
+        }));
+
+        return summaries.sort((a, b) => {
+            const ta = new Date(a.last_message?.created_at || a.created_at || 0).getTime();
+            const tb = new Date(b.last_message?.created_at || b.created_at || 0).getTime();
+            return tb - ta;
+        });
+    }
+
+    /** Community groups anyone can join that I'm not in yet. */
+    static async getDiscoverableChats(myChatIds: string[]): Promise<GroupChat[]> {
+        const { data, error } = await supabase
+            .from('group_chats')
+            .select('*')
+            .eq('is_active', true)
+            .or('is_custom.is.null,is_custom.eq.false')
+            .order('name', { ascending: true });
+        if (error) {
+            console.error('Error fetching community chats:', error);
+            return [];
         }
+        const mine = new Set(myChatIds);
+        return ((data || []) as GroupChat[]).filter((c) => !mine.has(c.id));
+    }
 
-        // Create the group
+    // ── Group management ───────────────────────────────────────────────
+
+    static async createCustomGroup(name: string, description: string, memberIds: string[]): Promise<GroupChat> {
+        const user = await currentUser();
+        if (!user) throw new Error('User must be authenticated');
+
         const { data: group, error: groupError } = await supabase
             .from('group_chats')
             .insert({
-                name,
-                description,
+                name: name.trim(),
+                description: description.trim(),
                 is_custom: true,
                 created_by_user: user.id,
-                created_by: user.id
+                created_by: user.id,
             })
             .select()
             .single();
+        if (groupError) throw groupError;
 
-        if (groupError) {
-            console.error('Error creating group:', groupError);
-            throw groupError;
-        }
-
-        // Add creator as admin
         await supabase.from('group_admins').insert({
             chat_id: group.id,
             user_id: user.id,
             can_add_members: true,
             can_remove_members: true,
-            can_edit_info: true
+            can_edit_info: true,
         });
 
-        // Add members
-        const participants = [user.id, ...memberIds].map(userId => ({
+        const participants = Array.from(new Set([user.id, ...memberIds])).map((userId) => ({
             chat_id: group.id,
-            user_id: userId
+            user_id: userId,
         }));
+        const { error: membersError } = await supabase.from('chat_participants').insert(participants);
+        if (membersError) console.error('Error adding members:', membersError);
 
-        await supabase.from('chat_participants').insert(participants);
-
-        return group;
+        chatsChanged();
+        return group as GroupChat;
     }
 
-
-    /**
-     * Delete a group chat (admin only)
-     */
+    /** Archive a group for everyone (creator / admins only). */
     static async deleteGroup(chatId: string): Promise<void> {
-        const { error } = await supabase
-            .from('group_chats')
-            .update({ is_active: false })
-            .eq('id', chatId);
-
-        if (error) {
-            console.error('Error deleting group:', error);
-            throw error;
-        }
+        const { error } = await supabase.from('group_chats').update({ is_active: false }).eq('id', chatId);
+        if (error) throw error;
+        chatsChanged();
     }
 
-    /**
-     * Search for users by name or email
-     */
-    static async searchUsers(query: string): Promise<{ id: string; email: string; full_name: string; avatar_url: string }[]> {
-        if (!query.trim()) return [];
+    /** Leave a group myself; the group carries on for everyone else. */
+    static async leaveChat(chatId: string): Promise<void> {
+        const user = await currentUser();
+        if (!user) return;
+        const { error } = await supabase
+            .from('chat_participants')
+            .delete()
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
+        if (error) throw error;
+        chatsChanged();
+    }
 
+    static async searchUsers(query: string): Promise<{ id: string; email: string; full_name: string; avatar_url: string }[]> {
+        const q = query.trim().replace(/[%,()]/g, '');
+        if (!q) return [];
         const { data, error } = await supabase
             .from('profiles')
             .select('id, email, full_name, avatar_url')
-            .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
-            .limit(10);
-
-        if (error) {
-            console.error('Error searching users:', error);
-            throw error;
-        }
-
-        return data || [];
+            .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+            .limit(15);
+        if (error) throw error;
+        return (data || []) as any;
     }
 
-    /**
-     * Update group information (admin only)
-     */
-    static async updateGroupInfo(
-        chatId: string,
-        updates: { name?: string; description?: string; avatar_url?: string }
-    ): Promise<void> {
-        const { error } = await supabase
-            .from('group_chats')
-            .update(updates)
-            .eq('id', chatId);
-
-        if (error) {
-            console.error('Error updating group:', error);
-            throw error;
-        }
+    static async updateGroupInfo(chatId: string, updates: { name?: string; description?: string; avatar_url?: string | null }): Promise<void> {
+        const { error } = await supabase.from('group_chats').update(updates).eq('id', chatId);
+        if (error) throw error;
+        chatsChanged();
     }
 
-    /**
-     * Add members to a group (admin only)
-     */
     static async addMembers(chatId: string, userIds: string[]): Promise<void> {
-        const participants = userIds.map(userId => ({
-            chat_id: chatId,
-            user_id: userId
-        }));
-
-        const { error } = await supabase
+        const { data: existing } = await supabase
             .from('chat_participants')
-            .insert(participants);
-
-        if (error) {
-            console.error('Error adding members:', error);
-            throw error;
-        }
+            .select('user_id')
+            .eq('chat_id', chatId)
+            .in('user_id', userIds);
+        const already = new Set((existing || []).map((r) => r.user_id));
+        const rows = userIds.filter((id) => !already.has(id)).map((user_id) => ({ chat_id: chatId, user_id }));
+        if (rows.length === 0) return;
+        const { error } = await supabase.from('chat_participants').insert(rows);
+        if (error) throw error;
     }
 
-    /**
-     * Remove a member from a group (admin only)
-     */
     static async removeMember(chatId: string, userId: string): Promise<void> {
         const { error } = await supabase
             .from('chat_participants')
             .delete()
             .eq('chat_id', chatId)
             .eq('user_id', userId);
-
-        if (error) {
-            console.error('Error removing member:', error);
-            throw error;
-        }
+        if (error) throw error;
     }
 
-    /**
-     * Get messages for a specific chat with user information
-     */
-    static async getChatMessages(chatId: string, limit: number = 100): Promise<ChatMessage[]> {
-        const { data, error } = await supabase
+    static async isAdmin(chatId: string): Promise<boolean> {
+        const user = await currentUser();
+        if (!user) return false;
+        const { data } = await supabase
+            .from('group_admins')
+            .select('id')
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        return !!data;
+    }
+
+    // ── Messages ───────────────────────────────────────────────────────
+
+    /** Newest `limit` messages (oldest first), optionally older than `before`. */
+    static async getChatMessages(chatId: string, limit: number = 50, before?: string): Promise<ChatMessage[]> {
+        let query = supabase
             .from('chat_messages')
-            .select(`
-        *,
-        user:user_id (
-          id,
-          email,
-          user_metadata
-        )
-      `)
+            .select(MESSAGE_SELECT)
             .eq('chat_id', chatId)
             .eq('is_deleted', false)
-            .order('created_at', { ascending: true })
+            .order('created_at', { ascending: false })
             .limit(limit);
+        if (before) query = query.lt('created_at', before);
 
-        if (error) {
-            console.error('Error fetching chat messages:', error);
-            throw error;
-        }
-
-        return (data || []).map((msg: any) => ({
-            ...msg,
-            user: msg.user ? {
-                id: msg.user.id,
-                email: msg.user.email,
-                user_metadata: msg.user.user_metadata as { full_name?: string; avatar_url?: string } | undefined
-            } : undefined
-        })) as ChatMessage[];
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []).map(normalizeMessage).reverse();
     }
 
-    /**
-     * Send a message to a chat
-     */
-    static async sendMessage(chatId: string, content: string): Promise<ChatMessage | null> {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            throw new Error('User must be authenticated to send messages');
-        }
-
-        // Ensure user is a participant
-        await this.joinChat(chatId);
+    static async sendMessage(chatId: string, content: string, retried = false): Promise<ChatMessage | null> {
+        const user = await currentUser();
+        if (!user) throw new Error('User must be authenticated to send messages');
 
         const { data, error } = await supabase
             .from('chat_messages')
-            .insert({
-                chat_id: chatId,
-                user_id: user.id,
-                content: content.trim()
-            })
-            .select(`
-        *,
-        user:user_id (
-          id,
-          email,
-          user_metadata
-        )
-      `)
+            .insert({ chat_id: chatId, user_id: user.id, content: content.trim() })
+            .select(MESSAGE_SELECT)
             .single();
 
         if (error) {
-            console.error('Error sending message:', error);
+            // Not a member yet (e.g. first message in a community group): join and retry once
+            if (error.code === '42501' && !retried) {
+                await this.joinChat(chatId);
+                return this.sendMessage(chatId, content, true);
+            }
             throw error;
         }
-
         if (!data) return null;
 
-        const msg = data as any;
-        const chatMessage = {
-            ...msg,
-            user: msg.user ? {
-                id: msg.user.id,
-                email: msg.user.email,
-                user_metadata: msg.user.user_metadata as { full_name?: string; avatar_url?: string } | undefined
-            } : undefined
-        } as ChatMessage;
-
-        // Trigger notifications for other members
-        if (chatMessage) {
-            const senderName = chatMessage.user?.user_metadata?.full_name || chatMessage.user?.email || 'Someone';
-            pushNotificationService.notifyGroupMembers(
-                chatId,
-                '', // Group name can be fetched if needed
-                user.id,
-                senderName,
-                chatMessage.content,
-                chatMessage.id
-            );
-
-            // BROADCAST message immediately for real-time responsiveness (bypasses DB listener lag)
-            this.sendSignal(chatId, 'new-message', chatMessage);
-        }
-
-        return chatMessage;
+        const message = normalizeMessage(data);
+        // Instant delivery to people with the chat open, then push to everyone else
+        broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: message }).catch(() => undefined);
+        sendPush({ type: 'chat-message', messageId: message.id });
+        return message;
     }
 
-    /**
-     * Join a chat room (auto-joins if not already a participant)
-     */
+    static async deleteMessage(messageId: string): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('User must be authenticated to delete messages');
+        const { error } = await supabase
+            .from('chat_messages')
+            .update({ is_deleted: true })
+            .eq('id', messageId)
+            .eq('user_id', user.id);
+        if (error) throw error;
+    }
+
     static async joinChat(chatId: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await currentUser();
+        if (!user) throw new Error('User must be authenticated to join chats');
 
-        if (!user) {
-            throw new Error('User must be authenticated to join chats');
-        }
-
-        // Check if already a participant
-        const { data: existing, error: fetchError } = await supabase
+        const { data: existing } = await supabase
             .from('chat_participants')
             .select('id')
             .eq('chat_id', chatId)
             .eq('user_id', user.id)
             .maybeSingle();
+        if (existing) return;
 
-        if (existing) {
-            return; // Already a participant
-        }
-
-        // Join the chat
-        const { error } = await supabase
-            .from('chat_participants')
-            .insert({
-                chat_id: chatId,
-                user_id: user.id
-            });
-
-        if (error) {
-            console.error('Error joining chat:', error);
-            throw error;
-        }
+        const { error } = await supabase.from('chat_participants').insert({ chat_id: chatId, user_id: user.id });
+        if (error) throw error;
+        chatsChanged();
     }
 
-    /**
-     * Mark messages as read
-     */
     static async markAsRead(chatId: string, timestamp?: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
-
+        const user = await currentUser();
         if (!user) return;
-
-        // Use direct update on the existing participant row
         const { error } = await supabase
             .from('chat_participants')
-            .update({
-                last_read_at: timestamp || new Date().toISOString()
-            })
+            .update({ last_read_at: timestamp || new Date().toISOString() })
             .eq('chat_id', chatId)
             .eq('user_id', user.id);
-
-        if (error) {
-            console.error('Error marking as read:', error);
-        }
+        if (error) console.error('Error marking as read:', error);
     }
 
-    /**
-     * Get unread message count for a chat
-     */
     static async getUnreadCount(chatId: string): Promise<number> {
-        const { data: { user } } = await supabase.auth.getUser();
-
+        const user = await currentUser();
         if (!user) return 0;
-
-        // Try to get participant record from cache-like object or fetch
         const { data: participant } = await supabase
             .from('chat_participants')
             .select('last_read_at')
             .eq('chat_id', chatId)
             .eq('user_id', user.id)
             .maybeSingle();
-
         if (!participant) return 0;
-
-        const { count, error } = await supabase
+        const { count } = await supabase
             .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('chat_id', chatId)
             .eq('is_deleted', false)
             .gt('created_at', participant.last_read_at || '1970-01-01')
             .neq('user_id', user.id);
-
-        if (error) {
-            console.error('Error getting unread count:', error);
-            return 0;
-        }
-
         return count || 0;
     }
 
-    /**
-     * Get all unread counts for a user in one go (more efficient)
-     */
     static async getAllUnreadCounts(): Promise<Record<string, number>> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return {};
+        const chats = await this.getMyChats();
+        return Object.fromEntries(chats.map((c) => [c.id, c.unread]));
+    }
 
-        const { data: participants, error: pError } = await supabase
+    static async getParticipants(chatId: string): Promise<(ChatParticipant & { presence?: UserPresence; is_admin?: boolean })[]> {
+        const { data, error } = await supabase
             .from('chat_participants')
-            .select('chat_id, last_read_at')
-            .eq('user_id', user.id);
+            .select(`*, user:user_id ( full_name, avatar_url, email )`)
+            .eq('chat_id', chatId)
+            .order('joined_at', { ascending: true });
+        if (error) throw error;
 
-        if (pError || !participants) return {};
+        const participants = (data || []) as any[];
+        const ids = participants.map((p) => p.user_id);
+        const [{ data: presence }, { data: admins }] = await Promise.all([
+            supabase.from('user_presence').select('*').in('user_id', ids),
+            supabase.from('group_admins').select('user_id').eq('chat_id', chatId),
+        ]);
+        const presenceMap = new Map((presence || []).map((p: any) => [p.user_id, p]));
+        const adminSet = new Set((admins || []).map((a: any) => a.user_id));
 
-        const counts: Record<string, number> = {};
-
-        // Use Promise.all to fetch counts in parallel for now.
-        // A truly optimized version would use an RPC call or a single join query.
-        await Promise.all(participants.map(async (p) => {
-            const { count } = await supabase
-                .from('chat_messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('chat_id', p.chat_id)
-                .eq('is_deleted', false)
-                .gt('created_at', p.last_read_at || '1970-01-01')
-                .neq('user_id', user.id);
-
-            counts[p.chat_id] = count || 0;
+        return participants.map((p) => ({
+            ...p,
+            presence: presenceMap.get(p.user_id) as UserPresence | undefined,
+            is_admin: adminSet.has(p.user_id),
         }));
-
-        return counts;
     }
 
-    /**
-     * Get participants of a chat with presence info
-     */
-    static async getParticipants(chatId: string): Promise<(ChatParticipant & { presence?: UserPresence })[]> {
-        const { data, error } = await supabase
-            .from('chat_participants')
-            .select(`
-                *,
-                user:user_id (
-                    full_name,
-                    avatar_url,
-                    email
-                )
-            `)
-            .eq('chat_id', chatId)
-            .order('joined_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching participants:', error);
-            throw error;
-        }
-
-        // Fetch presence separately to avoid relationship issues
-        const participants = data || [];
-        const participantsWithPresence = await Promise.all(
-            participants.map(async (p: any) => {
-                const { data: presenceData } = await supabase
-                    .from('user_presence')
-                    .select('*')
-                    .eq('user_id', p.user_id)
-                    .maybeSingle();
-
-                return {
-                    ...p,
-                    presence: presenceData as UserPresence | undefined
-                };
-            })
-        );
-
-        return participantsWithPresence;
-    }
-
-    /**
-     * Set  user presence (online/offline)
-     */
     static async setUserPresence(isOnline: boolean, statusMessage?: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
-
+        const user = await currentUser();
         if (!user) return;
-
-        const { error } = await supabase
-            .from('user_presence')
-            .upsert({
-                user_id: user.id,
-                is_online: isOnline,
-                last_seen: new Date().toISOString(),
-                status_message: statusMessage || null
-            });
-
-        if (error) {
-            console.error('Error setting presence:', error);
-        }
+        await supabase.from('user_presence').upsert({
+            user_id: user.id,
+            is_online: isOnline,
+            last_seen: new Date().toISOString(),
+            status_message: statusMessage || null,
+        });
     }
 
-    /**
-     * Subscribe to presence changes
-     */
-    static subscribeToPresence(callback: (presence: UserPresence) => void): RealtimeChannel {
-        const channel = supabase
-            .channel('presence_all')
+    // ── Realtime ───────────────────────────────────────────────────────
+
+    /** New rows in one chat (database path; reliable but slightly slower). */
+    static subscribeToMessages(chatId: string, callback: (message: ChatMessage) => void): RealtimeChannel {
+        return supabase
+            .channel(uniqueTopic(`chat-messages:${chatId}`))
             .on(
                 'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'user_presence'
-                },
-                (payload) => {
-                    callback(payload.new as UserPresence);
-                }
-            )
-            .subscribe();
-
-        return channel;
-    }
-
-    /**
-     * Subscribe to new messages in a chat
-     */
-    /**
-     * Subscribe to new messages in a chat
-     */
-    static subscribeToMessages(
-        chatId: string,
-        callback: (message: ChatMessage) => void
-    ): RealtimeChannel {
-        // Use a distinct channel topic for messages to avoid collision with signals
-        const channel = supabase
-            .channel(`chat-messages:${chatId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT', // Only listen for new messages for speed
-                    schema: 'public',
-                    table: 'chat_messages',
-                    filter: `chat_id=eq.${chatId}`
-                },
+                { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `chat_id=eq.${chatId}` },
                 async (payload) => {
-                    console.log('✅ Realtime message received:', payload.new.id);
-
-                    // Fetch profile info - keep it minimal
-                    const { data, error } = await supabase
+                    const { data } = await supabase
                         .from('profiles')
-                        .select('id, email, user_metadata')
-                        .eq('id', payload.new.user_id)
-                        .single();
-
-                    const chatMessage: ChatMessage = {
-                        ...payload.new as any,
-                        user: data ? {
-                            id: data.id,
-                            email: data.email,
-                            user_metadata: data.user_metadata as any
-                        } : undefined
-                    };
-
-                    callback(chatMessage);
-                }
+                        .select('id, email, full_name, avatar_url, user_metadata')
+                        .eq('id', (payload.new as any).user_id)
+                        .maybeSingle();
+                    callback(normalizeMessage({ ...(payload.new as any), user: data }));
+                },
             )
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Subscribed to messages for chat ${chatId}`);
-                } else if (status === 'CHANNEL_ERROR') {
-                    console.error(`❌ Failed to subscribe to messages for chat ${chatId}`);
-                } else if (status === 'TIMED_OUT') {
-                    console.error(`❌ Subscription timed out for chat ${chatId}`);
-                }
-            });
-
-        return channel;
-    }
-
-    /**
-     * Subscribe to messages across ALL chats (for global notifications/unread counts)
-     */
-    static subscribeToAllMessages(callback: (message: ChatMessage) => void): RealtimeChannel {
-        const channel = supabase
-            .channel('global-chat-messages')
             .on(
                 'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'chat_messages'
-                },
+                { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `chat_id=eq.${chatId}` },
                 (payload) => {
-                    callback(payload.new as ChatMessage);
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Subscribed to global messages`);
-                }
-            });
-
-        return channel;
-    }
-
-    /**
-     * Subscribe to read status updates across ALL chats for a user
-     */
-    static subscribeToReadStatus(callback: (payload: { chat_id: string, last_read_at: string }) => void): RealtimeChannel {
-        const channel = supabase
-            .channel('global-read-status')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'chat_participants'
+                    // Soft deletes arrive as updates
+                    if ((payload.new as any).is_deleted) callback({ ...(payload.new as any), is_deleted: true });
                 },
-                (payload) => {
-                    callback({
-                        chat_id: payload.new.chat_id,
-                        last_read_at: payload.new.last_read_at
-                    });
-                }
             )
             .subscribe();
+    }
 
-        return channel;
+    static subscribeToAllMessages(callback: (message: ChatMessage) => void): RealtimeChannel {
+        return supabase
+            .channel(uniqueTopic('global-chat-messages'))
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+                callback(payload.new as ChatMessage);
+            })
+            .subscribe();
+    }
+
+    static subscribeToReadStatus(callback: (payload: { chat_id: string; last_read_at: string; user_id: string }) => void): RealtimeChannel {
+        return supabase
+            .channel(uniqueTopic('global-read-status'))
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants' }, (payload) => {
+                callback({
+                    chat_id: (payload.new as any).chat_id,
+                    last_read_at: (payload.new as any).last_read_at,
+                    user_id: (payload.new as any).user_id,
+                });
+            })
+            .subscribe();
     }
 
     /**
-     * Subscribe to incoming calls across ALL chats
+     * Fast-path events for an open chat: new messages, typing, deletions.
+     * Returns an unsubscribe function.
      */
-    static subscribeToCalls(callback: (call: CallSession) => void): RealtimeChannel {
-        const channel = supabase
-            .channel('global-call-sessions')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'call_sessions'
-                },
-                (payload) => {
-                    callback(payload.new as CallSession);
-                }
-            )
-            .subscribe((status) => {
-                console.log(`📞 Call subscription status:`, status);
-            });
-
-        return channel;
+    static onChatSignals(chatId: string, handler: (signal: { type: string; from?: string; payload: any }) => void): () => void {
+        return onBroadcast(signalsTopic(chatId), 'signal', handler);
     }
 
-    /**
-     * Check if current user is a participant of a chat
-     */
-    static async isParticipant(chatId: string): Promise<boolean> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return false;
-
-        const { data, error } = await supabase
-            .from('chat_participants')
-            .select('id')
-            .eq('chat_id', chatId)
-            .eq('user_id', user.id)
-            .single();
-
-        return !!data && !error;
+    static sendTyping(chatId: string, userId: string, name: string, isTyping: boolean) {
+        return broadcast(signalsTopic(chatId), 'signal', { type: 'typing', from: userId, payload: { name, isTyping } });
     }
 
-    /**
-     * Unsubscribe from a channel
-     */
     static unsubscribe(channel: RealtimeChannel): void {
         supabase.removeChannel(channel);
     }
 
-    /**
-     * Delete a message (soft delete)
-     */
-    static async deleteMessage(messageId: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
+    // ── Reactions ──────────────────────────────────────────────────────
 
-        if (!user) {
-            throw new Error('User must be authenticated to delete messages');
-        }
-
-        const { error } = await supabase
-            .from('chat_messages')
-            .update({ is_deleted: true })
-            .eq('id', messageId)
-            .eq('user_id', user.id);
-
-        if (error) {
-            console.error('Error deleting message:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Initiate a call (basic setup - requires WebRTC implementation)
-     */
-    static async initiateCall(chatId: string, callType: 'audio' | 'video'): Promise<CallSession> {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            throw new Error('User must be authenticated');
-        }
-
-        const { data, error } = await supabase
-            .from('call_sessions')
-            .insert({
-                chat_id: chatId,
-                initiated_by: user.id,
-                call_type: callType,
-                status: 'ringing'
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error initiating call:', error);
-            throw error;
-        }
-
-        const callData = data as any;
-
-        // Trigger push notifications for incoming call
-        const { pushNotificationService } = await import("./pushNotificationService");
-        const senderName = user.user_metadata?.full_name || user.email || 'Someone';
-
-        // Fetch group name for the notification
-        const { data: chatData } = await supabase
-            .from('group_chats')
-            .select('name')
-            .eq('id', chatId)
-            .single();
-
-        // 1. Send Realtime Signal (Fastest, bypasses RLS)
-        await this.sendSignal(chatId, 'call-started', {
-            callId: callData.id,
-            chatId: chatId,
-            groupName: chatData?.name || 'Group Chat',
-            initiatorId: user.id,
-            initiatorName: senderName,
-            callType: callType
-        });
-
-        // 2. Send Push Notification (Reliable fallback)
-        pushNotificationService.notifyCallIncoming(
-            chatId,
-            chatData?.name || 'Group Chat',
-            user.id,
-            senderName,
-            callType
-        );
-
-        return {
-            ...callData,
-            call_type: callData.call_type as 'audio' | 'video'
-        };
-    }
-
-    /**
-     * End a call
-     */
-    static async endCall(callId: string): Promise<void> {
-        const { error } = await supabase
-            .from('call_sessions')
-            .update({
-                status: 'ended',
-                ended_at: new Date().toISOString()
-            })
-            .eq('id', callId);
-
-        if (error) {
-            console.error('Error ending call:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Send a WebRTC signal (Offer, Answer, ICE Candidate, or Join Call)
-     */
-    static async sendSignal(chatId: string, type: 'offer' | 'answer' | 'ice-candidate' | 'join-call' | 'call-started' | 'new-message', payload: any, recipientId?: string): Promise<void> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        // Use distinct channel for signals
-        await supabase.channel(`chat-signals:${chatId}`).send({
-            type: 'broadcast',
-            event: 'signal',
-            payload: {
-                type,
-                payload,
-                from: user.id,
-                to: recipientId
-            }
-        });
-    }
-
-    /**
-     * Subscribe to WebRTC signals
-     */
-    static subscribeToSignals(chatId: string, callback: (signal: any) => void): RealtimeChannel {
-        // Use distinct channel for signals
-        const channel = supabase.channel(`chat-signals:${chatId}`)
-            .on(
-                'broadcast',
-                { event: 'signal' },
-                (payload) => callback(payload.payload)
-            )
-            .subscribe();
-        return channel;
-    }
-
-    /**
-     * Check if user is admin of a group
-     */
-    static async isAdmin(chatId: string): Promise<boolean> {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) return false;
-
-        const { data } = await supabase
-            .from('group_admins')
-            .select('id')
-            .eq('chat_id', chatId)
-            .eq('user_id', user.id)
-            .single();
-
-        return !!data;
-    }
-
-    /**
-     * Get reactions for a list of messages
-     */
     static async getReactions(messageIds: string[]): Promise<Record<string, { emoji: string; user_id: string; id: string }[]>> {
         if (!messageIds.length) return {};
-
         const { data, error } = await supabase
             .from('message_reactions' as any)
             .select('id, message_id, user_id, emoji')
             .in('message_id', messageIds);
-
         if (error) {
             console.error('Error fetching reactions:', error);
             return {};
         }
-
         const grouped: Record<string, { emoji: string; user_id: string; id: string }[]> = {};
         for (const r of (data || []) as any[]) {
-            if (!grouped[r.message_id]) grouped[r.message_id] = [];
-            grouped[r.message_id].push({ emoji: r.emoji, user_id: r.user_id, id: r.id });
+            (grouped[r.message_id] ||= []).push({ emoji: r.emoji, user_id: r.user_id, id: r.id });
         }
         return grouped;
     }
 
-    /**
-     * Toggle a reaction on a message
-     */
     static async toggleReaction(messageId: string, emoji: string): Promise<boolean> {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await currentUser();
         if (!user) throw new Error('Not authenticated');
 
-        // Check if reaction already exists
         const { data: existing } = await supabase
             .from('message_reactions' as any)
             .select('id')
@@ -899,18 +559,10 @@ export class GroupChatService {
             .maybeSingle();
 
         if (existing) {
-            // Remove reaction
-            await supabase
-                .from('message_reactions' as any)
-                .delete()
-                .eq('id', (existing as any).id);
-            return false; // removed
-        } else {
-            // Add reaction
-            await supabase
-                .from('message_reactions' as any)
-                .insert({ message_id: messageId, user_id: user.id, emoji });
-            return true; // added
+            await supabase.from('message_reactions' as any).delete().eq('id', (existing as any).id);
+            return false;
         }
+        await supabase.from('message_reactions' as any).insert({ message_id: messageId, user_id: user.id, emoji });
+        return true;
     }
 }

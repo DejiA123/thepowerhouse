@@ -15,46 +15,51 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
+      // The app registers /sw.js itself (see src/lib/serviceWorker.ts)
+      injectRegister: false,
+      // public/manifest.json is the single source of truth for install metadata
+      manifest: false,
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'], // Exclude mp4 from precache
-        globIgnores: ['**/*.mp4'], // Explicitly ignore large video files
+        // Web Push + notification click handling live in public/push-sw.js
+        importScripts: ['/push-sw.js'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /\.[a-z0-9]+$/i],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/*.mp4', '**/lovable-uploads/**', '**/assets/academy/**', 'push-sw.js'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            // Images (uploads, avatars, storage) - fast from cache, refreshed in background
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Data reads (REST / storage) fall back to the last copy when offline.
+            // Auth, realtime and edge functions are never cached.
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              /\.supabase\.co$/i.test(url.hostname) &&
+              !/^\/(auth|realtime|functions)\//.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              }
-            }
-          }
-        ]
+              cacheName: 'supabase-data',
+              networkTimeoutSeconds: 6,
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: false  // Disable in dev to prevent auto-refresh
       },
-      includeAssets: ['favicon.ico'],
-      manifest: {
-        name: 'The Power House',
-        short_name: 'The Power House',
-        description: 'The Power House International Church App',
-        theme_color: '#ffffff',
-        icons: [
-          {
-            src: '/favicon.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/favicon.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
+      includeAssets: ['favicon.ico', 'icons/*.png', 'push-sw.js'],
     })
   ].filter(Boolean),
   resolve: {
@@ -65,19 +70,16 @@ export default defineConfig(({ mode }) => ({
   define: {
     'process.env': {},
   },
+  // Production builds drop debug logging (the app logged thousands of lines per
+  // session, which slowed phones). console.warn / console.error are kept.
+  esbuild: mode === 'production'
+    ? { pure: ['console.log', 'console.debug', 'console.info', 'console.trace'], drop: ['debugger'] }
+    : undefined,
   build: {
     outDir: 'dist',
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
-      },
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'react-core';
-          if (id.includes('node_modules/@radix-ui')) return 'radix-ui';
-          if (id.includes('node_modules/html2canvas')) return 'html2canvas';
-          if (id.includes('node_modules/@supabase') || id.includes('node_modules/lucide-react') || id.includes('node_modules/class-variance-authority') || id.includes('node_modules/clsx') || id.includes('node_modules/tailwind-merge')) return 'vendor';
-        },
       },
     },
     chunkSizeWarningLimit: 4000,

@@ -15,6 +15,9 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const showChrome = location.pathname !== "/intro";
+  const isMessages = location.pathname === '/group-chats';
+  // Inside an open conversation the chat owns the whole screen (no tab bar)
+  const inConversation = isMessages && new URLSearchParams(location.search).has('chat');
 
   // Reset scroll on every route change — runs in Layout because it owns #main-content
   useEffect(() => {
@@ -222,17 +225,12 @@ const Layout = ({ children }: LayoutProps) => {
           </>
         )}
 
-        {/* Safe-area top fill for group-chats on mobile (no app header above) */}
-        {isMobile && location.pathname === '/group-chats' && (
-          <div className="shrink-0 bg-background" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
-        )}
-
         {/* Main Content */}
         <main
           id="main-content"
           className={cn(
             "flex-1 min-h-0 relative bg-background",
-            isMobile && location.pathname === '/group-chats' && "pb-[90px]",
+            isMobile && isMessages && !inConversation && "pb-[90px]",
             location.pathname === '/bible' || location.pathname === '/group-chats' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -253,7 +251,7 @@ const Layout = ({ children }: LayoutProps) => {
         </main>
 
         {/* Bottom Nav - mobile only */}
-        {isMobile && showChrome && location.pathname !== '/follow-up' && <BottomNavigation />}
+        {isMobile && showChrome && location.pathname !== '/follow-up' && !inConversation && <BottomNavigation />}
 
         {/* Global Mini Player for Background Audio */}
         <GlobalMiniPlayer />

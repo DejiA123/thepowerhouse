@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
+import { offlineAudioService } from '@/services/offlineAudioService';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
@@ -315,7 +316,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
-      audio.src = audioUrl;
+      // Play the copy saved on this device when available (works offline)
+      audio.src = await offlineAudioService.resolvePlayableUrl(audioUrl);
       audio.loop = loopChapter;
       audio.load();
       await audio.play();
@@ -355,6 +357,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const pause = useCallback(() => {
     console.log('UI or Media Session: Pause requested');
+    // A pending auto-advance retry must never override the user's pause
+    if (autoAdvanceRetryRef.current) {
+      clearTimeout(autoAdvanceRetryRef.current);
+      autoAdvanceRetryRef.current = null;
+    }
     audio.pause();
   }, []);
 
@@ -524,9 +531,16 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
         goToNextChapter();
 
-        // Safety net: if goToNextChapter didn't start new audio within 5s, retry once
+        // Safety net: retry once only if the chapter did NOT change within 5s
+        // (e.g. a network hiccup). If it changed, the advance worked — and a paused
+        // player then means the user paused, which must be respected.
+        const endedBook = currentBook;
+        const endedChapter = currentChapter;
         autoAdvanceRetryRef.current = setTimeout(() => {
-          if (audio.paused && audioStateRef.current.autoPlayNext && !isAutoAdvancingRef.current) {
+          autoAdvanceRetryRef.current = null;
+          const now = audioStateRef.current;
+          const stillOnEndedChapter = now.currentBook === endedBook && now.currentChapter === endedChapter;
+          if (stillOnEndedChapter && audio.paused && now.autoPlayNext && !isAutoAdvancingRef.current) {
             console.warn('🎵 Auto-advance safety retry triggered');
             goToNextChapter();
           }

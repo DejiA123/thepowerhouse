@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { detachPushFromUser } from '@/lib/push';
 
 // Debug React availability
 console.log('AuthContext.tsx: React loaded:', !!React);
@@ -151,6 +152,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       console.log('AuthProvider: Attempting sign out...');
+      // Stop personal (chat/call) pushes to this device before the session ends
+      await detachPushFromUser();
       await supabase.auth.signOut();
       console.log('Sign out successful');
     } catch (error) {

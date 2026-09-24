@@ -15,6 +15,7 @@ import { BibleChapterContent } from "@/components/bible/BibleChapterContent";
 import { BibleSearch } from "@/components/bible/BibleSearch";
 import { BibleHistory, addToBibleHistory } from "@/components/bible/BibleHistory";
 import { BibleMenuDialog } from "@/components/bible/BibleMenuDialog";
+import OfflineAudioDialog from "@/components/bible/OfflineAudioDialog";
 import BibleNotes from "@/components/bible/BibleNotes";
 import AllHighlightsList from "@/components/bible/AllHighlightsList";
 import { Pencil } from "lucide-react";
@@ -97,6 +98,7 @@ const BiblePage = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showHighlightsList, setShowHighlightsList] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+  const [showOffline, setShowOffline] = useState(false);
   const [menuSettingsVersion, setMenuSettingsVersion] = useState(0);
   const [currentVerse, setCurrentVerse] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -203,15 +205,10 @@ const BiblePage = () => {
       scrollToTop();
     }
     setSelectedChapter(chapter);
-    // Enable auto-play if this is an auto-play transition
-    // When a chapter change is triggered by auto-play, ensure the next chapter will also auto-play
-    if (isAutoPlay) {
-      console.log(`✅ BiblePage: Setting shouldAutoPlay to true for auto-play transition`);
-      setShouldAutoPlay(true);
-    } else {
-      console.log(`❌ BiblePage: Setting shouldAutoPlay to false for manual chapter change`);
-      setShouldAutoPlay(false);
-    }
+    // Auto-play transitions come from the global audio player, which has already
+    // started the next chapter. Never re-trigger playback from here: a leftover
+    // "should auto-play" flag used to restart audio the moment the user paused.
+    setShouldAutoPlay(false);
     // Use the current selectedBook for chapter changes
     if (selectedBook) {
       setReadingPosition(selectedBook, chapter);
@@ -227,18 +224,8 @@ const BiblePage = () => {
     setSelectedBook(normalized);
     setSelectedChapter(chapter);
     setReadingPosition(normalized, chapter);
-    // Enable auto-play if this is an auto-play transition
-    if (isAutoPlay) {
-      console.log(`✅ BiblePage: Setting shouldAutoPlay to true for auto-play book transition`);
-      setShouldAutoPlay(true);
-      // Show toast notification for book transition
-      const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
-      const nextBook = allBooks.find(b => b.apiName === bookApiName);
-
-    } else {
-      console.log(`❌ BiblePage: Setting shouldAutoPlay to false for manual book change`);
-      setShouldAutoPlay(false);
-    }
+    // As with chapters, the audio player already plays the new book itself
+    setShouldAutoPlay(false);
     // Use the new bookApiName parameter for book changes
     await loadChapter(normalized, chapter);
   }, [loadChapter, toast]);
@@ -438,7 +425,30 @@ const BiblePage = () => {
       setTimeout(() => {
         setCurrentVerse(verse);
       }, 500);
+      revealVerse(normalized, chapter, verse);
     }
+  };
+
+  /** Scroll a verse into the middle of the reader and flash it once the chapter has loaded. */
+  const revealVerse = (book: string, chapter: number, verse: number) => {
+    const started = Date.now();
+    const tryReveal = () => {
+      const container = document.getElementById('bible-content-scroll');
+      const params = new URLSearchParams(window.location.search);
+      // Wait until the new chapter (not the previous one) is on screen
+      const onTarget = params.get('book') === book && params.get('chapter') === String(chapter);
+      const stillLoading = !!container?.querySelector('.animate-spin');
+      const el = onTarget && !stillLoading ? container?.querySelector<HTMLElement>(`[data-verse="${verse}"]`) : null;
+      if (container && el) {
+        const top = container.scrollTop + el.getBoundingClientRect().top - container.getBoundingClientRect().top - container.clientHeight * 0.3;
+        container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        el.classList.add('verse-flash');
+        setTimeout(() => el.classList.remove('verse-flash'), 2600);
+        return;
+      }
+      if (Date.now() - started < 5000) setTimeout(tryReveal, 150);
+    };
+    setTimeout(tryReveal, 250);
   };
 
   // Removed "reasonable" guard so we always return to the user's last exact location
@@ -672,6 +682,15 @@ const BiblePage = () => {
           onViewNotes={() => {
             setShowNotes(true);
           }}
+          onOpenOffline={() => setShowOffline(true)}
+        />
+
+        <OfflineAudioDialog
+          open={showOffline}
+          onOpenChange={setShowOffline}
+          book={normalizeBookApiName(selectedBook || 'genesis')}
+          chapter={selectedChapter || 1}
+          version={selectedVersion || 'de4e12af7f28f599-02'}
         />
 
         {/* Highlights List Dialog (Lifted from BibleChapterContent) */}

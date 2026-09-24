@@ -101,6 +101,30 @@ function normalizeBookName(bookName: string): string {
   return BOOK_MAPPINGS[normalized] || bookName.toUpperCase().substring(0, 3);
 }
 
+const OFFLINE_TEXT_CACHE = 'bible-text-offline-v1';
+const offlineTextKey = (version: string, book: string, chapter: number) =>
+  `/offline-text/${encodeURIComponent(version)}/${encodeURIComponent(book.toLowerCase())}/${chapter}`;
+
+async function saveOfflineText(key: string, data: unknown) {
+  try {
+    if (!('caches' in window)) return;
+    const cache = await caches.open(OFFLINE_TEXT_CACHE);
+    await cache.put(key, new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+async function loadOfflineText(key: string): Promise<unknown | null> {
+  try {
+    if (!('caches' in window)) return null;
+    const hit = await (await caches.open(OFFLINE_TEXT_CACHE)).match(key);
+    return hit ? await hit.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 export const enhancedApiBibleService = {
   // Get all available Bible versions
   async getVersions(): Promise<BibleVersion[]> {
@@ -280,7 +304,29 @@ export const enhancedApiBibleService = {
   },
 
   // Get chapter content
+  /**
+   * Chapter text with an on-device copy: every chapter read (or downloaded for
+   * offline listening) is saved, so it still opens without an internet connection.
+   */
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
+    const key = offlineTextKey(version, book, chapter);
+    if (navigator.onLine !== false) {
+      try {
+        const fresh = await this.getChapterOnline(version, book, chapter);
+        if (fresh) {
+          saveOfflineText(key, fresh);
+          return fresh;
+        }
+      } catch (error) {
+        const saved = await loadOfflineText(key);
+        if (saved) return saved as BibleChapter;
+        throw error;
+      }
+    }
+    return (await loadOfflineText(key)) as BibleChapter | null;
+  },
+
+  async getChapterOnline(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);
 

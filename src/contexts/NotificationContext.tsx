@@ -1,6 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AlertCircle, CheckCircle2, Info, MessageCircle, Music2, PhoneMissed, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { pushNotificationService, ChatNotification } from '@/services/pushNotificationService';
+import { clearNotifications, setAppBadge } from '@/lib/push';
+import { uniqueTopic } from '@/lib/realtime';
+import { cn } from '@/lib/utils';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -8,7 +14,7 @@ interface NotificationContextType {
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
-  showInAppNotification: (title: string, message: string, groupName?: string) => void;
+  showInAppNotification: (title: string, message: string, groupName?: string, url?: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -21,301 +27,248 @@ export const useNotifications = () => {
   return context;
 };
 
-interface NotificationProviderProps {
-  children: ReactNode;
+interface Banner {
+  id: string;
+  key?: string;
+  kind: 'chat' | 'choir' | 'call-missed' | 'general' | 'info' | 'success' | 'error';
+  title: string;
+  message: string;
+  url?: string;
 }
 
-export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState<ChatNotification[]>([]);
-  const [inAppNotifications, setInAppNotifications] = useState<Array<{
-    id: string;
-    title: string;
-    message: string;
-    groupName?: string;
-    timestamp: number;
-  }>>([]);
-  const { user } = useAuth();
+const BANNER_MS = 5000;
 
-  // Load notifications on mount and when user changes
-  useEffect(() => {
-    if (user) {
-      refreshNotifications();
-      
-      // Initialize notification permissions
-      const initializeNotifications = async () => {
-        try {
-          console.log('🔔 Initializing notification system...');
-          const granted = await pushNotificationService.requestPermission();
-          console.log('🔔 Notification permission result:', granted);
-        } catch (error) {
-          console.error('❌ Error initializing notifications:', error);
-        }
-      };
-      
-      initializeNotifications();
-      
-      // Set up interval to check for new notifications every 30 seconds
-      const interval = setInterval(refreshNotifications, 30000);
-      return () => clearInterval(interval);
+export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [notifications, setNotifications] = useState<ChatNotification[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const seenKeys = useRef(new Set<string>());
+  const chatNames = useRef<Record<string, string>>({});
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const locationRef = useRef(location);
+  locationRef.current = location;
+
+  const refreshNotifications = useCallback(async () => {
+    if (!user) {
+      setNotifications([]);
+      return;
     }
+    const unread = await pushNotificationService.getUnreadNotifications(user.id);
+    setNotifications(unread);
   }, [user]);
 
-  // Listen for in-app notification events
   useEffect(() => {
-    const handleInAppNotification = (event: CustomEvent) => {
-      console.log('📱 Received in-app notification event:', event.detail);
-      const { title, message, groupName } = event.detail;
-      showInAppNotification(title, message, groupName);
-    };
-
-    window.addEventListener('showInAppNotification', handleInAppNotification as EventListener);
-    
-    return () => {
-      window.removeEventListener('showInAppNotification', handleInAppNotification as EventListener);
-    };
-  }, []);
-
-  const refreshNotifications = async () => {
+    refreshNotifications();
     if (!user) return;
-    
-    try {
-      const unreadNotifications = await pushNotificationService.getUnreadNotifications(user.id);
-      setNotifications(unreadNotifications);
-      setUnreadCount(unreadNotifications.length);
-    } catch (error) {
-      console.error('Error refreshing notifications:', error);
-    }
+    const interval = setInterval(refreshNotifications, 60000);
+    const onVisible = () => document.visibilityState === 'visible' && refreshNotifications();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user, refreshNotifications]);
+
+  // Keep the app icon badge in step with unread notifications
+  useEffect(() => {
+    setAppBadge(notifications.length);
+  }, [notifications.length]);
+
+  const isViewingChat = (chatId?: string) => {
+    const loc = locationRef.current;
+    return !!chatId && loc.pathname === '/group-chats' && new URLSearchParams(loc.search).get('chat') === chatId;
   };
 
-  const markAsRead = async (notificationId: string) => {
-    try {
-      await pushNotificationService.markAsRead(notificationId);
-      await refreshNotifications();
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+  const pushBanner = useCallback((banner: Omit<Banner, 'id'>) => {
+    if (banner.key) {
+      if (seenKeys.current.has(banner.key)) return;
+      seenKeys.current.add(banner.key);
+      if (seenKeys.current.size > 200) seenKeys.current = new Set(Array.from(seenKeys.current).slice(-100));
     }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setBanners((prev) => [...prev.slice(-2), { ...banner, id }]);
+    setTimeout(() => setBanners((prev) => prev.filter((b) => b.id !== id)), BANNER_MS);
+  }, []);
+
+  const showInAppNotification = useCallback((title: string, message: string, _groupName?: string, url?: string) => {
+    pushBanner({ kind: 'general', title, message, url });
+  }, [pushBanner]);
+
+  // Legacy event used by a few screens
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const { title, message, url, kind } = (event as CustomEvent).detail || {};
+      if (title) pushBanner({ kind: kind === 'error' || kind === 'success' || kind === 'info' ? kind : 'general', title, message: message || '', url });
+    };
+    window.addEventListener('showInAppNotification', handler);
+    return () => window.removeEventListener('showInAppNotification', handler);
+  }, [pushBanner]);
+
+  // Push that arrived while the app is open (the service worker skips the OS banner)
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const p = (event as CustomEvent).detail || {};
+      if (p.kind === 'call' || p.kind === 'test') return; // calls ring via CallContext
+      if (p.kind === 'chat' && isViewingChat(p.data?.chatId)) return;
+      pushBanner({
+        kind: p.kind === 'choir' ? 'choir' : p.kind === 'call-missed' ? 'call-missed' : p.kind === 'chat' ? 'chat' : 'general',
+        key: p.data?.messageId || p.tag,
+        title: p.title,
+        message: p.body,
+        url: p.url,
+      });
+      if (p.kind === 'chat') refreshNotifications();
+    };
+    window.addEventListener('app:push', handler);
+    return () => window.removeEventListener('app:push', handler);
+  }, [pushBanner, refreshNotifications]);
+
+  // Chats I'm a member of (only these produce banners)
+  const myChats = useRef(new Set<string>());
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase.from('chat_participants').select('chat_id').eq('user_id', user.id);
+      myChats.current = new Set((data || []).map((r) => r.chat_id));
+    };
+    load();
+    window.addEventListener('chats:changed', load);
+    return () => window.removeEventListener('chats:changed', load);
+  }, [user]);
+
+  // Realtime: show a banner for new messages in my chats even without push set up
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(uniqueTopic('inapp-messages'))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async ({ new: msg }: any) => {
+        if (!msg || msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
+        if (!myChats.current.has(msg.chat_id)) return;
+        if (document.visibilityState !== 'visible') return;
+
+        if (!chatNames.current[msg.chat_id]) {
+          const { data: chat } = await supabase.from('group_chats').select('name').eq('id', msg.chat_id).maybeSingle();
+          chatNames.current[msg.chat_id] = chat?.name || 'Group chat';
+        }
+        const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', msg.user_id).maybeSingle();
+        pushBanner({
+          kind: 'chat',
+          key: msg.id,
+          title: chatNames.current[msg.chat_id],
+          message: `${sender?.full_name || 'Someone'}: ${String(msg.content || '').slice(0, 120)}`,
+          url: `/group-chats?chat=${msg.chat_id}`,
+        });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, pushBanner]);
+
+  // Opening a chat clears its OS notifications
+  useEffect(() => {
+    const chatId = new URLSearchParams(location.search).get('chat');
+    if (location.pathname === '/group-chats' && chatId) clearNotifications(`chat-${chatId}`);
+  }, [location.pathname, location.search]);
+
+  const markAsRead = async (notificationId: string) => {
+    await pushNotificationService.markAsRead(notificationId);
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
   };
 
   const markAllAsRead = async () => {
-    try {
-      // Mark all unread notifications as read
-      const promises = notifications.map(notification => 
-        pushNotificationService.markAsRead(notification.id)
-      );
-      await Promise.all(promises);
-      await refreshNotifications();
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-    }
-  };
-
-  const showInAppNotification = (title: string, message: string, groupName?: string) => {
-    const notificationId = `in-app-${Date.now()}-${Math.random()}`;
-    const newNotification = {
-      id: notificationId,
-      title,
-      message,
-      groupName,
-      timestamp: Date.now()
-    };
-
-    setInAppNotifications(prev => [...prev, newNotification]);
-    // Removed auto-close - notifications will stay until manually closed
+    if (!user) return;
+    await pushNotificationService.markAllAsRead(user.id);
+    setNotifications([]);
+    clearNotifications();
   };
 
   const value: NotificationContextType = {
-    unreadCount,
+    unreadCount: notifications.length,
     notifications,
     markAsRead,
     markAllAsRead,
     refreshNotifications,
-    showInAppNotification
+    showInAppNotification,
   };
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      {/* In-App Notification Display */}
-      <InAppNotificationDisplay 
-        notifications={inAppNotifications} 
-        onDismiss={(notificationId) => {
-          setInAppNotifications(prev => prev.filter(n => n.id !== notificationId));
+      <BannerStack
+        banners={banners}
+        onOpen={(b) => {
+          setBanners((prev) => prev.filter((x) => x.id !== b.id));
+          if (b.url) navigate(b.url);
         }}
+        onDismiss={(id) => setBanners((prev) => prev.filter((b) => b.id !== id))}
       />
     </NotificationContext.Provider>
   );
 };
 
-// In-App Notification Display Component
-interface InAppNotificationDisplayProps {
-  notifications: Array<{
-    id: string;
-    title: string;
-    message: string;
-    groupName?: string;
-    timestamp: number;
-  }>;
-  onDismiss: (notificationId: string) => void;
-}
+const BannerIcon = ({ kind }: { kind: Banner['kind'] }) => {
+  const Icon =
+    kind === 'choir' ? Music2
+      : kind === 'call-missed' ? PhoneMissed
+        : kind === 'error' ? AlertCircle
+          : kind === 'success' ? CheckCircle2
+            : kind === 'info' ? Info
+              : MessageCircle;
+  return (
+    <div
+      className={cn(
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white',
+        kind === 'choir' ? 'bg-violet-600'
+          : kind === 'call-missed' || kind === 'error' ? 'bg-red-500'
+            : kind === 'success' ? 'bg-emerald-500'
+              : 'bg-blue-600',
+      )}
+    >
+      <Icon className="h-5 w-5" />
+    </div>
+  );
+};
 
-const InAppNotificationDisplay: React.FC<InAppNotificationDisplayProps> = ({ notifications, onDismiss }) => {
-  const [swipeState, setSwipeState] = React.useState<{[key: string]: {startX: number, startY: number, currentX: number, currentY: number, isDragging: boolean}}>({});
-
-  const handleTouchStart = (e: React.TouchEvent, notificationId: string) => {
-    const touch = e.touches[0];
-    setSwipeState(prev => ({
-      ...prev,
-      [notificationId]: {
-        startX: touch.clientX,
-        startY: touch.clientY,
-        currentX: touch.clientX,
-        currentY: touch.clientY,
-        isDragging: true
-      }
-    }));
-  };
-
-  const handleTouchMove = (e: React.TouchEvent, notificationId: string) => {
-    const state = swipeState[notificationId];
-    if (!state?.isDragging) return;
-    
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - state.startX;
-    const deltaY = touch.clientY - state.startY;
-    
-    // If swipe gesture is detected (either horizontal or vertical), prevent default scrolling
-    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-      e.preventDefault();
-    }
-    
-    setSwipeState(prev => ({
-      ...prev,
-      [notificationId]: {
-        ...state,
-        currentX: touch.clientX,
-        currentY: touch.clientY
-      }
-    }));
-  };
-
-  const handleTouchEnd = (notificationId: string) => {
-    const state = swipeState[notificationId];
-    if (!state?.isDragging) return;
-    
-    const deltaX = state.currentX - state.startX;
-    const deltaY = state.currentY - state.startY;
-    
-    // Dismiss if swiped right (>70px) or up (>50px) 
-    const shouldDismiss = deltaX > 70 || deltaY < -50;
-    
-    if (shouldDismiss) {
-      onDismiss(notificationId);
-    }
-    
-    // Reset swipe state
-    setSwipeState(prev => {
-      const newState = { ...prev };
-      delete newState[notificationId];
-      return newState;
-    });
-  };
-
-  const getTransformStyle = (notificationId: string) => {
-    const state = swipeState[notificationId];
-    if (!state?.isDragging) return {};
-    
-    const deltaX = state.currentX - state.startX;
-    const deltaY = state.currentY - state.startY;
-    
-    // Handle right swipe
-    if (deltaX > 0 && Math.abs(deltaX) > Math.abs(deltaY)) {
-      const clampedDeltaX = Math.max(0, deltaX);
-      const opacity = Math.max(0.4, 1 - (clampedDeltaX / 180));
-      const scale = Math.max(0.95, 1 - (clampedDeltaX / 400));
-      
-      return {
-        transform: `translateX(${clampedDeltaX}px) scale(${scale})`,
-        opacity: opacity,
-        transition: 'none'
-      };
-    }
-    
-    // Handle upward swipe with improved visual feedback
-    if (deltaY < 0 && Math.abs(deltaY) > Math.abs(deltaX)) {
-      const clampedDeltaY = Math.min(0, deltaY);
-      const opacity = Math.max(0.3, 1 + (clampedDeltaY / 100));
-      const scale = Math.max(0.85, 1 + (clampedDeltaY / 250));
-      
-      return {
-        transform: `translateY(${clampedDeltaY}px) scale(${scale})`,
-        opacity: opacity,
-        transition: 'none'
-      };
-    }
-    
-    return {};
-  };
-
-  if (notifications.length === 0) return null;
+/** iOS-style banners at the top: tap to open, swipe up (or ✕) to dismiss. */
+const BannerStack = ({
+  banners, onOpen, onDismiss,
+}: { banners: Banner[]; onOpen: (b: Banner) => void; onDismiss: (id: string) => void }) => {
+  const startY = useRef<Record<string, number>>({});
+  if (banners.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-4 z-50 space-y-3">
-      {notifications.map((notification) => (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[9500] flex flex-col items-center gap-2 px-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:items-end sm:pr-6">
+      {banners.map((b) => (
         <div
-          key={notification.id}
-          className="group pointer-events-auto relative flex w-full max-w-sm items-center justify-between space-x-4 overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/95 to-indigo-50/95 p-6 pr-8 shadow-xl transition-all backdrop-blur-sm border-l-4 border-l-blue-500 animate-in slide-in-from-right-2 duration-300 cursor-grab active:cursor-grabbing select-none"
-          style={{
-            ...getTransformStyle(notification.id),
-            touchAction: 'pan-y',
-            WebkitTouchCallout: 'none',
-            WebkitUserSelect: 'none',
-            userSelect: 'none'
+          key={b.id}
+          role="status"
+          onTouchStart={(e) => (startY.current[b.id] = e.touches[0].clientY)}
+          onTouchEnd={(e) => {
+            const dy = e.changedTouches[0].clientY - (startY.current[b.id] ?? 0);
+            if (dy < -30) onDismiss(b.id);
           }}
-          onTouchStart={(e) => handleTouchStart(e, notification.id)}
-          onTouchMove={(e) => handleTouchMove(e, notification.id)}
-          onTouchEnd={() => handleTouchEnd(notification.id)}
-          onTouchCancel={() => handleTouchEnd(notification.id)}
+          className="pointer-events-auto flex w-full max-w-md cursor-pointer items-center gap-3 rounded-2xl border border-border/60 bg-card/95 p-3 pr-2 shadow-xl backdrop-blur-xl animate-in slide-in-from-top-4 fade-in duration-300"
+          onClick={() => onOpen(b)}
         >
-          <div className="flex items-start space-x-3 flex-1">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold tracking-tight text-blue-900">
-                {notification.title}
-              </p>
-              <p className="text-sm opacity-95 leading-relaxed text-blue-800 mt-1">
-                {notification.message}
-              </p>
-              {notification.groupName && (
-                <div className="flex items-center mt-2">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-                    </svg>
-                    {notification.groupName}
-                  </span>
-                </div>
-              )}
-            </div>
+          <BannerIcon kind={b.kind} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-foreground">{b.title}</p>
+            <p className="line-clamp-2 text-sm text-muted-foreground">{b.message}</p>
           </div>
           <button
-            onClick={() => {
-              onDismiss(notification.id);
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismiss(b.id);
             }}
-            className="absolute right-2 top-2 rounded-md p-1 text-blue-400 opacity-0 transition-opacity hover:text-blue-600 focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+            className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+            aria-label="Dismiss"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         </div>
       ))}
     </div>
   );
-}; 
+};

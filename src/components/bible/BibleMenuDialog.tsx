@@ -15,6 +15,7 @@ interface BibleMenuDialogProps {
   onResetToGenesis?: () => void;
   onViewHighlights?: () => void;
   onViewNotes?: () => void;
+  onOpenOffline?: () => void;
 }
 
 export const BibleMenuDialog = ({
@@ -23,10 +24,19 @@ export const BibleMenuDialog = ({
   onSettingsChange,
   onResetToGenesis,
   onViewHighlights,
-  onViewNotes
+  onViewNotes,
+  onOpenOffline
 }: BibleMenuDialogProps) => {
   const { preferences, setAutoPlayNext, setLoopChapter, setLoopBook } = useBiblePreferences();
   const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
+
+  const [followAudio, setFollowAudio] = useState(() => {
+    try {
+      return localStorage.getItem('bible_follow_audio') !== 'off';
+    } catch {
+      return true;
+    }
+  });
 
   // Local state for font size slider to allow changes before saving
   const [localFontSize, setLocalFontSize] = useState(() => {
@@ -114,6 +124,21 @@ export const BibleMenuDialog = ({
                     <span className="font-medium">Highlights</span>
                   </div>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  className="col-span-2 flex items-center justify-start gap-2 h-auto py-3"
+                  onClick={() => {
+                    onClose();
+                    onOpenOffline?.();
+                  }}
+                >
+                  <span className="text-xl">📥</span>
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Offline audio</span>
+                    <span className="text-xs text-muted-foreground">Download chapters to listen without internet</span>
+                  </div>
+                </Button>
               </div>
             </div>
 
@@ -187,6 +212,33 @@ export const BibleMenuDialog = ({
               <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
                 <span>Small</span>
                 <span>Large</span>
+              </div>
+            </div>
+
+            {/* Follow along with audio */}
+            <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <div>
+                    <span className="block font-medium text-slate-800 dark:text-slate-200">Follow along with audio</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Highlight and scroll to the verse being read</span>
+                  </div>
+                </div>
+                <Switch
+                  id="follow-audio"
+                  checked={followAudio}
+                  onCheckedChange={(checked) => {
+                    setFollowAudio(checked);
+                    try {
+                      localStorage.setItem('bible_follow_audio', checked ? 'on' : 'off');
+                    } catch {
+                      /* ignore */
+                    }
+                    window.dispatchEvent(new CustomEvent('bible-follow-audio-changed'));
+                  }}
+                  className="data-[state=checked]:bg-primary"
+                />
               </div>
             </div>
 

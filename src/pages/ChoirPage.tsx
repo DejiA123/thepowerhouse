@@ -80,6 +80,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendPush } from "@/lib/push";
+import ChoirNotifyButton from "@/components/notifications/ChoirNotifyButton";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
     DndContext,
@@ -2873,7 +2875,7 @@ const ChoirPage = () => {
     const handleAddSong = async () => {
         if (!newSong.title.trim() || !activeFolderId) return;
         try {
-            await choirService.addSongToFolder({
+            const created: any = await choirService.addSongToFolder({
                 folder_id: activeFolderId,
                 title: newSong.title,
                 key: newSong.key,
@@ -2881,6 +2883,7 @@ const ChoirPage = () => {
                 url: newSong.url,
                 notes: newSong.notes
             }, locationId!);
+            if (created?.id) sendPush({ type: 'choir-song', table: 'library', ids: [created.id] });
 
             setNewSong({ title: "", key: "", artist: "", url: "", notes: "" });
             setIsAddSongOpen(false);
@@ -3017,7 +3020,7 @@ const ChoirPage = () => {
                 // Add song to database - real-time subscription will update the UI
                 const weekDateStr = getEffectiveWeekDate(locationId!);
                 const actualType = locationId === 'national' ? `${activeSetType}_d${selectedDay}` : activeSetType;
-                await choirService.addWeeklySong({
+                const created: any = await choirService.addWeeklySong({
                     set_type: actualType as any,
                     title: newSetSong.title,
                     key: newSetSong.key,
@@ -3032,6 +3035,8 @@ const ChoirPage = () => {
                                 activeSetType === 'hymns' ? hymnsSet :
                                     activeSetType === 'thanksgiving' ? thanksgivingSet : offeringSet).length
                 }, locationId!);
+                // Let the choir know (push notification to everyone following this choir)
+                if (created?.id) sendPush({ type: 'choir-song', table: 'weekly', ids: [created.id] });
                 // Note: State update will happen via real-time subscription
             }
 
@@ -3236,6 +3241,8 @@ const ChoirPage = () => {
                 }));
 
                 const newSongs = results as unknown as WeeklySetSong[];
+                const importedIds = newSongs.map((song: any) => song?.id).filter(Boolean);
+                if (importedIds.length) sendPush({ type: 'choir-song', table: 'weekly', ids: importedIds });
 
                 setIsImportOpen(false);
                 setImportText("");
@@ -3283,6 +3290,9 @@ const ChoirPage = () => {
                     ...songDetails
                 }, locationId);
             }));
+
+            const folderIds = (results as any[]).map((song) => song?.id).filter(Boolean);
+            if (folderIds.length) sendPush({ type: 'choir-song', table: 'library', ids: folderIds });
 
             setIsImportFolderOpen(false);
             setImportFolderText("");
@@ -4878,6 +4888,7 @@ const ChoirPage = () => {
                             <ArrowLeft className="w-5 h-5 mr-2" />
                             Back to Groups
                         </Button>
+                        {locationId && <ChoirNotifyButton location={locationId} />}
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"> {/* Mobile Responsive Layout */}

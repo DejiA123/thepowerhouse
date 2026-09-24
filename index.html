@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <!-- PWA Optimized Viewport for Keyboard Support -->
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>The Power House</title>
   <meta name="description" content="The PowerHouse International Church App - Connect, Grow, Serve" />
   <meta name="author" content="PowerHouse International" />
@@ -54,7 +54,7 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/favicon.png" />
-  <link rel="apple-touch-icon" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 </head>
 
 <body>
@@ -185,22 +185,6 @@
   </style>
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- Service Worker Registration (skip in development) -->
-  <script>
-    if ('serviceWorker' in navigator && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('🎵 Service Worker registered:', registration);
-          })
-          .catch((error) => {
-            console.log('❌ Service Worker registration failed:', error);
-          });
-      });
-    } else {
-      console.log('🔧 Development mode: Skipping service worker registration');
-    }
-  </script>
 </body>
 
 </html>

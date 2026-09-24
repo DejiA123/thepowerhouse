@@ -1,105 +1,54 @@
 {
+  "id": "/",
   "name": "The Power House",
-  "short_name": "The Power House",
+  "short_name": "Power House",
   "description": "The Power House International Church App - Connect, Grow, Serve",
   "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
   "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1d3fd6",
   "lang": "en",
-  "categories": [
-    "lifestyle",
-    "education",
-    "religion"
-  ],
-  "theme_colors": [
-    {
-      "media": "(prefers-color-scheme: light)",
-      "color": "#ffffff"
-    },
-    {
-      "media": "(prefers-color-scheme: dark)",
-      "color": "#0a0a0a"
-    }
-  ],
+  "categories": ["lifestyle", "education", "social"],
   "icons": [
-    {
-      "src": "/favicon.png",
-      "sizes": "any",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/favicon.png",
-      "sizes": "1280x720",
-      "type": "image/svg+xml",
-      "form_factor": "wide"
-    }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "Open your group chats",
+      "url": "/group-chats",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
       "name": "Bible",
       "short_name": "Bible",
-      "description": "Open Bible reader",
+      "description": "Open the Bible reader",
       "url": "/bible",
-      "icons": [
-        {
-          "src": "/favicon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "My Notes",
+      "short_name": "Notes",
+      "description": "Open your notes",
+      "url": "/bible-notes",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Prayer Wall",
       "short_name": "Prayer",
       "description": "View prayer requests",
-      "url": "/prayer-wall",
-      "icons": [
-        {
-          "src": "/favicon.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
+      "url": "/prayer",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
-  "related_applications": [],
   "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
   "launch_handler": {
     "client_mode": "navigate-existing"
-  },
-  "protocol_handlers": [
-    {
-      "protocol": "web+powerhouse",
-      "url": "/%s"
-    }
-  ],
-  "background_audio": {
-    "enabled": true,
-    "auto_play": true,
-    "persistent": true
-  },
-  "permissions": [
-    "background-audio"
-  ]
+  }
 }

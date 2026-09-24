@@ -1,79 +1,108 @@
-// App.tsx - Fixed BrowserRouter caching issue
-import React, { useEffect } from "react";
+// App.tsx
+import React, { Suspense, useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ScrollToTop from "@/components/ScrollToTop";
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import HomePage from "@/pages/HomePage";
-import BiblePage from "@/pages/BiblePage";
-import NewsPage from "@/pages/NewsPage";
-import GroupsPage from "@/pages/GroupsPage";
-import GivePage from "@/pages/GivePage";
-import ResourcesPage from "@/pages/ResourcesPage";
-import GroupChatsPage from "@/pages/GroupChatsPage";
-import BibleReadingPlansPage from "@/pages/BibleReadingPlansPage";
-import ServicesPage from "@/pages/ServicesPage";
-import AuthPage from "@/pages/AuthPage";
-import UserSettingsPage from "@/pages/UserSettingsPage";
-import CampusFellowshipPage from "@/pages/CampusFellowshipPage";
-import NotFound from "./pages/NotFound";
-import PrayerWallPage from "@/pages/PrayerWallPage";
-import FellowshipGroupPage from "@/pages/FellowshipGroupPage";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { GlobalAudioProvider } from "@/contexts/GlobalAudioContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
-import SocialMediaPage from "@/pages/SocialMediaPage";
-import BibleNotesPage from "@/pages/BibleNotesPage";
-import EmailConfirmationPage from "@/pages/EmailConfirmationPage";
-import PasswordResetPage from "@/pages/PasswordResetPage";
-import { EmailConfirmationDebug } from "@/components/EmailConfirmationDebug";
-import IntroPage from "@/pages/IntroPage";
-import TermsOfServicePage from "@/pages/TermsOfServicePage";
-import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
-import FollowUpPage from "@/pages/FollowUpPage";
-import SocialPage from "@/pages/SocialPage";
-import NewHerePage from "@/pages/NewHerePage";
-import ServePage from "@/pages/ServePage";
-import BuildingCampaignPage from "@/pages/BuildingCampaignPage";
-import ChoirPage from "@/pages/ChoirPage";
-import ChoirPortalPage from "@/pages/ChoirPortalPage";
-import ContributionTrackerPage from "@/pages/ContributionTrackerPage";
-import ManagementTeamPage from "@/pages/ManagementTeamPage";
-import UsheringPage from "@/pages/UsheringPage";
-import EvangelismPage from "@/pages/EvangelismPage";
-import PastoralCarePage from "@/pages/PastoralCarePage";
-import TeamFollowUpPage from "@/pages/TeamFollowUpPage";
-import IsolatedEditorPage from "@/pages/IsolatedEditorPage";
-import { CallProvider, useCall } from "@/contexts/CallContext";
-import CallOverlay from "@/components/chat/CallOverlay";
+import { CallProvider } from "@/contexts/CallContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
+import { registerAppServiceWorker } from "@/lib/serviceWorker";
+import { syncPushSubscription } from "@/lib/push";
 
-console.log('App.tsx: Component loading...');
-
-// Service Worker Registration for Background Audio
-const registerServiceWorker = async () => {
-  if ('serviceWorker' in navigator) {
+/**
+ * Pages are loaded on demand so the first screen appears quickly instead of
+ * downloading every page of the app up front. After a new deploy an old tab
+ * may request a chunk that no longer exists; reload once to pick up the new build.
+ */
+const lazyPage = <T extends React.ComponentType<any>>(load: () => Promise<{ default: T }>) =>
+  React.lazy(async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('🎵 Service Worker registered successfully:', registration);
-
-      // Listen for messages from service worker
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'AUDIO_CONTROL') {
-          console.log('🎵 Audio control message received:', event.data.action);
-          // Handle audio control messages from service worker
-          // This will be handled by the GlobalAudioContext
-        }
-      });
-
+      const module = await load();
+      sessionStorage.removeItem("chunk-reload");
+      return module;
     } catch (error) {
-      console.error('🎵 Service Worker registration failed:', error);
+      if (!sessionStorage.getItem("chunk-reload")) {
+        sessionStorage.setItem("chunk-reload", "1");
+        window.location.reload();
+      }
+      throw error;
     }
-  }
+  });
+
+const BiblePage = lazyPage(() => import("@/pages/BiblePage"));
+const NewsPage = lazyPage(() => import("@/pages/NewsPage"));
+const GroupsPage = lazyPage(() => import("@/pages/GroupsPage"));
+const GivePage = lazyPage(() => import("@/pages/GivePage"));
+const ResourcesPage = lazyPage(() => import("@/pages/ResourcesPage"));
+const GroupChatsPage = lazyPage(() => import("@/pages/GroupChatsPage"));
+const BibleReadingPlansPage = lazyPage(() => import("@/pages/BibleReadingPlansPage"));
+const ServicesPage = lazyPage(() => import("@/pages/ServicesPage"));
+const AuthPage = lazyPage(() => import("@/pages/AuthPage"));
+const UserSettingsPage = lazyPage(() => import("@/pages/UserSettingsPage"));
+const CampusFellowshipPage = lazyPage(() => import("@/pages/CampusFellowshipPage"));
+const NotFound = lazyPage(() => import("./pages/NotFound"));
+const PrayerWallPage = lazyPage(() => import("@/pages/PrayerWallPage"));
+const FellowshipGroupPage = lazyPage(() => import("@/pages/FellowshipGroupPage"));
+const SocialMediaPage = lazyPage(() => import("@/pages/SocialMediaPage"));
+const BibleNotesPage = lazyPage(() => import("@/pages/BibleNotesPage"));
+const EmailConfirmationPage = lazyPage(() => import("@/pages/EmailConfirmationPage"));
+const PasswordResetPage = lazyPage(() => import("@/pages/PasswordResetPage"));
+const EmailConfirmationDebug = lazyPage(() =>
+  import("@/components/EmailConfirmationDebug").then((m) => ({ default: m.EmailConfirmationDebug })),
+);
+const IntroPage = lazyPage(() => import("@/pages/IntroPage"));
+const TermsOfServicePage = lazyPage(() => import("@/pages/TermsOfServicePage"));
+const PrivacyPolicyPage = lazyPage(() => import("@/pages/PrivacyPolicyPage"));
+const FollowUpPage = lazyPage(() => import("@/pages/FollowUpPage"));
+const SocialPage = lazyPage(() => import("@/pages/SocialPage"));
+const NewHerePage = lazyPage(() => import("@/pages/NewHerePage"));
+const ServePage = lazyPage(() => import("@/pages/ServePage"));
+const BuildingCampaignPage = lazyPage(() => import("@/pages/BuildingCampaignPage"));
+const ChoirPage = lazyPage(() => import("@/pages/ChoirPage"));
+const ChoirPortalPage = lazyPage(() => import("@/pages/ChoirPortalPage"));
+const ContributionTrackerPage = lazyPage(() => import("@/pages/ContributionTrackerPage"));
+const ManagementTeamPage = lazyPage(() => import("@/pages/ManagementTeamPage"));
+const UsheringPage = lazyPage(() => import("@/pages/UsheringPage"));
+const EvangelismPage = lazyPage(() => import("@/pages/EvangelismPage"));
+const PastoralCarePage = lazyPage(() => import("@/pages/PastoralCarePage"));
+const TeamFollowUpPage = lazyPage(() => import("@/pages/TeamFollowUpPage"));
+const IsolatedEditorPage = lazyPage(() => import("@/pages/IsolatedEditorPage"));
+
+/** Relays service-worker events (notification taps) into router navigation. */
+const AppEvents = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const url = (e as CustomEvent).detail?.url;
+      if (typeof url === "string" && url.startsWith("/")) navigate(url);
+    };
+    window.addEventListener("app:navigate", onNavigate);
+    return () => window.removeEventListener("app:navigate", onNavigate);
+  }, [navigate]);
+
+  // Link this device's push subscription to the signed-in user
+  useEffect(() => {
+    if (user) syncPushSubscription();
+  }, [user?.id]);
+
+  return null;
 };
+
+const PageFallback = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+  </div>
+);
 
 // Create QueryClient with error handling
 let queryClient: QueryClient;
@@ -86,7 +115,6 @@ try {
       },
     },
   });
-  console.log('App.tsx: QueryClient created');
 } catch (error) {
   console.error('Failed to create QueryClient:', error);
   queryClient = new QueryClient();
@@ -102,7 +130,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   try {
-    console.log('ProtectedRoute: user=', !!user, 'loading=', loading);
 
     if (loading) {
       return <LoadingSpinner />;
@@ -123,7 +150,6 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   try {
-    console.log('PublicRoute: user=', !!user, 'loading=', loading);
 
     if (loading) {
       return <LoadingSpinner />;
@@ -142,7 +168,6 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
-  console.log('AppRoutes: Rendering routes...');
 
   try {
     return (
@@ -152,6 +177,7 @@ const AppRoutes = () => {
         console.log('🎵 Audio ended at app level');
       }}>
         <Layout>
+          <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/" element={<HomePage />} />
@@ -269,6 +295,7 @@ const AppRoutes = () => {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </Layout>
       </AudioProvider>
     );
@@ -330,15 +357,14 @@ const applyTheme = () => {
 
 
 const App = () => {
-  console.log('App: Main component rendering...');
 
   useEffect(() => {
     applyTheme();
     window.addEventListener('storage', applyTheme);
     window.addEventListener('themechange', applyTheme); // Listen for custom event
 
-    // Register service worker for background audio support
-    registerServiceWorker();
+    // Offline shell + Web Push notifications
+    registerAppServiceWorker();
 
     return () => {
       window.removeEventListener('storage', applyTheme);
@@ -358,10 +384,12 @@ const App = () => {
               <TooltipProvider>
                 <NotificationProvider>
                   <ShortcutsProvider>
-                    <CallProvider>
-                      <CallManager />
-                      <AppRoutes />
-                    </CallProvider>
+                    <PresenceProvider>
+                      <CallProvider>
+                        <AppEvents />
+                        <AppRoutes />
+                      </CallProvider>
+                    </PresenceProvider>
                   </ShortcutsProvider>
                 </NotificationProvider>
               </TooltipProvider>
@@ -387,21 +415,6 @@ const App = () => {
       </div>
     );
   }
-};
-
-// Global component to handle call overlay
-const CallManager = () => {
-  const { activeCall, endCall } = useCall();
-
-  if (!activeCall) return null;
-
-  return (
-    <CallOverlay
-      chatId={activeCall.chat_id}
-      isActive={true}
-      onEndCall={endCall}
-    />
-  );
 };
 
 export default App;

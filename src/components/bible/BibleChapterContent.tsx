@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X, Copy, Trash2 } from "lucide-react";
@@ -8,6 +8,7 @@ import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
+import { estimateVerseTimings, getVerseTimings, verseAt, type VerseTimings } from "@/services/verseTimingService";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 // Import BibleNotesDialog for notes functionality
@@ -331,7 +332,16 @@ export const BibleChapterContent = ({
 
   // Auto-play MP3 audio when shouldAutoPlay is true
   useEffect(() => {
-    if (shouldAutoPlay && globalAudio && !globalAudio.audioState.isLoading && !globalAudio.audioState.isPlaying) {
+    if (!shouldAutoPlay || !globalAudio) return;
+    const { currentBook, currentChapter, isPlaying, isPaused, isLoading } = globalAudio.audioState;
+    const sameChapter =
+      normalizeBookApiName(currentBook || '') === normalizeBookApiName(selectedBook) && currentChapter === selectedChapter;
+    // Already playing (or deliberately paused) this chapter: just clear the request
+    if (sameChapter && (isPlaying || isPaused || isLoading)) {
+      onAutoPlayTriggered?.();
+      return;
+    }
+    if (!isLoading && !isPlaying) {
       console.log('🎵 BibleChapterContent: Auto-playing MP3 audio via GlobalAudioContext');
 
       const playAudio = async () => {
@@ -354,6 +364,101 @@ export const BibleChapterContent = ({
       return () => clearTimeout(playTimeout);
     }
   }, [shouldAutoPlay, globalAudio, onAutoPlayTriggered, selectedBook, selectedChapter, selectedVersion, autoPlayNext]);
+
+  // ── Follow along: highlight and centre the verse being read ──────────
+  const [followAudio, setFollowAudio] = useState(() => {
+    try {
+      return localStorage.getItem('bible_follow_audio') !== 'off';
+    } catch {
+      return true;
+    }
+  });
+  const [timings, setTimings] = useState<VerseTimings | null>(null);
+  const [followPaused, setFollowPaused] = useState(false);
+  const programmaticScrollUntil = useRef(0);
+  const followResumeTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setFollowAudio(localStorage.getItem('bible_follow_audio') !== 'off');
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('bible-follow-audio-changed', sync);
+    return () => window.removeEventListener('bible-follow-audio-changed', sync);
+  }, []);
+
+  const audioOnThisChapter =
+    !!globalAudio?.audioState.hasAudio &&
+    normalizeBookApiName(globalAudio.audioState.currentBook || '') === normalizeBookApiName(selectedBook) &&
+    globalAudio.audioState.currentChapter === selectedChapter;
+
+  // Load exact verse timings for this chapter once audio for it is loaded
+  useEffect(() => {
+    setTimings(null);
+    if (!audioOnThisChapter) return;
+    let cancelled = false;
+    getVerseTimings(normalizeBookApiName(selectedBook), selectedChapter).then((t) => {
+      if (!cancelled) setTimings(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioOnThisChapter, selectedBook, selectedChapter]);
+
+  const effectiveTimings = useMemo(() => {
+    if (timings) return timings;
+    const duration = globalAudio?.audioState.duration || 0;
+    if (!audioOnThisChapter || !duration || !chapterContent?.verses?.length) return null;
+    return estimateVerseTimings(
+      chapterContent.verses.map((v, i) => ({ verse: Number(v.verse) || i + 1, length: (v.text || '').length })),
+      duration,
+    );
+  }, [timings, audioOnThisChapter, globalAudio?.audioState.duration, chapterContent]);
+
+  const currentAudioTime = globalAudio?.audioState.currentTime || 0;
+  const readingVerse =
+    followAudio && audioOnThisChapter && effectiveTimings && (globalAudio?.audioState.isPlaying || globalAudio?.audioState.isPaused)
+      ? verseAt(effectiveTimings, currentAudioTime)
+      : null;
+
+  // Keep the verse being read in the middle of the screen
+  useEffect(() => {
+    if (!readingVerse || followPaused || !globalAudio?.audioState.isPlaying) return;
+    const container = scrollContainerRef.current;
+    const el = container?.querySelector<HTMLElement>(`[data-verse="${readingVerse}"]`);
+    if (!container || !el) return;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const target = container.scrollTop + (elRect.top - containerRect.top) - container.clientHeight * 0.38;
+    if (Math.abs(container.scrollTop - target) < 24) return;
+    programmaticScrollUntil.current = Date.now() + 900;
+    container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+  }, [readingVerse, followPaused, globalAudio?.audioState.isPlaying]);
+
+  const readingVerseRef = useRef<number | null>(null);
+  readingVerseRef.current = readingVerse;
+
+  // If the reader scrolls by hand, stop following for a moment
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onUserScroll = () => {
+      if (Date.now() < programmaticScrollUntil.current || !readingVerseRef.current) return;
+      setFollowPaused(true);
+      clearTimeout(followResumeTimer.current);
+      followResumeTimer.current = setTimeout(() => setFollowPaused(false), 12000);
+    };
+    container.addEventListener('wheel', onUserScroll, { passive: true });
+    container.addEventListener('touchmove', onUserScroll, { passive: true });
+    return () => {
+      container.removeEventListener('wheel', onUserScroll);
+      container.removeEventListener('touchmove', onUserScroll);
+      clearTimeout(followResumeTimer.current);
+    };
+  }, []);
 
   const fetchHighlights = async () => {
     try {
@@ -390,14 +495,14 @@ export const BibleChapterContent = ({
 
     // Check if we're currently playing the same chapter in global context
     const isCurrentChapterPlaying = globalAudio.audioState.isPlaying &&
-      globalAudio.audioState.currentBook === selectedBook &&
+      normalizeBookApiName(globalAudio.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
       globalAudio.audioState.currentChapter === selectedChapter;
 
     if (isCurrentChapterPlaying) {
       // Pause the current audio
       globalAudio.pause();
     } else if (globalAudio.audioState.isPaused &&
-      globalAudio.audioState.currentBook === selectedBook &&
+      normalizeBookApiName(globalAudio.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
       globalAudio.audioState.currentChapter === selectedChapter) {
       // Resume the paused audio
       globalAudio.resume();
@@ -626,7 +731,7 @@ export const BibleChapterContent = ({
             {globalAudio?.audioState.isLoading ? (
               <Volume2 className="w-5 h-5 opacity-50" />
             ) : (globalAudio?.audioState.isPlaying &&
-              globalAudio?.audioState.currentBook === selectedBook &&
+              normalizeBookApiName(globalAudio?.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
               globalAudio?.audioState.currentChapter === selectedChapter) ? (
               <Pause className="w-5 h-5" />
             ) : (
@@ -675,6 +780,14 @@ export const BibleChapterContent = ({
           </div>
         ) : chapterContent ? (
           <div className="max-w-4xl mx-auto px-4 pt-1 pb-32">
+            {followPaused && readingVerse && globalAudio?.audioState.isPlaying && (
+              <button
+                onClick={() => setFollowPaused(false)}
+                className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+4.5rem)] z-40 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 animate-in fade-in slide-in-from-top-2"
+              >
+                Follow along · verse {readingVerse}
+              </button>
+            )}
             {/* Multi-select controls - REMOVED FROM TOP */}
             {/* Bible Text */}
             <div className="space-y-4" key={settingsKey}>
@@ -688,27 +801,6 @@ export const BibleChapterContent = ({
                   verseNumber = Number(verse.verse);
                 } else {
                   verseNumber = index + 1;
-                }
-
-                // Debug: Log verse data to help identify duplication issues
-                if (index < 5) { // Log first 5 verses to see more examples
-                  const hasBracketedNumbers = /\[\d+\]/.test(verse.text || '');
-                  const cleanedText = cleanVerseArtifacts(verse.text || '');
-                  const bracketMatches = (verse.text || '').match(/\[\d+\]/g) || [];
-                  console.log(`🔍 Verse ${index + 1}:`, {
-                    verseProperty: verse.verse,
-                    calculatedNumber: verseNumber,
-                    originalText: verse.text,
-                    cleanedText: cleanedText,
-                    bracketMatches: bracketMatches,
-                    textPreview: verse.text?.substring(0, 150) + '...',
-                    textStartsWithNumber: /^\d+/.test(verse.text || ''),
-                    hasBracketedNumbers: hasBracketedNumbers,
-                    hasNumbersBeforeBrackets: /\d+\s*\[\d+\]/.test(verse.text || ''),
-                    willShowUIVerseNumber: !hasBracketedNumbers,
-                    hasLineBreaks: cleanedText.includes('\n'),
-                    lineBreakCount: (cleanedText.match(/\n/g) || []).length
-                  });
                 }
 
                 const highlight = getHighlightForVerse(verseNumber);
@@ -817,9 +909,6 @@ export const BibleChapterContent = ({
                   '--font-size': `${displayFontSize}px`,
                   '--bible-font-size': `${displayFontSize}px`
                 } as React.CSSProperties;
-                console.log(`🔍 Rendering verse ${verseNumber} with fontSize: ${displayFontSize}px, style:`, verseStyle);
-                console.log(`🔍 Current font size state: currentFontSize=${currentFontSize}, displayFontSize=${displayFontSize}, preferences.fontSize=${preferences.fontSize}`);
-
                 // Apply highlight background if verse is highlighted
                 // Force readable text color in dark mode when highlighted
                 const highlightClass = highlight
@@ -829,47 +918,21 @@ export const BibleChapterContent = ({
                 // Always show verse numbers beside each verse
                 const shouldShowUIVerseNumber = true;
 
-                // Debug: Log verse processing for problematic verses
-                if (verseNumber === 4 || verseNumber === 2 || verseNumber === 1 || verseNumber === 3 || verseNumber === 16) {
-                  const originalText = verse.text || '';
-                  const cleanedText = cleanVerseArtifacts(originalText);
-                  const formattedText = formatText(originalText);
-
-                  console.log(`🔍 Verse ${verseNumber} processing:`, {
-                    originalText: originalText,
-                    shouldShowUIVerseNumber: shouldShowUIVerseNumber,
-                    cleanedText: cleanedText,
-                    formattedText: formattedText,
-                    hasQuestionMark: originalText.includes('?'),
-                    cleanedHasQuestionMark: cleanedText.includes('?'),
-                    formattedHasQuestionMark: formattedText.__html?.includes('?')
-                  });
-
-                  // Special debug for John 3:16 to identify character before "For"
-                  if (verseNumber === 16 && originalText.includes('For')) {
-                    const forPosition = originalText.indexOf('For');
-                    const charBeforeFor = originalText.charAt(forPosition - 1);
-                    const charCodeBeforeFor = originalText.charCodeAt(forPosition - 1);
-
-                    console.log(`🔍 John 3:16 character analysis:`, {
-                      originalText: originalText,
-                      forPosition: forPosition,
-                      charBeforeFor: charBeforeFor,
-                      charCodeBeforeFor: charCodeBeforeFor,
-                      beforeFor: originalText.substring(0, forPosition),
-                      afterFor: originalText.substring(forPosition, forPosition + 20)
-                    });
-                  }
-                }
-
                 const isSelected = selectedVerses.includes(verseNumber);
+                const isReading = readingVerse === verseNumber;
 
                 return (
                   <p
                     key={`${settingsKey}-${index}`}
-                    className={`text-foreground mb-4 ${highlightClass} cursor-pointer select-none`}
+                    data-verse={verseNumber}
+                    className={cn(
+                      `text-foreground mb-4 ${highlightClass} cursor-pointer select-none rounded-xl transition-colors duration-500`,
+                      isReading && '-mx-2 bg-blue-50 px-2 py-1 ring-1 ring-blue-200/70 dark:bg-blue-950/50 dark:ring-blue-800/60',
+                      readingVerse !== null && !isReading && 'opacity-75'
+                    )}
                     style={verseStyle}
                     onClick={handleVerseClick}
+                    aria-current={isReading ? 'true' : undefined}
                   >
                     {/* Always show verse numbers beside each verse */}
                     {shouldShowUIVerseNumber && (
@@ -1057,7 +1120,7 @@ export const BibleChapterContent = ({
             {globalAudio?.audioState.isLoading ? (
               <div className="w-8 h-8 border-3 border-black/10 dark:border-white/10 border-t-black dark:border-t-white rounded-full animate-spin" />
             ) : (globalAudio?.audioState.isPlaying &&
-              globalAudio?.audioState.currentBook === selectedBook &&
+              normalizeBookApiName(globalAudio?.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
               globalAudio?.audioState.currentChapter === selectedChapter) ? (
               <Pause className="w-8 h-8 fill-current" />
             ) : (
