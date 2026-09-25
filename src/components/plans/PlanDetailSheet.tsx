@@ -63,7 +63,7 @@ const PlanDetailSheet = ({ plan, progress, open, onOpenChange, onStart, onOpenDa
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="flex h-[94dvh] w-full flex-col gap-0 overflow-hidden rounded-t-[28px] border-0 p-0 sm:h-full sm:max-w-lg sm:rounded-none [&>button]:right-4 [&>button]:top-4 [&>button]:rounded-full [&>button]:bg-black/25 [&>button]:p-1.5 [&>button]:text-white [&>button]:opacity-100"
+        className="flex h-[94dvh] w-full flex-col gap-0 overflow-hidden rounded-t-[28px] border-0 p-0 data-[state=open]:duration-300 sm:h-full sm:max-w-lg sm:rounded-none [&>button]:right-4 [&>button]:top-4 [&>button]:rounded-full [&>button]:bg-black/25 [&>button]:p-1.5 [&>button]:text-white [&>button]:opacity-100"
       >
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <PlanCover plan={plan} className="px-5 pb-6 pt-10" iconClassName="right-auto left-5 top-6 h-9 w-9">

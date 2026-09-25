@@ -115,6 +115,37 @@ const rememberText = (key: string, text: string) => {
   }, 1000);
 };
 
+// Last copy of the lists, so the sheet opens instantly and refreshes behind the scenes
+const readJson = <T,>(key: string): T | undefined => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null') ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+const writeJson = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage full */
+  }
+};
+const highlightsKey = (userId: string) => `bible_highlights_cache_v1_${userId}`;
+/** Shared with the Notes page, which keeps the same list */
+const notesKey = (userId: string) => `notes_cache_v2_${userId}`;
+const memory: Record<string, { highlights?: HighlightRow[]; notes?: NoteRecord[]; loadedAt?: number }> = {};
+const libraryCache = (userId: string) => {
+  const m = (memory[userId] ??= {});
+  m.highlights ??= readJson<HighlightRow[]>(highlightsKey(userId));
+  m.notes ??= readJson<NoteRecord[]>(notesKey(userId));
+  return m;
+};
+
+const passageTextKey = (version: string, g: Pick<Group, 'book' | 'chapter' | 'verses'>) =>
+  `${version}|${g.book}|${g.chapter}|${g.verses.join(',')}`;
+
+const PAGE = 40;
+
 const BibleLibrarySheet = ({
   open,
   onOpenChange,
@@ -131,10 +162,13 @@ const BibleLibrarySheet = ({
   const navigate = useNavigate();
   const apiBook = normalizeBookApiName(book);
 
-  const [highlights, setHighlights] = useState<HighlightRow[]>([]);
-  const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const cached = user ? libraryCache(user.id) : undefined;
+  const [highlights, setHighlights] = useState<HighlightRow[]>(() => cached?.highlights ?? []);
+  const [notes, setNotes] = useState<NoteRecord[]>(() => cached?.notes ?? []);
   const [folders, setFolders] = useState<BibleNoteFolder[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [highlightsReady, setHighlightsReady] = useState(!!cached?.highlights);
+  const [notesReady, setNotesReady] = useState(!!cached?.notes);
+  const [limit, setLimit] = useState(PAGE);
   const [query, setQuery] = useState('');
   const [colorFilter, setColorFilter] = useState('all');
   const [order, setOrder] = useState<'recent' | 'bible'>(() => {
@@ -144,42 +178,91 @@ const BibleLibrarySheet = ({
       return 'recent';
     }
   });
-  const [texts, setTexts] = useState<Record<string, string>>({});
+  // Loaded verse text for search, kept out of state so cards loading don't re-render the list
+  const texts = useRef<Record<string, string>>({});
+  const [textTick, setTextTick] = useState(0);
+  const tickTimer = useRef<ReturnType<typeof setTimeout>>();
   const [editor, setEditor] = useState<{ note: NoteRecord | null; defaults?: NoteDraftDefaults } | null>(null);
 
-  const load = useCallback(async () => {
+  // A different account: start from that account's saved copy
+  useEffect(() => {
+    const c = user ? libraryCache(user.id) : undefined;
+    setHighlights(c?.highlights ?? []);
+    setNotes(c?.notes ?? []);
+    setHighlightsReady(!!c?.highlights);
+    setNotesReady(!!c?.notes);
+  }, [user]);
+
+  const loadHighlights = useCallback(async () => {
     if (!user) return;
+    const c = libraryCache(user.id);
     try {
-      const [rows, noteRes, folderList] = await Promise.all([
-        bibleHighlightsService.listAll(user.id),
-        supabase.from('bible_notes').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
-        bibleNotesService.getFolders(user.id).catch(() => [] as BibleNoteFolder[]),
-      ]);
+      const rows = await bibleHighlightsService.listAll(user.id);
+      c.highlights = rows;
+      writeJson(highlightsKey(user.id), rows);
       setHighlights(rows);
-      setNotes((noteRes.data || []) as unknown as NoteRecord[]);
-      setFolders(folderList);
     } catch (error) {
-      console.error('Failed to load highlights and notes', error);
-      appAlert("Couldn't load your highlights", 'Check your connection and try again.', 'error');
+      console.error('Failed to load highlights', error);
+      if (!c.highlights) appAlert("Couldn't load your highlights", 'Check your connection and try again.', 'error');
     } finally {
-      setLoaded(true);
+      setHighlightsReady(true);
     }
   }, [user]);
 
-  useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+  const loadNotes = useCallback(async () => {
+    if (!user) return;
+    const c = libraryCache(user.id);
+    const { data, error } = await supabase.from('bible_notes').select('*').eq('user_id', user.id).order('updated_at', { ascending: false });
+    if (!error && data) {
+      const list = data as unknown as NoteRecord[];
+      c.notes = list;
+      writeJson(notesKey(user.id), list);
+      setNotes(list);
+    }
+    setNotesReady(true);
+  }, [user]);
 
-  // Stay in step with changes made in the reader while the sheet is open
+  const load = useCallback(() => {
+    if (!user) return;
+    libraryCache(user.id).loadedAt = Date.now();
+    loadHighlights();
+    loadNotes();
+  }, [user, loadHighlights, loadNotes]);
+
+  // Fetch quietly while the person reads, so the first open is already up to date
   useEffect(() => {
-    if (!open) return;
-    window.addEventListener(HIGHLIGHTS_CHANGED, load);
-    window.addEventListener(NOTES_CHANGED, load);
-    return () => {
-      window.removeEventListener(HIGHLIGHTS_CHANGED, load);
-      window.removeEventListener(NOTES_CHANGED, load);
+    if (!user) return;
+    const t = setTimeout(load, 1500);
+    return () => clearTimeout(t);
+  }, [user, load]);
+
+  // Refresh on open unless it was just fetched
+  useEffect(() => {
+    if (!open || !user) return;
+    if (Date.now() - (libraryCache(user.id).loadedAt ?? 0) > 15000) load();
+  }, [open, user, load]);
+
+  // Changes made in the reader: refresh now if open, otherwise next time it opens
+  useEffect(() => {
+    const onChange = () => {
+      if (!user) return;
+      if (open) load();
+      else libraryCache(user.id).loadedAt = 0;
     };
-  }, [open, load]);
+    window.addEventListener(HIGHLIGHTS_CHANGED, onChange);
+    window.addEventListener(NOTES_CHANGED, onChange);
+    return () => {
+      window.removeEventListener(HIGHLIGHTS_CHANGED, onChange);
+      window.removeEventListener(NOTES_CHANGED, onChange);
+    };
+  }, [open, user, load]);
+
+  // Folders are only needed to file a note
+  useEffect(() => {
+    if (!editor || !user || folders.length) return;
+    bibleNotesService.getFolders(user.id).then(setFolders).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, user]);
 
   useEffect(() => {
     if (!open) setQuery('');
@@ -202,17 +285,32 @@ const BibleLibrarySheet = ({
   }, [groups]);
 
   const q = query.trim().toLowerCase();
+  const groupText = useCallback(
+    (g: Group) => texts.current[g.key] ?? textCacheMap()[passageTextKey(version, g)] ?? '',
+    [version],
+  );
   const visibleGroups = useMemo(() => {
     const list = groups.filter((g) => {
       if (colorFilter !== 'all' && g.color !== colorFilter) return false;
       if (!q) return true;
-      return groupLabel(g).toLowerCase().includes(q) || (texts[g.key] || '').toLowerCase().includes(q);
+      return groupLabel(g).toLowerCase().includes(q) || groupText(g).toLowerCase().includes(q);
     });
     return order === 'recent' ? [...list].sort((a, b) => b.latest.localeCompare(a.latest)) : list;
-  }, [groups, colorFilter, q, texts, order]);
+    // textTick: search again once more verse text has loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, colorFilter, q, order, groupText, textTick]);
 
+  // Draw the list a page at a time; more appear as you scroll
+  useEffect(() => setLimit(PAGE), [colorFilter, q, order, tab, open]);
+  const shownGroups = visibleGroups.slice(0, limit);
+
+  const qRef = useRef(q);
+  qRef.current = q;
   const onText = useCallback((key: string, text: string) => {
-    setTexts((prev) => (prev[key] === text ? prev : { ...prev, [key]: text }));
+    texts.current[key] = text;
+    if (!qRef.current) return;
+    clearTimeout(tickTimer.current);
+    tickTimer.current = setTimeout(() => setTextTick((t) => t + 1), 300);
   }, []);
 
   const recolor = async (g: Group, color: string) => {
@@ -249,7 +347,7 @@ const BibleLibrarySheet = ({
   };
 
   const copyGroup = async (g: Group) => {
-    const text = texts[g.key] ?? (await passageText(g));
+    const text = groupText(g) || (await passageText(g));
     const body = `${groupLabel(g)} ${versionLabel}\n${text}`;
     try {
       await navigator.clipboard.writeText(body);
@@ -260,7 +358,7 @@ const BibleLibrarySheet = ({
   };
 
   const shareGroup = async (g: Group) => {
-    const text = texts[g.key] ?? (await passageText(g));
+    const text = groupText(g) || (await passageText(g));
     try {
       await navigator.share({ title: groupLabel(g), text: `“${text}” — ${groupLabel(g)} ${versionLabel}` });
     } catch {
@@ -274,7 +372,7 @@ const BibleLibrarySheet = ({
   };
 
   const noteOnGroup = async (g: Group) => {
-    const text = texts[g.key] ?? (await passageText(g));
+    const text = groupText(g) || (await passageText(g));
     setEditor({
       note: null,
       defaults: {
@@ -407,7 +505,7 @@ const BibleLibrarySheet = ({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2">
-        {!loaded ? (
+        {(tab === 'highlights' ? !highlightsReady : !notesReady) ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />)}
           </div>
@@ -426,7 +524,7 @@ const BibleLibrarySheet = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {visibleGroups.map((g) => (
+              {shownGroups.map((g) => (
                 <HighlightCard
                   key={g.key}
                   group={g}
@@ -441,6 +539,7 @@ const BibleLibrarySheet = ({
                   onRemove={() => removeGroup(g)}
                 />
               ))}
+              {limit < visibleGroups.length && <MoreOnScroll onVisible={() => setLimit((l) => l + PAGE)} />}
             </div>
           )
         ) : (
@@ -510,10 +609,9 @@ const BibleLibrarySheet = ({
       <Sheet open={open && !editor} onOpenChange={onOpenChange}>
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="flex h-[92dvh] w-full flex-col gap-0 rounded-t-[28px] p-0 sm:h-full sm:max-w-md sm:rounded-none [&>button]:right-5 [&>button]:top-5"
+          className="flex h-[92dvh] w-full flex-col gap-0 rounded-t-[28px] p-0 data-[state=open]:duration-300 sm:h-full sm:max-w-md sm:rounded-none [&>button]:right-5 [&>button]:top-5"
         >
-          {isMobile && <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-slate-300 dark:bg-slate-700" />}
-          <div className="shrink-0 px-5 pb-3 pt-4 sm:pt-6">
+          <div className="shrink-0 px-5 pb-3 pt-6">
             <SheetTitle className="font-outfit text-[26px] font-extrabold tracking-tight">My Bible</SheetTitle>
             <SheetDescription className="text-[13.5px]">Your highlights and notes, all in one place.</SheetDescription>
           </div>
@@ -523,8 +621,8 @@ const BibleLibrarySheet = ({
               onChange={onTabChange}
               className="mb-3"
               options={[
-                { value: 'highlights', label: <><Highlighter className="h-4 w-4" /> Highlights{user && loaded ? ` · ${groups.length}` : ''}</> },
-                { value: 'notes', label: <><NotebookPen className="h-4 w-4" /> Notes{user && loaded ? ` · ${notes.length}` : ''}</> },
+                { value: 'highlights', label: <><Highlighter className="h-4 w-4" /> Highlights{user && highlightsReady ? ` · ${groups.length}` : ''}</> },
+                { value: 'notes', label: <><NotebookPen className="h-4 w-4" /> Notes{user && notesReady ? ` · ${notes.length}` : ''}</> },
               ]}
             />
           </div>
@@ -580,7 +678,7 @@ const HighlightCard = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const versesKey = group.verses.join(',');
-  const cacheKey = `${version}|${group.book}|${group.chapter}|${versesKey}`;
+  const cacheKey = passageTextKey(version, group);
   const [text, setText] = useState<string | null>(() => textCacheMap()[cacheKey] ?? null);
   const color = highlightColor(group.color);
 
@@ -705,6 +803,25 @@ const HighlightCard = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+    </div>
+  );
+};
+
+/** Asks for the next page of cards as the end of the list comes near. */
+const MoreOnScroll = ({ onVisible }: { onVisible: () => void }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onVisible);
+  cb.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && cb.current(), { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="flex justify-center py-4">
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
     </div>
   );
 };

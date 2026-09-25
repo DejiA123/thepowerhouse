@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, GraduationCap } from "lucide-react";
+import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, GraduationCap, BookDown } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
@@ -13,6 +13,7 @@ interface BibleMenuDialogProps {
   onSettingsChange?: () => void;
   onResetToGenesis?: () => void;
   onOpenOffline?: () => void;
+  onOpenOfflineText?: () => void;
 }
 
 export const BibleMenuDialog = ({
@@ -20,7 +21,8 @@ export const BibleMenuDialog = ({
   onClose,
   onSettingsChange,
   onResetToGenesis,
-  onOpenOffline
+  onOpenOffline,
+  onOpenOfflineText
 }: BibleMenuDialogProps) => {
   const { preferences, setAutoPlayNext, setLoopChapter, setLoopBook } = useBiblePreferences();
   const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
@@ -334,6 +336,24 @@ export const BibleMenuDialog = ({
               </p>
             </div>
 
+            <h3 className="px-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Offline</h3>
+
+            {/* Offline reading */}
+            <button
+              onClick={() => {
+                onClose();
+                onOpenOfflineText?.();
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700/60"
+            >
+              <BookDown className="h-5 w-5 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-slate-800 dark:text-slate-200">Read offline</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">Download the Bible to read with no internet</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />
+            </button>
+
             {/* Offline audio */}
             <button
               onClick={() => {
@@ -344,7 +364,7 @@ export const BibleMenuDialog = ({
             >
               <Download className="h-5 w-5 shrink-0 text-primary" />
               <span className="min-w-0 flex-1">
-                <span className="block font-medium text-slate-800 dark:text-slate-200">Offline audio</span>
+                <span className="block font-medium text-slate-800 dark:text-slate-200">Listen offline</span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">Download chapters to listen without internet</span>
               </span>
               <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />

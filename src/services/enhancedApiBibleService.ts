@@ -125,6 +125,32 @@ async function loadOfflineText(key: string): Promise<unknown | null> {
   }
 }
 
+/** Chapter text saved on the device (used by "Read offline" downloads). */
+export const offlineBibleText = {
+  save: (version: string, book: string, chapter: number, data: BibleChapter) =>
+    saveOfflineText(offlineTextKey(version, book, chapter), data),
+  load: (version: string, book: string, chapter: number) =>
+    loadOfflineText(offlineTextKey(version, book, chapter)) as Promise<BibleChapter | null>,
+  async remove(version: string, book: string, chapter: number) {
+    try {
+      if ('caches' in window) await (await caches.open(OFFLINE_TEXT_CACHE)).delete(offlineTextKey(version, book, chapter));
+    } catch {
+      /* ignore */
+    }
+  },
+};
+
+/** Books downloaded for offline reading, per translation: { [version]: { books: { [book]: true } } } */
+export const OFFLINE_TEXT_MANIFEST = 'bible_text_downloads_v1';
+const isDownloaded = (version: string, book: string) => {
+  try {
+    const manifest = JSON.parse(localStorage.getItem(OFFLINE_TEXT_MANIFEST) || '{}');
+    return !!manifest[version]?.books?.[book.toLowerCase()];
+  } catch {
+    return false;
+  }
+};
+
 export const enhancedApiBibleService = {
   // Get all available Bible versions
   async getVersions(): Promise<BibleVersion[]> {
@@ -310,6 +336,11 @@ export const enhancedApiBibleService = {
    */
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     const key = offlineTextKey(version, book, chapter);
+    // Books downloaded for offline reading open straight from the device
+    if (isDownloaded(version, book)) {
+      const saved = (await loadOfflineText(key)) as BibleChapter | null;
+      if (saved?.verses?.length) return saved;
+    }
     if (navigator.onLine !== false) {
       try {
         const fresh = await this.getChapterOnline(version, book, chapter);

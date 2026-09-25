@@ -18,6 +18,7 @@ import { BibleMenuDialog } from "@/components/bible/BibleMenuDialog";
 import OfflineAudioDialog from "@/components/bible/OfflineAudioDialog";
 import BibleLibrarySheet, { type LibraryTab } from "@/components/bible/BibleLibrarySheet";
 import StudyNotesSheet from "@/components/bible/StudyNotesSheet";
+import OfflineBibleSheet from "@/components/bible/OfflineBibleSheet";
 
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -94,6 +95,7 @@ const BiblePage = () => {
   const [study, setStudy] = useState<{ verse: number | null } | null>(null);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
   const [showOffline, setShowOffline] = useState(false);
+  const [showOfflineText, setShowOfflineText] = useState(false);
   const [menuSettingsVersion, setMenuSettingsVersion] = useState(0);
   const [currentVerse, setCurrentVerse] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -146,7 +148,11 @@ const BiblePage = () => {
       } else {
         console.warn(`⚠️ BiblePage: No valid chapter content received`);
         setChapterContent(null);
-        setLoadError("Could not load chapter content. Please try again.");
+        setLoadError(
+          navigator.onLine === false
+            ? "You're offline and this chapter isn't downloaded yet. Download the Bible in Settings → Read offline to read anywhere."
+            : "Could not load chapter content. Please try again."
+        );
         toast({
           title: "Error",
           description: "Could not load chapter content.",
@@ -662,6 +668,16 @@ const BiblePage = () => {
             setShowMenu(false);
           }}
           onOpenOffline={() => setShowOffline(true)}
+          onOpenOfflineText={() => setShowOfflineText(true)}
+        />
+
+        <OfflineBibleSheet
+          open={showOfflineText}
+          onOpenChange={setShowOfflineText}
+          version={selectedVersion}
+          versionLabel={versionLabel}
+          versionName={versions.find(v => (v.id || v.abbreviation) === selectedVersion)?.name || versionLabel}
+          onOpenAudio={() => setShowOffline(true)}
         />
 
         <OfflineAudioDialog

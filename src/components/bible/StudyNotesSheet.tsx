@@ -81,10 +81,9 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="flex h-[92dvh] w-full flex-col gap-0 rounded-t-[28px] p-0 sm:h-full sm:max-w-lg sm:rounded-none [&>button]:right-5 [&>button]:top-5"
+        className="flex h-[92dvh] w-full flex-col gap-0 rounded-t-[28px] p-0 data-[state=open]:duration-300 sm:h-full sm:max-w-lg sm:rounded-none [&>button]:right-5 [&>button]:top-5"
       >
-        {isMobile && <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-slate-300 dark:bg-slate-700" />}
-        <div className="shrink-0 px-5 pb-3 pt-4 sm:pt-6">
+        <div className="shrink-0 px-5 pb-3 pt-6">
           <p className="flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-[0.08em] text-amber-600 dark:text-amber-400">
             <GraduationCap className="h-4 w-4" /> Study notes
           </p>
