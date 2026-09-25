@@ -78,13 +78,16 @@ export const verseRanges = (verses: number[]): string => {
 
 const chapterCache = new Map<string, Promise<Map<number, string>>>();
 
-/** Plain text of every verse in a chapter, keyed by verse number (cached for the session). */
+/**
+ * Plain text of every verse in a chapter, keyed by verse number. Uses the copy
+ * saved on this device first, and is cached for the session.
+ */
 export function getChapterVerses(version: string, book: string, chapter: number): Promise<Map<number, string>> {
   const key = `${version}|${book}|${chapter}`;
   let pending = chapterCache.get(key);
   if (!pending) {
     pending = enhancedApiBibleService
-      .getChapter(version, book, chapter)
+      .getChapterPreferCached(version, book, chapter)
       .then((data) => {
         const map = new Map<number, string>();
         (data?.verses || []).forEach((v, i) => {

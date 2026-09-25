@@ -326,6 +326,13 @@ export const enhancedApiBibleService = {
     return (await loadOfflineText(key)) as BibleChapter | null;
   },
 
+  /** The copy saved on this device when there is one (instant), otherwise the network. */
+  async getChapterPreferCached(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
+    const saved = (await loadOfflineText(offlineTextKey(version, book, chapter))) as BibleChapter | null;
+    if (saved?.verses?.length) return saved;
+    return this.getChapter(version, book, chapter);
+  },
+
   async getChapterOnline(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);

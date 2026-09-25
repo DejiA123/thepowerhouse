@@ -1,11 +1,11 @@
 import { memo } from 'react';
 import { Folder, MoreHorizontal, Pin, PinOff, Star, Trash2 } from 'lucide-react';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
-  DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { BibleNoteFolder } from '@/services/bibleNotesService';
+import FolderMenuSection from './FolderMenuSection';
 import { notePreview, noteTitle, relativeDate, type NoteRecord } from './noteUtils';
 
 interface Props {
@@ -78,20 +78,7 @@ const NoteCard = ({ note, folders, query, onOpen, onToggleFavorite, onTogglePin,
                 {note.is_pinned ? <PinOff className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
                 {note.is_pinned ? 'Unpin' : 'Pin to top'}
               </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Folder className="mr-2 h-4 w-4" /> Move to folder
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Folder</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={note.folder_id ?? 'none'} onValueChange={(v) => onMove(note, v === 'none' ? null : v)}>
-                    <DropdownMenuRadioItem value="none">No folder</DropdownMenuRadioItem>
-                    {folders.map((f) => (
-                      <DropdownMenuRadioItem key={f.id} value={f.id}>{f.name}</DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              <FolderMenuSection folders={folders} value={note.folder_id} onChange={(folderId) => onMove(note, folderId)} />
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => onDelete(note)}>
                 <Trash2 className="mr-2 h-4 w-4" /> Delete

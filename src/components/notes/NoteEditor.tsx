@@ -5,8 +5,7 @@ import {
   AlertCircle, Check, ChevronLeft, Cloud, FileDown, FileText, Folder, Loader2, MoreHorizontal, Pin, PinOff, Star, Trash2,
 } from 'lucide-react';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
-  DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -17,6 +16,7 @@ import type { BibleNoteFolder } from '@/services/bibleNotesService';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
+import FolderMenuSection from './FolderMenuSection';
 import NoteRichEditor from './NoteRichEditor';
 import NoteToolbar from './NoteToolbar';
 import { exportNotePdf, exportNoteWord, isBlankHtml, relativeDate, type NoteRecord } from './noteUtils';
@@ -351,26 +351,14 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
               {pinned ? <PinOff className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
               {pinned ? 'Unpin from top' : 'Pin to top'}
             </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Folder className="mr-2 h-4 w-4" /> Move to folder
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="z-[9999] max-h-72 overflow-y-auto">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Folder</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={folderId ?? 'none'}
-                  onValueChange={(v) => {
-                    setFolderId(v === 'none' ? null : v);
-                    markEdited();
-                  }}
-                >
-                  <DropdownMenuRadioItem value="none">No folder</DropdownMenuRadioItem>
-                  {folders.map((f) => (
-                    <DropdownMenuRadioItem key={f.id} value={f.id}>{f.name}</DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            <FolderMenuSection
+              folders={folders}
+              value={folderId}
+              onChange={(id) => {
+                setFolderId(id);
+                markEdited();
+              }}
+            />
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => exportNotePdf(record())}>
               <FileDown className="mr-2 h-4 w-4" /> Download PDF

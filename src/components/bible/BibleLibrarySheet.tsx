@@ -52,31 +52,68 @@ const bookIndex = new Map(books.map((b, i) => [b.apiName, i]));
 const bookName = (api: string) => books.find((b) => b.apiName === api)?.name ?? api;
 const groupLabel = (g: Pick<Group, 'book' | 'chapter' | 'verses'>) => `${bookName(g.book)} ${g.chapter}:${verseRanges(g.verses)}`;
 
-/** Consecutive verses of the same colour become one passage card. */
+const stamp = (h: HighlightRow) => h.updated_at || h.created_at || '';
+
+/**
+ * One highlight per verse — the newest, as the reader shows it (older rows are
+ * colours it replaced). Consecutive verses of the same colour become one card.
+ */
 function groupHighlights(rows: HighlightRow[]): Group[] {
-  const sorted = rows
-    .filter((h) => h.verse)
-    .map((h) => ({ ...h, book: normalizeBookApiName(h.book) }))
-    .sort(
-      (a, b) =>
-        (bookIndex.get(a.book) ?? 99) - (bookIndex.get(b.book) ?? 99) || a.chapter - b.chapter || (a.verse ?? 0) - (b.verse ?? 0),
-    );
+  const newest = new Map<string, HighlightRow>();
+  rows.forEach((h) => {
+    if (!h.verse) return;
+    const book = normalizeBookApiName(h.book);
+    const key = `${book}|${h.chapter}|${h.verse}`;
+    const prev = newest.get(key);
+    if (!prev || stamp(h) > stamp(prev)) newest.set(key, { ...h, book });
+  });
+  const sorted = [...newest.values()].sort(
+    (a, b) =>
+      (bookIndex.get(a.book) ?? 99) - (bookIndex.get(b.book) ?? 99) || a.chapter - b.chapter || (a.verse ?? 0) - (b.verse ?? 0),
+  );
   const out: Group[] = [];
   for (const h of sorted) {
     const color = h.highlight_color || 'yellow';
-    const at = h.updated_at || h.created_at || '';
     const prev = out[out.length - 1];
-    const lastVerse = prev?.verses[prev.verses.length - 1];
-    const samePlace = prev && prev.book === h.book && prev.chapter === h.chapter && prev.color === color;
-    if (samePlace && (h.verse === lastVerse || h.verse === (lastVerse ?? 0) + 1)) {
-      if (h.verse !== lastVerse) prev.verses.push(h.verse!);
-      if (at > prev.latest) prev.latest = at;
+    if (prev && prev.book === h.book && prev.chapter === h.chapter && prev.color === color && h.verse === prev.verses[prev.verses.length - 1] + 1) {
+      prev.verses.push(h.verse!);
+      if (stamp(h) > prev.latest) prev.latest = stamp(h);
     } else {
-      out.push({ key: `${h.book}-${h.chapter}-${h.verse}-${color}`, book: h.book, chapter: h.chapter, color, verses: [h.verse!], latest: at });
+      // Each verse is in exactly one card, so its first verse makes a unique key
+      out.push({ key: `${h.book}-${h.chapter}-${h.verse}`, book: h.book, chapter: h.chapter, color, verses: [h.verse!], latest: stamp(h) });
     }
   }
   return out;
 }
+
+// Verse text of highlighted passages, kept on the device so the list opens instantly
+const TEXT_CACHE_KEY = 'bible_highlight_texts_v1';
+let textCache: Record<string, string> | null = null;
+let textCacheTimer: ReturnType<typeof setTimeout> | undefined;
+const textCacheMap = () => {
+  if (!textCache) {
+    try {
+      textCache = JSON.parse(localStorage.getItem(TEXT_CACHE_KEY) || '{}');
+    } catch {
+      textCache = {};
+    }
+  }
+  return textCache!;
+};
+const rememberText = (key: string, text: string) => {
+  const map = textCacheMap();
+  map[key] = text;
+  clearTimeout(textCacheTimer);
+  textCacheTimer = setTimeout(() => {
+    const keys = Object.keys(map);
+    keys.slice(0, Math.max(0, keys.length - 1000)).forEach((k) => delete map[k]);
+    try {
+      localStorage.setItem(TEXT_CACHE_KEY, JSON.stringify(map));
+    } catch {
+      /* storage full */
+    }
+  }, 1000);
+};
 
 const BibleLibrarySheet = ({
   open,
@@ -542,26 +579,43 @@ const HighlightCard = ({
   onRemove: () => void;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [text, setText] = useState<string | null>(null);
-  const color = highlightColor(group.color);
   const versesKey = group.verses.join(',');
+  const cacheKey = `${version}|${group.book}|${group.chapter}|${versesKey}`;
+  const [text, setText] = useState<string | null>(() => textCacheMap()[cacheKey] ?? null);
+  const color = highlightColor(group.color);
 
-  // Load the verse text once the card scrolls into view
+  // Load the verse text once the card scrolls into view (instantly if it's saved on the device)
   useEffect(() => {
+    const saved = textCacheMap()[cacheKey];
+    if (saved) {
+      setText(saved);
+      onText(group.key, saved);
+      return;
+    }
+    setText(null);
     const el = ref.current;
     if (!el) return;
     let cancelled = false;
-    const fetchText = () =>
-      getChapterVerses(version, group.book, group.chapter).then((map) => {
+    let giveUp: ReturnType<typeof setTimeout> | undefined;
+    const fetchText = () => {
+      // Never leave a card loading: after 10s show "Tap to read" instead
+      giveUp = setTimeout(() => !cancelled && setText((t) => t ?? ''), 10000);
+      return getChapterVerses(version, group.book, group.chapter).then((map) => {
+        clearTimeout(giveUp);
         if (cancelled) return;
         const t = group.verses.map((v) => map.get(v) || '').join(' ').trim();
         setText(t);
-        if (t) onText(group.key, t);
+        if (t) {
+          onText(group.key, t);
+          rememberText(cacheKey, t);
+        }
       });
+    };
     if (typeof IntersectionObserver === 'undefined') {
       fetchText();
       return () => {
         cancelled = true;
+        clearTimeout(giveUp);
       };
     }
     const io = new IntersectionObserver(
@@ -576,10 +630,11 @@ const HighlightCard = ({
     io.observe(el);
     return () => {
       cancelled = true;
+      clearTimeout(giveUp);
       io.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, group.book, group.chapter, versesKey]);
+  }, [cacheKey]);
 
   const label = groupLabel(group);
 
