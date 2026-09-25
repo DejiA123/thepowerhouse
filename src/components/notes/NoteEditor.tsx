@@ -27,6 +27,8 @@ export interface NoteDraftDefaults {
   verse?: number | null;
   folder_id?: string | null;
   title?: string;
+  /** Starting HTML for a new note, e.g. the verses being written about */
+  body?: string;
 }
 
 interface Props {
@@ -97,7 +99,7 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   // Load the note (or a blank draft) each time the editor opens
   useEffect(() => {
     if (!open) return;
-    let body = note?.note_text ?? '';
+    let body = note?.note_text ?? defaults?.body ?? '';
     let startTitle = note?.title ?? defaults?.title ?? '';
     let recovered = false;
     try {

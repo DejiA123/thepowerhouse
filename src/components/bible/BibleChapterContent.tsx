@@ -1,9 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, FileText, Palette, Pencil, X, Copy, Trash2, NotebookPen, MoreHorizontal, Headphones, SkipBack, SkipForward, Loader2, WifiOff } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, WifiOff, Highlighter, GraduationCap, Settings, Share2, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
@@ -11,15 +8,19 @@ import { normalizeBookApiName } from "./bookUtils";
 import { estimateVerseTimings, getVerseTimings, verseAt, type VerseTimings } from "@/services/verseTimingService";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
-// Import BibleNotesDialog for notes functionality
-import { BibleNotesDialog } from "./BibleNotesDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import AllHighlightsList from "./AllHighlightsList";
-import { supabaseAudioService } from "@/services/supabaseAudioService";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { offlineAudioService } from "@/services/offlineAudioService";
 import { appAlert } from "@/lib/appAlert";
+import { bibleHighlightsService, type HighlightRow } from "@/services/bibleHighlightsService";
+import { bibleNotesService, type BibleNoteFolder } from "@/services/bibleNotesService";
+import { studyNotesService } from "@/services/studyNotesService";
+import NoteEditor, { type NoteDraftDefaults } from "@/components/notes/NoteEditor";
+import type { NoteRecord } from "@/components/notes/noteUtils";
+import { HIGHLIGHT_COLORS, HIGHLIGHTS_CHANGED, NOTES_CHANGED, highlightColor } from "./highlightColors";
+import { cleanVerseArtifacts, escapeHtml, plainVerseText, verseRanges } from "./verseText";
+import type { LibraryTab } from "./BibleLibrarySheet";
 import DOMPurify from 'dompurify';
 
 
@@ -41,6 +42,10 @@ interface BibleChapterContentProps {
   onVersionSelectorOpen?: () => void;
   onSearchOpen?: () => void;
   onMenuOpen?: () => void;
+  /** Opens "My Bible" (highlights and notes) on the given tab. */
+  onLibraryOpen?: (tab: LibraryTab) => void;
+  /** Opens the study notes for this chapter, scrolled to a verse. */
+  onStudyOpen?: (verse?: number) => void;
   /** Opens the "Listen offline" downloads sheet. */
   onOfflineOpen?: () => void;
   selectedVersion?: string;
@@ -71,6 +76,8 @@ export const BibleChapterContent = ({
   onVersionSelectorOpen,
   onSearchOpen,
   onMenuOpen,
+  onLibraryOpen,
+  onStudyOpen,
   onOfflineOpen,
   selectedVersion,
   versions = [],
@@ -112,10 +119,6 @@ export const BibleChapterContent = ({
   });
 
   // State variables
-  const [showNotesDialog, setShowNotesDialog] = useState(false);
-  const [showHighlightDialog, setShowHighlightDialog] = useState(false);
-  const [showHighlightsList, setShowHighlightsList] = useState(false);
-  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
@@ -307,7 +310,6 @@ export const BibleChapterContent = ({
 
   const { toast } = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   // Set up callbacks for global audio context
   useEffect(() => {
@@ -324,16 +326,100 @@ export const BibleChapterContent = ({
     }
   }, [globalAudio, onChapterChange, onBookChange]);
 
-  // Highlights state
-  const [highlights, setHighlights] = useState<any[]>([]);
+  // Highlights, notes and study notes for this chapter
+  const [highlights, setHighlights] = useState<HighlightRow[]>([]);
+  const [chapterNotes, setChapterNotes] = useState<NoteRecord[]>([]);
+  const [noteFolders, setNoteFolders] = useState<BibleNoteFolder[]>([]);
+  const [noteEditor, setNoteEditor] = useState<{ note: NoteRecord | null; defaults?: NoteDraftDefaults } | null>(null);
+  const [studyVerses, setStudyVerses] = useState<Set<number>>(new Set());
+  const [studyMarkers, setStudyMarkers] = useState(() => {
+    try {
+      return localStorage.getItem('bible_study_markers') === 'on';
+    } catch {
+      return false;
+    }
+  });
 
-
-  // Fetch highlights for current chapter
-  useEffect(() => {
-    if (user) {
-      fetchHighlights();
+  const fetchHighlights = useCallback(async () => {
+    if (!user) {
+      setHighlights([]);
+      return;
+    }
+    try {
+      setHighlights(await bibleHighlightsService.listChapter(user.id, selectedBook, selectedChapter));
+    } catch (error) {
+      console.error('Error fetching highlights:', error);
     }
   }, [user, selectedBook, selectedChapter]);
+
+  const fetchChapterNotes = useCallback(async () => {
+    if (!user) {
+      setChapterNotes([]);
+      return;
+    }
+    const apiBook = normalizeBookApiName(selectedBook);
+    const { data } = await supabase
+      .from('bible_notes')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('book', Array.from(new Set([apiBook, selectedBook])))
+      .eq('chapter', selectedChapter)
+      .order('updated_at', { ascending: false });
+    setChapterNotes((data || []) as unknown as NoteRecord[]);
+  }, [user, selectedBook, selectedChapter]);
+
+  useEffect(() => {
+    fetchHighlights();
+    fetchChapterNotes();
+  }, [fetchHighlights, fetchChapterNotes]);
+
+  // Changes made in "My Bible" (or another tab of the reader) show up here straight away
+  useEffect(() => {
+    window.addEventListener(HIGHLIGHTS_CHANGED, fetchHighlights);
+    window.addEventListener(NOTES_CHANGED, fetchChapterNotes);
+    return () => {
+      window.removeEventListener(HIGHLIGHTS_CHANGED, fetchHighlights);
+      window.removeEventListener(NOTES_CHANGED, fetchChapterNotes);
+    };
+  }, [fetchHighlights, fetchChapterNotes]);
+
+  useEffect(() => {
+    if (!user) return;
+    bibleNotesService.getFolders(user.id).then(setNoteFolders).catch(() => undefined);
+  }, [user]);
+
+  // Which verses have a study note (for the markers and the "Study" action)
+  useEffect(() => {
+    let cancelled = false;
+    setStudyVerses(new Set());
+    studyNotesService.versesWithNotes(selectedBook, selectedChapter).then((verses) => {
+      if (!cancelled) setStudyVerses(verses);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBook, selectedChapter]);
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setStudyMarkers(localStorage.getItem('bible_study_markers') === 'on');
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('bible-study-markers-changed', sync);
+    return () => window.removeEventListener('bible-study-markers-changed', sync);
+  }, []);
+
+  const notesByVerse = useMemo(() => {
+    const map = new Map<number, NoteRecord[]>();
+    chapterNotes.forEach((n) => {
+      if (!n.verse) return;
+      map.set(n.verse, [...(map.get(n.verse) || []), n]);
+    });
+    return map;
+  }, [chapterNotes]);
 
   // Auto-play MP3 audio when shouldAutoPlay is true
   useEffect(() => {
@@ -492,26 +578,51 @@ export const BibleChapterContent = ({
     };
   }, []);
 
-  const fetchHighlights = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bible_highlights')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('book', selectedBook)
-        .eq('chapter', selectedChapter);
-      if (error) throw error;
-      setHighlights(data || []);
-    } catch (error) {
-      console.error('Error fetching highlights:', error);
-    }
-  };
-
+  // Newest first, so a verse always shows its latest colour
   const getHighlightForVerse = (verseNumber: number) => {
     return highlights.find(h => h.verse === verseNumber);
   };
 
-  const refetchHighlights = fetchHighlights;
+  const applyHighlight = async (color: string) => {
+    if (!user) {
+      appAlert('Sign in to highlight', 'Your highlights are saved to your account, on every device.', 'info');
+      return;
+    }
+    const verses = [...selectedVerses];
+    // Show the colour straight away; the save follows
+    const now = new Date().toISOString();
+    setHighlights((prev) => [
+      ...verses.map((verse) => ({
+        id: `pending-${verse}`, user_id: user.id, book: selectedBook, chapter: selectedChapter, verse,
+        highlight_color: color, created_at: now, updated_at: now,
+      })),
+      ...prev.filter((h) => !verses.includes(h.verse ?? -1)),
+    ]);
+    setSelectedVerses([]);
+    setIsMultiSelectMode(false);
+    try {
+      await bibleHighlightsService.setColor(user.id, selectedBook, selectedChapter, verses, color);
+    } catch (error) {
+      console.error('Error adding highlights:', error);
+      appAlert("Couldn't save the highlight", 'Check your connection and try again.', 'error');
+      fetchHighlights();
+    }
+  };
+
+  const clearHighlights = async () => {
+    const verses = [...selectedVerses];
+    setSelectedVerses([]);
+    setIsMultiSelectMode(false);
+    if (!user || !verses.some((v) => getHighlightForVerse(v))) return;
+    setHighlights((prev) => prev.filter((h) => !verses.includes(h.verse ?? -1)));
+    try {
+      await bibleHighlightsService.remove(user.id, selectedBook, selectedChapter, verses);
+    } catch (error) {
+      console.error('Error removing highlights:', error);
+      appAlert("Couldn't remove the highlight", 'Please try again.', 'error');
+      fetchHighlights();
+    }
+  };
 
   const allBooks = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
   const normalizedSelectedBook = normalizeBookApiName(selectedBook);
@@ -608,61 +719,6 @@ export const BibleChapterContent = ({
     // Fallback to the enhanced API service if not found in versions array
     return enhancedApiBibleService.getVersionDisplayName(selectedVersion);
   };
-  // Clean common artifacts like inline references (e.g., 6:1 or 6.1) and footnote letters (a)
-  const cleanVerseArtifacts = (input: string): string => {
-    let cleaned = input;
-
-    // First, aggressively remove numbers before brackets
-    cleaned = cleaned
-      // Remove verse numbers that appear before bracketed numbers (multiple patterns)
-      .replace(/\b\d+\s+(\[\d+\])/g, '$1') // "1 [1]" -> "[1]"
-      .replace(/\b\d+\s*(\[\d+\])/g, '$1') // "1[1]" -> "[1]" (no space)
-      .replace(/\s+\d+\s+(\[\d+\])/g, ' $1') // " 1 [1]" -> " [1]"
-      .replace(/\s+\d+\s*(\[\d+\])/g, ' $1') // " 1[1]" -> " [1]" (no space)
-      // Remove any standalone numbers that appear before brackets
-      .replace(/(\s|^)\d+(\s*\[\d+\])/g, '$1$2')
-      // More aggressive: remove any number followed by brackets
-      .replace(/\d+\s*(\[\d+\])/g, '$1')
-      // Even more aggressive: remove any number that appears before text that contains brackets
-      .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove verse numbers at start if text contains brackets
-      .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' '); // Remove standalone numbers if text contains brackets
-
-    // Add consistent line breaks before verse numbers for better readability
-    // Use a more direct approach to ensure ALL verse numbers get the same spacing
-    cleaned = cleaned
-      // Remove brackets from verse numbers if present
-      .replace(/\[(\d+)\]/g, '$1')
-      // First, normalize all existing line breaks and whitespace around verse numbers
-      .replace(/\s*\n*\s*(\d+)(?=\s)/g, '\n\n$1') // Replace any whitespace/line breaks before verse numbers with exactly two line breaks
-      // Clean up any triple or more line breaks
-      .replace(/\n{3,}/g, '\n\n')
-      // Ensure the first verse number doesn't have line breaks at the start
-      .replace(/^\n+(\d+)/g, '$1');
-
-    // Then apply other cleaning rules
-    cleaned = cleaned
-      // Remove verse numbers at the beginning of text (e.g., "1 In the beginning...")
-      .replace(/^\s*\d+\s+/, '')
-      // Remove verse numbers anywhere in the text that might be standalone (e.g., "1" at start of line)
-      .replace(/\b\d+\s+(?=[A-Z])/g, '')
-      // Remove tokens like 6:1 or 6.1 that sometimes appear in Psalms/OT feeds
-      .replace(/\b\d+[:.]\d+\b/g, '')
-      // Remove single-letter footnote markers like [a] but keep numbered brackets like [1], [2], [3]
-      .replace(/\s*\[[a-zA-Z]\]\s*/g, ' ')
-      // Remove parenthetical single-letter footnotes like (a) but keep real words like (Selah)
-      .replace(/\s*\(\s*[a-zA-Z]\s*\)\s*/g, ' ')
-      // Remove paragraph marks (pilcrow) and other formatting characters
-      .replace(/¶/g, '') // Remove paragraph mark
-      .replace(/[\u00A0\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various Unicode spaces with regular space
-      // EXTRA AGGRESSIVE: Remove any standalone numbers that appear before text (for bracketed verses)
-      .replace(/^\s*\d+\s+(?=.*\[\d+\])/g, '') // Remove numbers at start if brackets exist
-      .replace(/\s+\d+\s+(?=.*\[\d+\])/g, ' ') // Remove standalone numbers if brackets exist
-      // Normalize leftover spacing
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    return cleaned;
-  };
 
 
 
@@ -697,25 +753,62 @@ export const BibleChapterContent = ({
    * "Mark 2:1-4 KJV" on the first line, then the verses as one paragraph with
    * [n] before every verse after the first, e.g. "…in the house. [2] And straightway…"
    */
-  const buildVerseCopy = (verseNumbers: number[]) => {
-    const nums = [...new Set(verseNumbers)].sort((a, b) => a - b);
-    const ranges: string[] = [];
-    for (let i = 0; i < nums.length;) {
-      let j = i;
-      while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
-      ranges.push(i === j ? `${nums[i]}` : `${nums[i]}-${nums[j]}`);
-      i = j + 1;
-    }
+  const verseTextByNumber = () => {
     const byNumber = new Map<number, string>();
     (chapterContent?.verses || []).forEach((v, i) => {
       const n = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : i + 1;
-      if (!byNumber.has(n)) byNumber.set(n, v.text || '');
+      if (!byNumber.has(n)) byNumber.set(n, plainVerseText(v.text || ''));
     });
-    const plain = (text: string) => cleanVerseArtifacts(text).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return byNumber;
+  };
+
+  /** "John 3:16-17" for the given verses */
+  const selectionLabel = (verseNumbers: number[]) =>
+    `${getBookDisplayName()} ${selectedChapter}:${verseRanges(verseNumbers)}`;
+
+  const buildVerseCopy = (verseNumbers: number[]) => {
+    const nums = [...new Set(verseNumbers)].sort((a, b) => a - b);
+    const byNumber = verseTextByNumber();
     const body = nums
-      .map((n, idx) => (idx === 0 ? plain(byNumber.get(n) || '') : `[${n}] ${plain(byNumber.get(n) || '')}`))
+      .map((n, idx) => (idx === 0 ? byNumber.get(n) || '' : `[${n}] ${byNumber.get(n) || ''}`))
       .join(' ');
-    return `${getBookDisplayName()} ${selectedChapter}:${ranges.join(', ')} ${getVersionDisplayName(selectedVersion)}\n${body}`;
+    return `${selectionLabel(nums)} ${getVersionDisplayName(selectedVersion)}\n${body}`;
+  };
+
+  /** A new note on the selected verses, with them quoted at the top. */
+  const writeNoteOnSelection = () => {
+    if (!user) {
+      appAlert('Sign in to take notes', 'Your notes are saved to your account, on every device.', 'info');
+      return;
+    }
+    const nums = [...selectedVerses].sort((a, b) => a - b);
+    const byNumber = verseTextByNumber();
+    const quote = nums.map((n) => byNumber.get(n) || '').join(' ').trim();
+    setNoteEditor({
+      note: null,
+      defaults: {
+        book: normalizeBookApiName(selectedBook),
+        chapter: selectedChapter,
+        verse: nums[0] ?? null,
+        title: nums.length ? selectionLabel(nums) : `${getBookDisplayName()} ${selectedChapter}`,
+        body: quote ? `<blockquote><p>${escapeHtml(quote)}</p></blockquote><p></p>` : '',
+      },
+    });
+    setSelectedVerses([]);
+    setIsMultiSelectMode(false);
+  };
+
+  const shareSelection = async () => {
+    const nums = [...selectedVerses].sort((a, b) => a - b);
+    const byNumber = verseTextByNumber();
+    const text = nums.map((n) => byNumber.get(n) || '').join(' ').trim();
+    try {
+      await navigator.share({ title: selectionLabel(nums), text: `“${text}” — ${selectionLabel(nums)} ${getVersionDisplayName(selectedVersion)}` });
+      setSelectedVerses([]);
+      setIsMultiSelectMode(false);
+    } catch {
+      /* dismissed */
+    }
   };
 
   const writeClipboard = async (text: string) => {
@@ -807,25 +900,36 @@ export const BibleChapterContent = ({
 
         <div className="ml-auto flex shrink-0 items-center">
           <button
-            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
+            className="rounded-full p-2 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800 sm:p-2.5"
             onClick={() => onSearchOpen?.()}
             aria-label="Search the Bible"
+            title="Search"
           >
             <Search className="h-5 w-5" />
           </button>
           <button
-            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
-            onClick={() => navigate('/bible-notes', { state: { returnBook: selectedBook, returnChapter: selectedChapter } })}
-            aria-label="Notes"
+            className="rounded-full p-2 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800 sm:p-2.5"
+            onClick={() => onStudyOpen?.()}
+            aria-label="Study notes"
+            title="Study notes"
           >
-            <NotebookPen className="h-5 w-5" />
+            <GraduationCap className="h-5 w-5" />
           </button>
           <button
-            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
-            onClick={() => onMenuOpen?.()}
-            aria-label="More options"
+            className="rounded-full p-2 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800 sm:p-2.5"
+            onClick={() => onLibraryOpen?.('highlights')}
+            aria-label="My highlights and notes"
+            title="Highlights & notes"
           >
-            <MoreHorizontal className="h-5 w-5" />
+            <Highlighter className="h-5 w-5" />
+          </button>
+          <button
+            className="rounded-full p-2 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800 sm:p-2.5"
+            onClick={() => onMenuOpen?.()}
+            aria-label="Bible settings"
+            title="Settings"
+          >
+            <Settings className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -847,6 +951,26 @@ export const BibleChapterContent = ({
             <header className="select-none pb-3 pt-5 text-center font-sans">
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">{getBookDisplayName()}</p>
               <p className="mt-1 font-serif text-[52px] font-light leading-none text-foreground">{selectedChapter}</p>
+              {(studyVerses.size > 0 || chapterNotes.length > 0) && (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {studyVerses.size > 0 && (
+                    <button
+                      onClick={() => onStudyOpen?.()}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-[12.5px] font-semibold text-amber-700 transition active:scale-95 dark:bg-amber-950/50 dark:text-amber-300"
+                    >
+                      <GraduationCap className="h-3.5 w-3.5" /> Study notes
+                    </button>
+                  )}
+                  {chapterNotes.length > 0 && (
+                    <button
+                      onClick={() => onLibraryOpen?.('notes')}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-[12.5px] font-semibold text-violet-700 transition active:scale-95 dark:bg-violet-950/50 dark:text-violet-300"
+                    >
+                      <NotebookPen className="h-3.5 w-3.5" /> {chapterNotes.length} {chapterNotes.length === 1 ? 'note' : 'notes'}
+                    </button>
+                  )}
+                </div>
+              )}
             </header>
             {followPaused && readingVerse && globalAudio?.audioState.isPlaying && (
               <button
@@ -893,7 +1017,6 @@ export const BibleChapterContent = ({
                     : [...selectedVerses, verseNumber].sort((a, b) => a - b);
                   setSelectedVerses(nextSelection);
                   if (nextSelection.length) await writeClipboard(buildVerseCopy(nextSelection));
-                  setSelectedVerse(verseNumber);
                 };
 
                 // Format text with Jesus' words in red for Gospels
@@ -953,10 +1076,10 @@ export const BibleChapterContent = ({
                   '--font-size': `${displayFontSize}px`,
                   '--bible-font-size': `${displayFontSize}px`
                 } as React.CSSProperties;
-                // Apply highlight background if verse is highlighted
-                // Force readable text color in dark mode when highlighted
+                // Highlights sit behind the words like a marker pen; verse-highlight keeps
+                // the text dark enough to read on the colour in dark mode
                 const highlightClass = highlight
-                  ? `bg-${highlight.highlight_color}-200 rounded px-1 verse-highlight`
+                  ? cn('verse-highlight rounded-[4px] px-[3px] -mx-[3px] box-decoration-clone', highlightColor(highlight.highlight_color).mark)
                   : '';
 
                 // Always show verse numbers beside each verse
@@ -964,13 +1087,15 @@ export const BibleChapterContent = ({
 
                 const isSelected = selectedVerses.includes(verseNumber);
                 const isReading = readingVerse === verseNumber;
+                const verseNotes = notesByVerse.get(verseNumber);
+                const hasStudyNote = studyMarkers && studyVerses.has(verseNumber);
 
                 return (
                   <p
                     key={`${settingsKey}-${index}`}
                     data-verse={verseNumber}
                     className={cn(
-                      `mb-3.5 font-serif text-foreground ${highlightClass} cursor-pointer select-none rounded-xl transition-all duration-500`,
+                      `mb-3.5 font-serif text-foreground cursor-pointer select-none rounded-xl transition-all duration-500`,
                       isReading && '-mx-3 bg-blue-50 px-3 py-2 ring-1 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60',
                       readingVerse !== null && !isReading && 'opacity-60'
                     )}
@@ -987,10 +1112,36 @@ export const BibleChapterContent = ({
                     <span
                       className={cn(
                         "transition-all duration-300",
+                        highlightClass,
                         isSelected && "underline decoration-slate-950 dark:decoration-white underline-offset-[6px] decoration-2"
                       )}
                       dangerouslySetInnerHTML={formatText(verse.text)}
                     />
+                    {verseNotes && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (verseNotes.length === 1) setNoteEditor({ note: verseNotes[0] });
+                          else onLibraryOpen?.('notes');
+                        }}
+                        className="relative -top-[0.1em] ml-1.5 inline-flex h-[1.4em] w-[1.4em] items-center justify-center rounded-full bg-violet-100 align-middle text-violet-700 transition active:scale-90 dark:bg-violet-950 dark:text-violet-300"
+                        aria-label={`Your ${verseNotes.length === 1 ? 'note' : 'notes'} on verse ${verseNumber}`}
+                      >
+                        <NotebookPen className="h-[0.75em] w-[0.75em]" />
+                      </button>
+                    )}
+                    {hasStudyNote && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStudyOpen?.(verseNumber);
+                        }}
+                        className="relative -top-[0.1em] ml-1 inline-flex h-[1.4em] w-[1.4em] items-center justify-center rounded-full align-middle text-amber-500/80 transition hover:bg-amber-50 active:scale-90 dark:text-amber-400/70 dark:hover:bg-amber-950/50"
+                        aria-label={`Study note on verse ${verseNumber}`}
+                      >
+                        <GraduationCap className="h-[0.8em] w-[0.8em]" />
+                      </button>
+                    )}
                   </p>
                 );
               })}
@@ -1019,257 +1170,151 @@ export const BibleChapterContent = ({
         />
       )}
 
-      {/* Floating Action Bar for Verse Selection */}
+      {/* Verse actions: highlight, copy, note, study, share */}
       <div
         className={cn(
-          "fixed left-0 right-0 z-[100] px-4 transition-all duration-500 ease-out",
+          "fixed left-0 right-0 z-[100] px-3 transition-all duration-500 ease-out",
           selectedVerses.length > 0 || isMultiSelectMode
             ? "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-selection-bottom-offset))] opacity-100 translate-y-0"
             : "bottom-0 opacity-0 translate-y-20 pointer-events-none"
         )}
       >
-        <div className="max-w-xl mx-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 rounded-[2rem] shadow-2xl p-4 flex flex-col gap-4">
-          {/* Header Action Bar */}
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600 text-white text-xs font-black px-2 py-1 rounded-full font-sans not-italic">
-                {selectedVerses.length} {selectedVerses.length === 1 ? 'Verse' : 'Verses'} Selected
-              </div>
-              <button
-                onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
-                className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors font-sans not-italic"
-              >
-                {isMultiSelectMode ? 'Exit Select' : 'Select More'}
-              </button>
-            </div>
+        <div className="mx-auto max-w-xl rounded-[26px] border border-slate-200/70 bg-white/95 p-3 font-sans shadow-2xl shadow-slate-900/15 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95">
+          <div className="flex items-center gap-1.5 pl-1.5">
+            <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-foreground">
+              {selectedVerses.length ? selectionLabel(selectedVerses) : 'Tap verses to select them'}
+            </p>
+            <button
+              onClick={() => setIsMultiSelectMode(!isMultiSelectMode)}
+              className="shrink-0 rounded-full px-2.5 py-1.5 text-[13px] font-semibold text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+            >
+              {isMultiSelectMode ? 'Done' : 'Select more'}
+            </button>
             <button
               onClick={() => {
                 setSelectedVerses([]);
                 setIsMultiSelectMode(false);
               }}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="shrink-0 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label="Clear selection"
             >
-              <X className="w-4 h-4 text-slate-400" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Color & Actions Row */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Color Coordinator */}
-            <div className="flex items-center gap-2.5 p-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-              {[
-                { name: 'Yellow', value: 'yellow', class: 'bg-yellow-300' },
-                { name: 'Green', value: 'green', class: 'bg-green-300' },
-                { name: 'Blue', value: 'blue', class: 'bg-blue-300' },
-                { name: 'Pink', value: 'pink', class: 'bg-pink-300' },
-                { name: 'Purple', value: 'purple', class: 'bg-purple-300' },
-              ].map((color) => (
+          {/* Colours */}
+          <div className="mt-2 flex items-center justify-between gap-1 px-1">
+            {HIGHLIGHT_COLORS.map((color) => {
+              const current = selectedVerses.length > 0 && selectedVerses.every((v) => getHighlightForVerse(v)?.highlight_color === color.value);
+              return (
                 <button
                   key={color.value}
-                  onClick={async () => {
-                    try {
-                      const highlightsData = selectedVerses.map(verseNum => ({
-                        user_id: user?.id,
-                        book: selectedBook,
-                        chapter: selectedChapter,
-                        verse: verseNum,
-                        highlight_color: color.value,
-                      }));
-                      const { error } = await supabase.from('bible_highlights').upsert(highlightsData);
-                      if (!error) {
-                        await refetchHighlights();
-                        setSelectedVerses([]);
-                        setIsMultiSelectMode(false);
-                      }
-                    } catch (error) {
-                      console.error('Error adding highlights:', error);
-                    }
-                  }}
+                  onClick={() => applyHighlight(color.value)}
+                  disabled={!selectedVerses.length}
                   className={cn(
-                    "w-8 h-8 rounded-full transition-transform active:scale-90 border-2 border-white dark:border-slate-700 shadow-sm hover:scale-110",
-                    color.class
+                    "h-9 w-9 rounded-full shadow-inner ring-offset-2 ring-offset-white transition active:scale-90 disabled:opacity-40 dark:ring-offset-slate-900",
+                    color.swatch,
+                    current && "ring-2 ring-slate-900 dark:ring-white"
                   )}
+                  aria-label={`Highlight ${color.name.toLowerCase()}`}
                   title={color.name}
                 />
-              ))}
-              <button
-                onClick={() => setShowHighlightDialog(true)}
-                className="w-8 h-8 flex items-center justify-center bg-blue-50 dark:bg-blue-900/40 rounded-full border-2 border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all hover:scale-110 ml-1"
-                title="More Colors"
-              >
-                <Palette className="w-4 h-4" />
-              </button>
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
-              <button
-                onClick={async () => {
-                  try {
-                    const highlightsToRemove = selectedVerses.map(verseNum => getHighlightForVerse(verseNum)).filter(Boolean);
-                    if (highlightsToRemove.length > 0) {
-                      const { error } = await supabase.from('bible_highlights').delete().in('id', highlightsToRemove.map(h => h!.id));
-                      if (!error) {
-                        await refetchHighlights();
-                      }
-                    }
-                  } catch (error) { console.error(error); }
+              );
+            })}
+            <button
+              onClick={clearHighlights}
+              disabled={!selectedVerses.some((v) => getHighlightForVerse(v))}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:text-red-500 active:scale-90 disabled:opacity-30 dark:bg-slate-800 dark:text-slate-400"
+              aria-label="Remove highlight"
+              title="Remove highlight"
+            >
+              <Eraser className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-3 flex gap-2">
+            <VerseAction
+              icon={Copy}
+              label="Copy"
+              disabled={!selectedVerses.length}
+              onClick={async () => {
+                const text = buildVerseCopy(selectedVerses);
+                if (await writeClipboard(text)) {
+                  appAlert('Copied', text.split('\n')[0], 'success');
                   setSelectedVerses([]);
                   setIsMultiSelectMode(false);
+                } else {
+                  appAlert("Couldn't copy", 'Please try again.', 'error');
+                }
+              }}
+            />
+            <VerseAction icon={NotebookPen} label="Note" disabled={!selectedVerses.length} onClick={writeNoteOnSelection} />
+            {studyVerses.size > 0 && (
+              <VerseAction
+                icon={GraduationCap}
+                label="Study"
+                disabled={!selectedVerses.length}
+                onClick={() => {
+                  const first = Math.min(...selectedVerses);
+                  setSelectedVerses([]);
+                  setIsMultiSelectMode(false);
+                  onStudyOpen?.(first);
                 }}
-                className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-full border-2 border-slate-100 dark:border-slate-600 text-slate-400 hover:text-red-500 transition-all hover:scale-110"
-                title="Remove Highlights"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  if (!selectedVerses.length) return;
-                  const text = buildVerseCopy(selectedVerses);
-                  if (await writeClipboard(text)) {
-                    appAlert('Copied', text.split('\n')[0], 'success');
-                    setSelectedVerses([]);
-                    setIsMultiSelectMode(false);
-                  } else {
-                    appAlert("Couldn't copy", 'Please try again.', 'error');
-                  }
-                }}
-                className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl hover:bg-blue-100 transition-colors active:scale-95"
-                title="Copy Verses"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setShowNotesDialog(true)}
-                className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl hover:bg-slate-100 transition-colors active:scale-95"
-                title="Add Notes"
-              >
-                <FileText className="w-5 h-5" />
-              </button>
-            </div>
+              />
+            )}
+            {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+              <VerseAction icon={Share2} label="Share" disabled={!selectedVerses.length} onClick={shareSelection} />
+            )}
           </div>
         </div>
       </div>
 
-      {/* Bible Notes Dialog */}
-      <BibleNotesDialog
-        open={showNotesDialog}
-        onOpenChange={setShowNotesDialog}
-        book={selectedBook}
-        chapter={selectedChapter}
-        verse={selectedVerses.length > 0 ? selectedVerses[0] : undefined}
-      />
-
-      {/* All Highlights Dialog */}
-      <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto mt-24">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="w-5 h-5" />
-              Your Highlights
-            </DialogTitle>
-            <DialogDescription>
-              Select any verse to navigate to it
-            </DialogDescription>
-          </DialogHeader>
-          <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
-            setShowHighlightsList(false);
-            // Prefer parent callbacks if present
-            if (onBookChange && normalizeBookApiName(bookApi) !== normalizeBookApiName(selectedBook)) {
-              onBookChange(bookApi, chapterNum, false);
-            } else if (onChapterChange) {
-              onChapterChange(chapterNum, false);
-            }
-          }} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Highlight Color Dialog */}
-      <Dialog open={showHighlightDialog} onOpenChange={setShowHighlightDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Palette className="w-5 h-5" />
-              Highlight {selectedVerses.length > 1 ? `${selectedVerses.length} Verses` : `Verse ${selectedVerse}`}
-            </DialogTitle>
-            <DialogDescription>
-              Choose a highlight color for {selectedVerses.length > 1 ? `these ${selectedVerses.length} verses` : 'this Bible verse'} to help with your study and reference.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-3 gap-3 py-4">
-            {[
-              { name: 'Yellow', value: 'yellow', class: 'bg-yellow-200' },
-              { name: 'Green', value: 'green', class: 'bg-green-200' },
-              { name: 'Blue', value: 'blue', class: 'bg-blue-200' },
-              { name: 'Pink', value: 'pink', class: 'bg-pink-200' },
-              { name: 'Purple', value: 'purple', class: 'bg-purple-200' },
-              { name: 'Remove', value: 'remove', class: 'bg-gray-200' },
-            ].map((color) => (
-              <Button
-                key={color.value}
-                variant="outline"
-                className={`h-12 ${color.class} hover:opacity-80`}
-                onClick={async () => {
-                  if (color.value === 'remove') {
-                    // Remove highlights from all selected verses
-                    try {
-                      const highlightsToRemove = selectedVerses
-                        .map(verseNum => getHighlightForVerse(verseNum))
-                        .filter(Boolean);
-
-                      if (highlightsToRemove.length > 0) {
-                        const { error } = await supabase
-                          .from('bible_highlights')
-                          .delete()
-                          .in('id', highlightsToRemove.map(h => h!.id));
-
-                        if (!error) {
-                          await refetchHighlights();
-                        }
-                      }
-                    } catch (error) {
-                      console.error('Error removing highlights:', error);
-                    }
-                  } else {
-                    // Add/update highlights for all selected verses
-                    try {
-                      const highlightsData = selectedVerses.map(verseNum => ({
-                        user_id: user?.id,
-                        book: selectedBook,
-                        chapter: selectedChapter,
-                        verse: verseNum,
-                        highlight_color: color.value,
-                      }));
-
-                      const { error } = await supabase
-                        .from('bible_highlights')
-                        .upsert(highlightsData);
-
-                      if (!error) {
-                        await refetchHighlights();
-                      }
-                    } catch (error) {
-                      console.error('Error adding highlights:', error);
-                    }
-                  }
-                  setShowHighlightDialog(false);
-                  setSelectedVerses([]);
-                }}
-              >
-                {color.name}
-              </Button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
+      {user && (
+        <NoteEditor
+          open={!!noteEditor}
+          userId={user.id}
+          note={noteEditor?.note ?? null}
+          defaults={noteEditor?.defaults}
+          folders={noteFolders}
+          onClose={() => {
+            setNoteEditor(null);
+            window.dispatchEvent(new CustomEvent(NOTES_CHANGED));
+          }}
+          onSaved={(saved) =>
+            setChapterNotes((prev) => (prev.some((n) => n.id === saved.id) ? prev.map((n) => (n.id === saved.id ? saved : n)) : [saved, ...prev]))
+          }
+          onDeleted={(id) => {
+            setChapterNotes((prev) => prev.filter((n) => n.id !== id));
+            window.dispatchEvent(new CustomEvent(NOTES_CHANGED));
+          }}
+        />
+      )}
     </div >
   );
 };
 
+
+const VerseAction = ({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: typeof Copy;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="flex flex-1 flex-col items-center gap-1 rounded-2xl bg-slate-100 py-2.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-95 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+  >
+    <Icon className="h-5 w-5" />
+    {label}
+  </button>
+);
 
 const formatClock = (seconds: number) => {
   const s = Math.max(0, Math.round(seconds));

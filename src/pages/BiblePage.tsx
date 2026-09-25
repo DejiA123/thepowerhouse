@@ -16,15 +16,11 @@ import { BibleSearch } from "@/components/bible/BibleSearch";
 import { BibleHistory, addToBibleHistory } from "@/components/bible/BibleHistory";
 import { BibleMenuDialog } from "@/components/bible/BibleMenuDialog";
 import OfflineAudioDialog from "@/components/bible/OfflineAudioDialog";
-import BibleNotes from "@/components/bible/BibleNotes";
-import AllHighlightsList from "@/components/bible/AllHighlightsList";
-import { Pencil } from "lucide-react";
-
+import BibleLibrarySheet, { type LibraryTab } from "@/components/bible/BibleLibrarySheet";
+import StudyNotesSheet from "@/components/bible/StudyNotesSheet";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { FileText, Volume2, Smartphone, X } from "lucide-react";
 
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
@@ -89,14 +85,13 @@ const BiblePage = () => {
   const [versions, setVersions] = useState<any[]>([]);
   const [chapterContent, setChapterContent] = useState<BibleChapter | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showHighlights, setShowHighlights] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
 
   const [showVersionSelector, setShowVersionSelector] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [showHighlightsList, setShowHighlightsList] = useState(false);
+  const [library, setLibrary] = useState<LibraryTab | null>(null);
+  const [study, setStudy] = useState<{ verse: number | null } | null>(null);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
   const [showOffline, setShowOffline] = useState(false);
   const [menuSettingsVersion, setMenuSettingsVersion] = useState(0);
@@ -385,8 +380,6 @@ const BiblePage = () => {
     setSelectedBook(null);
     setSelectedChapter(null);
     setChapterContent(null);
-    setShowHighlights(false);
-    setShowNotes(false);
     setCurrentVerse(0);
   };
 
@@ -451,6 +444,25 @@ const BiblePage = () => {
     setTimeout(tryReveal, 250);
   };
 
+  /** Open a passage from highlights, notes or study notes; stays put if it's already on screen. */
+  const goToPassage = (book: string, chapter: number, verse?: number) => {
+    const normalized = normalizeBookApiName(book);
+    if (normalized === selectedBook && chapter === selectedChapter) {
+      if (verse) revealVerse(normalized, chapter, verse);
+      return;
+    }
+    handleSearchNavigate(normalized, chapter, verse);
+  };
+
+  const versionLabel = (() => {
+    const current = versions.find(v => (v.id || v.abbreviation) === selectedVersion);
+    if (current?.abbreviation) {
+      const abbr = current.abbreviation.toUpperCase();
+      return abbr === 'ENGKJV' ? 'KJV' : abbr;
+    }
+    return selectedVersion ? enhancedApiBibleService.getVersionDisplayName(selectedVersion) : 'KJV';
+  })();
+
   // Removed "reasonable" guard so we always return to the user's last exact location
 
   // Function to reset preferences to reasonable defaults
@@ -493,8 +505,6 @@ const BiblePage = () => {
   const renderContent = () => {
     console.log('🔍 BiblePage: renderContent called with:', {
       loadError,
-      showHighlights,
-      showNotes,
       selectedChapter,
       selectedBook
     });
@@ -518,36 +528,6 @@ const BiblePage = () => {
     }
 
 
-    if (showHighlights) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Bible Highlights</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHighlights(false)}
-            >
-              Back to Bible
-            </Button>
-          </div>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Highlighting is now available directly in the Bible text. Long press or click on any verse to highlight it.</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (showNotes) {
-      return (
-        <BibleNotes
-          book={selectedBook || ""}
-          chapter={selectedChapter || 1}
-          onBackToChapters={() => setShowNotes(false)}
-        />
-      );
-    }
-
     if (selectedChapter) {
       console.log(`🔍 BiblePage: Rendering BibleChapterContent with fontSize=${preferences.fontSize}, selectedBook=${selectedBook}, selectedChapter=${selectedChapter}`);
       return (
@@ -570,6 +550,8 @@ const BiblePage = () => {
           onVersionSelectorOpen={() => setShowVersionSelector(true)}
           onSearchOpen={() => setShowSearch(true)}
           onMenuOpen={() => setShowMenu(true)}
+          onLibraryOpen={(tab) => setLibrary(tab)}
+          onStudyOpen={(verse) => setStudy({ verse: verse ?? null })}
           onOfflineOpen={() => setShowOffline(true)}
           selectedVersion={selectedVersion}
           versions={versions}
@@ -619,7 +601,7 @@ const BiblePage = () => {
 
 
   // Render with proper layout based on content type
-  if (selectedChapter && !showHighlights && !showNotes) {
+  if (selectedChapter) {
     // Full Bible reading layout
     return (
       <div className="flex flex-col h-[100dvh] bg-background overscroll-none pt-0 overflow-hidden">
@@ -679,10 +661,6 @@ const BiblePage = () => {
             resetToReasonableDefaults();
             setShowMenu(false);
           }}
-          onViewHighlights={() => setShowHighlightsList(true)}
-          onViewNotes={() => {
-            setShowNotes(true);
-          }}
           onOpenOffline={() => setShowOffline(true)}
         />
 
@@ -694,38 +672,28 @@ const BiblePage = () => {
           version={selectedVersion || 'de4e12af7f28f599-02'}
         />
 
-        {/* Highlights List Dialog (Lifted from BibleChapterContent) */}
-        <Dialog open={showHighlightsList} onOpenChange={setShowHighlightsList}>
-          <DialogContent className="fixed !top-0 w-screen h-[100dvh] max-w-none m-0 p-0 overflow-hidden bg-white dark:bg-gray-950 border-none rounded-none flex flex-col pt-[calc(4.5rem + env(safe-area-inset-top, 0px))] [&>button]:top-[calc(3rem + env(safe-area-inset-top, 0px))]">
-            <DialogHeader className="p-4 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md z-10 pt-4">
-              <div className="flex items-center justify-between">
-                <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-                  <Pencil className="w-5 h-5 text-blue-600" />
-                  Your Highlights
-                </DialogTitle>
-                <Button
-                  onClick={() => setShowHighlightsList(false)}
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  <X className="w-6 h-6" />
-                </Button>
-              </div>
-              <DialogDescription className="hidden">
-                Select any verse to navigate to it
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-4 pb-24">
-              <AllHighlightsList onNavigate={(bookApi, chapterNum) => {
-                setShowHighlightsList(false);
-                if (bookApi && chapterNum) {
-                  handleBookChange(bookApi, chapterNum, false);
-                }
-              }} />
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Highlights & notes */}
+        <BibleLibrarySheet
+          open={!!library}
+          onOpenChange={(open) => !open && setLibrary(null)}
+          tab={library ?? 'highlights'}
+          onTabChange={setLibrary}
+          book={selectedBook || 'genesis'}
+          chapter={selectedChapter || 1}
+          version={selectedVersion}
+          versionLabel={versionLabel}
+          onNavigate={goToPassage}
+        />
+
+        {/* Study Bible notes */}
+        <StudyNotesSheet
+          open={!!study}
+          onOpenChange={(open) => !open && setStudy(null)}
+          book={selectedBook || 'genesis'}
+          chapter={selectedChapter || 1}
+          focusVerse={study?.verse}
+          onNavigate={goToPassage}
+        />
       </div>
     );
   }

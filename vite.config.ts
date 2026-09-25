@@ -54,6 +54,16 @@ export default defineConfig(({ mode }) => ({
               expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },
+          {
+            // Study notes (Tyndale Open Study Notes) rarely change: keep opened chapters for offline study
+            urlPattern: ({ url }) => url.hostname === 'bible.helloao.org' && url.pathname.startsWith('/api/c/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'study-notes',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
       devOptions: {

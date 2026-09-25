@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Type, Settings, Play, BookOpen } from "lucide-react";
+import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, GraduationCap } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 
@@ -13,8 +12,6 @@ interface BibleMenuDialogProps {
   onClose: () => void;
   onSettingsChange?: () => void;
   onResetToGenesis?: () => void;
-  onViewHighlights?: () => void;
-  onViewNotes?: () => void;
   onOpenOffline?: () => void;
 }
 
@@ -23,12 +20,18 @@ export const BibleMenuDialog = ({
   onClose,
   onSettingsChange,
   onResetToGenesis,
-  onViewHighlights,
-  onViewNotes,
   onOpenOffline
 }: BibleMenuDialogProps) => {
   const { preferences, setAutoPlayNext, setLoopChapter, setLoopBook } = useBiblePreferences();
   const { setLoopChapter: setGlobalLoopChapter, setAutoPlayNext: setGlobalAutoPlayNext, setLoopBook: setGlobalLoopBook } = useGlobalAudio();
+
+  const [studyMarkers, setStudyMarkers] = useState(() => {
+    try {
+      return localStorage.getItem('bible_study_markers') === 'on';
+    } catch {
+      return false;
+    }
+  });
 
   const [followAudio, setFollowAudio] = useState(() => {
     try {
@@ -79,71 +82,20 @@ export const BibleMenuDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-none pt-[env(safe-area-inset-top,0px)] [&>button]:top-[calc(1.25rem+env(safe-area-inset-top,0px))]">
-        <DialogHeader className="flex-shrink-0 pb-6 pt-12 px-8 border-b border-slate-200 dark:border-slate-700">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
-            <Settings className="w-6 h-6 text-primary" />
-            Bible Settings
+      <DialogContent className="w-full h-[100dvh] max-w-none m-0 rounded-none overflow-hidden flex flex-col gap-0 bg-slate-100 dark:bg-slate-950 border-none p-0 pt-[env(safe-area-inset-top,0px)] sm:h-[90vh] sm:max-w-lg sm:rounded-3xl [&>button]:right-5 [&>button]:top-[calc(1.4rem+env(safe-area-inset-top,0px))]">
+        <DialogHeader className="flex-shrink-0 space-y-0.5 px-5 pb-3 pt-5 text-left">
+          <DialogTitle className="font-outfit text-[28px] font-extrabold tracking-tight text-foreground">
+            Settings
           </DialogTitle>
-          <DialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Personalize your reading experience
+          <DialogDescription className="text-sm text-muted-foreground">
+            Reading and listening preferences
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-8 overflow-y-auto flex-1 px-8 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-          <div className="max-w-2xl mx-auto space-y-8">
+        <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2">
+          <div className="mx-auto max-w-2xl space-y-3">
 
-            {/* Tools Section */}
-            <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
-              <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Tools</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="flex items-center justify-start gap-2 h-auto py-3"
-                  onClick={() => {
-                    onClose();
-                    onViewNotes?.();
-                  }}
-                >
-                  <span className="text-xl">📝</span>
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium">Bible Notes</span>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="flex items-center justify-start gap-2 h-auto py-3"
-                  onClick={() => {
-                    onClose();
-                    onViewHighlights?.();
-                  }}
-                >
-                  <span className="text-xl">🖍️</span>
-                  <div className="flex flex-col items-start">
-                    <span className="font-medium">Highlights</span>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="col-span-2 flex h-auto min-w-0 items-center justify-start gap-2 whitespace-normal py-3 text-left"
-                  onClick={() => {
-                    onClose();
-                    onOpenOffline?.();
-                  }}
-                >
-                  <span className="shrink-0 text-xl">📥</span>
-                  <div className="flex min-w-0 flex-col items-start">
-                    <span className="font-medium">Offline audio</span>
-                    <span className="text-left text-xs font-normal leading-snug text-muted-foreground">Download chapters to listen without internet</span>
-                  </div>
-                </Button>
-              </div>
-            </div>
-
-            {/* Settings Header */}
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 px-1">Settings</h3>
+            <h3 className="px-1 pt-2 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Reading</h3>
 
             {/* Font Size */}
             <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
@@ -242,6 +194,35 @@ export const BibleMenuDialog = ({
               </div>
             </div>
 
+            {/* Study note markers */}
+            <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 shrink-0 text-amber-500" />
+                  <div>
+                    <span className="block font-medium text-slate-800 dark:text-slate-200">Study note markers</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Show a small cap beside verses that have a study note</span>
+                  </div>
+                </div>
+                <Switch
+                  id="study-markers"
+                  checked={studyMarkers}
+                  onCheckedChange={(checked) => {
+                    setStudyMarkers(checked);
+                    try {
+                      localStorage.setItem('bible_study_markers', checked ? 'on' : 'off');
+                    } catch {
+                      /* ignore */
+                    }
+                    window.dispatchEvent(new CustomEvent('bible-study-markers-changed'));
+                  }}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+            </div>
+
+            <h3 className="px-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Listening</h3>
+
             {/* Auto-Play Next Chapter */}
             <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
@@ -283,7 +264,7 @@ export const BibleMenuDialog = ({
             <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 flex items-center justify-center text-primary">🔄</div>
+                  <Repeat1 className="w-5 h-5 text-primary" />
                   <span className="font-medium text-slate-800 dark:text-slate-200">Loop Chapter</span>
                 </div>
                 <Switch
@@ -319,7 +300,7 @@ export const BibleMenuDialog = ({
             <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
+                  <Repeat className="w-5 h-5 text-primary" />
                   <span className="font-medium text-slate-800 dark:text-slate-200">Loop Book</span>
                 </div>
                 <Switch
@@ -352,6 +333,22 @@ export const BibleMenuDialog = ({
                 Repeat entire book from chapter 1 when the last chapter finishes
               </p>
             </div>
+
+            {/* Offline audio */}
+            <button
+              onClick={() => {
+                onClose();
+                onOpenOffline?.();
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700/60"
+            >
+              <Download className="h-5 w-5 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-slate-800 dark:text-slate-200">Offline audio</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">Download chapters to listen without internet</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />
+            </button>
 
           </div>
         </div>
