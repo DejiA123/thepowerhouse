@@ -73,7 +73,9 @@ const HomeToday = ({ banners, websiteUrl, teachingsUrl }: { banners: HomeBanner[
   };
 
   const shareVerse = async () => {
-    const text = `“${verse.verse}” — ${verse.reference}`;
+    // Same layout as copying from the Bible page: reference, then the verse
+    const text = `${verse.reference}
+${verse.verse}`;
     try {
       if (navigator.share) await navigator.share({ text });
       else {
