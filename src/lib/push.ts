@@ -153,6 +153,17 @@ export async function enablePush(extraTopics: string[] = []): Promise<PushState>
   return 'on';
 }
 
+/** Plain-language reason when turning notifications on fails. */
+export function pushErrorMessage(error: unknown): string {
+  const message = (error as Error)?.message || '';
+  if (/push service error|registration failed/i.test(message)) {
+    return (navigator as any).brave
+      ? 'Brave blocks web notifications by default. Open brave://settings/privacy, turn on "Use Google services for push messaging", then try again.'
+      : "This browser's notification service isn't available right now. Try again, or use Chrome, Edge or Safari.";
+  }
+  return message || 'Could not turn on notifications';
+}
+
 export async function disablePush(): Promise<void> {
   const sub = await currentSubscription();
   if (sub) {

@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { appAlert } from '@/lib/appAlert';
 import { CallEngine, type CallSnapshot, type CallType } from '@/lib/calls/callEngine';
 import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone';
+import { setAudioSession } from '@/lib/audioSession';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
 import IncomingCallScreen from '@/components/calls/IncomingCallScreen';
@@ -96,6 +97,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   useEffect(() => installAudioUnlock(), []);
+
+  // Hand the iPhone audio session back once a call is over
+  useEffect(() => {
+    if (!engine) setAudioSession('auto');
+  }, [engine]);
 
   // ── Which chats am I in? (listen for calls only there) ────────────
   const loadChats = useCallback(async () => {
@@ -219,6 +225,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const launch = useCallback(async (opts: { callId: string; chatId: string; chatName: string; callType: CallType; isInitiator: boolean }) => {
     if (!me) return null;
     engineRef.current?.end('hangup');
+    setAudioSession('play-and-record');
     const next = new CallEngine(me, opts);
     setMinimized(false);
     setEngine(next);
@@ -357,6 +364,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     lastCountRef.current = connected;
   }, [call]);
+
+  // Everyone else has left: end the call for me too after a short grace period.
+  // (People whose connection is dropping stay in the list while they reconnect.)
+  useEffect(() => {
+    if (!engine || !call || call.status !== 'active' || call.participants.length > 0) return;
+    const timer = setTimeout(() => {
+      if (engine.getSnapshot().participants.length === 0 && engine.getSnapshot().status !== 'ended') {
+        appAlert('Call ended', 'Everyone else has left the call.');
+        finishCall(engine, 'hangup');
+      }
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [engine, call?.status, call?.participants.length, finishCall]);
 
   // Engine ended on its own (e.g. error)
   useEffect(() => {

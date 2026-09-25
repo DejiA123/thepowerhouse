@@ -443,20 +443,30 @@ export const BibleChapterContent = ({
     container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
   }, [readingVerse, followPaused, globalAudio?.audioState.isPlaying]);
 
-  const [playerBottom, setPlayerBottom] = useState(88);
+  const [playerBox, setPlayerBox] = useState({ bottom: 88, left: 0, right: 0 });
   useEffect(() => {
     const measure = () => {
       const nav = document.querySelector<HTMLElement>('.bottom-nav-bar, #bottom-nav-bar');
       const rect = nav?.getBoundingClientRect();
       const visible = rect && rect.height > 0 && getComputedStyle(nav!).display !== 'none' && rect.top < window.innerHeight;
-      setPlayerBottom(visible ? Math.max(12, window.innerHeight - rect!.top + 10) : 16);
+      const column = scrollContainerRef.current?.getBoundingClientRect();
+      const next = {
+        bottom: visible ? Math.max(12, Math.round(window.innerHeight - rect!.top + 10)) : 24,
+        left: column ? Math.round(column.left) : 0,
+        right: column ? Math.round(window.innerWidth - column.right) : 0,
+      };
+      setPlayerBox((prev) => (prev.bottom === next.bottom && prev.left === next.left && prev.right === next.right ? prev : next));
     };
     measure();
     const t = setTimeout(measure, 600);
     window.addEventListener('resize', measure);
+    // The desktop sidebar can collapse/expand without a window resize
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (scrollContainerRef.current) observer?.observe(scrollContainerRef.current);
     return () => {
       clearTimeout(t);
       window.removeEventListener('resize', measure);
+      observer?.disconnect();
     };
   }, []);
 
@@ -986,31 +996,6 @@ export const BibleChapterContent = ({
               })}
             </div>
 
-            {/* Previous / next chapter */}
-            <nav className="mt-10 grid grid-cols-2 gap-3 font-sans" aria-label="Chapters">
-              <button
-                onClick={handlePreviousChapter}
-                disabled={!prevLabel}
-                className="flex items-center gap-2 rounded-2xl border border-border/70 px-3 py-3 text-left transition active:scale-[0.98] disabled:opacity-40"
-              >
-                <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">
-                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Previous</span>
-                  <span className="block truncate text-[15px] font-semibold text-foreground">{prevLabel || '—'}</span>
-                </span>
-              </button>
-              <button
-                onClick={handleNextChapter}
-                disabled={!nextLabel}
-                className="flex items-center justify-end gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-right text-white shadow-md shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-40"
-              >
-                <span className="min-w-0">
-                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-white/75">Next</span>
-                  <span className="block truncate text-[15px] font-semibold">{nextLabel || '—'}</span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-white/80" />
-              </button>
-            </nav>
           </div>
         ) : (
           <div className="flex items-center justify-center py-8">
@@ -1022,7 +1007,7 @@ export const BibleChapterContent = ({
       {/* Now playing (audio Bible) — sits just above the tab bar */}
       {!(selectedVerses.length > 0 || isMultiSelectMode) && (
         <BibleAudioBar
-          bottom={playerBottom}
+          box={playerBox}
           selectedBook={selectedBook}
           selectedChapter={selectedChapter}
           readingVerse={readingVerse}
@@ -1299,7 +1284,7 @@ const bookName = (apiName: string) => {
 
 /** Dark "now playing" bar for the audio Bible, or a Listen button when nothing plays. */
 const BibleAudioBar = ({
-  bottom,
+  box,
   selectedBook,
   selectedChapter,
   readingVerse,
@@ -1309,7 +1294,7 @@ const BibleAudioBar = ({
   onOfflineOpen,
   onOpenPlaying,
 }: {
-  bottom: number;
+  box: { bottom: number; left: number; right: number };
   selectedBook: string;
   selectedChapter: number;
   readingVerse: number | null;
@@ -1322,14 +1307,13 @@ const BibleAudioBar = ({
   const globalAudio = useGlobalAudio();
   const a = globalAudio?.audioState;
   const active = !!a?.hasAudio && !!a.isBibleMode;
+  const frame = { bottom: box.bottom, left: box.left, right: box.right };
 
   if (!active) {
     // Chapter arrows + Listen in one capsule
     return (
-      <div
-        style={{ bottom: `calc(${bottom}px)` }}
-        className="fixed left-1/2 z-[90] flex -translate-x-1/2 items-center gap-1 rounded-full bg-slate-900 p-1.5 font-sans text-white shadow-xl shadow-slate-900/25 animate-in fade-in dark:bg-slate-800"
-      >
+      <div style={frame} className="pointer-events-none fixed z-[90] flex justify-center px-3">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-slate-900 p-1.5 font-sans text-white shadow-xl shadow-slate-900/25 animate-in fade-in dark:bg-slate-800">
         <button
           onClick={onPrevChapter}
           disabled={!onPrevChapter}
@@ -1354,6 +1338,7 @@ const BibleAudioBar = ({
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+      </div>
     );
   }
 
@@ -1365,10 +1350,8 @@ const BibleAudioBar = ({
   const detail = [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
 
   return (
-    <div
-      style={{ bottom: `calc(${bottom}px)` }}
-      className="fixed inset-x-3 z-[90] mx-auto max-w-xl overflow-hidden rounded-[22px] bg-slate-900 font-sans text-white shadow-2xl shadow-slate-900/30 animate-in fade-in slide-in-from-bottom-3 dark:bg-slate-800"
-    >
+    <div style={frame} className="pointer-events-none fixed z-[90] px-3">
+    <div className="pointer-events-auto mx-auto max-w-xl overflow-hidden rounded-[22px] bg-slate-900 font-sans text-white shadow-2xl shadow-slate-900/30 animate-in fade-in slide-in-from-bottom-3 dark:bg-slate-800">
       <div className="h-[3px] bg-white/10">
         <div className="h-full bg-blue-400 transition-[width] duration-500" style={{ width: `${progress}%` }} />
       </div>
@@ -1428,6 +1411,7 @@ const BibleAudioBar = ({
           <X className="h-4 w-4" />
         </button>
       </div>
+    </div>
     </div>
   );
 };

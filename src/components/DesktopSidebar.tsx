@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Home, Book, Calendar, Heart, Info, Users, Video,
   MessageSquare, MapPin, Settings, LogOut, FileText, Shield,
-  ChevronLeft, ChevronRight, Bookmark
+  ChevronLeft, ChevronRight, Bookmark, Handshake, MessageCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,8 @@ const DesktopSidebar = () => {
   const secondaryNavItems = [
     { name: "Social Circle", path: "/social", icon: Users },
     { name: "Services", path: "/services", icon: Video },
-    { name: "Groups", path: "/groups", icon: Users },
+    { name: "Ministry Hub", path: "/groups", icon: Handshake },
+    { name: "Group Chats", path: "/group-chats", icon: MessageCircle },
     { name: "Prayer Wall", path: "/prayer", icon: MessageSquare },
     { name: "Campus Fellowships", path: "/campus-fellowships", icon: MapPin },
     { name: "Settings", path: "/settings", icon: Settings },

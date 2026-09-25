@@ -41,7 +41,7 @@ const ChoirPortalPage = () => {
           <SectionLabel className="mt-1">Jump back in</SectionLabel>
           <button
             onClick={() => open(last.id)}
-            className="relative mb-1 flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-rose-700 via-pink-600 to-pink-400 p-4 text-left text-white shadow-lg transition active:scale-[0.99]"
+            className="relative mb-1 flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 p-4 text-left text-white shadow-lg shadow-blue-900/20 transition active:scale-[0.99]"
           >
             <span className="pointer-events-none absolute -right-9 -top-9 h-36 w-36 rounded-full bg-white/15" />
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
@@ -51,7 +51,7 @@ const ChoirPortalPage = () => {
               <span className="block font-outfit text-xl font-bold">{last.name}</span>
               <span className="block text-[13px] text-white/85">Setlists, songs and rehearsals</span>
             </span>
-            <span className="relative rounded-full bg-white px-3.5 py-1.5 text-[13px] font-bold text-slate-900">Open</span>
+            <span className="relative rounded-full bg-white px-3.5 py-1.5 text-[13px] font-bold text-blue-700">Open</span>
           </button>
         </>
       )}

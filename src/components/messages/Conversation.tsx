@@ -224,6 +224,48 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     return () => clearInterval(t);
   }, [typing]);
 
+  // Catch up after the phone was locked, the app was in the background or the
+  // connection dropped: live updates don't replay what was missed, so fetch it.
+  // Messages that failed to send while offline are sent again automatically.
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const catchingUp = useRef(false);
+  useEffect(() => {
+    const catchUp = async (resendFailed: boolean) => {
+      if (document.visibilityState !== 'visible' || !navigator.onLine || catchingUp.current || loading) return;
+      catchingUp.current = true;
+      try {
+        const confirmed = messagesRef.current.filter((m) => !m.pending && !m.failed && !String(m.id).startsWith('temp-'));
+        const last = confirmed[confirmed.length - 1];
+        if (last) {
+          const missed = await GroupChatService.getMessagesAfter(chat.id, last.created_at);
+          missed.forEach(addMessage);
+          if (missed.length) {
+            const r = await GroupChatService.getReactions(missed.map((m) => m.id));
+            setReactions((prev) => ({ ...prev, ...r }));
+          }
+        }
+        if (resendFailed) {
+          messagesRef.current.filter((m) => m.failed).forEach((m) => sendContentRef.current?.(m.content, m.id));
+        }
+      } catch (error) {
+        console.warn('Catch-up failed', error);
+      } finally {
+        catchingUp.current = false;
+      }
+    };
+    const onVisible = () => catchUp(false);
+    const onOnline = () => catchUp(true);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [chat.id, addMessage, loading]);
+
   // Mark read when returning to the app
   useEffect(() => {
     const onVisible = () => {
@@ -337,6 +379,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
     }
   }, [chat.id, me, onActivity]);
+
+  const sendContentRef = useRef<typeof sendContent>();
+  sendContentRef.current = sendContent;
 
   const sendPhoto = useCallback(async (file: File, caption: string) => {
     try {

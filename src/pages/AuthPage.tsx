@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Mail, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { appAlert } from "@/lib/appAlert";
+import { peekNext, takeNext } from "@/lib/authRedirect";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
@@ -18,8 +19,10 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Where to go after signing in (e.g. back to Messages or a call)
+  const next = params.get("next");
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -35,12 +38,11 @@ const AuthPage = () => {
   const [mfaFactorId, setMfaFactorId] = useState("");
 
   // Tab state
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState(params.get("mode") === "signup" ? "signup" : "login");
 
-  // Redirect if already logged in
+  // Already signed in: go where they were heading
   if (user) {
-    navigate("/");
-    return null;
+    return <Navigate to={peekNext(next)} replace />;
   }
 
   if (showForgotPassword) {
@@ -67,11 +69,12 @@ const AuthPage = () => {
       });
 
       if (error) {
-        toast({
-          title: "Login Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        const msg = /invalid login credentials/i.test(error.message)
+          ? 'The email or password is wrong. Try again, or tap "Forgot password".'
+          : /email not confirmed/i.test(error.message)
+            ? 'Please confirm your email first: open the link we sent you (check spam too).'
+            : error.message;
+        appAlert("Couldn't sign in", msg, 'error');
       } else if (data.user) {
         // Check if MFA is required
         const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -89,26 +92,19 @@ const AuthPage = () => {
           }
         }
 
-        // No MFA required, navigate to home
-        navigate("/");
+        // No MFA required: back to where they were heading
+        navigate(takeNext(next), { replace: true });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      appAlert("Error", "An unexpected error occurred. Please try again.", 'error');
     }
 
     setIsLoading(false);
   };
 
   const handleMFASuccess = () => {
-    toast({
-      title: "Success!",
-      description: "You've been logged in successfully.",
-    });
-    navigate("/");
+    appAlert("Signed in", "Welcome back!", "success");
+    navigate(takeNext(next), { replace: true });
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -136,17 +132,10 @@ const AuthPage = () => {
 
       if (error) {
         console.error('Signup error:', error);
-        toast({
-          title: "Signup Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        appAlert("Signup Failed", error.message, 'error');
       } else if (data.user) {
         console.log('Signup successful:', data.user);
-        toast({
-          title: "Account Created!",
-          description: "Please check your email to verify your account. Check your spam folder if you don't see it.",
-        });
+        appAlert("Account created 🎉", "We've emailed you a link to confirm your account (check spam too). Tap it, then sign in here.", 'success');
 
         // Clear the form
         setSignupEmail("");
@@ -157,11 +146,7 @@ const AuthPage = () => {
         setActiveTab("login");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      appAlert("Error", "An unexpected error occurred. Please try again.", 'error');
     }
 
     setIsLoading(false);
@@ -177,18 +162,10 @@ const AuthPage = () => {
       });
 
       if (error) {
-        toast({
-          title: "Google Sign-In Failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        appAlert("Google Sign-In Failed", error.message, 'error');
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      appAlert("Error", "An unexpected error occurred. Please try again.", 'error');
     }
   };
 

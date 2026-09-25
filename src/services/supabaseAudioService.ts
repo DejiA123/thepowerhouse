@@ -1,3 +1,4 @@
+import { normalizeBookApiName } from '@/components/bible/bookUtils';
 // Supabase Audio Service for Bible MP3 files
 import { supabase } from '@/integrations/supabase/client';
 
@@ -115,11 +116,64 @@ export interface AudioFileInfo {
   version: string;
 }
 
+
+/**
+ * Chapters whose file name on archive.org doesn't follow the usual pattern
+ * (typos and different book numbering in the upload). Checked against the
+ * archive's full file list: every other chapter matches the pattern.
+ */
+const ARCHIVE_FILE_OVERRIDES: Record<string, string> = {
+  'song-of-solomon:1': 'A22___01_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:2': 'A22___02_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:3': 'A22___03_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:4': 'A22___04_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:5': 'A22___05_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:6': 'A22___06_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:7': 'A22___07_SongofSongs_ENGKJVO1DA.mp3',
+  'song-of-solomon:8': 'A22___08_SongofSongs_ENGKJVO1DA.mp3',
+  'nahum:1': 'A34___01_Nahum_______ENGKJVO1DA.mp3',
+  'nahum:2': 'A34___02_Nahum_______ENGKJVO1DA.mp3',
+  'nahum:3': 'A34___03_Nahum_______ENGKJVO1DA.mp3',
+  'habakkuk:1': 'A35___01_Habakkuk____ENGKJVO1DA.mp3',
+  'habakkuk:2': 'A35___02_Habakkuk____ENGKJVO1DA.mp3',
+  'habakkuk:3': 'A35___03_Habakkuk____ENGKJVO1DA.mp3',
+  'zephaniah:1': 'A36___01_Zephaniah___ENGKJVO1DA.mp3',
+  'zephaniah:2': 'A36___02_Zephaniah___ENGKJVO1DA.mp3',
+  'zephaniah:3': 'A36___03_Zephaniah___ENGKJVO1DA.mp3',
+  'haggai:1': 'A37___01_Haggai______ENGKJVO1DA.mp3',
+  'haggai:2': 'A37___02_Haggai______ENGKJVO1DA.mp3',
+  'zechariah:1': 'A38___01_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:2': 'A38___02_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:3': 'A38___03_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:4': 'A38___04_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:5': 'A38___05_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:6': 'A38___06_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:7': 'A38___07_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:8': 'A38___08_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:9': 'A38___09_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:10': 'A38___10_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:11': 'A38___11_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:12': 'A38___12_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:13': 'A38___13_Zechariah___ENGKJVO1DA.mp3',
+  'zechariah:14': 'A38___14_Zechariah___ENGKJVO1DA.mp3',
+  'malachi:1': 'A39___01_Malachi_____ENGKJVO1DA.mp3',
+  'malachi:2': 'A39___02_Malachi_____ENGKJVO1DA.mp3',
+  'malachi:3': 'A39___03_Malachi_____ENGKJVO1DA.mp3',
+  'malachi:4': 'A39___04_Malachi_____ENGKJVO1DA.mp3',
+  'matthew:7': 'B01___07_MatthewNGKJVN1DA.mp3',
+  'colossians:1': 'B12___01_ColossiansENGKJVN1DA.mp3',
+  'colossians:2': 'B12___02_ColossiansENGKJVN1DA.mp3',
+  'colossians:3': 'B12___03_ColossiansENGKJVN1DA.mp3',
+};
+
 export const supabaseAudioService = {
   /**
    * Generate the expected MP3 filename based on book, chapter, and version
    */
   generateFileName(book: string, chapter: number, version: string): string {
+    const override = ARCHIVE_FILE_OVERRIDES[`${normalizeBookApiName(book).toLowerCase()}:${chapter}`];
+    if (override) return override;
+
     // Use the standard mapping for all books including Matthew
     // The special case logic was causing issues with file lookup
 

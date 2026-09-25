@@ -14,10 +14,31 @@ const getCtx = () => {
   return ctx;
 };
 
+/*
+ * A running AudioContext holds on to the iPhone's audio session. Left running,
+ * it stopped the audio Bible from resuming properly from the lock screen
+ * (Play showed, but no sound). So it runs only while a sound plays.
+ */
+let activeRingtones = 0;
+let sleepTimer: ReturnType<typeof setTimeout> | undefined;
+
+const wake = async (c: AudioContext) => {
+  clearTimeout(sleepTimer);
+  if (c.state !== 'running') await c.resume().catch(() => undefined);
+};
+
+const sleepSoon = (c: AudioContext, afterMs = 1200) => {
+  clearTimeout(sleepTimer);
+  sleepTimer = setTimeout(() => {
+    if (activeRingtones === 0 && c.state === 'running') c.suspend().catch(() => undefined);
+  }, afterMs);
+};
+
 export function installAudioUnlock() {
   const unlock = () => {
     const c = getCtx();
-    c?.resume().catch(() => undefined);
+    // Unlock once inside a tap (browsers require it), then go straight back to sleep
+    c?.resume().then(() => c.suspend()).catch(() => undefined);
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
   };
@@ -77,12 +98,16 @@ export function startRingtone(kind: 'incoming' | 'outgoing'): () => void {
     timer = setTimeout(cycle, kind === 'incoming' ? 2400 : 3000);
   };
 
-  c?.resume().catch(() => undefined);
-  cycle();
+  activeRingtones++;
+  if (c) wake(c).then(cycle);
+  else cycle();
 
   return () => {
+    if (stopped) return;
     stopped = true;
+    activeRingtones = Math.max(0, activeRingtones - 1);
     clearTimeout(timer);
+    if (c) sleepSoon(c, 400);
     if ('vibrate' in navigator) {
       try {
         navigator.vibrate(0);
@@ -94,9 +119,12 @@ export function startRingtone(kind: 'incoming' | 'outgoing'): () => void {
 }
 
 /** Short blips for joins / leaves / call end. */
-export function playCue(kind: 'join' | 'leave' | 'end') {
+export async function playCue(kind: 'join' | 'leave' | 'end') {
   const c = getCtx();
-  if (!c || c.state !== 'running') return;
+  if (!c) return;
+  await wake(c);
+  if (c.state !== 'running') return;
+  sleepSoon(c);
   const t = c.currentTime + 0.02;
   if (kind === 'join') {
     tone(c, [523.25], t, 0.12, 0.12);

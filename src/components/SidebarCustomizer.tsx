@@ -39,7 +39,8 @@ const SidebarCustomizer = ({ isOpen, onClose }: SidebarCustomizerProps) => {
     if (pathname === "/social") return "Social Circle";
     if (pathname === "/give") return "Giving";
     if (pathname === "/prayer") return "Prayer Wall";
-    if (pathname === "/groups") return "All Groups";
+    if (pathname === "/groups") return "Ministry Hub";
+    if (pathname === "/group-chats") return "Group Chats";
     
     // Pattern matches
     if (pathname.includes("/groups/choir/galway")) return "Galway Choir";

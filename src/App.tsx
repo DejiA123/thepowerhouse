@@ -1,10 +1,12 @@
 // App.tsx
 import React, { Suspense, useEffect } from "react";
+import SignInPrompt, { MESSAGING_REASON, type SignInReason } from "@/components/auth/SignInPrompt";
+import { peekNext, takeNext } from "@/lib/authRedirect";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ScrollToTop from "@/components/ScrollToTop";
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import HomePage from "@/pages/HomePage";
@@ -95,6 +97,16 @@ const AppEvents = () => {
     if (user) syncPushSubscription();
   }, [user?.id]);
 
+  // After Google sign-in or the email-confirmation link (which leave the app and
+  // land on the home page), carry on to where the person was heading
+  const location = useLocation();
+  useEffect(() => {
+    if (!user || (location.pathname !== "/" && location.pathname !== "/email-confirmation")) return;
+    const next = peekNext();
+    if (next !== "/") navigate(takeNext(), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   return null;
 };
 
@@ -126,24 +138,20 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children, reason }: { children: React.ReactNode; reason?: SignInReason }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  try {
-
-    if (loading) {
-      return <LoadingSpinner />;
-    }
-
-    if (!user) {
-      return <Navigate to="/auth" replace />;
-    }
-
-    return <>{children}</>;
-  } catch (error) {
-    console.error('Error in ProtectedRoute:', error);
-    return <Navigate to="/auth" replace />;
+  if (loading) {
+    return <LoadingSpinner />;
   }
+
+  // Explain why and offer Sign in / Create account, then come back here afterwards
+  if (!user) {
+    return <SignInPrompt reason={reason} next={`${location.pathname}${location.search}`} />;
+  }
+
+  return <>{children}</>;
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
@@ -156,7 +164,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     }
 
     if (user) {
-      return <Navigate to="/" replace />;
+      return <Navigate to={takeNext(new URLSearchParams(window.location.search).get('next'))} replace />;
     }
 
     return <>{children}</>;
@@ -210,7 +218,7 @@ const AppRoutes = () => {
             <Route
               path="/group-chats"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute reason={MESSAGING_REASON}>
                   <GroupChatsPage />
                 </ProtectedRoute>
               }
@@ -269,7 +277,7 @@ const AppRoutes = () => {
             <Route
               path="/fellowship-group/:groupId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute reason={{ title: 'Fellowship group', message: 'Sign in to join the group and chat with its members.' }}>
                   <FellowshipGroupPage />
                 </ProtectedRoute>
               }

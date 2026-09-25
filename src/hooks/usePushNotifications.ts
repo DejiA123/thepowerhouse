@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { disablePush, enablePush, getPushState, sendPush, type PushState } from '@/lib/push';
+import { disablePush, enablePush, getPushState, pushErrorMessage, sendPush, type PushState } from '@/lib/push';
 
 export function usePushNotifications() {
   const [state, setState] = useState<PushState | 'loading'>('loading');
@@ -30,7 +30,7 @@ export function usePushNotifications() {
       if (next === 'on') sendPush({ type: 'test' });
       return next;
     } catch (e) {
-      setError((e as Error).message || 'Could not turn on notifications');
+      setError(pushErrorMessage(e));
       await refresh();
       return 'default' as PushState;
     } finally {

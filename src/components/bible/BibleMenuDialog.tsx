@@ -127,16 +127,16 @@ export const BibleMenuDialog = ({
 
                 <Button
                   variant="outline"
-                  className="col-span-2 flex items-center justify-start gap-2 h-auto py-3"
+                  className="col-span-2 flex h-auto min-w-0 items-center justify-start gap-2 whitespace-normal py-3 text-left"
                   onClick={() => {
                     onClose();
                     onOpenOffline?.();
                   }}
                 >
-                  <span className="text-xl">📥</span>
-                  <div className="flex flex-col items-start">
+                  <span className="shrink-0 text-xl">📥</span>
+                  <div className="flex min-w-0 flex-col items-start">
                     <span className="font-medium">Offline audio</span>
-                    <span className="text-xs text-muted-foreground">Download chapters to listen without internet</span>
+                    <span className="text-left text-xs font-normal leading-snug text-muted-foreground">Download chapters to listen without internet</span>
                   </div>
                 </Button>
               </div>

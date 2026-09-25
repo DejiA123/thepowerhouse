@@ -334,6 +334,20 @@ export class GroupChatService {
         return (data || []).map(normalizeMessage).reverse();
     }
 
+    /** Messages newer than `after` (oldest first): fills the gap after the phone was asleep or offline. */
+    static async getMessagesAfter(chatId: string, after: string, limit: number = 200): Promise<ChatMessage[]> {
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select(MESSAGE_SELECT)
+            .eq('chat_id', chatId)
+            .eq('is_deleted', false)
+            .gt('created_at', after)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+        if (error) throw error;
+        return (data || []).map(normalizeMessage);
+    }
+
     static async sendMessage(chatId: string, content: string, retried = false): Promise<ChatMessage | null> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to send messages');

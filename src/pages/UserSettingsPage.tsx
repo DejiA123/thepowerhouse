@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useCampus } from "@/data/campuses";
 import { appAlert } from "@/lib/appAlert";
-import { disablePush, enablePush, getPushState, isIOS, type PushState } from "@/lib/push";
+import { disablePush, enablePush, getPushState, isIOS, pushErrorMessage, type PushState } from "@/lib/push";
 import { formatBytes, offlineAudioService } from "@/services/offlineAudioService";
 
 import { ProfileEditForm } from "@/components/ProfileEditForm";
@@ -191,7 +191,7 @@ const UserSettingsPage = () => {
         setPushState(await getPushState());
       }
     } catch (error: any) {
-      appAlert("Couldn't change notifications", error?.message || "Please try again.", "error");
+      appAlert("Couldn't change notifications", pushErrorMessage(error), "error");
     } finally {
       setPushBusy(false);
     }

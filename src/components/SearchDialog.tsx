@@ -87,7 +87,8 @@ const SearchDialog = ({ searchOpen, setSearchOpen }: SearchDialogProps) => {
     { id: "sermons", title: "Sermons", description: "Watch past messages", icon: Video, path: "/sermons", category: "Media", color: "text-purple-500", keywords: ["watch", "video", "message", "preaching"] },
 
     // Groups & Departments
-    { id: "groups", title: "Life Groups", description: "Join a community", icon: Users, path: "/groups", category: "Page", color: "text-indigo-500", keywords: ["community", "fellowship", "connect"] },
+    { id: "groups", title: "Ministry Hub", description: "Choir, Ushering, Evangelism and more", icon: Users, path: "/groups", category: "Page", color: "text-indigo-500", keywords: ["groups", "life groups", "teams", "departments", "community", "fellowship", "connect", "serve"] },
+    { id: "group-chats", title: "Group Chats", description: "Messages, voice and video calls", icon: Users, path: "/group-chats", category: "Page", color: "text-blue-500", keywords: ["chat", "messages", "call", "video", "whatsapp"] },
     { id: "management", title: "Management Team", description: "Dept. Resources & Admin", icon: Briefcase, path: "/groups/management", category: "Page", color: "text-slate-600", keywords: ["admin", "staff", "leadership", "planning", "resources page"] },
     { id: "choir", title: "Choir Department", description: "Worship team resources", icon: Music, path: "/groups/choir", category: "Page", color: "text-pink-500", keywords: ["music", "worship", "singing", "band"] },
     { id: "ushering", title: "Ushering Unit", description: "Service & Hospitality", icon: HandHeart, path: "/groups/ushering", category: "Page", color: "text-orange-500", keywords: ["welcome", "hospitality", "serve"] },

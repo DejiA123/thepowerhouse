@@ -3,6 +3,7 @@ import { offlineAudioService } from '@/services/offlineAudioService';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
+import { setAudioSession } from '@/lib/audioSession';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -222,6 +223,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
+      setAudioSession('playback');
       audio.src = url;
       audio.load();
       await audio.play();
@@ -317,6 +319,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       // Play the copy saved on this device when available (works offline)
+      setAudioSession('playback');
       audio.src = await offlineAudioService.resolvePlayableUrl(audioUrl);
       audio.loop = loopChapter;
       audio.load();
@@ -355,6 +358,24 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [prefetchNextChapter, requestWakeLock]);
 
+  // Reload the current file at the same spot and play (recovers a silent / stalled resume)
+  const reloadAndPlay = useCallback((position: number) => {
+    const src = audio.currentSrc || audio.src;
+    if (!src) return;
+    console.warn('🎵 Resume stalled — reloading audio at', position.toFixed(1));
+    const onReady = () => {
+      try {
+        audio.currentTime = position;
+      } catch {
+        /* not seekable yet */
+      }
+      audio.play().catch(console.error);
+    };
+    audio.addEventListener('loadedmetadata', onReady, { once: true });
+    audio.src = src;
+    audio.load();
+  }, []);
+
   const pause = useCallback(() => {
     console.log('UI or Media Session: Pause requested');
     // A pending auto-advance retry must never override the user's pause
@@ -367,8 +388,18 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const resume = useCallback(() => {
     console.log('UI or Media Session: Resume requested');
+    setAudioSession('playback');
     if (audio.src) {
-      audio.play().catch(console.error);
+      const from = audio.currentTime;
+      audio.play().catch((error) => {
+        console.error(error);
+        reloadAndPlay(from);
+      });
+      // iOS lock screen can report "playing" while no sound comes out: if time
+      // doesn't move, reload the file at the same position.
+      setTimeout(() => {
+        if (!audio.paused && !audio.ended && Math.abs(audio.currentTime - from) < 0.25) reloadAndPlay(from);
+      }, 2500);
     } else if (audioStateRef.current.currentBook) {
       playBibleChapterMP3(
         audioStateRef.current.currentBook,
@@ -378,7 +409,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audioStateRef.current.loopChapter
       );
     }
-  }, [playBibleChapterMP3]);
+  }, [playBibleChapterMP3, reloadAndPlay]);
 
   const reset = useCallback(() => {
     console.log('UI: Reset requested');
@@ -611,6 +642,19 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       navigator.mediaSession.setActionHandler('stop', reset);
       navigator.mediaSession.setActionHandler('nexttrack', goToNextChapter);
       navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
+      const seekBy = (delta: number) => {
+        if (!audio.duration) return;
+        audio.currentTime = Math.min(Math.max(0, audio.currentTime + delta), Math.max(0, audio.duration - 0.5));
+      };
+      try {
+        navigator.mediaSession.setActionHandler('seekbackward', (d) => seekBy(-(d.seekOffset || 10)));
+        navigator.mediaSession.setActionHandler('seekforward', (d) => seekBy(d.seekOffset || 10));
+        navigator.mediaSession.setActionHandler('seekto', (d) => {
+          if (typeof d.seekTime === 'number') audio.currentTime = d.seekTime;
+        });
+      } catch {
+        /* older browsers */
+      }
     }
 
     // ── Visibility change recovery ──
@@ -704,6 +748,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         navigator.mediaSession.setActionHandler('stop', null);
         navigator.mediaSession.setActionHandler('nexttrack', null);
         navigator.mediaSession.setActionHandler('previoustrack', null);
+        try {
+          navigator.mediaSession.setActionHandler('seekbackward', null);
+          navigator.mediaSession.setActionHandler('seekforward', null);
+          navigator.mediaSession.setActionHandler('seekto', null);
+        } catch {
+          /* older browsers */
+        }
       }
     };
   }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, requestWakeLock, playBibleChapterMP3]);
