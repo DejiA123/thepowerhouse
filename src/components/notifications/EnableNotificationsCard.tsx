@@ -17,7 +17,7 @@ interface Props {
  * including the "Add to Home Screen" step iPhones need first.
  */
 const EnableNotificationsCard = ({ className, topics = [], compact, title, description }: Props) => {
-  const { state, busy, error, enable, disable, test } = usePushNotifications();
+  const { state, busy, error, enable, test } = usePushNotifications();
 
   if (state === 'loading') return null;
 
@@ -49,9 +49,6 @@ const EnableNotificationsCard = ({ className, topics = [], compact, title, descr
         </div>
         <div className="flex shrink-0 gap-1">
           <Button variant="ghost" size="sm" onClick={test} className="rounded-full">Test</Button>
-          <Button variant="ghost" size="sm" onClick={disable} disabled={busy} className="rounded-full text-muted-foreground">
-            Turn off
-          </Button>
         </div>
       </div>,
       'success',

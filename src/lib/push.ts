@@ -8,6 +8,35 @@ import { supabase } from '@/integrations/supabase/client';
 
 const TOPICS_KEY = 'push_topics_v1';
 const ENABLED_KEY = 'push_enabled_v1';
+// Notifications are on by default; this is only set when someone turns them off in Settings
+const OFF_BY_USER_KEY = 'push_off_by_user_v1';
+const AUTO_ASKED_AT_KEY = 'push_auto_asked_at_v1';
+// Chrome blocks sites that ask repeatedly, so if the question was dismissed wait a few days
+const AUTO_ASK_EVERY_MS = 3 * 24 * 60 * 60 * 1000;
+
+const storage = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* private mode */
+    }
+  },
+  remove: (k: string) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      /* private mode */
+    }
+  },
+};
 
 export type PushState =
   | 'unsupported'      // browser has no Push API
@@ -116,7 +145,14 @@ async function register(subscription: PushSubscription, topics: string[] = []) {
 /**
  * Ask for permission (must run from a tap/click) and subscribe this device.
  */
-export async function enablePush(extraTopics: string[] = []): Promise<PushState> {
+let enabling: Promise<PushState> | null = null;
+
+export function enablePush(extraTopics: string[] = []): Promise<PushState> {
+  if (!enabling) enabling = doEnablePush(extraTopics).finally(() => (enabling = null));
+  return enabling;
+}
+
+async function doEnablePush(extraTopics: string[] = []): Promise<PushState> {
   if (!pushSupported()) return isIOS() ? 'needs-install' : 'unsupported';
   if (isIOS() && !isStandalone()) return 'needs-install';
 
@@ -149,7 +185,8 @@ export async function enablePush(extraTopics: string[] = []): Promise<PushState>
   const topics = Array.from(new Set([...readLocalTopics(), ...extraTopics]));
   await register(sub, topics);
   writeLocalTopics(topics);
-  localStorage.setItem(ENABLED_KEY, '1');
+  storage.set(ENABLED_KEY, '1');
+  storage.remove(OFF_BY_USER_KEY);
   return 'on';
 }
 
@@ -172,7 +209,8 @@ export async function disablePush(): Promise<void> {
       .catch(() => undefined);
     await sub.unsubscribe().catch(() => undefined);
   }
-  localStorage.removeItem(ENABLED_KEY);
+  storage.remove(ENABLED_KEY);
+  storage.set(OFF_BY_USER_KEY, '1');
   window.dispatchEvent(new CustomEvent('push:changed'));
 }
 
@@ -186,13 +224,58 @@ export async function syncPushSubscription(): Promise<void> {
     const sub = await currentSubscription();
     if (sub) {
       await register(sub, readLocalTopics());
-    } else if (localStorage.getItem(ENABLED_KEY)) {
-      // Subscription was dropped by the browser: silently re-create it
+    } else if (!storage.get(OFF_BY_USER_KEY)) {
+      // Permission is granted but this device isn't subscribed (or the phone
+      // dropped the subscription): switch notifications back on silently
       await enablePush();
     }
   } catch (error) {
     console.warn('[push] sync failed', error);
   }
+}
+
+/**
+ * Notifications on by default, as far as the browser allows:
+ *  • permission already granted → subscribe silently (no question)
+ *  • never asked → ask on the first tap anywhere in the app (phones and
+ *    browsers only show the question in response to a tap)
+ *  • turned off in Settings, blocked, or an iPhone browser tab → leave it
+ * Returns a cleanup function.
+ */
+export function autoEnablePush(onEnabled?: () => void): () => void {
+  let stopped = false;
+  let removeListeners = () => {};
+
+  (async () => {
+    if (storage.get(OFF_BY_USER_KEY)) return;
+    const state = await getPushState();
+    if (stopped) return;
+
+    if (state === 'granted-off') {
+      const next = await enablePush().catch(() => null);
+      if (next === 'on') onEnabled?.();
+      return;
+    }
+    if (state !== 'default') return;
+    if (Date.now() - Number(storage.get(AUTO_ASKED_AT_KEY) || 0) < AUTO_ASK_EVERY_MS) return;
+
+    const events = ['click', 'touchend', 'keydown'] as const;
+    const ask = () => {
+      removeListeners();
+      storage.set(AUTO_ASKED_AT_KEY, String(Date.now()));
+      // Must start inside the tap so the phone shows the question
+      enablePush()
+        .then((next) => next === 'on' && onEnabled?.())
+        .catch((error) => console.warn('[push] auto-enable failed', error));
+    };
+    events.forEach((e) => window.addEventListener(e, ask, { capture: true, passive: true }));
+    removeListeners = () => events.forEach((e) => window.removeEventListener(e, ask, { capture: true }));
+  })();
+
+  return () => {
+    stopped = true;
+    removeListeners();
+  };
 }
 
 /** On sign-out: keep topic alerts (e.g. choir) but stop personal messages. */

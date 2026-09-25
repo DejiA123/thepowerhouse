@@ -17,7 +17,8 @@ import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import { registerAppServiceWorker } from "@/lib/serviceWorker";
-import { syncPushSubscription } from "@/lib/push";
+import { autoEnablePush, syncPushSubscription } from "@/lib/push";
+import { appAlert } from "@/lib/appAlert";
 
 /**
  * Pages are loaded on demand so the first screen appears quickly instead of
@@ -96,6 +97,12 @@ const AppEvents = () => {
   useEffect(() => {
     if (user) syncPushSubscription();
   }, [user?.id]);
+
+  // Notifications on automatically (silently if already allowed, otherwise asked on the first tap)
+  useEffect(
+    () => autoEnablePush(() => appAlert("Notifications are on", "You'll get messages, calls and church updates.", "success")),
+    [user?.id],
+  );
 
   // After Google sign-in or the email-confirmation link (which leave the app and
   // land on the home page), carry on to where the person was heading
