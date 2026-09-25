@@ -293,6 +293,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIncomingCall(null);
   }, [incomingCall]);
 
+  // Calls where someone other than me connected at some point
+  const answeredCallsRef = useRef(new Set<string>());
+
   const finishCall = useCallback(async (eng: CallEngine, reason: 'hangup' | 'no-answer') => {
     const snap = eng.getSnapshot();
     const others = reason === 'no-answer' ? (eng.end('no-answer'), 0) : await eng.hangup();
@@ -309,7 +312,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         delete next[snap.chatId];
         return next;
       });
-      if (reason === 'no-answer' && snap.isInitiator) sendPush({ type: 'call-missed', callId: snap.callId });
+      // Nobody answered (timed out, or the caller gave up): replace the ringing notification
+      if (snap.isInitiator && (reason === 'no-answer' || !answeredCallsRef.current.has(snap.callId))) {
+        sendPush({ type: 'call-missed', callId: snap.callId });
+      }
     }
     setEngine(null);
     setMinimized(false);
@@ -343,6 +349,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     const connected = call.participants.filter((p) => p.connection === 'connected').length;
+    if (connected > 0) answeredCallsRef.current.add(call.callId);
     if (connected > lastCountRef.current) playCue('join');
     else if (connected < lastCountRef.current && call.status !== 'ended') playCue('leave');
     if (lastCountRef.current === 0 && connected > 0 && call.isInitiator) {
@@ -396,7 +403,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (autoAnswer) {
         joinCall(info);
       } else {
-        setIncomingCall({ ...info, initiatorId: row.initiated_by, initiatorName: 'A member', receivedAt: Date.now() });
+        const { data: caller } = await supabase.from('profiles').select('full_name').eq('id', row.initiated_by).maybeSingle();
+        setIncomingCall({
+          ...info,
+          initiatorId: row.initiated_by,
+          initiatorName: caller?.full_name?.trim() || 'A member',
+          receivedAt: Date.now(),
+        });
       }
     })();
   }, [location.search, location.pathname, user, navigate, joinCall]);

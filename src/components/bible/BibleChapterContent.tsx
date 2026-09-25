@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, FileText, Palette, Pencil, X, Copy, Trash2 } from "lucide-react";
+import { Search, MoreVertical, Volume2, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, FileText, Palette, Pencil, X, Copy, Trash2, NotebookPen, MoreHorizontal, Headphones, SkipBack, SkipForward, Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { BibleChapter } from "@/types/bible";
@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import AllHighlightsList from "./AllHighlightsList";
 import { supabaseAudioService } from "@/services/supabaseAudioService";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import { offlineAudioService } from "@/services/offlineAudioService";
+import { appAlert } from "@/lib/appAlert";
 import DOMPurify from 'dompurify';
 
 
@@ -39,6 +41,8 @@ interface BibleChapterContentProps {
   onVersionSelectorOpen?: () => void;
   onSearchOpen?: () => void;
   onMenuOpen?: () => void;
+  /** Opens the "Listen offline" downloads sheet. */
+  onOfflineOpen?: () => void;
   selectedVersion?: string;
   versions?: any[];
   fontSize?: number;
@@ -67,6 +71,7 @@ export const BibleChapterContent = ({
   onVersionSelectorOpen,
   onSearchOpen,
   onMenuOpen,
+  onOfflineOpen,
   selectedVersion,
   versions = [],
   fontSize = 16,
@@ -438,6 +443,23 @@ export const BibleChapterContent = ({
     container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
   }, [readingVerse, followPaused, globalAudio?.audioState.isPlaying]);
 
+  const [playerBottom, setPlayerBottom] = useState(88);
+  useEffect(() => {
+    const measure = () => {
+      const nav = document.querySelector<HTMLElement>('.bottom-nav-bar, #bottom-nav-bar');
+      const rect = nav?.getBoundingClientRect();
+      const visible = rect && rect.height > 0 && getComputedStyle(nav!).display !== 'none' && rect.top < window.innerHeight;
+      setPlayerBottom(visible ? Math.max(12, window.innerHeight - rect!.top + 10) : 16);
+    };
+    measure();
+    const t = setTimeout(measure, 600);
+    window.addEventListener('resize', measure);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
   const readingVerseRef = useRef<number | null>(null);
   readingVerseRef.current = readingVerse;
 
@@ -661,6 +683,59 @@ export const BibleChapterContent = ({
     }
   };
 
+  /**
+   * "Mark 2:1-4 KJV" on the first line, then the verses as one paragraph with
+   * [n] before every verse after the first, e.g. "…in the house. [2] And straightway…"
+   */
+  const buildVerseCopy = (verseNumbers: number[]) => {
+    const nums = [...new Set(verseNumbers)].sort((a, b) => a - b);
+    const ranges: string[] = [];
+    for (let i = 0; i < nums.length;) {
+      let j = i;
+      while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+      ranges.push(i === j ? `${nums[i]}` : `${nums[i]}-${nums[j]}`);
+      i = j + 1;
+    }
+    const byNumber = new Map<number, string>();
+    (chapterContent?.verses || []).forEach((v, i) => {
+      const n = v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : i + 1;
+      if (!byNumber.has(n)) byNumber.set(n, v.text || '');
+    });
+    const plain = (text: string) => cleanVerseArtifacts(text).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const body = nums
+      .map((n, idx) => (idx === 0 ? plain(byNumber.get(n) || '') : `[${n}] ${plain(byNumber.get(n) || '')}`))
+      .join(' ');
+    return `${getBookDisplayName()} ${selectedChapter}:${ranges.join(', ')} ${getVersionDisplayName(selectedVersion)}\n${body}`;
+  };
+
+  const writeClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Older iOS: hidden textarea fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    }
+  };
+
+  const bookIndex = allBooks.findIndex(b => b.apiName === normalizedSelectedBook);
+  const prevLabel = selectedChapter > 1
+    ? `${getBookDisplayName()} ${selectedChapter - 1}`
+    : bookIndex > 0 ? `${allBooks[bookIndex - 1].name} ${allBooks[bookIndex - 1].chapters}` : '';
+  const nextLabel = selectedChapter < (book?.chapters || 0)
+    ? `${getBookDisplayName()} ${selectedChapter + 1}`
+    : bookIndex >= 0 && bookIndex < allBooks.length - 1 ? `${allBooks[bookIndex + 1].name} 1` : '';
+
   // Get chapter heading based on content
   const getChapterHeading = () => {
     // Remove the hardcoded heading
@@ -701,68 +776,46 @@ export const BibleChapterContent = ({
     >
       {/* Header Bar */}
       <div
-        className="flex items-center justify-between px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] bg-background sticky top-0 z-50 border-b border-border"
+        className="sticky top-0 z-50 flex items-center gap-2 border-b border-border/60 bg-background/95 px-3 pb-2.5 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] font-sans backdrop-blur-xl"
         style={{ touchAction: 'none' }}
       >
-        {/* Left Side: Book/Chapter and Version Pills */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBackToChapters}
-            className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
-          >
-            <span className="text-sm font-semibold text-gray-900 font-sans">{getBookDisplayName()} {selectedChapter}</span>
-          </button>
+        <button
+          onClick={onBackToChapters}
+          className="flex min-w-0 items-center gap-1 rounded-full bg-slate-100 py-1.5 pl-3.5 pr-2.5 transition active:scale-95 dark:bg-slate-800"
+          aria-label="Choose book and chapter"
+        >
+          <span className="truncate text-[15px] font-semibold text-foreground">{getBookDisplayName()} {selectedChapter}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <button
+          onClick={() => onVersionSelectorOpen?.()}
+          className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-bold text-foreground transition active:scale-95 dark:bg-slate-800"
+          aria-label="Change translation"
+        >
+          {getVersionDisplayName(selectedVersion)}
+        </button>
 
+        <div className="ml-auto flex shrink-0 items-center">
           <button
-            onClick={() => onVersionSelectorOpen?.()}
-            className="flex items-center justify-center px-4 py-1.5 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-full"
-          >
-            <span className="text-sm font-bold text-gray-900 font-sans">{getVersionDisplayName(selectedVersion)}</span>
-          </button>
-        </div>
-
-        {/* Right Side: Action Icons */}
-        <div className="flex items-center gap-1">
-          <button
-            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
-            onClick={handlePlayPause}
-            disabled={globalAudio?.audioState.isLoading || false}
-          >
-            {globalAudio?.audioState.isLoading ? (
-              <Volume2 className="w-5 h-5 opacity-50" />
-            ) : (globalAudio?.audioState.isPlaying &&
-              normalizeBookApiName(globalAudio?.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
-              globalAudio?.audioState.currentChapter === selectedChapter) ? (
-              <Pause className="w-5 h-5" />
-            ) : (
-              <Volume2 className="w-5 h-5" />
-            )}
-          </button>
-
-          <button
-            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
-            onClick={() => navigate('/bible-notes', {
-              state: {
-                returnBook: selectedBook,
-                returnChapter: selectedChapter
-              }
-            })}
-          >
-            <FileText className="w-5 h-5" />
-          </button>
-
-          <button
-            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
+            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
             onClick={() => onSearchOpen?.()}
+            aria-label="Search the Bible"
           >
-            <Search className="w-5 h-5" />
+            <Search className="h-5 w-5" />
           </button>
-
           <button
-            className="p-2 text-gray-900 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
-            onClick={() => onMenuOpen?.()}
+            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
+            onClick={() => navigate('/bible-notes', { state: { returnBook: selectedBook, returnChapter: selectedChapter } })}
+            aria-label="Notes"
           >
-            <MoreVertical className="w-5 h-5" />
+            <NotebookPen className="h-5 w-5" />
+          </button>
+          <button
+            className="rounded-full p-2.5 text-foreground transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-800"
+            onClick={() => onMenuOpen?.()}
+            aria-label="More options"
+          >
+            <MoreHorizontal className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -779,7 +832,12 @@ export const BibleChapterContent = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           </div>
         ) : chapterContent ? (
-          <div className="max-w-4xl mx-auto px-4 pt-1 pb-32">
+          <div className="mx-auto max-w-2xl px-5 pb-48 pt-1">
+            {/* Chapter heading, like a printed Bible */}
+            <header className="select-none pb-3 pt-5 text-center font-sans">
+              <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground">{getBookDisplayName()}</p>
+              <p className="mt-1 font-serif text-[52px] font-light leading-none text-foreground">{selectedChapter}</p>
+            </header>
             {followPaused && readingVerse && globalAudio?.audioState.isPlaying && (
               <button
                 onClick={() => setFollowPaused(false)}
@@ -819,36 +877,12 @@ export const BibleChapterContent = ({
                     return;
                   }
 
-                  // Toggle this verse selection
-                  setSelectedVerses(prev => {
-                    if (prev.includes(verseNumber)) {
-                      return prev.filter(v => v !== verseNumber);
-                    } else {
-                      return [...prev, verseNumber].sort((a, b) => a - b);
-                    }
-                  });
-
-                  try {
-                    const reference = `${getBookDisplayName()} ${selectedChapter}:${verseNumber}`;
-                    const cleanText = (verse.text || '').replace(/\s+/g, ' ').trim();
-                    const copyText = `${reference} - ${cleanText}`;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      await navigator.clipboard.writeText(copyText);
-                    } else {
-                      const ta = document.createElement('textarea');
-                      ta.value = copyText;
-                      ta.style.position = 'fixed';
-                      ta.style.left = '-9999px';
-                      document.body.appendChild(ta);
-                      ta.select();
-                      try { document.execCommand('copy'); } catch { }
-                      document.body.removeChild(ta);
-                    }
-                    // Silent copy - no toast notification
-                  } catch (e) {
-                    console.error('Copy to clipboard failed:', e);
-                    // Silent error - no toast notification for copy failures
-                  }
+                  // Toggle this verse and keep the clipboard in step with the whole selection
+                  const nextSelection = selectedVerses.includes(verseNumber)
+                    ? selectedVerses.filter(v => v !== verseNumber)
+                    : [...selectedVerses, verseNumber].sort((a, b) => a - b);
+                  setSelectedVerses(nextSelection);
+                  if (nextSelection.length) await writeClipboard(buildVerseCopy(nextSelection));
                   setSelectedVerse(verseNumber);
                 };
 
@@ -926,9 +960,9 @@ export const BibleChapterContent = ({
                     key={`${settingsKey}-${index}`}
                     data-verse={verseNumber}
                     className={cn(
-                      `text-foreground mb-4 ${highlightClass} cursor-pointer select-none rounded-xl transition-colors duration-500`,
-                      isReading && '-mx-2 bg-blue-50 px-2 py-1 ring-1 ring-blue-200/70 dark:bg-blue-950/50 dark:ring-blue-800/60',
-                      readingVerse !== null && !isReading && 'opacity-75'
+                      `mb-3.5 font-serif text-foreground ${highlightClass} cursor-pointer select-none rounded-xl transition-all duration-500`,
+                      isReading && '-mx-3 bg-blue-50 px-3 py-2 ring-1 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60',
+                      readingVerse !== null && !isReading && 'opacity-60'
                     )}
                     style={verseStyle}
                     onClick={handleVerseClick}
@@ -936,7 +970,7 @@ export const BibleChapterContent = ({
                   >
                     {/* Always show verse numbers beside each verse */}
                     {shouldShowUIVerseNumber && (
-                      <sup className="text-sm font-medium text-muted-foreground mr-2 relative top-0.5">
+                      <sup className="relative top-0.5 mr-1.5 font-sans text-[0.62em] font-semibold text-blue-600/80 dark:text-blue-400/80">
                         {verseNumber}
                       </sup>
                     )}
@@ -951,6 +985,32 @@ export const BibleChapterContent = ({
                 );
               })}
             </div>
+
+            {/* Previous / next chapter */}
+            <nav className="mt-10 grid grid-cols-2 gap-3 font-sans" aria-label="Chapters">
+              <button
+                onClick={handlePreviousChapter}
+                disabled={!prevLabel}
+                className="flex items-center gap-2 rounded-2xl border border-border/70 px-3 py-3 text-left transition active:scale-[0.98] disabled:opacity-40"
+              >
+                <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Previous</span>
+                  <span className="block truncate text-[15px] font-semibold text-foreground">{prevLabel || '—'}</span>
+                </span>
+              </button>
+              <button
+                onClick={handleNextChapter}
+                disabled={!nextLabel}
+                className="flex items-center justify-end gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-right text-white shadow-md shadow-blue-600/20 transition active:scale-[0.98] disabled:opacity-40"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-semibold uppercase tracking-wider text-white/75">Next</span>
+                  <span className="block truncate text-[15px] font-semibold">{nextLabel || '—'}</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-white/80" />
+              </button>
+            </nav>
           </div>
         ) : (
           <div className="flex items-center justify-center py-8">
@@ -958,6 +1018,21 @@ export const BibleChapterContent = ({
           </div>
         )}
       </div>
+
+      {/* Now playing (audio Bible) — sits just above the tab bar */}
+      {!(selectedVerses.length > 0 || isMultiSelectMode) && (
+        <BibleAudioBar
+          bottom={playerBottom}
+          selectedBook={selectedBook}
+          selectedChapter={selectedChapter}
+          readingVerse={readingVerse}
+          onListen={handlePlayPause}
+          onPrevChapter={prevLabel ? handlePreviousChapter : undefined}
+          onNextChapter={nextLabel ? handleNextChapter : undefined}
+          onOfflineOpen={onOfflineOpen}
+          onOpenPlaying={(bookApi, chapterNum) => onBookChange?.(bookApi, chapterNum, false)}
+        />
+      )}
 
       {/* Floating Action Bar for Verse Selection */}
       <div
@@ -1065,15 +1140,15 @@ export const BibleChapterContent = ({
             <div className="flex gap-2">
               <button
                 onClick={async () => {
-                  try {
-                    const versesText = selectedVerses.map(verseNum => {
-                      const verse = chapterContent?.verses?.find(v => (v.verse && !isNaN(Number(v.verse)) ? Number(v.verse) : 0) === verseNum);
-                      return `${getBookDisplayName()} ${selectedChapter}:${verseNum} - ${(verse?.text || '').trim()}`;
-                    }).join('\n\n');
-                    await navigator.clipboard.writeText(versesText);
-                    toast({ title: "Copied to clipboard" });
+                  if (!selectedVerses.length) return;
+                  const text = buildVerseCopy(selectedVerses);
+                  if (await writeClipboard(text)) {
+                    appAlert('Copied', text.split('\n')[0], 'success');
                     setSelectedVerses([]);
-                  } catch (e) { console.error(e); }
+                    setIsMultiSelectMode(false);
+                  } else {
+                    appAlert("Couldn't copy", 'Please try again.', 'error');
+                  }
                 }}
                 className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl hover:bg-blue-100 transition-colors active:scale-95"
                 title="Copy Verses"
@@ -1089,52 +1164,6 @@ export const BibleChapterContent = ({
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "fixed left-0 right-0 z-[120] transition-all duration-500 ease-in-out pointer-events-none",
-          selectedVerses.length > 0 || isMultiSelectMode
-            ? "bottom-[calc(env(safe-area-inset-bottom)+14rem)]" // Higher offset to clear the selection panel and provide a gap
-            : isIOS && isStandalone
-              ? "bottom-[calc(env(safe-area-inset-bottom)+3.5rem)]" // Adjusted upward for PWA iPhone (refined from 2.5rem)
-              : "bottom-[calc(env(safe-area-inset-bottom)+var(--bible-audio-bottom-offset-v2))] md:bottom-[40px]" // Default position - desktop pushed lower
-        )}
-      >
-        <div className="flex items-end justify-between px-8 md:px-20 pointer-events-auto max-w-lg md:max-w-none mx-auto">
-          <button
-            onClick={handlePreviousChapter}
-            disabled={selectedChapter <= 1 && allBooks.findIndex(b => b.apiName === selectedBook) <= 0}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 active:scale-95 transition-all disabled:opacity-30"
-          >
-            <ChevronLeft className="w-6 h-6 text-slate-800 dark:text-slate-200" />
-          </button>
-
-
-          <button
-            onClick={handlePlayPause}
-            disabled={globalAudio?.audioState.isLoading || false}
-            className="w-16 h-16 flex items-center justify-center bg-white dark:bg-slate-800 text-black dark:text-white rounded-full shadow-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {globalAudio?.audioState.isLoading ? (
-              <div className="w-8 h-8 border-3 border-black/10 dark:border-white/10 border-t-black dark:border-t-white rounded-full animate-spin" />
-            ) : (globalAudio?.audioState.isPlaying &&
-              normalizeBookApiName(globalAudio?.audioState.currentBook || "") === normalizeBookApiName(selectedBook) &&
-              globalAudio?.audioState.currentChapter === selectedChapter) ? (
-              <Pause className="w-8 h-8 fill-current" />
-            ) : (
-              <Play className="w-8 h-8 ml-1 fill-current" />
-            )}
-          </button>
-
-          <button
-            onClick={handleNextChapter}
-            disabled={!book || (selectedChapter >= book.chapters && allBooks.findIndex(b => b.apiName === selectedBook) >= allBooks.length - 1)}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-xl border border-slate-100 dark:border-slate-700 active:scale-95 transition-all disabled:opacity-30"
-          >
-            <ChevronRight className="w-6 h-6 text-slate-800 dark:text-slate-200" />
-          </button>
         </div>
       </div>
 
@@ -1253,5 +1282,152 @@ export const BibleChapterContent = ({
 
 
     </div >
+  );
+};
+
+
+const formatClock = (seconds: number) => {
+  const s = Math.max(0, Math.round(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+const bookName = (apiName: string) => {
+  const all = [...bibleBooks["Old Testament"], ...bibleBooks["New Testament"]];
+  const b = all.find(x => x.apiName === normalizeBookApiName(apiName));
+  return b?.name ?? apiName;
+};
+
+/** Dark "now playing" bar for the audio Bible, or a Listen button when nothing plays. */
+const BibleAudioBar = ({
+  bottom,
+  selectedBook,
+  selectedChapter,
+  readingVerse,
+  onListen,
+  onPrevChapter,
+  onNextChapter,
+  onOfflineOpen,
+  onOpenPlaying,
+}: {
+  bottom: number;
+  selectedBook: string;
+  selectedChapter: number;
+  readingVerse: number | null;
+  onListen: () => void;
+  onPrevChapter?: () => void;
+  onNextChapter?: () => void;
+  onOfflineOpen?: () => void;
+  onOpenPlaying: (bookApi: string, chapter: number) => void;
+}) => {
+  const globalAudio = useGlobalAudio();
+  const a = globalAudio?.audioState;
+  const active = !!a?.hasAudio && !!a.isBibleMode;
+
+  if (!active) {
+    // Chapter arrows + Listen in one capsule
+    return (
+      <div
+        style={{ bottom: `calc(${bottom}px)` }}
+        className="fixed left-1/2 z-[90] flex -translate-x-1/2 items-center gap-1 rounded-full bg-slate-900 p-1.5 font-sans text-white shadow-xl shadow-slate-900/25 animate-in fade-in dark:bg-slate-800"
+      >
+        <button
+          onClick={onPrevChapter}
+          disabled={!onPrevChapter}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/85 transition hover:bg-white/10 active:scale-90 disabled:opacity-30"
+          aria-label="Previous chapter"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onListen}
+          className="flex h-10 items-center gap-2 rounded-full bg-white px-4 text-[15px] font-semibold text-slate-900 transition active:scale-95"
+          aria-label={`Listen to ${bookName(selectedBook)} ${selectedChapter}`}
+        >
+          <Headphones className="h-[18px] w-[18px]" /> Listen
+        </button>
+        <button
+          onClick={onNextChapter}
+          disabled={!onNextChapter}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/85 transition hover:bg-white/10 active:scale-90 disabled:opacity-30"
+          aria-label="Next chapter"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+    );
+  }
+
+  const playingHere =
+    normalizeBookApiName(a.currentBook || '') === normalizeBookApiName(selectedBook) && a.currentChapter === selectedChapter;
+  const saved = offlineAudioService.isDownloaded(normalizeBookApiName(a.currentBook || ''), a.currentChapter);
+  const progress = a.duration ? Math.min(100, (100 * a.currentTime) / a.duration) : 0;
+  const left = a.duration ? `${formatClock(a.duration - a.currentTime)} left` : a.isLoading ? 'Loading…' : '';
+  const detail = [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
+
+  return (
+    <div
+      style={{ bottom: `calc(${bottom}px)` }}
+      className="fixed inset-x-3 z-[90] mx-auto max-w-xl overflow-hidden rounded-[22px] bg-slate-900 font-sans text-white shadow-2xl shadow-slate-900/30 animate-in fade-in slide-in-from-bottom-3 dark:bg-slate-800"
+    >
+      <div className="h-[3px] bg-white/10">
+        <div className="h-full bg-blue-400 transition-[width] duration-500" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="flex items-center gap-1.5 py-2 pl-2 pr-1.5">
+        <button
+          onClick={() => globalAudio.goToPreviousChapter()}
+          className="rounded-full p-2 text-white/80 hover:bg-white/10 active:scale-90"
+          aria-label="Previous chapter"
+        >
+          <SkipBack className="h-5 w-5 fill-current" />
+        </button>
+        <button
+          onClick={() => (a.isPlaying ? globalAudio.pause() : globalAudio.resume())}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-900 transition active:scale-90"
+          aria-label={a.isPlaying ? 'Pause' : 'Play'}
+        >
+          {a.isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : a.isPlaying ? (
+            <Pause className="h-5 w-5 fill-current" />
+          ) : (
+            <Play className="ml-0.5 h-5 w-5 fill-current" />
+          )}
+        </button>
+        <button
+          onClick={() => globalAudio.goToNextChapter()}
+          className="rounded-full p-2 text-white/80 hover:bg-white/10 active:scale-90"
+          aria-label="Next chapter"
+        >
+          <SkipForward className="h-5 w-5 fill-current" />
+        </button>
+        <button
+          onClick={() => !playingHere && onOpenPlaying(normalizeBookApiName(a.currentBook || ''), a.currentChapter)}
+          className="min-w-0 flex-1 px-1.5 text-left"
+          aria-label={playingHere ? undefined : 'Go to the chapter that is playing'}
+        >
+          <span className="block truncate text-[14.5px] font-semibold">
+            {bookName(a.currentBook || '')} {a.currentChapter}
+          </span>
+          <span className="block truncate text-[12px] text-white/65">
+            {playingHere ? detail : `Playing · tap to open`}
+          </span>
+        </button>
+        {saved ? (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-emerald-300" title="Saved on this device">
+            <WifiOff className="h-3.5 w-3.5" /> Offline
+          </span>
+        ) : onOfflineOpen ? (
+          <button
+            onClick={onOfflineOpen}
+            className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/85 hover:bg-white/20"
+          >
+            Download
+          </button>
+        ) : null}
+        <button onClick={() => globalAudio.reset()} className="shrink-0 rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Stop audio">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 };

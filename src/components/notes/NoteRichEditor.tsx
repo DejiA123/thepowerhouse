@@ -14,6 +14,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { cn } from '@/lib/utils';
+import { TidyEnter, compactClipboardSerializer, handleIOSReturn, sliceToPlainText } from './noteEditorKit';
 
 export interface NoteRichEditorHandle {
   editor: Editor | null;
@@ -64,6 +65,7 @@ const NoteRichEditor = forwardRef<NoteRichEditorHandle, Props>(
         TableHeader,
         TableCell,
         Placeholder.configure({ placeholder }),
+        TidyEnter,
       ],
       content: initialContent || '',
       onUpdate: ({ editor, transaction }) => {
@@ -82,6 +84,11 @@ const NoteRichEditor = forwardRef<NoteRichEditorHandle, Props>(
           'aria-multiline': 'true',
           'aria-label': 'Note body',
         },
+        // iPhone Return key: handled by the editor so no stray space appears
+        handleDOMEvents: { beforeinput: handleIOSReturn },
+        // Copy/paste into WhatsApp etc. keeps the note's line breaks and bold
+        clipboardTextSerializer: sliceToPlainText,
+        clipboardSerializer: compactClipboardSerializer,
       },
       immediatelyRender: true,
       shouldRerenderOnTransaction: false,

@@ -198,7 +198,7 @@ const BibleNotesPage = () => {
   const sortLabel = sort === 'edited' ? 'Recently edited' : sort === 'created' ? 'Date created' : 'Title';
 
   const renderGrid = (list: NoteRecord[]) => (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {list.map((note) => (
         <NoteCard
           key={note.id}
@@ -301,7 +301,7 @@ const BibleNotesPage = () => {
         </div>
 
         {loading && notes.length === 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-36 animate-pulse rounded-2xl bg-muted" />
             ))}

@@ -22,7 +22,36 @@ interface Job extends BookDownloadProgress {
 }
 const jobs = new Map<string, Job>();
 const JOB_EVENT = 'offline-audio:jobs';
-const emitJobs = () => window.dispatchEvent(new CustomEvent(JOB_EVENT));
+const emitJobs = () => {
+  syncWakeLock();
+  window.dispatchEvent(new CustomEvent(JOB_EVENT));
+};
+
+/* Keep the screen on while downloading: a locked phone pauses the app. */
+let wakeLock: { release: () => Promise<void> } | null = null;
+const downloading = () => !!collectionJob || Array.from(jobs.values()).some((j) => j.running);
+async function syncWakeLock() {
+  try {
+    if (downloading() && !wakeLock && document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+      wakeLock = await (navigator as any).wakeLock.request('screen');
+      (wakeLock as any)?.addEventListener?.('release', () => {
+        wakeLock = null;
+      });
+    } else if (!downloading() && wakeLock) {
+      const lock = wakeLock;
+      wakeLock = null;
+      await lock.release();
+    }
+  } catch {
+    wakeLock = null; // not supported, or Low Power Mode
+  }
+}
+if (typeof document !== 'undefined') {
+  // The phone drops the lock when the app is hidden; take it again on return
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncWakeLock();
+  });
+}
 
 function startBookDownload(book: string, version: string, textVersion?: string) {
   if (jobs.get(book)?.running) return;
@@ -46,7 +75,8 @@ function startBookDownload(book: string, version: string, textVersion?: string) 
         }
       }
       const name = bookInfo(book)?.name ?? book;
-      if (result.failed) appAlert(`${name}: ${result.failed} chapters didn't download`, 'Check your connection and tap Download again.', 'error');
+      if (result.outOfSpace) appAlert(`${name}: not enough space`, 'Free up space on your phone, then tap Resume.', 'error');
+      else if (result.failed) appAlert(`${name}: ${result.failed} chapters didn't download`, 'Check your connection and tap Resume.', 'error');
       else appAlert(`${name} is ready offline`, 'You can now listen without an internet connection.', 'success');
       jobs.delete(book);
       emitJobs();
@@ -91,20 +121,33 @@ async function startCollectionDownload(id: CollectionId, version: string) {
   const job: CollectionJob = { id, currentBook: null, failed: 0, controller };
   collectionJob = job;
   emitJobs();
-  for (const book of COLLECTIONS[id].books) {
-    if (controller.signal.aborted) break;
-    const st = offlineAudioService.bookStatus(book);
-    if (st.done === st.total) continue;
-    job.currentBook = book;
+  let outOfSpace = false;
+  try {
+    for (const book of COLLECTIONS[id].books) {
+      if (controller.signal.aborted) break;
+      const st = offlineAudioService.bookStatus(book);
+      if (st.done === st.total) continue;
+      job.currentBook = book;
+      emitJobs();
+      const result = await offlineAudioService.downloadBook(book, version, () => emitJobs(), controller.signal);
+      job.failed += result.failed;
+      if (result.outOfSpace) {
+        outOfSpace = true;
+        break;
+      }
+    }
+  } catch (error) {
+    console.warn('[offline] collection download stopped', error);
+    job.failed++;
+  } finally {
+    // Never leave the Download buttons stuck on "downloading"
+    collectionJob = null;
     emitJobs();
-    const result = await offlineAudioService.downloadBook(book, version, () => emitJobs(), controller.signal);
-    job.failed += result.failed;
   }
-  collectionJob = null;
-  emitJobs();
   if (controller.signal.aborted) return;
   const label = COLLECTIONS[id].label;
-  if (job.failed) appAlert(`${label}: ${job.failed} chapters didn't download`, 'Check your connection and tap Download again to finish.', 'error');
+  if (outOfSpace) appAlert(`${label}: not enough space`, 'Free up space on your phone, then tap Resume to carry on.', 'error');
+  else if (job.failed) appAlert(`${label}: ${job.failed} chapters didn't download`, 'Check your connection and tap Resume to finish.', 'error');
   else appAlert(`${label} is ready offline`, 'Listen anywhere, no internet needed.', 'success');
 }
 
@@ -199,7 +242,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                 </div>
                 <Progress value={status.total ? (100 * (job ? job.done : status.done)) / status.total : 0} className="mt-3 h-2" />
 
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <div className="mt-4 flex flex-col gap-2">
                   {job?.running ? (
                     <Button
                       variant="outline"
@@ -214,7 +257,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                     </Button>
                   ) : status.done < status.total ? (
                     <Button className="flex-1 rounded-full" onClick={() => startBookDownload(book, version, version)}>
-                      <CloudDownload className="mr-2 h-4 w-4" /> Download book (~{estimateBook})
+                      <CloudDownload className="mr-2 h-4 w-4" /> {status.done > 0 ? 'Resume book' : 'Download book'} (~{estimateBook})
                     </Button>
                   ) : (
                     <Button
@@ -264,7 +307,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                             </Button>
                           ) : (
                             <Button size="sm" className="rounded-full" disabled={!!collectionJob} onClick={() => setConfirmCollection(id)}>
-                              <CloudDownload className="mr-1.5 h-4 w-4" /> Download
+                              <CloudDownload className="mr-1.5 h-4 w-4" /> {st.done > 0 ? 'Resume' : 'Download'}
                             </Button>
                           )}
                         </div>
@@ -276,6 +319,14 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                   })}
                 </div>
               </div>
+
+              {downloading() && (
+                <p className="flex items-start gap-2 rounded-2xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
+                  <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+                  Keep The Power House open while it downloads. Your phone pauses downloads when it locks or you switch
+                  apps, and they carry on when you come back.
+                </p>
+              )}
 
               {/* Everything saved */}
               <div>
@@ -372,7 +423,8 @@ const ConfirmCollection = ({
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>
               {st.total - st.done} chapters, about <strong>{formatBytes(st.remainingBytes)}</strong>. Use Wi-Fi, as this
-              can take a while. It keeps going while you use the rest of the app.
+              can take a while. It keeps going while you use the rest of the app. Keep the app open: your phone pauses
+              downloads when it locks, and they carry on when you come back.
             </p>
             {tooBig && free !== null && (
               <p className="font-medium text-red-600">

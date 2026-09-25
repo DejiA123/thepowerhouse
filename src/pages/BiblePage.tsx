@@ -570,6 +570,7 @@ const BiblePage = () => {
           onVersionSelectorOpen={() => setShowVersionSelector(true)}
           onSearchOpen={() => setShowSearch(true)}
           onMenuOpen={() => setShowMenu(true)}
+          onOfflineOpen={() => setShowOffline(true)}
           selectedVersion={selectedVersion}
           versions={versions}
           fontSize={preferences.fontSize}

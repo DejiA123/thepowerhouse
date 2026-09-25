@@ -27,7 +27,39 @@ export interface BookDownloadProgress {
   done: number;
   total: number;
   failed: number;
+  /** Why the last chapter failed, e.g. the device ran out of space. */
+  error?: string;
+  /** True when the device is out of space; the rest of the download was stopped. */
+  outOfSpace?: boolean;
 }
+
+/**
+ * Phones pause web apps when the screen locks or you switch apps, and the
+ * network drops for a moment. Wait for the app to be visible and online again
+ * instead of counting those chapters as failed.
+ */
+function waitUntilActive(signal?: AbortSignal): Promise<void> {
+  const active = () => document.visibilityState === 'visible' && navigator.onLine;
+  if (active()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const check = () => {
+      if (!active() && !signal?.aborted) return;
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('online', check);
+      signal?.removeEventListener('abort', check);
+      clearInterval(timer);
+      // Give the connection a moment to come back after unlocking
+      setTimeout(resolve, 800);
+    };
+    const timer = setInterval(check, 2000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('online', check);
+    signal?.addEventListener('abort', check);
+  });
+}
+
+const isQuotaError = (error: unknown) =>
+  (error as Error)?.name === 'QuotaExceededError' || /quota|storage/i.test((error as Error)?.message || '');
 
 type Index = Record<string, DownloadedChapter>;
 
@@ -191,19 +223,32 @@ export const offlineAudioService = {
 
     const pending = queue.filter((c) => !index[keyFor(book, c)]);
     const worker = async () => {
-      while (pending.length && !signal?.aborted) {
+      while (pending.length && !signal?.aborted && !progress.outOfSpace) {
         const chapter = pending.shift()!;
         let ok = false;
-        for (let attempt = 0; attempt < 2 && !ok && !signal?.aborted; attempt++) {
+        let attempts = 0;
+        while (!ok && attempts < 3 && !signal?.aborted && !progress.outOfSpace) {
+          await waitUntilActive(signal);
+          if (signal?.aborted) return;
           try {
             await this.downloadChapter(book, chapter, version, undefined, signal);
             ok = true;
           } catch (error) {
-            if ((error as Error).name === 'AbortError') return;
+            if ((error as Error).name === 'AbortError' && signal?.aborted) return;
+            if (isQuotaError(error)) {
+              progress.outOfSpace = true;
+              progress.error = 'Your device is out of space for downloads.';
+              break;
+            }
+            // Paused by the phone (locked / switched apps / offline)? Retry without counting it.
+            if (document.visibilityState !== 'visible' || !navigator.onLine) continue;
+            attempts++;
+            progress.error = (error as Error).message;
+            if (attempts < 3) await new Promise((r) => setTimeout(r, 1500 * attempts));
           }
         }
         if (ok) progress.done++;
-        else progress.failed++;
+        else if (!signal?.aborted) progress.failed++;
         onProgress({ ...progress });
       }
     };

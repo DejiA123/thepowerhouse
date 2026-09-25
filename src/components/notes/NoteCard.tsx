@@ -45,10 +45,10 @@ const NoteCard = ({ note, folders, query, onOpen, onToggleFavorite, onTogglePin,
       tabIndex={0}
       onClick={() => onOpen(note)}
       onKeyDown={(e) => e.key === 'Enter' && onOpen(note)}
-      className="group relative flex cursor-pointer flex-col rounded-2xl border border-border/70 bg-card p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md active:scale-[0.99] dark:hover:border-blue-800"
+      className="group relative flex min-w-0 cursor-pointer flex-col rounded-2xl border border-border/70 bg-card p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md active:scale-[0.99] dark:hover:border-blue-800"
     >
       <div className="flex items-start gap-2">
-        <h3 className="line-clamp-2 flex-1 text-[16px] font-semibold leading-snug text-foreground">
+        <h3 className="line-clamp-2 min-w-0 flex-1 [overflow-wrap:anywhere] text-[16px] font-semibold leading-snug text-foreground">
           <Highlighted text={title} query={query} />
         </h3>
         <div className="-mr-2 -mt-1 flex shrink-0 items-center">
@@ -102,7 +102,7 @@ const NoteCard = ({ note, folders, query, onOpen, onToggleFavorite, onTogglePin,
       </div>
 
       {preview ? (
-        <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 line-clamp-3 [overflow-wrap:anywhere] text-sm leading-relaxed text-muted-foreground">
           <Highlighted text={preview} query={query} />
         </p>
       ) : (

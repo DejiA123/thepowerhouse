@@ -85,7 +85,10 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   let url = data.url || '/';
-  if (event.action === 'answer' && url.indexOf('answer=1') === -1) {
+  // "Join" button, or a tap on the call notification itself ("Tap to join").
+  // iPhone can't show notification buttons, so the tap has to answer.
+  const answering = event.action === 'answer' || (data.kind === 'call' && !event.action);
+  if (answering && url.indexOf('answer=1') === -1) {
     url += (url.indexOf('?') === -1 ? '?' : '&') + 'answer=1';
   }
   const target = new URL(url, self.location.origin).href;
