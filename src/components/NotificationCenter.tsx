@@ -3,7 +3,6 @@ import EnableNotificationsCard from '@/components/notifications/EnableNotificati
 import { pushNotificationService } from '@/services/pushNotificationService';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, Bell, BellRing, BellOff, Clock, Users, Book } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +23,41 @@ interface NotificationSettings {
   pushNotificationsEnabled: boolean;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
+}
+
+const REMINDER_KEYS: (keyof NotificationSettings)[] = ['dailyVerseEnabled', 'dailyVerseTime', 'readingRemindersEnabled', 'readingReminderTime'];
+const deviceTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+const formatTime = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+/**
+ * The server sends the reminders (send-daily-reminders, every minute), so the
+ * times live on the account together with this device's time zone.
+ */
+async function saveReminders(userId: string, s: NotificationSettings) {
+  const { error } = await supabase.from('notification_preferences').upsert(
+    {
+      user_id: userId,
+      daily_verse_enabled: s.dailyVerseEnabled,
+      daily_verse_time: s.dailyVerseTime,
+      reading_reminder_enabled: s.readingRemindersEnabled,
+      reading_reminder_time: s.readingReminderTime,
+      timezone: deviceTimeZone(),
+      updated_at: new Date().toISOString(),
+    } as never,
+    { onConflict: 'user_id' },
+  );
+  return !error;
 }
 
 export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
@@ -94,6 +128,36 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
       vibrationEnabled: localStorage.getItem('vibrationEnabled') !== 'false'
     };
     setSettings(localSettings);
+
+    // The account holds the reminder times (so they reach every device)
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('daily_verse_enabled, daily_verse_time, reading_reminder_enabled, reading_reminder_time, timezone')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) return;
+    const row = data as {
+      daily_verse_enabled?: boolean; daily_verse_time?: string; reading_reminder_enabled?: boolean;
+      reading_reminder_time?: string; timezone?: string;
+    } | null;
+    const syncedKey = `reminders_synced_v1_${user.id}`;
+    if (row && localStorage.getItem(syncedKey)) {
+      setSettings((prev) => ({
+        ...prev,
+        dailyVerseEnabled: !!row.daily_verse_enabled,
+        dailyVerseTime: row.daily_verse_time || '08:00',
+        readingRemindersEnabled: !!row.reading_reminder_enabled,
+        readingReminderTime: row.reading_reminder_time || '19:00',
+      }));
+      // Travelled? Keep reminders on local time
+      if (row.timezone !== deviceTimeZone()) {
+        await supabase.from('notification_preferences').update({ timezone: deviceTimeZone() } as never).eq('user_id', user.id);
+      }
+    } else if (await saveReminders(user.id, localSettings)) {
+      // First time: this device's choices become the account's
+      localStorage.setItem(syncedKey, '1');
+    }
   };
 
   const saveNotificationSettings = async (newSettings: Partial<NotificationSettings>) => {
@@ -106,6 +170,11 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
       Object.entries(updated).forEach(([key, value]) => {
         localStorage.setItem(key, String(value));
       });
+      // The server sends daily reminders from what's saved on the account
+      if (user && REMINDER_KEYS.some((k) => k in newSettings)) {
+        if (!(await saveReminders(user.id, updated))) throw new Error('Could not save reminder times');
+        localStorage.setItem(`reminders_synced_v1_${user.id}`, '1');
+      }
       // The server checks this before sending group chat / call notifications
       if (user && 'groupNotificationsEnabled' in newSettings) {
         await pushNotificationService.updatePreferences(user.id, {
@@ -191,22 +260,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Daily Verse Time
                 </label>
-                <Select value={settings.dailyVerseTime} onValueChange={handleTimeChange('dailyVerseTime')}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="06:00">6:00 AM</SelectItem>
-                    <SelectItem value="07:00">7:00 AM</SelectItem>
-                    <SelectItem value="08:00">8:00 AM</SelectItem>
-                    <SelectItem value="09:00">9:00 AM</SelectItem>
-                    <SelectItem value="12:00">12:00 PM</SelectItem>
-                    <SelectItem value="18:00">6:00 PM</SelectItem>
-                    <SelectItem value="19:00">7:00 PM</SelectItem>
-                    <SelectItem value="20:00">8:00 PM</SelectItem>
-                    <SelectItem value="21:00">9:00 PM</SelectItem>
-                  </SelectContent>
-                </Select>
+                <TimeInput value={settings.dailyVerseTime} onChange={handleTimeChange('dailyVerseTime')} disabled={loading} />
               </div>
             )}
 
@@ -227,25 +281,24 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
                 <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Reading Reminder Time
                 </label>
-                <Select value={settings.readingReminderTime} onValueChange={handleTimeChange('readingReminderTime')}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="06:00">6:00 AM</SelectItem>
-                    <SelectItem value="07:00">7:00 AM</SelectItem>
-                    <SelectItem value="08:00">8:00 AM</SelectItem>
-                    <SelectItem value="18:00">6:00 PM</SelectItem>
-                    <SelectItem value="19:00">7:00 PM</SelectItem>
-                    <SelectItem value="20:00">8:00 PM</SelectItem>
-                    <SelectItem value="21:00">9:00 PM</SelectItem>
-                    <SelectItem value="22:00">10:00 PM</SelectItem>
-                  </SelectContent>
-                </Select>
+                <TimeInput value={settings.readingReminderTime} onChange={handleTimeChange('readingReminderTime')} disabled={loading} />
               </div>
             )}
           </div>
         </div>
+
+        {(settings.dailyVerseEnabled || settings.readingRemindersEnabled) && (
+          <p className="-mt-2 rounded-xl bg-muted/60 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
+            {(() => {
+              const parts = [
+                settings.dailyVerseEnabled && `the verse of the day at ${formatTime(settings.dailyVerseTime)}`,
+                settings.readingRemindersEnabled && `a reading reminder at ${formatTime(settings.readingReminderTime)}`,
+              ].filter(Boolean);
+              return `You'll get ${parts.join(' and ')} every day, on your local time (${deviceTimeZone().replace(/_/g, ' ')}). `;
+            })()}
+            Notifications need to be on for this device.
+          </p>
+        )}
 
         {/* App Notifications */}
         <div className="space-y-4">
@@ -339,3 +392,15 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     </div>
   );
 };
+/** Any time of day, in 5-minute steps (the phone shows its own time wheel) */
+const TimeInput = ({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) => (
+  <input
+    type="time"
+    step={300}
+    value={value}
+    disabled={disabled}
+    onChange={(e) => e.target.value && onChange(e.target.value)}
+    className="h-11 min-w-[8.5rem] rounded-xl border border-border bg-card px-3 text-[16px] font-semibold text-foreground shadow-sm outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
+    aria-label="Reminder time"
+  />
+);
