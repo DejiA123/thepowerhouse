@@ -51,7 +51,7 @@ const tint = {
 const ResourcesPage = () => {
   const navigate = useNavigate();
   const { campus } = useCampus();
-  const { unreadCount } = useNotifications();
+  const { unreadChats } = useNotifications();
   const [query, setQuery] = useState("");
   const [views, setViews] = useState<Record<string, number>>({});
   const [viewing, setViewing] = useState<string | null>(null);
@@ -85,7 +85,7 @@ const ResourcesPage = () => {
           iconClassName: tint.indigo,
           title: "Group Chats",
           subtitle: "Messages, voice and video calls",
-          trailing: unreadCount > 0 ? <span className="min-w-[22px] rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-[22px] text-white">{unreadCount}</span> : undefined,
+          trailing: unreadChats > 0 ? <span className="min-w-[22px] rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-[22px] text-white">{unreadChats}</span> : undefined,
           chevron: true,
           onClick: () => navigate("/group-chats"),
         },
@@ -133,7 +133,7 @@ const ResourcesPage = () => {
             .filter((s) => s.rows.length)
         : sections,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, views, unreadCount],
+    [q, views, unreadChats],
   );
 
   return (

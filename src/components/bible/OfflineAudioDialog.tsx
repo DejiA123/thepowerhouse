@@ -229,6 +229,9 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
             </p>
           ) : (
             <>
+              {/* The whole audio Bible, one tap */}
+              <WholeAudioBible onDownload={() => setConfirmCollection('all')} />
+
               {/* Current book */}
               <div className="rounded-2xl border border-border p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -281,7 +284,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
               <div>
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Download more</p>
                 <div className="divide-y divide-border rounded-2xl border border-border">
-                  {(['nt', 'ot', 'all'] as CollectionId[]).map((id) => {
+                  {(['nt', 'ot'] as CollectionId[]).map((id) => {
                     const st = collectionStatus(id);
                     const running = collectionJob?.id === id;
                     const complete = st.done === st.total;
@@ -406,6 +409,51 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+  );
+};
+
+/** Big "download everything" card at the top of Listen offline */
+const WholeAudioBible = ({ onDownload }: { onDownload: () => void }) => {
+  const st = collectionStatus('all');
+  const running = collectionJob?.id === 'all';
+  const complete = st.total > 0 && st.done === st.total;
+  const current = running && collectionJob?.currentBook ? bookInfo(collectionJob.currentBook)?.name : null;
+  const pct = st.total ? (100 * st.done) / st.total : 0;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl',
+            complete ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300',
+          )}
+        >
+          {complete ? <CheckCircle2 className="h-6 w-6" /> : <CloudDownload className="h-6 w-6" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-bold text-foreground">{complete ? 'The whole audio Bible is on this phone' : 'The whole audio Bible'}</p>
+          <p className="text-[13px] text-muted-foreground">
+            {complete
+              ? `All ${st.total.toLocaleString()} chapters`
+              : running
+                ? `${current ?? 'Starting'} · ${st.done.toLocaleString()} of ${st.total.toLocaleString()} chapters`
+                : `${st.total.toLocaleString()} chapters · about ${formatBytes(st.remainingBytes)}${st.done ? ' left' : ''}`}
+          </p>
+        </div>
+      </div>
+      {(running || (st.done > 0 && !complete)) && <Progress value={pct} className="mt-3 h-2" />}
+      {!complete && (
+        running ? (
+          <Button variant="outline" className="mt-4 h-11 w-full rounded-2xl" onClick={() => collectionJob?.controller.abort()}>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading · tap to pause
+          </Button>
+        ) : (
+          <Button className="mt-4 h-12 w-full rounded-2xl text-[15px] font-bold" disabled={!!collectionJob} onClick={onDownload}>
+            <CloudDownload className="mr-2 h-5 w-5" /> {st.done > 0 ? 'Resume the whole Bible' : 'Download the whole Bible'}
+          </Button>
+        )
+      )}
+    </div>
   );
 };
 

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Segmented } from '@/components/page/PageKit';
 import NoteEditor, { type NoteDraftDefaults } from '@/components/notes/NoteEditor';
-import { notePreview, noteTitle, passageLabel, relativeDate, type NoteRecord } from '@/components/notes/noteUtils';
+import { isGeneralNote, notePreview, noteTitle, passageLabel, relativeDate, type NoteRecord } from '@/components/notes/noteUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
@@ -391,12 +391,13 @@ const BibleLibrarySheet = ({
     () =>
       notes.filter((n) => {
         if (!q) return true;
-        return `${noteTitle(n)} ${notePreview(n, 400)} ${passageLabel(n)}`.toLowerCase().includes(q);
+        return `${noteTitle(n)} ${notePreview(n, 400)} ${isGeneralNote(n) ? '' : passageLabel(n)}`.toLowerCase().includes(q);
       }),
     [notes, q],
   );
-  const chapterNotes = matchingNotes.filter((n) => normalizeBookApiName(n.book) === apiBook && n.chapter === chapter);
-  const otherNotes = matchingNotes.filter((n) => !(normalizeBookApiName(n.book) === apiBook && n.chapter === chapter));
+  const onThisChapter = (n: NoteRecord) => !isGeneralNote(n) && normalizeBookApiName(n.book) === apiBook && n.chapter === chapter;
+  const chapterNotes = matchingNotes.filter(onThisChapter);
+  const otherNotes = matchingNotes.filter((n) => !onThisChapter(n));
 
   const afterNoteChange = () => window.dispatchEvent(new CustomEvent(NOTES_CHANGED));
 
@@ -416,7 +417,8 @@ const BibleLibrarySheet = ({
         </span>
         {notePreview(note, 140) && <span className="mt-0.5 line-clamp-2 block text-[13.5px] text-muted-foreground">{notePreview(note, 140)}</span>}
         <span className="mt-1 block text-xs text-muted-foreground">
-          {passageLabel(note)} · {relativeDate(note.updated_at || note.created_at)}
+          {isGeneralNote(note) ? '' : `${passageLabel(note)} · `}
+          {relativeDate(note.updated_at || note.created_at)}
         </span>
       </span>
       <ChevronRight className="mt-2 h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600" />

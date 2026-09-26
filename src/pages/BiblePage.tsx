@@ -677,6 +677,7 @@ const BiblePage = () => {
           version={selectedVersion}
           versionLabel={versionLabel}
           versionName={versions.find(v => (v.id || v.abbreviation) === selectedVersion)?.name || versionLabel}
+          versions={versions}
           onOpenAudio={() => setShowOffline(true)}
         />
 

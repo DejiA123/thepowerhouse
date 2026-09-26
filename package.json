@@ -82,6 +82,7 @@
     "docx": "^9.5.1",
     "dompurify": "^3.3.0",
     "embla-carousel-react": "^8.3.0",
+    "fflate": "^0.8.3",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.31.0",
     "html2pdf.js": "^0.14.0",

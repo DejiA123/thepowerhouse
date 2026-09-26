@@ -17,7 +17,7 @@ import { bibleHighlightsService, type HighlightRow } from "@/services/bibleHighl
 import { bibleNotesService, type BibleNoteFolder } from "@/services/bibleNotesService";
 import { studyNotesService } from "@/services/studyNotesService";
 import NoteEditor, { type NoteDraftDefaults } from "@/components/notes/NoteEditor";
-import type { NoteRecord } from "@/components/notes/noteUtils";
+import { isGeneralNote, type NoteRecord } from "@/components/notes/noteUtils";
 import { HIGHLIGHT_COLORS, HIGHLIGHTS_CHANGED, NOTES_CHANGED, highlightColor } from "./highlightColors";
 import { cleanVerseArtifacts, escapeHtml, plainVerseText, verseRanges } from "./verseText";
 import type { LibraryTab } from "./BibleLibrarySheet";
@@ -365,7 +365,8 @@ export const BibleChapterContent = ({
       .in('book', Array.from(new Set([apiBook, selectedBook])))
       .eq('chapter', selectedChapter)
       .order('updated_at', { ascending: false });
-    setChapterNotes((data || []) as unknown as NoteRecord[]);
+    // Notes written outside the Bible default to Genesis 1; they don't belong to this chapter
+    setChapterNotes(((data || []) as unknown as NoteRecord[]).filter((n) => !isGeneralNote(n)));
   }, [user, selectedBook, selectedChapter]);
 
   useEffect(() => {
@@ -982,7 +983,7 @@ export const BibleChapterContent = ({
             )}
             {/* Multi-select controls - REMOVED FROM TOP */}
             {/* Bible Text */}
-            <div className="space-y-4" key={settingsKey}>
+            <div className="space-y-1" key={settingsKey}>
               {(chapterContent.verses || []).filter((v, i, arr) => {
                 const vn = Number(v.verse) || i + 1;
                 return arr.findIndex(u => (Number(u.verse) || 0) === vn && (u.text || '').trim() === (v.text || '').trim()) === i;
@@ -1095,8 +1096,10 @@ export const BibleChapterContent = ({
                     key={`${settingsKey}-${index}`}
                     data-verse={verseNumber}
                     className={cn(
-                      `mb-3.5 font-serif text-foreground cursor-pointer select-none rounded-xl transition-all duration-500`,
-                      isReading && '-mx-3 bg-blue-50 px-3 py-2 ring-1 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60',
+                      // Every verse keeps the same box, so following the audio only changes colour:
+                      // animating padding and margin left smeared trails as the highlight moved on
+                      '-mx-3 cursor-pointer select-none rounded-xl px-3 py-1.5 font-serif text-foreground ring-1 ring-transparent transition-[background-color,box-shadow,opacity] duration-200 ease-out',
+                      isReading && 'bg-blue-50 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60',
                       readingVerse !== null && !isReading && 'opacity-60'
                     )}
                     style={verseStyle}

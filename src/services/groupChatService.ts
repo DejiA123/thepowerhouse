@@ -412,6 +412,30 @@ export class GroupChatService {
             .eq('chat_id', chatId)
             .eq('user_id', user.id);
         if (error) console.error('Error marking as read:', error);
+        // Badges (Group Chats, the bell, the app icon) catch up
+        else window.dispatchEvent(new CustomEvent('chats:read', { detail: { chatId } }));
+    }
+
+    /** How many of my chats have messages I haven't read. */
+    static async getUnreadChatCount(): Promise<number> {
+        const user = await currentUser();
+        if (!user) return 0;
+        const { data: memberships } = await supabase
+            .from('chat_participants')
+            .select('chat_id, last_read_at, joined_at, chat:chat_id ( is_active )')
+            .eq('user_id', user.id);
+        const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);
+        const counts = await Promise.all(rows.map(async (m: any) => {
+            const { count } = await supabase
+                .from('chat_messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('chat_id', m.chat_id)
+                .eq('is_deleted', false)
+                .neq('user_id', user.id)
+                .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
+            return count || 0;
+        }));
+        return counts.filter((c) => c > 0).length;
     }
 
     static async getUnreadCount(chatId: string): Promise<number> {

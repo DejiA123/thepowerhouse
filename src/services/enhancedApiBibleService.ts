@@ -39,6 +39,17 @@ const BOOK_MAPPINGS: Record<string, string> = {
 
 const BOLLS_LIFE_BASE_URL = 'https://bolls.life/get-text';
 
+/** Translations served by Bolls.life (API.Bible restricts these), by app id or short code */
+const restrictedMappings: Record<string, string> = {
+  '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'NIV',
+  '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
+  '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ESV',
+  '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
+  // Common short codes
+  'NIV': 'NIV', 'NKJV': 'NKJV', 'NLT': 'NLT', 'ESV': 'ESV',
+  'MSG': 'MSG', 'AMP': 'AMP', 'CSB': 'CSB', 'NASB': 'NASB'
+};
+
 // Book ID mapping for Bolls.life (1=Genesis, 66=Revelation)
 // Bolls.life uses integer IDs for books in specific endpoints, but /get-text/{translation}/{book}{chapter}/ 
 // usually accepts standard abbreviations or integers? 
@@ -364,6 +375,11 @@ export const enhancedApiBibleService = {
     return this.getChapter(version, book, chapter);
   },
 
+  /** The Bolls.life code for translations it serves (NIV, NLT…), otherwise null. */
+  bollsCodeFor(version: string): string | null {
+    return restrictedMappings[this.normalizeVersionId(version)] || restrictedMappings[version] || null;
+  },
+
   async getChapterOnline(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);
@@ -374,16 +390,6 @@ export const enhancedApiBibleService = {
       // CHECK FOR BOLLS.LIFE ID MATCH or RESTRICTED API.BIBLE UUIDs
       // Map API.Bible UUIDs to Bolls.life short codes to avoid 403 errors
       let targetBollsId = null;
-
-      const restrictedMappings: Record<string, string> = {
-        '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'NIV',
-        '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
-        '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ESV',
-        '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
-        // Common short codes
-        'NIV': 'NIV', 'NKJV': 'NKJV', 'NLT': 'NLT', 'ESV': 'ESV',
-        'MSG': 'MSG', 'AMP': 'AMP', 'CSB': 'CSB', 'NASB': 'NASB'
-      };
 
       if (restrictedMappings[bibleId] || restrictedMappings[version]) {
         targetBollsId = restrictedMappings[bibleId] || restrictedMappings[version];
@@ -709,16 +715,6 @@ export const enhancedApiBibleService = {
 
       // Check if this version should be routed to Bolls.life
       // (same logic as getChapter for restricted versions)
-      const restrictedMappings: Record<string, string> = {
-        '71c6efe4-400e-4a1c-b96b-7cb16a2b3a85': 'NIV',
-        '7142504b-f34b-4c6b-8c14-7f89d5b4c3a8': 'NLT',
-        '8d1c8f15-bb26-4b8b-ba2c-1f2f6a5a5c57': 'ESV',
-        '26ff8c70-53a8-4b8b-aa49-8c9e4b8e9c29': 'NASB',
-        // Common short codes
-        'NIV': 'NIV', 'NKJV': 'NKJV', 'NLT': 'NLT', 'ESV': 'ESV',
-        'MSG': 'MSG', 'AMP': 'AMP', 'CSB': 'CSB', 'NASB': 'NASB'
-      };
-
       const targetBollsId = restrictedMappings[bibleId] || restrictedMappings[version];
 
       if (targetBollsId) {

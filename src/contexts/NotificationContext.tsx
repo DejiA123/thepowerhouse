@@ -4,12 +4,15 @@ import { AlertCircle, CheckCircle2, Info, MessageCircle, Music2, PhoneMissed, X 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { pushNotificationService, ChatNotification } from '@/services/pushNotificationService';
+import { GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { uniqueTopic } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
 
 interface NotificationContextType {
   unreadCount: number;
+  /** Chats with messages I haven't read */
+  unreadChats: number;
   notifications: ChatNotification[];
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
@@ -49,14 +52,64 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const locationRef = useRef(location);
   locationRef.current = location;
 
+  const [unreadChats, setUnreadChats] = useState(0);
+
+  /**
+   * Unread message notifications, minus any for messages already read in the
+   * chat itself (those used to pile up and inflate every badge).
+   */
   const refreshNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
+      setUnreadChats(0);
       return;
     }
+    GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
     const unread = await pushNotificationService.getUnreadNotifications(user.id);
-    setNotifications(unread);
+    if (!unread.length) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      const [{ data: messages }, { data: memberships }] = await Promise.all([
+        supabase.from('chat_messages').select('id, chat_id, created_at').in('id', unread.map((n) => n.message_id)),
+        supabase.from('chat_participants').select('chat_id, last_read_at').eq('user_id', user.id),
+      ]);
+      const byId = new Map((messages || []).map((m) => [m.id, m]));
+      const lastRead = new Map((memberships || []).map((m) => [m.chat_id, m.last_read_at]));
+      const stale = unread.filter((n) => {
+        const msg = byId.get(n.message_id);
+        if (!msg) return true; // message deleted
+        if (!lastRead.has(msg.chat_id)) return true; // no longer in that chat
+        const read = lastRead.get(msg.chat_id);
+        return !!read && msg.created_at <= read;
+      });
+      if (stale.length) {
+        await supabase.from('chat_notifications').update({ is_read: true }).in('id', stale.map((n) => n.id));
+      }
+      const staleIds = new Set(stale.map((n) => n.id));
+      setNotifications(unread.filter((n) => !staleIds.has(n.id)));
+    } catch {
+      setNotifications(unread);
+    }
   }, [user]);
+
+  // Reading a chat clears its notifications and updates the counts
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onRead = () => {
+      clearTimeout(timer);
+      timer = setTimeout(refreshNotifications, 400);
+    };
+    window.addEventListener('chats:read', onRead);
+    window.addEventListener('chats:changed', onRead);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('chats:read', onRead);
+      window.removeEventListener('chats:changed', onRead);
+    };
+  }, [user, refreshNotifications]);
 
   useEffect(() => {
     refreshNotifications();
@@ -145,6 +198,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async ({ new: msg }: any) => {
         if (!msg || msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
         if (!myChats.current.has(msg.chat_id)) return;
+        GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
         if (document.visibilityState !== 'visible') return;
 
         if (!chatNames.current[msg.chat_id]) {
@@ -186,6 +240,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const value: NotificationContextType = {
     unreadCount: notifications.length,
+    unreadChats,
     notifications,
     markAsRead,
     markAllAsRead,

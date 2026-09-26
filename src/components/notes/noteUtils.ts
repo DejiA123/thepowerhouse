@@ -63,6 +63,13 @@ export function bookName(apiName?: string | null) {
   return allBooks.find((b) => b.apiName === apiName)?.name ?? apiName.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Notes written outside the Bible are saved against Genesis 1 by default, so
+ * "Genesis 1" with no verse means the note isn't really about a passage.
+ */
+export const isGeneralNote = (note: Pick<NoteRecord, 'book' | 'chapter' | 'verse'>) =>
+  (note.book || '').toLowerCase() === 'genesis' && note.chapter === 1 && !note.verse;
+
 export function passageLabel(note: Pick<NoteRecord, 'book' | 'chapter' | 'verse'>) {
   if (!note.book) return '';
   return `${bookName(note.book)} ${note.chapter}${note.verse ? `:${note.verse}` : ''}`;
