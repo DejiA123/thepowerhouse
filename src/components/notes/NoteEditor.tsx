@@ -17,6 +17,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
 import FolderMenuSection from './FolderMenuSection';
+import { noteDraftKey, openDrafts, type NoteDraft } from '@/lib/offlineNotes';
 import NoteRichEditor from './NoteRichEditor';
 import NoteToolbar from './NoteToolbar';
 import { exportNotePdf, exportNoteWord, isBlankHtml, relativeDate, type NoteRecord } from './noteUtils';
@@ -46,7 +47,7 @@ interface Props {
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 const AUTOSAVE_MS = 700;
-const draftKey = (userId: string, id: string | null) => `note_draft_${userId}_${id ?? 'new'}`;
+const draftKey = noteDraftKey;
 
 /** Size the editor to the visible area so the toolbar sits right above the iPhone keyboard. */
 function useVisualViewport(active: boolean) {
@@ -202,7 +203,19 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
       dirty.current = true;
       setSaveState('error');
       try {
-        localStorage.setItem(draftKey(userId, id), JSON.stringify({ html: snapshot.html, title: snapshot.title, at: now }));
+        // Kept on the device and saved to the account once the connection is back
+        const draft: NoteDraft = {
+          html: snapshot.html,
+          title: snapshot.title,
+          at: now,
+          book: passage.current.book,
+          chapter: passage.current.chapter,
+          verse: passage.current.verse,
+          folder_id: snapshot.folderId,
+          is_favorite: snapshot.favorite,
+          is_pinned: snapshot.pinned,
+        };
+        localStorage.setItem(draftKey(userId, id), JSON.stringify(draft));
       } catch {
         /* storage full */
       }
@@ -226,6 +239,24 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
       flush();
     }, AUTOSAVE_MS);
   }, [flush]);
+
+  // This editor saves its own draft; the background sync leaves it alone while it's open
+  useEffect(() => {
+    if (!open) return;
+    const keys = [draftKey(userId, null), ...(noteId ? [draftKey(userId, noteId)] : [])];
+    keys.forEach((k) => openDrafts.add(k));
+    return () => keys.forEach((k) => openDrafts.delete(k));
+  }, [open, userId, noteId]);
+
+  // Connection back: save what couldn't be saved offline
+  useEffect(() => {
+    if (!open) return;
+    const onOnline = () => {
+      if (dirty.current) flush();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [open, flush]);
 
   // Save when the app is backgrounded or closed
   useEffect(() => {

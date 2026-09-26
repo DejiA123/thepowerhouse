@@ -2,6 +2,47 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { detachPushFromUser } from '@/lib/push';
+import { installOfflineAuth, isOffline, storedSession } from '@/lib/offlineAuth';
+
+installOfflineAuth();
+
+/**
+ * Returning from Google carries ?code=… (or ?error=… when it failed or was
+ * cancelled). Supabase finishes the sign-in and tidies the address; if that
+ * doesn't produce a session, say so rather than silently showing the page.
+ */
+const oauthReturn = (() => {
+  // Google returns to the home page (the email link has its own page)
+  if (typeof window === 'undefined' || window.location.pathname !== '/') return null;
+  const query = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const error = query.get('error_description') || hash.get('error_description') || query.get('error') || hash.get('error');
+  const code = query.get('code');
+  return error || code ? { error, code } : null;
+})();
+
+const reportOAuthProblem = (detail?: string | null) => {
+  const cancelled = /access_denied|cancel/i.test(detail || '');
+  window.dispatchEvent(
+    new CustomEvent('showInAppNotification', {
+      detail: {
+        kind: cancelled ? 'info' : 'error',
+        title: cancelled ? 'Google sign-in cancelled' : "Couldn't finish signing in with Google",
+        message: cancelled
+          ? 'No problem. You can try again any time.'
+          : 'Please try again. If it keeps happening, open the app in Safari or Chrome and sign in there.',
+      },
+    }),
+  );
+  // Don't leave the error in the address bar
+  try {
+    const url = new URL(window.location.href);
+    ['error', 'error_code', 'error_description', 'code', 'state'].forEach((k) => url.searchParams.delete(k));
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
+  } catch {
+    /* ignore */
+  }
+};
 
 // Debug React availability
 console.log('AuthContext.tsx: React loaded:', !!React);
@@ -54,10 +95,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Setting up auth state listener...');
 
     try {
+      /**
+       * A sign-in that couldn't be renewed (no connection) is still a sign-in:
+       * Supabase deletes the saved session when it's truly invalid, so if one
+       * is still saved, keep the person signed in until the renewal succeeds.
+       */
+      const keepSaved = () => {
+        const saved = storedSession();
+        if (!saved) return false;
+        setSession(saved);
+        setUser(saved.user);
+        setLoading(false);
+        return true;
+      };
+
+      // Offline: open straight away with the saved sign-in
+      if (isOffline()) keepSaved();
+
       // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         (event, session) => {
           console.log('Auth state changed:', event, !!session);
+          if (!session && event !== 'SIGNED_OUT' && keepSaved()) return;
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
@@ -71,9 +130,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           console.log('Initial session loaded:', !!session);
         }
+        if (!session && keepSaved()) return;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        if (oauthReturn && (!session || oauthReturn.error)) {
+          // The banner system mounts just after this; give it a moment
+          setTimeout(() => reportOAuthProblem(oauthReturn.error || (error as { message?: string } | null)?.message), 800);
+        }
       });
 
       return () => {
@@ -153,8 +217,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthProvider: Attempting sign out...');
       // Stop personal (chat/call) pushes to this device before the session ends
-      await detachPushFromUser();
-      await supabase.auth.signOut();
+      if (!isOffline()) await detachPushFromUser().catch(() => undefined);
+      // Offline the server can't be told; sign out on this device regardless
+      const { error } = await supabase.auth.signOut(isOffline() ? { scope: 'local' } : undefined);
+      if (error) await supabase.auth.signOut({ scope: 'local' });
+      // The next person on this phone mustn't see this account's saved data
+      try {
+        if ('caches' in window) await caches.delete('supabase-data');
+      } catch {
+        /* ignore */
+      }
       console.log('Sign out successful');
     } catch (error) {
       console.error('Sign out error:', error);

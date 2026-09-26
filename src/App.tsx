@@ -5,6 +5,8 @@ import { peekNext, takeNext } from "@/lib/authRedirect";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ScrollToTop from "@/components/ScrollToTop";
+import OfflineIndicator from "@/components/OfflineIndicator";
+import OfflineSync from "@/components/OfflineSync";
 
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -402,6 +404,8 @@ const App = () => {
                     <PresenceProvider>
                       <CallProvider>
                         <AppEvents />
+                        <OfflineIndicator />
+                        <OfflineSync />
                         <AppRoutes />
                       </CallProvider>
                     </PresenceProvider>

@@ -17,6 +17,10 @@ interface PersistedAudioState {
   loopBook: boolean;
   isPlaying: boolean;
   timestamp: number;
+  /** Where the audio file is and how far in, so Play on the lock screen can pick up at once */
+  url?: string;
+  position?: number;
+  title?: string;
 }
 
 const persistAudioState = (state: PersistedAudioState) => {
@@ -30,6 +34,12 @@ const loadPersistedAudioState = (): PersistedAudioState | null => {
     const raw = localStorage.getItem(AUDIO_STATE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
+};
+
+/** Update part of the saved state (position, playing) without losing the rest. */
+const patchPersistedAudioState = (patch: Partial<PersistedAudioState>) => {
+  const current = loadPersistedAudioState();
+  if (current) persistAudioState({ ...current, ...patch, timestamp: Date.now() });
 };
 
 const clearPersistedAudioState = () => {
@@ -331,7 +341,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Persist state for recovery if the app/tab gets killed
       persistAudioState({
         book, chapter, version, autoPlayNext, loopChapter, loopBook,
-        isPlaying: true, timestamp: Date.now()
+        isPlaying: true, timestamp: Date.now(),
+        url: audioUrl, position: 0, title: `${displayBookName} ${chapter}`,
       });
 
       const updatePosition = () => {
@@ -400,14 +411,45 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setTimeout(() => {
         if (!audio.paused && !audio.ended && Math.abs(audio.currentTime - from) < 0.25) reloadAndPlay(from);
       }, 2500);
-    } else if (audioStateRef.current.currentBook) {
-      playBibleChapterMP3(
-        audioStateRef.current.currentBook,
-        audioStateRef.current.currentChapter,
-        audioStateRef.current.currentVersion,
-        audioStateRef.current.autoPlayNext,
-        audioStateRef.current.loopChapter
-      );
+    } else {
+      // The phone unloaded the audio (or the app was reopened): start the saved file
+      // straight away, inside the tap, then jump back to where it was
+      const saved = loadPersistedAudioState();
+      if (saved?.url) {
+        const position = saved.position || 0;
+        audio.src = saved.url;
+        audio.load();
+        audio.addEventListener('loadedmetadata', () => {
+          try {
+            if (position > 1 && position < audio.duration - 1) audio.currentTime = position;
+          } catch {
+            /* not seekable yet */
+          }
+        }, { once: true });
+        audio.play().catch(() => {
+          // Offline, or the link expired: go through the normal path (uses downloads)
+          playBibleChapterMP3(saved.book, saved.chapter, saved.version, saved.autoPlayNext, saved.loopChapter);
+        });
+        if (!audioStateRef.current.currentBook) {
+          audioStateRef.current = {
+            ...audioStateRef.current,
+            currentBook: normalizeBookApiName(saved.book),
+            currentChapter: saved.chapter,
+            currentVersion: saved.version,
+            autoPlayNext: saved.autoPlayNext,
+            loopChapter: saved.loopChapter,
+            loopBook: saved.loopBook,
+          };
+        }
+      } else if (audioStateRef.current.currentBook) {
+        playBibleChapterMP3(
+          audioStateRef.current.currentBook,
+          audioStateRef.current.currentChapter,
+          audioStateRef.current.currentVersion,
+          audioStateRef.current.autoPlayNext,
+          audioStateRef.current.loopChapter
+        );
+      }
     }
   }, [playBibleChapterMP3, reloadAndPlay]);
 
@@ -523,11 +565,49 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [playBibleChapterMP3]);
 
   useEffect(() => {
+    /** Lock screen / Control Center buttons. Safe to call again at any time. */
+    const bindMediaSession = () => {
+      if (!('mediaSession' in navigator)) return;
+      const ms = navigator.mediaSession;
+      const seekBy = (delta: number) => {
+        if (!audio.duration) return;
+        audio.currentTime = Math.min(Math.max(0, audio.currentTime + delta), Math.max(0, audio.duration - 0.5));
+      };
+      const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+        ['play', () => {
+          ms.playbackState = 'playing';
+          resume();
+        }],
+        ['pause', () => {
+          ms.playbackState = 'paused';
+          pause();
+        }],
+        ['stop', reset],
+        ['nexttrack', goToNextChapter],
+        ['previoustrack', goToPreviousChapter],
+        ['seekbackward', (d) => seekBy(-(d.seekOffset || 10))],
+        ['seekforward', (d) => seekBy(d.seekOffset || 10)],
+        ['seekto', (d) => {
+          if (typeof d.seekTime === 'number') audio.currentTime = d.seekTime;
+        }],
+      ];
+      handlers.forEach(([action, handler]) => {
+        try {
+          ms.setActionHandler(action, handler);
+        } catch {
+          /* not supported on this device */
+        }
+      });
+    };
+
     const handlePlay = () => {
       setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
       }
+      // iPhone can drop the lock-screen buttons when a new file starts: attach them again
+      bindMediaSession();
+      patchPersistedAudioState({ isPlaying: true });
     };
 
     const handlePause = () => {
@@ -535,6 +615,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
       }
+      patchPersistedAudioState({ isPlaying: false, position: audio.currentTime });
     };
 
     const handleEnded = () => {
@@ -598,8 +679,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return watchdogTimer;
     };
 
+    let lastSaved = 0;
     const handleTimeUpdate = () => {
       const now = audio.currentTime;
+      if (Math.abs(now - lastSaved) >= 5) {
+        lastSaved = now;
+        patchPersistedAudioState({ position: now });
+      }
       setAudioState(prev => {
         if (Math.abs(prev.currentTime - now) > 0.5) {
           return { ...prev, currentTime: now };
@@ -629,6 +715,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     audio.addEventListener('play', handlePlay);
+    audio.addEventListener('playing', bindMediaSession);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
@@ -636,26 +723,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     const watchdogTimer = startWatchdog();
 
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', resume);
-      navigator.mediaSession.setActionHandler('pause', pause);
-      navigator.mediaSession.setActionHandler('stop', reset);
-      navigator.mediaSession.setActionHandler('nexttrack', goToNextChapter);
-      navigator.mediaSession.setActionHandler('previoustrack', goToPreviousChapter);
-      const seekBy = (delta: number) => {
-        if (!audio.duration) return;
-        audio.currentTime = Math.min(Math.max(0, audio.currentTime + delta), Math.max(0, audio.duration - 0.5));
-      };
-      try {
-        navigator.mediaSession.setActionHandler('seekbackward', (d) => seekBy(-(d.seekOffset || 10)));
-        navigator.mediaSession.setActionHandler('seekforward', (d) => seekBy(d.seekOffset || 10));
-        navigator.mediaSession.setActionHandler('seekto', (d) => {
-          if (typeof d.seekTime === 'number') audio.currentTime = d.seekTime;
-        });
-      } catch {
-        /* older browsers */
-      }
-    }
+    bindMediaSession();
 
     // ── Visibility change recovery ──
     // When user returns to the app, check if audio stalled and needs recovery
@@ -731,6 +799,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     return () => {
       audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('playing', bindMediaSession);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
