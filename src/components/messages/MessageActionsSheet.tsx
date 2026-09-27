@@ -32,7 +32,9 @@ const Action = ({ icon: Icon, label, onClick, danger }: { icon: typeof Copy; lab
 
 /** Long-press menu for a message: react, copy, save photo, delete. */
 const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, onCopy, onDelete, onRetry }: Props) => {
-  const image = message ? parseMessageContent(message.content).imageUrl : null;
+  const parsed = message ? parseMessageContent(message.content) : null;
+  const image = parsed?.imageUrl ?? parsed?.videoUrl ?? null;
+  const isVideo = !!parsed?.videoUrl;
 
   return (
     <Drawer open={!!message} onOpenChange={(open) => !open && onClose()}>
@@ -66,7 +68,7 @@ const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, on
               {image && (
                 <Action
                   icon={Download}
-                  label="Open photo"
+                  label={isVideo ? "Open video" : "Open photo"}
                   onClick={() => {
                     window.open(image, '_blank', 'noopener');
                     onClose();

@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ImagePlus, Loader2, SendHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isGifFile, isVideoFile } from './chatUtils';
 
 interface Props {
   onSend: (text: string) => void;
-  onSendPhoto: (file: File, caption: string) => Promise<void>;
+  /** A photo, GIF or video, with an optional caption; reports upload progress (0–100) for videos */
+  onSendMedia: (file: File, caption: string, onProgress: (pct: number) => void) => Promise<void>;
   onTyping: (typing: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -12,10 +14,11 @@ interface Props {
 
 const isTouchDevice = () => window.matchMedia?.('(pointer: coarse)').matches;
 
-const ChatComposer = ({ onSend, onSendPhoto, onTyping, disabled, placeholder = 'Message' }: Props) => {
+const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = 'Message' }: Props) => {
   const [text, setText] = useState('');
-  const [photo, setPhoto] = useState<{ file: File; url: string } | null>(null);
+  const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -51,13 +54,17 @@ const ChatComposer = ({ onSend, onSendPhoto, onTyping, disabled, placeholder = '
     const value = text.trim();
     if (photo) {
       setUploading(true);
+      setProgress(photo.kind === 'video' ? 0 : null);
       try {
-        await onSendPhoto(photo.file, value);
+        await onSendMedia(photo.file, value, setProgress);
         URL.revokeObjectURL(photo.url);
         setPhoto(null);
         setText('');
+      } catch {
+        /* the conversation explains what went wrong; keep the file so it can be sent again */
       } finally {
         setUploading(false);
+        setProgress(null);
       }
     } else {
       if (!value) return;
@@ -77,15 +84,26 @@ const ChatComposer = ({ onSend, onSendPhoto, onTyping, disabled, placeholder = '
     <div className="border-t border-border/60 bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl sm:px-4">
       {photo && (
         <div className="mx-1 mb-2 flex items-center gap-3 rounded-2xl bg-muted/60 p-2">
-          <img src={photo.url} alt="Selected" className="h-16 w-16 rounded-xl object-cover" />
-          <p className="flex-1 text-sm text-muted-foreground">Add a caption or tap send</p>
+          {photo.kind === 'video' ? (
+            <video src={`${photo.url}#t=0.1`} muted playsInline preload="metadata" className="h-16 w-16 rounded-xl bg-black object-cover" />
+          ) : (
+            <img src={photo.url} alt="Selected" className="h-16 w-16 rounded-xl object-cover" />
+          )}
+          <p className="flex-1 text-sm text-muted-foreground">
+            {uploading
+              ? photo.kind === 'video'
+                ? `Sending video… ${progress ?? 0}%`
+                : `Sending ${photo.kind === 'gif' ? 'GIF' : 'photo'}…`
+              : `${photo.kind === 'video' ? 'Video' : photo.kind === 'gif' ? 'GIF' : 'Photo'} ready. Add a caption or tap send`}
+          </p>
           <button
             onClick={() => {
               URL.revokeObjectURL(photo.url);
               setPhoto(null);
             }}
+            disabled={uploading}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label="Remove photo"
+            aria-label="Remove attachment"
           >
             <X className="h-4 w-4" />
           </button>
@@ -97,21 +115,22 @@ const ChatComposer = ({ onSend, onSendPhoto, onTyping, disabled, placeholder = '
           onClick={() => fileRef.current?.click()}
           disabled={disabled || uploading}
           className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-90"
-          aria-label="Send a photo"
+          aria-label="Send a photo, GIF or video"
         >
           <ImagePlus className="h-6 w-6" />
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = '';
             if (!file) return;
             if (photo) URL.revokeObjectURL(photo.url);
-            setPhoto({ file, url: URL.createObjectURL(file) });
+            const kind = isVideoFile(file) ? 'video' : isGifFile(file) ? 'gif' : 'photo';
+            setPhoto({ file, url: URL.createObjectURL(file), kind });
             inputRef.current?.focus();
           }}
         />

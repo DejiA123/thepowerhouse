@@ -87,13 +87,16 @@ Deno.serve(async (req) => {
         chatRecipients(message.chat_id, user.id),
       ]);
       const chatName = chat?.name ?? 'Group chat';
-      // Photo messages are stored as "::image::<url>\n<caption>"
+      // Photos / GIFs are stored as "::image::<url>\n<caption>", videos as "::video::<url>\n<caption>"
       const isPhoto = message.content.startsWith('::image::');
+      const isVideo = message.content.startsWith('::video::');
       const lines = message.content.split('\n');
       const photoUrl = isPhoto ? lines[0].slice('::image::'.length).trim() : undefined;
-      const caption = isPhoto ? lines.slice(1).join(' ').trim() : message.content;
-      const preview = isPhoto
-        ? (caption ? `📷 ${truncate(caption, 150)}` : '📷 Photo')
+      const isGif = !!photoUrl && /\.gif(?:$|[?#])/i.test(photoUrl);
+      const caption = isPhoto || isVideo ? lines.slice(1).join(' ').trim() : message.content;
+      const [icon, label] = isVideo ? ['🎥', 'Video'] : isGif ? ['🎞️', 'GIF'] : ['📷', 'Photo'];
+      const preview = isPhoto || isVideo
+        ? (caption ? `${icon} ${truncate(caption, 150)}` : `${icon} ${label}`)
         : truncate(caption.replace(/\s+/g, ' ').trim(), 160);
 
       // Keep the in-app notification centre in sync

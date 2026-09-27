@@ -50,6 +50,21 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
+            // Photos sent in chats: kept once they've loaded properly (they're fetched
+            // with CORS, so a failed load can be told apart and is never kept)
+            urlPattern: ({ url, request }) =>
+              request.destination === 'image' &&
+              /\.supabase\.co$/i.test(url.hostname) &&
+              url.pathname.startsWith('/storage/v1/object/public/avatars/') &&
+              url.pathname.includes('/chat/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'chat-photos',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Images (uploads, avatars, storage) - fast from cache, refreshed in background
             urlPattern: ({ request }) => request.destination === 'image',
             handler: 'StaleWhileRevalidate',

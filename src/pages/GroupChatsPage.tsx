@@ -192,6 +192,7 @@ const GroupChatsPage = () => {
               selectedId={selectedId}
               loading={loading}
               myId={user.id}
+              myName={me.name}
               ongoingCalls={ongoingCalls}
               joiningId={joiningId}
               onSelect={openChat}

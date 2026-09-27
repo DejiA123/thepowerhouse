@@ -1,9 +1,53 @@
-import { memo, useRef } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, SmilePlus } from 'lucide-react';
+import { memo, useRef, useState } from 'react';
+import { AlertCircle, Check, CheckCheck, Clock, ImageOff, SmilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
 import { formatClock, isEmojiOnly, linkify, parseMessageContent } from './chatUtils';
+
+/**
+ * A photo or GIF in a chat. If it doesn't load it tries again by itself, then
+ * offers "Tap to retry" instead of showing a broken picture.
+ */
+const ChatPhoto = ({ url, onOpen }: { url: string; onOpen: (url: string) => void }) => {
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
+  // A fresh address skips any failed copy kept by the phone or the network
+  const src = attempt ? `${url}${url.includes('?') ? '&' : '?'}r=${attempt}` : url;
+  // App storage allows cross-site reads, so the phone only keeps copies that loaded properly
+  const fromStorage = /\.supabase\.co\/storage\//.test(url);
+
+  if (failed) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setFailed(false);
+          setAttempt((a) => a + 1);
+        }}
+        className="flex h-40 w-[240px] max-w-full flex-col items-center justify-center gap-2 rounded-2xl bg-muted text-sm font-medium text-muted-foreground"
+      >
+        <ImageOff className="h-6 w-6" />
+        Photo didn't load. Tap to retry
+      </button>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onOpen(src)} className="block overflow-hidden rounded-2xl">
+      <img
+        key={src}
+        src={src}
+        alt="Shared photo"
+        loading="lazy"
+        decoding="async"
+        crossOrigin={fromStorage ? 'anonymous' : undefined}
+        onError={() => (attempt === 0 ? setAttempt(1) : setFailed(true))}
+        className="max-h-80 w-full min-w-[160px] max-w-[280px] bg-muted object-cover"
+      />
+    </button>
+  );
+};
 
 export interface ReactionGroup {
   emoji: string;
@@ -31,8 +75,9 @@ const LONG_PRESS_MS = 420;
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry,
 }: Props) => {
-  const { imageUrl, text } = parseMessageContent(message.content);
-  const bigEmoji = !imageUrl && isEmojiOnly(text);
+  const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
+  const media = !!(imageUrl || videoUrl);
+  const bigEmoji = !media && isEmojiOnly(text);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const start = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
@@ -126,7 +171,7 @@ const MessageBubble = ({
                 ? 'px-1 text-5xl leading-tight'
                 : cn(
                   'overflow-hidden text-[15px] leading-[1.4] shadow-sm',
-                  imageUrl ? 'p-1' : 'px-3.5 py-2',
+                  media ? 'p-1' : 'px-3.5 py-2',
                   isOwn
                     ? 'bg-blue-600 text-white'
                     : 'border border-border/60 bg-card text-card-foreground',
@@ -137,22 +182,20 @@ const MessageBubble = ({
                 ),
             )}
           >
-            {imageUrl && (
-              <button
-                type="button"
-                onClick={() => onOpenImage(imageUrl)}
-                className="block overflow-hidden rounded-2xl"
-              >
-                <img
-                  src={imageUrl}
-                  alt="Shared photo"
-                  loading="lazy"
-                  className="max-h-80 w-full min-w-[160px] max-w-[280px] bg-muted object-cover"
-                />
-              </button>
+            {imageUrl && <ChatPhoto url={imageUrl} onOpen={onOpenImage} />}
+            {videoUrl && (
+              // Plays right in the chat (full screen from its controls)
+              <video
+                src={`${videoUrl}#t=0.1`}
+                controls
+                playsInline
+                preload="metadata"
+                onPointerDown={(e) => e.stopPropagation()}
+                className="block max-h-80 w-full min-w-[200px] max-w-[280px] rounded-2xl bg-black"
+              />
             )}
-            {(text || !imageUrl) && (
-              <div className={cn('whitespace-pre-wrap break-words', imageUrl && 'px-2.5 pb-1.5 pt-1.5')}>
+            {(text || !media) && (
+              <div className={cn('whitespace-pre-wrap break-words', media && 'px-2.5 pb-1.5 pt-1.5')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
                     <a
@@ -172,7 +215,7 @@ const MessageBubble = ({
                 {meta}
               </div>
             )}
-            {imageUrl && !text && <div className="flex justify-end px-2 pb-1">{meta}</div>}
+            {media && !text && <div className="flex justify-end px-2 pb-1">{meta}</div>}
           </div>
 
           {!isOwn && (

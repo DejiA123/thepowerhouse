@@ -13,7 +13,9 @@ import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
-import { IMAGE_PREFIX, dayKey, formatDayLabel, parseMessageContent, uploadChatImage } from './chatUtils';
+import {
+  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
+} from './chatUtils';
 
 interface Me {
   id: string;
@@ -383,16 +385,18 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const sendContentRef = useRef<typeof sendContent>();
   sendContentRef.current = sendContent;
 
-  const sendPhoto = useCallback(async (file: File, caption: string) => {
+  const sendMedia = useCallback(async (file: File, caption: string, onProgress: (pct: number) => void) => {
+    const video = isVideoFile(file);
     try {
-      const url = await uploadChatImage(me.id, file);
-      await sendContent(`${IMAGE_PREFIX}${url}${caption ? `\n${caption}` : ''}`);
+      const url = video ? await uploadChatVideo(chat.id, me.id, file, onProgress) : await uploadChatImage(me.id, file);
+      await sendContent(`${video ? VIDEO_PREFIX : IMAGE_PREFIX}${url}${caption ? `\n${caption}` : ''}`);
     } catch (error) {
-      console.error('Photo upload failed', error);
-      appAlert("Couldn't send photo", 'Please check your connection and try again.', 'error');
+      console.error('Upload failed', error);
+      const message = error instanceof Error && !/fetch|network|load failed/i.test(error.message) ? error.message : 'Please check your connection and try again.';
+      appAlert(video ? "Couldn't send the video" : "Couldn't send the photo", message, 'error');
       throw error;
     }
-  }, [me.id, sendContent]);
+  }, [chat.id, me.id, sendContent]);
 
   const onTyping = useCallback((isTyping: boolean) => {
     GroupChatService.sendTyping(chat.id, me.id, me.name.split(' ')[0], isTyping).catch(() => undefined);
@@ -466,9 +470,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const ongoing = ongoingCalls[chat.id];
   const inThisCall = call?.chatId === chat.id;
 
+  const title = chatTitle(chat, me.name);
+  const privateChat = isPrivateChat(chat);
   const subtitle = typingNames.length
     ? `${typingNames.slice(0, 2).join(', ')}${typingNames.length > 2 ? ' and others' : ''} ${typingNames.length === 1 ? 'is' : 'are'} typing…`
-    : memberCount != null
+    : privateChat
+      ? 'Private chat'
+      : memberCount != null
       ? `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`
       : 'Tap for group info';
 
@@ -526,9 +534,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           <ArrowLeft className="h-5 w-5" />
         </button>
         <button onClick={() => setInfoOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left hover:bg-muted/60">
-          <UserAvatar name={chat.name} src={chat.avatar_url} seed={chat.id} className="h-10 w-10" />
+          <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-10 w-10" />
           <div className="min-w-0">
-            <p className="truncate font-semibold leading-tight text-foreground">{chat.name}</p>
+            <p className="truncate font-semibold leading-tight text-foreground">{title}</p>
             <p className={cn('truncate text-xs', typingNames.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
               {subtitle}
             </p>
@@ -583,7 +591,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
               <div className="flex justify-center py-3"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             )}
             {!hasMore && messages.length > 0 && (
-              <p className="py-4 text-center text-xs text-muted-foreground">This is the start of {chat.name}</p>
+              <p className="py-4 text-center text-xs text-muted-foreground">{privateChat ? `This is the start of your chat with ${title}` : `This is the start of ${title}`}</p>
             )}
             <div className="flex-1" />
             {loading ? (
@@ -596,9 +604,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
-                <UserAvatar name={chat.name} src={chat.avatar_url} seed={chat.id} className="h-20 w-20 text-2xl" />
-                <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {chat.name} 👋</p>
-                <p className="mt-1 max-w-xs text-sm text-muted-foreground">Messages you send here reach every member, even when their app is closed.</p>
+                <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-20 w-20 text-2xl" />
+                <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {title} 👋</p>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                  {privateChat
+                    ? 'Only the two of you can see this chat. Messages arrive even when their app is closed.'
+                    : 'Messages you send here reach every member, even when their app is closed.'}
+                </p>
               </div>
             ) : (
               rendered
@@ -625,7 +637,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         )}
       </div>
 
-      <ChatComposer onSend={(text) => sendContent(text)} onSendPhoto={sendPhoto} onTyping={onTyping} />
+      <ChatComposer onSend={(text) => sendContent(text)} onSendMedia={sendMedia} onTyping={onTyping} />
 
       <MessageActionsSheet
         message={actionsFor}

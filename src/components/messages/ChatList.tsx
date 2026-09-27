@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
 import type { OngoingCall } from '@/contexts/CallContext';
-import { formatListTime, previewText } from './chatUtils';
+import { chatTitle, formatListTime, isPrivateChat, previewText } from './chatUtils';
 
 interface Props {
   chats: ChatSummary[];
@@ -12,6 +12,8 @@ interface Props {
   selectedId: string | null;
   loading: boolean;
   myId: string;
+  /** My name, so a private chat can show the other person's name */
+  myName?: string;
   ongoingCalls: Record<string, OngoingCall>;
   joiningId: string | null;
   onSelect: (chat: ChatSummary) => void;
@@ -23,7 +25,7 @@ interface Props {
 type Filter = 'all' | 'unread';
 
 const ChatList = ({
-  chats, discover, selectedId, loading, myId, ongoingCalls, joiningId, onSelect, onJoin, onNewGroup, onBack,
+  chats, discover, selectedId, loading, myId, myName, ongoingCalls, joiningId, onSelect, onJoin, onNewGroup, onBack,
 }: Props) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -31,7 +33,7 @@ const ChatList = ({
   const q = query.trim().toLowerCase();
   const visible = useMemo(
     () => chats.filter((c) =>
-      (!q || c.name.toLowerCase().includes(q) || (c.last_message?.content || '').toLowerCase().includes(q)) &&
+      (!q || chatTitle(c, myName).toLowerCase().includes(q) || (c.last_message?.content || '').toLowerCase().includes(q)) &&
       (filter === 'all' || c.unread > 0),
     ),
     [chats, q, filter],
@@ -122,11 +124,11 @@ const ChatList = ({
                     selectedId === chat.id ? 'bg-blue-50 dark:bg-blue-950/50' : 'hover:bg-muted/70 active:bg-muted',
                   )}
                 >
-                  <UserAvatar name={chat.name} src={chat.avatar_url} seed={chat.id} className="h-12 w-12" />
+                  <UserAvatar name={chatTitle(chat, myName)} src={chat.avatar_url} seed={chat.id} className="h-12 w-12" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <p className={cn('flex-1 truncate text-[15px] text-foreground', chat.unread ? 'font-bold' : 'font-semibold')}>
-                        {chat.name}
+                        {chatTitle(chat, myName)}
                       </p>
                       <span className={cn('shrink-0 text-xs', chat.unread ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>
                         {formatListTime(last?.created_at || chat.created_at)}
@@ -141,7 +143,7 @@ const ChatList = ({
                         ) : last ? (
                           <>{who && <span className="font-medium">{who}: </span>}{previewText(last.content)}</>
                         ) : (
-                          chat.description || 'No messages yet'
+                          (isPrivateChat(chat) ? 'Say hello 👋' : chat.description) || 'No messages yet'
                         )}
                       </p>
                       {chat.unread > 0 && (
