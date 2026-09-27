@@ -88,10 +88,6 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
   const inputRef = useRef<HTMLInputElement>(null);
   const runId = useRef(0);
 
-  useEffect(() => {
-    if (isOpen) setTimeout(() => inputRef.current?.focus(), 150);
-  }, [isOpen]);
-
   // Instant: typed references ("jn 3:16") resolve as you type
   useEffect(() => {
     const ref = parseReference(query);
@@ -163,7 +159,11 @@ export const BibleSearch = ({ isOpen, onClose, onNavigate, selectedVersion }: Bi
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-none p-0 sm:h-[85vh] sm:max-w-2xl sm:rounded-3xl sm:border [&>button]:hidden">
+      <DialogContent
+        // The keyboard only comes up when the search box is tapped, not on opening
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="flex h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-none p-0 sm:h-[85vh] sm:max-w-2xl sm:rounded-3xl sm:border [&>button]:hidden"
+      >
         <DialogTitle className="sr-only">Search the Bible</DialogTitle>
         <DialogDescription className="sr-only">Type a verse, reference, or what you remember and we'll find it.</DialogDescription>
 

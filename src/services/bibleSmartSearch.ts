@@ -219,12 +219,21 @@ const API_BOOK_IDS: Record<string, string> = {
   '3JN': '3-john', JUD: 'jude', REV: 'revelation',
 };
 
-/** Verses containing the words typed (existing API search). */
+/** A search result's book as one of the 66 books, or null (e.g. 1–2 Maccabees, Tobit). */
+function canonicalBook(raw: string): string | null {
+  // API.Bible's three-letter codes: only the 66 are listed, the Apocrypha's aren't
+  if (/^[1-4A-Z][A-Z0-9]{2}$/.test(raw)) return API_BOOK_IDS[raw] ?? null;
+  const book = API_BOOK_IDS[raw.toUpperCase()] || resolveBook(raw);
+  return book && ALL_BOOKS.some((b) => b.apiName === book) ? book : null;
+}
+
+/** Verses containing the words typed (existing API search), from the 66 books only. */
 export async function wordResults(query: string, version: string): Promise<SmartResult[]> {
   const verses = await enhancedApiBibleService.search(version, query).catch(() => []);
-  return verses.slice(0, 40).map((v: any) => {
-    const raw = String(v.book || '');
-    const book = API_BOOK_IDS[raw.toUpperCase()] || resolveBook(raw) || raw.toLowerCase();
+  return verses.flatMap((v: any) => {
+    const book = canonicalBook(String(v.book || ''));
+    return book ? [{ v, book }] : [];
+  }).slice(0, 40).map(({ v, book }) => {
     const n = Number(v.verse) || 1;
     return {
       key: keyOf(book, Number(v.chapter), n, n),

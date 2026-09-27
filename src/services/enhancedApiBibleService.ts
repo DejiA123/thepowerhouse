@@ -830,9 +830,10 @@ export const enhancedApiBibleService = {
         65: 'JUD', 66: 'REV'
       };
 
-      return results.map((result: any) => {
-        const bookId = result.book || result.bookId || 1;
-        const bookCode = BOLLS_TO_API_BIBLE[bookId] || 'GEN';
+      // Only the 66 books (some translations also carry the Apocrypha, books 67+)
+      return results.filter((result: any) => !!BOLLS_TO_API_BIBLE[result.book || result.bookId]).map((result: any) => {
+        const bookId = result.book || result.bookId;
+        const bookCode = BOLLS_TO_API_BIBLE[bookId];
 
         return {
           book: bookCode,
