@@ -133,6 +133,16 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
+            // Piano worship tracks: saved when first played, then they work offline
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/audio/worship/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'worship-music',
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Study notes (Tyndale Open Study Notes) rarely change: keep opened chapters for offline study
             urlPattern: ({ url }) => url.hostname === 'bible.helloao.org' && url.pathname.startsWith('/api/c/'),
             handler: 'StaleWhileRevalidate',

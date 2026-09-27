@@ -4,6 +4,7 @@ import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { setAudioSession } from '@/lib/audioSession';
+import { backgroundMusic } from '@/services/backgroundMusic';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -58,6 +59,8 @@ if (typeof window !== 'undefined') {
   (audio as any).playsInline = true;
   audio.setAttribute('playsinline', 'true');
   audio.setAttribute('webkit-playsinline', 'true');
+  // Optional piano worship under the reading follows this element
+  backgroundMusic.attach(audio);
 }
 
 interface GlobalAudioState {

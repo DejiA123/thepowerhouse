@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, WifiOff, Highlighter, GraduationCap, Settings, Share2, Eraser } from "lucide-react";
+import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, WifiOff, Highlighter, GraduationCap, Settings, Share2, Eraser, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -21,6 +21,8 @@ import { isGeneralNote, type NoteRecord } from "@/components/notes/noteUtils";
 import { HIGHLIGHT_COLORS, HIGHLIGHTS_CHANGED, NOTES_CHANGED, highlightColor } from "./highlightColors";
 import { cleanVerseArtifacts, escapeHtml, plainVerseText, verseRanges } from "./verseText";
 import type { LibraryTab } from "./BibleLibrarySheet";
+import { useWorshipMusic } from "./WorshipMusicSettings";
+import { backgroundMusic } from "@/services/backgroundMusic";
 import DOMPurify from 'dompurify';
 
 
@@ -1353,6 +1355,7 @@ const BibleAudioBar = ({
   onOpenPlaying: (bookApi: string, chapter: number) => void;
 }) => {
   const globalAudio = useGlobalAudio();
+  const music = useWorshipMusic();
   const a = globalAudio?.audioState;
   const active = !!a?.hasAudio && !!a.isBibleMode;
   const frame = { bottom: box.bottom, left: box.left, right: box.right };
@@ -1455,6 +1458,18 @@ const BibleAudioBar = ({
             Download
           </button>
         ) : null}
+        <button
+          onClick={() => backgroundMusic.update({ enabled: !music.enabled })}
+          className={cn(
+            'shrink-0 rounded-full p-2 transition',
+            music.enabled ? 'bg-white/15 text-sky-300' : 'text-white/60 hover:bg-white/10 hover:text-white'
+          )}
+          aria-label={music.enabled ? 'Turn off piano background' : 'Play piano worship in the background'}
+          aria-pressed={music.enabled}
+          title="Piano background"
+        >
+          <Music className="h-4 w-4" />
+        </button>
         <button onClick={() => globalAudio.reset()} className="shrink-0 rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Stop audio">
           <X className="h-4 w-4" />
         </button>

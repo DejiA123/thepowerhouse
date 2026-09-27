@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, GraduationCap, BookDown } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import WorshipMusicSettings from "./WorshipMusicSettings";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -224,6 +225,8 @@ export const BibleMenuDialog = ({
             </div>
 
             <h3 className="px-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Listening</h3>
+
+            <WorshipMusicSettings />
 
             {/* Auto-Play Next Chapter */}
             <div className="space-y-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm p-4 border border-slate-200 dark:border-slate-700">
