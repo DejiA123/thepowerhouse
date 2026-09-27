@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, MessageCircle, MoreHorizontal, ShieldAlert, UserMinus, Users } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Phone, ShieldAlert, UserMinus, Users, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +19,8 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { appAlert } from '@/lib/appAlert';
-import { SocialService, type CircleEntry } from '@/services/socialService';
+import { useCall } from '@/contexts/CallContext';
+import { SocialService, type CircleEntry, type PrivateChat } from '@/services/socialService';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
 
 interface Props {
@@ -29,21 +30,36 @@ interface Props {
     onFindPeople: () => void;
 }
 
-/** My friends: message them, or remove / block. */
+/** My friends: message or call them, or remove / block. */
 export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props) => {
     const navigate = useNavigate();
+    const { startCall } = useCall();
     const [opening, setOpening] = useState<string | null>(null);
     const [confirm, setConfirm] = useState<{ entry: CircleEntry; kind: 'remove' | 'block' } | null>(null);
+
+    /** Our private chat (the one from the list, or made now the first time) */
+    const chatFor = async (entry: CircleEntry): Promise<PrivateChat> => entry.chat ?? (await SocialService.chatWith(entry.person.id));
 
     const message = async (entry: CircleEntry) => {
         setOpening(entry.person.id);
         try {
-            const chatId = await SocialService.chatWith(entry.person.id);
-            navigate(`/group-chats?chat=${chatId}`);
+            const chat = await chatFor(entry);
+            navigate(`/group-chats?chat=${chat.id}`);
         } catch (e) {
             appAlert("Couldn't open the chat", (e as Error).message, 'error');
         } finally {
             setOpening(null);
+        }
+    };
+
+    // Rings them like any call in the app (they get a call notification too)
+    const call = async (entry: CircleEntry, type: 'audio' | 'video') => {
+        try {
+            const chat = await chatFor(entry);
+            if (!entry.chat) onChanged();
+            await startCall({ id: chat.id, name: chat.name }, type);
+        } catch (e) {
+            appAlert("Couldn't start the call", (e as Error).message, 'error');
         }
     };
 
@@ -89,6 +105,25 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
             <PeopleCard>
                 {friends.map((entry) => (
                     <PersonRow key={entry.friendshipId} person={entry.person} subtitle={`Friends since ${monthYear(entry.since)}`}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    aria-label={`Call ${entry.person.name}`}
+                                    className="h-10 w-10 rounded-full bg-emerald-50 p-0 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                >
+                                    <Phone className="h-[18px] w-[18px]" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                                <DropdownMenuItem onClick={() => call(entry, 'audio')} className="gap-2 rounded-xl p-2.5">
+                                    <Phone className="h-4 w-4" /> Voice call
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => call(entry, 'video')} className="gap-2 rounded-xl p-2.5">
+                                    <Video className="h-4 w-4" /> Video call
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                             size="sm"
                             onClick={() => message(entry)}

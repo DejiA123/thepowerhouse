@@ -127,14 +127,38 @@ async function notify(userId: string, title: string, body: string, url: string, 
   }
 }
 
+/** My private chats with friends: friend id → chat id and name. */
+async function privateChats(me: string): Promise<Map<string, { id: string; name: string }>> {
+  const found = new Map<string, { id: string; name: string }>();
+  const { data: mine } = await supabaseAdmin.from('chat_participants').select('chat_id').eq('user_id', me);
+  const ids = (mine ?? []).map((r) => r.chat_id);
+  if (!ids.length) return found;
+  const { data: chats } = await supabaseAdmin
+    .from('group_chats')
+    .select('id, name')
+    .in('id', ids)
+    .eq('is_custom', true)
+    .eq('is_active', true)
+    .eq('description', 'Private chat');
+  if (!chats?.length) return found;
+  const { data: members } = await supabaseAdmin.from('chat_participants').select('chat_id, user_id').in('chat_id', chats.map((c) => c.id));
+  for (const chat of chats) {
+    const others = (members ?? []).filter((m) => m.chat_id === chat.id && m.user_id !== me);
+    if (others.length === 1 && !found.has(others[0].user_id)) found.set(others[0].user_id, { id: chat.id, name: chat.name });
+  }
+  return found;
+}
+
 /** Friends, requests to me, and requests I've sent: with names and photos. */
 async function circle(me: string) {
   const rows = await myFriendships(me);
-  const people = await peopleById([...new Set(rows.map((r) => other(r, me)))]);
+  const [people, chats] = await Promise.all([peopleById([...new Set(rows.map((r) => other(r, me)))]), privateChats(me)]);
   const entry = (r: FriendshipRow) => ({
     friendshipId: r.id,
     since: r.status === 'accepted' ? r.updated_at : r.created_at,
     person: people.get(other(r, me)) ?? { id: other(r, me), name: 'Member', avatar: null },
+    // Friends: the private chat with them, if there is one yet (calls start from it straight away)
+    chat: r.status === 'accepted' ? chats.get(other(r, me)) ?? null : null,
   });
   const byNewest = (a: FriendshipRow, b: FriendshipRow) => b.updated_at.localeCompare(a.updated_at);
   return {
@@ -259,14 +283,14 @@ async function privateChat(me: string, myName: string, personId: string) {
   if (shared.length) {
     const { data: chats } = await supabaseAdmin
       .from('group_chats')
-      .select('id')
+      .select('id, name')
       .in('id', shared)
       .eq('is_custom', true)
       .eq('is_active', true)
       .eq('description', 'Private chat');
     for (const chat of chats ?? []) {
       const { count } = await supabaseAdmin.from('chat_participants').select('user_id', { count: 'exact', head: true }).eq('chat_id', chat.id);
-      if (count === 2) return { chatId: chat.id };
+      if (count === 2) return { chatId: chat.id, name: chat.name };
     }
   }
 
@@ -274,14 +298,14 @@ async function privateChat(me: string, myName: string, personId: string) {
   const { data: chat, error } = await supabaseAdmin
     .from('group_chats')
     .insert({ name: `${myName} & ${theirName}`, description: 'Private chat', is_custom: true, created_by_user: me, created_by: me })
-    .select('id')
+    .select('id, name')
     .single();
   if (error) throw error;
   await supabaseAdmin.from('chat_participants').insert([{ chat_id: chat.id, user_id: me }, { chat_id: chat.id, user_id: personId }]);
   await supabaseAdmin.from('group_admins').insert([me, personId].map((user_id) => ({
     chat_id: chat.id, user_id, can_add_members: false, can_remove_members: false, can_edit_info: true,
   })));
-  return { chatId: chat.id };
+  return { chatId: chat.id, name: chat.name };
 }
 
 Deno.serve(async (req) => {

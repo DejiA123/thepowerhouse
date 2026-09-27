@@ -18,11 +18,18 @@ export type Relation =
     | { kind: 'none' }
     | { kind: 'friends' | 'sent' | 'received'; friendshipId: string };
 
+export interface PrivateChat {
+    id: string;
+    name: string;
+}
+
 export interface CircleEntry {
     friendshipId: string;
     /** When the friendship started, or when the request was sent */
     since: string;
     person: Person;
+    /** Friends: our private chat, once there is one */
+    chat?: PrivateChat | null;
 }
 
 export interface Circle {
@@ -87,5 +94,6 @@ export const SocialService = {
     remove: (friendshipId: string) => call({ action: 'remove', friendshipId }),
     block: (personId: string) => call({ action: 'block', personId }),
     /** The private chat with a friend (made the first time) */
-    chatWith: (personId: string) => call<{ chatId: string }>({ action: 'chat', personId }).then((r) => r.chatId),
+    chatWith: (personId: string) =>
+        call<{ chatId: string; name: string }>({ action: 'chat', personId }).then((r): PrivateChat => ({ id: r.chatId, name: r.name })),
 };
