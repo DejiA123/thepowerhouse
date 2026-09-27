@@ -6,6 +6,7 @@ import {
   BookOpen,
   Camera,
   Download,
+  Gauge,
   HelpCircle,
   Loader2,
   LogOut,
@@ -31,6 +32,7 @@ import { useCampus } from "@/data/campuses";
 import { appAlert } from "@/lib/appAlert";
 import { disablePush, enablePush, getPushState, isIOS, pushErrorMessage, type PushState } from "@/lib/push";
 import { formatBytes, offlineAudioService } from "@/services/offlineAudioService";
+import { describeLaunch, launchDetails, launchHistory } from "@/lib/launchReport";
 
 import { ProfileEditForm } from "@/components/ProfileEditForm";
 import { UnifiedThemeSettings } from "@/components/UnifiedThemeSettings";
@@ -98,6 +100,8 @@ const UserSettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [editingField, setEditingField] = useState<"name" | "about" | "phone" | "links" | null>(null);
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const lastLaunch = launchHistory()[0];
   const [currentView, setCurrentView] = useState<ViewType>("main");
   const [uploading, setUploading] = useState(false);
   const [pushState, setPushState] = useState<PushState | null>(null);
@@ -388,7 +392,19 @@ const UserSettingsPage = () => {
       <ListGroup>
         <ListRow icon={Share2} iconClassName={tint.pink} title="Invite friends" onClick={() => setCurrentView("invite")} />
         <ListRow icon={HelpCircle} iconClassName={tint.gray} title="Help" onClick={() => setCurrentView("help")} />
+        <ListRow
+          icon={Gauge}
+          iconClassName={tint.teal}
+          title="App speed"
+          value={lastLaunch ? describeLaunch(lastLaunch) : undefined}
+          onClick={() => setSpeedOpen((open) => !open)}
+        />
       </ListGroup>
+      {speedOpen && (
+        <p className="mx-1 mt-2 whitespace-pre-wrap rounded-2xl bg-muted/60 p-4 text-xs leading-relaxed text-muted-foreground">
+          {launchDetails()}
+        </p>
+      )}
 
       {user && (
         <div className="mt-6">

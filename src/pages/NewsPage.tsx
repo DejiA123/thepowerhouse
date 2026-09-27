@@ -17,7 +17,7 @@ type Event = Tables<"events">;
 type Tab = "events" | "updates" | "past";
 
 const CACHE_KEY = "news_events_cache";
-const FEATURE_IMAGE = "/lovable-uploads/Praise.png";
+const FEATURE_IMAGE = "/banners/praise.jpg";
 
 const readCache = (): Event[] => {
   try {

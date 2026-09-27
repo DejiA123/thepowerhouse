@@ -44,7 +44,7 @@ const Header = () => {
           <Link to="/" className="flex items-center space-x-1 tap-feedback">
             <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
               <img
-                src="/lovable-uploads/5c77f128-2db6-4b67-bfe2-b9a79664a7f1.png"
+                src="/brand/logo-144.png"
                 alt="The Power House Logo"
                 className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
               />

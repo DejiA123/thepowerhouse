@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => ({
         // (iPhone suspends the app soon after it's closed). Big features used by
         // few people are saved the first time they're opened instead (see below).
         globIgnores: [
-          '**/*.mp4', '**/lovable-uploads/**', '**/assets/academy/**', 'push-sw.js',
+          '**/*.mp4', '**/lovable-uploads/**', 'splash/**', '**/assets/academy/**', 'push-sw.js',
           '**/html2pdf-*.js', '**/html2canvas*.js',
           '**/ManagementTeamPage-*.js', '**/ChoirPage-*.js',
         ],
