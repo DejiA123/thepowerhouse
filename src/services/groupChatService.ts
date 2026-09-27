@@ -264,18 +264,6 @@ export class GroupChatService {
         chatsChanged();
     }
 
-    static async searchUsers(query: string): Promise<{ id: string; email: string; full_name: string; avatar_url: string }[]> {
-        const q = query.trim().replace(/[%,()]/g, '');
-        if (!q) return [];
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
-            .limit(15);
-        if (error) throw error;
-        return (data || []) as any;
-    }
-
     static async updateGroupInfo(chatId: string, updates: { name?: string; description?: string; avatar_url?: string | null }): Promise<void> {
         const { error } = await supabase.from('group_chats').update(updates).eq('id', chatId);
         if (error) throw error;

@@ -3,8 +3,7 @@ import { Check, Loader2, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
-import { GroupChatService } from '@/services/groupChatService';
-import { SocialService } from '@/services/socialService';
+import { SocialService, type Person } from '@/services/socialService';
 
 export interface PickablePerson {
   id: string;
@@ -21,6 +20,8 @@ interface Props {
   excludeIds?: string[];
 }
 
+const pickable = (p: Person): PickablePerson => ({ id: p.id, full_name: p.name, avatar_url: p.avatar });
+
 /** Choose people from friends or by searching everyone in the church app. */
 const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) => {
   const [friends, setFriends] = useState<PickablePerson[]>([]);
@@ -29,9 +30,11 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) =>
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    SocialService.getFriends(userId)
-      .then((rows) => setFriends(rows.map((r: any) => r.friend).filter(Boolean)))
-      .catch(() => setFriends([]));
+    const saved = SocialService.savedCircle();
+    if (saved) setFriends(saved.friends.map((f) => pickable(f.person)));
+    SocialService.circle()
+      .then((circle) => setFriends(circle.friends.map((f) => pickable(f.person))))
+      .catch(() => undefined);
   }, [userId]);
 
   useEffect(() => {
@@ -41,15 +44,21 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) =>
       return;
     }
     setSearching(true);
+    let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const found = await GroupChatService.searchUsers(q);
-        setResults(found.filter((p) => p.id !== userId));
+        const page = await SocialService.discover(q);
+        if (!cancelled) setResults(page.people.map((p) => pickable(p.person)).filter((p) => p.id !== userId));
+      } catch {
+        if (!cancelled) setResults([]);
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
     }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [query, userId]);
 
   const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
@@ -84,7 +93,7 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) =>
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search members by name or email"
+          placeholder="Search members by name"
           className="h-11 rounded-xl pl-10"
         />
         {searching && <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}

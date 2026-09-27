@@ -1,128 +1,170 @@
-import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Loader2, Search, UserPlus, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Search, UserPlus, Check, X, Loader2, User } from 'lucide-react';
-import { SocialService, Profile, Friendship } from '@/services/socialService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
+import { appAlert } from '@/lib/appAlert';
+import { SocialService, type DiscoverPage, type Person, type Relation } from '@/services/socialService';
+import { EmptyState, PeopleCard, PersonRow, SectionLabel } from './PersonRow';
 
-export const UserSearch = () => {
-    const { user } = useAuth();
+type Found = DiscoverPage['people'][number];
+
+/**
+ * Everyone in the app, A–Z, narrowed down as you type a name (no need to
+ * press search). Add, accept or cancel right from the list.
+ */
+export const UserSearch = ({ onChanged }: { onChanged: () => void }) => {
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<Profile[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [friendshipStatuses, setFriendshipStatuses] = useState<Record<string, Friendship | null>>({});
+    const [people, setPeople] = useState<Found[]>([]);
+    const [hasMore, setHasMore] = useState(false);
+    const [nextOffset, setNextOffset] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const latest = useRef(0);
+    const typed = query.trim();
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!query || query.length < 2 || !user) return;
-
+    // Search as you type: a short pause so every letter doesn't start a new search
+    useEffect(() => {
+        const id = ++latest.current;
         setLoading(true);
-        try {
-            const users = await SocialService.searchUsers(query, user.id);
-            setResults(users);
+        setError(null);
+        const t = setTimeout(async () => {
+            try {
+                const page = await SocialService.discover(typed);
+                if (id !== latest.current) return;
+                setPeople(page.people);
+                setHasMore(page.hasMore);
+                setNextOffset(page.nextOffset);
+            } catch (e) {
+                if (id === latest.current) setError((e as Error).message);
+            } finally {
+                if (id === latest.current) setLoading(false);
+            }
+        }, typed ? 250 : 0);
+        return () => clearTimeout(t);
+    }, [typed]);
 
-            // Fetch friendship status for all results
-            const statuses: Record<string, Friendship | null> = {};
-            await Promise.all(users.map(async (u) => {
-                statuses[u.id] = await SocialService.getFriendshipStatus(user.id, u.id);
-            }));
-            setFriendshipStatuses(statuses);
-        } catch (error) {
-            toast.error('Failed to search users');
+    const more = async () => {
+        setLoadingMore(true);
+        try {
+            const page = await SocialService.discover(typed, nextOffset);
+            setPeople((list) => [...list, ...page.people.filter((p) => !list.some((x) => x.person.id === p.person.id))]);
+            setHasMore(page.hasMore);
+            setNextOffset(page.nextOffset);
+        } catch (e) {
+            appAlert("Couldn't load more people", (e as Error).message, 'error');
         } finally {
-            setLoading(false);
+            setLoadingMore(false);
         }
     };
 
-    const sendRequest = async (targetUserId: string) => {
-        if (!user) return;
+    const setRelation = (personId: string, relation: Relation) =>
+        setPeople((list) => list.map((p) => (p.person.id === personId ? { ...p, relation } : p)));
+
+    const act = async (person: Person, relation: Relation) => {
+        setBusy(person.id);
         try {
-            const request = await SocialService.sendFriendRequest(user.id, targetUserId);
-            setFriendshipStatuses(prev => ({ ...prev, [targetUserId]: request }));
-            toast.success('Friend request sent!');
-        } catch (error) {
-            toast.error('Failed to send friend request');
+            if (relation.kind === 'none') setRelation(person.id, await SocialService.request(person.id));
+            else if (relation.kind === 'received') setRelation(person.id, await SocialService.accept(relation.friendshipId));
+            else if (relation.kind === 'sent') {
+                await SocialService.remove(relation.friendshipId);
+                setRelation(person.id, { kind: 'none' });
+            }
+            onChanged();
+        } catch (e) {
+            appAlert("That didn't go through", (e as Error).message, 'error');
+        } finally {
+            setBusy(null);
         }
     };
+
+    const action = ({ person, relation }: Found) => {
+        const working = busy === person.id;
+        const spinner = <Loader2 className="h-4 w-4 animate-spin" />;
+        switch (relation.kind) {
+            case 'friends':
+                return (
+                    <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-[13px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        <Check className="h-4 w-4" /> Friends
+                    </span>
+                );
+            case 'sent':
+                return (
+                    <Button variant="outline" size="sm" disabled={working} onClick={() => act(person, relation)} className="h-9 rounded-full px-3.5 text-[13px] font-semibold" aria-label={`Cancel request to ${person.name}`}>
+                        {working ? spinner : 'Requested'}
+                    </Button>
+                );
+            case 'received':
+                return (
+                    <Button size="sm" disabled={working} onClick={() => act(person, relation)} className="h-9 rounded-full bg-emerald-600 px-3.5 text-[13px] font-semibold text-white hover:bg-emerald-700">
+                        {working ? spinner : <><Check className="mr-1 h-4 w-4" /> Accept</>}
+                    </Button>
+                );
+            default:
+                return (
+                    <Button size="sm" disabled={working} onClick={() => act(person, relation)} className="h-9 rounded-full bg-indigo-600 px-3.5 text-[13px] font-semibold text-white hover:bg-indigo-700">
+                        {working ? spinner : <><UserPlus className="mr-1 h-4 w-4" /> Add</>}
+                    </Button>
+                );
+        }
+    };
+
+    const subtitle = ({ relation }: Found) =>
+        relation.kind === 'received' ? 'Wants to add you' : relation.kind === 'sent' ? 'Request sent' : relation.kind === 'friends' ? 'In your circle' : 'Member';
 
     return (
-        <div className="space-y-6">
-            <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                    placeholder="Search by name or email..."
+        <div className="space-y-4">
+            <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+                <input
+                    type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="pl-10 h-12 bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-indigo-500"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+                    enterKeyHint="search"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    placeholder="Search people by name"
+                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-11 text-[16px] text-foreground outline-none ring-indigo-500/30 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 dark:border-slate-800 dark:bg-slate-900 [&::-webkit-search-cancel-button]:hidden"
                 />
-            </form>
-
-            <div className="space-y-3">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-10 gap-3">
-                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                        <p className="text-sm font-medium text-slate-500">Finding people...</p>
-                    </div>
-                ) : results.length > 0 ? (
-                    results.map((profile) => {
-                        const status = friendshipStatuses[profile.id];
-                        const isPending = status?.status === 'pending';
-                        const isAccepted = status?.status === 'accepted';
-                        const isSentByMe = status?.user_id === user?.id;
-
-                        return (
-                            <div
-                                key={profile.id}
-                                className="flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 transition-all hover:shadow-md"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="w-12 h-12 border-2 border-indigo-500/10">
-                                        <AvatarImage src={profile.avatar_url || ''} />
-                                        <AvatarFallback className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                                            <User className="w-6 h-6" />
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{profile.full_name}</h4>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">Member</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    {isAccepted ? (
-                                        <Button disabled variant="outline" className="rounded-xl gap-2 text-green-600 border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-900/30">
-                                            <Check className="w-4 h-4" /> Friends
-                                        </Button>
-                                    ) : isPending ? (
-                                        <Button disabled variant="secondary" className="rounded-xl gap-2 italic">
-                                            {isSentByMe ? 'Request Sent' : 'Pending Request'}
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            onClick={() => sendRequest(profile.id)}
-                                            className="rounded-xl gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
-                                        >
-                                            <UserPlus className="w-4 h-4" /> Add Friend
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })
-                ) : query.length >= 2 && !loading ? (
-                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-                        <p className="text-sm font-medium text-slate-500">No users found matching "{query}"</p>
-                    </div>
-                ) : (
-                    <div className="text-center py-10">
-                        <User className="w-12 h-12 text-slate-200 dark:text-slate-800 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-slate-400">Search for people to add them as friends</p>
-                    </div>
-                )}
+                {loading && typed ? (
+                    <Loader2 className="pointer-events-none absolute right-4 top-1/2 z-10 h-[18px] w-[18px] -translate-y-1/2 animate-spin text-slate-400" />
+                ) : query ? (
+                    <button onClick={() => setQuery('')} aria-label="Clear" className="absolute right-2.5 top-1/2 z-10 -translate-y-1/2 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <X className="h-4 w-4" />
+                    </button>
+                ) : null}
             </div>
+
+            {error ? (
+                <EmptyState icon={<Users className="h-7 w-7" />} title="Couldn't load people" message={error} />
+            ) : loading && people.length === 0 ? (
+                <div className="flex justify-center py-12">
+                    <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
+                </div>
+            ) : people.length === 0 ? (
+                <EmptyState
+                    icon={<Search className="h-7 w-7" />}
+                    title={typed ? `No one called "${typed}"` : 'No one here yet'}
+                    message={typed ? 'Check the spelling, or try just their first or last name.' : 'When people join the app, they appear here.'}
+                />
+            ) : (
+                <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+                    <SectionLabel>{typed ? 'People' : 'Everyone in The Power House'}</SectionLabel>
+                    <PeopleCard>
+                        {people.map((found) => (
+                            <PersonRow key={found.person.id} person={found.person} subtitle={subtitle(found)}>
+                                {action(found)}
+                            </PersonRow>
+                        ))}
+                    </PeopleCard>
+                    {hasMore && (
+                        <Button variant="ghost" onClick={more} disabled={loadingMore} className="mt-3 h-11 w-full rounded-2xl font-semibold text-indigo-600 dark:text-indigo-300">
+                            {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Show more people'}
+                        </Button>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

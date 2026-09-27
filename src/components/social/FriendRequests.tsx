@@ -1,131 +1,122 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Check, Heart, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Check, X, Loader2, User, Send } from 'lucide-react';
-import { SocialService, Profile, Friendship } from '@/services/socialService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { appAlert } from '@/lib/appAlert';
+import { SocialService, type CircleEntry } from '@/services/socialService';
+import { EmptyState, PeopleCard, PersonRow, SectionLabel } from './PersonRow';
 
-export const FriendRequests = () => {
-    const { user } = useAuth();
-    const [incoming, setIncoming] = useState<any[]>([]);
-    const [outgoing, setOutgoing] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+interface Props {
+    incoming: CircleEntry[];
+    outgoing: CircleEntry[];
+    loading: boolean;
+    onChanged: () => void;
+    onFindPeople: () => void;
+}
 
-    const fetchData = async () => {
-        if (!user) return;
-        setLoading(true);
+const ago = (iso: string) => {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 7 ? `${days} days ago` : new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+};
+
+/** Requests waiting for me, and the ones I've sent. */
+export const FriendRequests = ({ incoming, outgoing, loading, onChanged, onFindPeople }: Props) => {
+    const [busy, setBusy] = useState<string | null>(null);
+
+    const run = async (id: string, work: () => Promise<unknown>) => {
+        setBusy(id);
         try {
-            const [inc, out] = await Promise.all([
-                SocialService.getIncomingRequests(user.id),
-                SocialService.getOutgoingRequests(user.id)
-            ]);
-            setIncoming(inc);
-            setOutgoing(out);
-        } catch (error) {
-            toast.error('Failed to load requests');
+            await work();
+            onChanged();
+        } catch (e) {
+            appAlert("That didn't go through", (e as Error).message, 'error');
         } finally {
-            setLoading(false);
+            setBusy(null);
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, [user]);
-
-    const handleRespond = async (friendshipId: string, status: 'accepted' | 'declined') => {
-        try {
-            await SocialService.updateFriendshipStatus(friendshipId, status);
-            toast.success(status === 'accepted' ? 'Friend request accepted!' : 'Request declined');
-            fetchData();
-        } catch (error) {
-            toast.error('Failed to update request');
-        }
-    };
-
-    const handleCancel = async (friendshipId: string) => {
-        try {
-            await SocialService.removeFriendship(friendshipId);
-            toast.success('Request cancelled');
-            fetchData();
-        } catch (error) {
-            toast.error('Failed to cancel request');
-        }
-    };
-
-    if (loading) {
+    if (loading && incoming.length === 0 && outgoing.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                <p className="text-sm font-medium text-slate-500">Loading requests...</p>
+            <div className="flex justify-center py-16">
+                <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
             </div>
         );
     }
 
+    if (incoming.length === 0 && outgoing.length === 0) {
+        return (
+            <EmptyState
+                icon={<Heart className="h-7 w-7" />}
+                title="No requests right now"
+                message="When someone wants to add you, it shows up here. You'll get a notification too."
+                action={
+                    <Button onClick={onFindPeople} variant="outline" className="h-11 rounded-full px-6 font-semibold">
+                        Find people
+                    </Button>
+                }
+            />
+        );
+    }
+
+    const spinner = <Loader2 className="h-4 w-4 animate-spin" />;
+
     return (
-        <Tabs defaultValue="incoming" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-2xl mb-6">
-                <TabsTrigger value="incoming" className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-sm transition-all text-xs font-bold uppercase tracking-wider">
-                    Incoming ({incoming.length})
-                </TabsTrigger>
-                <TabsTrigger value="outgoing" className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-sm transition-all text-xs font-bold uppercase tracking-wider">
-                    Sent ({outgoing.length})
-                </TabsTrigger>
-            </TabsList>
+        <div className="space-y-6">
+            {incoming.length > 0 && (
+                <section>
+                    <SectionLabel>Waiting for you</SectionLabel>
+                    <PeopleCard>
+                        {incoming.map((req) => (
+                            <PersonRow
+                                key={req.friendshipId}
+                                person={req.person}
+                                subtitle={`Wants to add you · ${ago(req.since)}`}
+                                below={
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            disabled={busy === req.friendshipId}
+                                            onClick={() => run(req.friendshipId, () => SocialService.accept(req.friendshipId))}
+                                            className="h-9 flex-1 rounded-full bg-emerald-600 text-[13px] font-semibold text-white hover:bg-emerald-700"
+                                        >
+                                            {busy === req.friendshipId ? spinner : <><Check className="mr-1 h-4 w-4" /> Accept</>}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={busy === req.friendshipId}
+                                            onClick={() => run(req.friendshipId, () => SocialService.decline(req.friendshipId))}
+                                            className="h-9 flex-1 rounded-full text-[13px] font-semibold"
+                                        >
+                                            <X className="mr-1 h-4 w-4" /> Decline
+                                        </Button>
+                                    </>
+                                }
+                            />
+                        ))}
+                    </PeopleCard>
+                </section>
+            )}
 
-            <TabsContent value="incoming" className="space-y-4">
-                {incoming.length > 0 ? (
-                    incoming.map((req) => (
-                        <div key={req.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                            <div className="flex items-center gap-3">
-                                <Avatar className="w-10 h-10">
-                                    <AvatarImage src={req.sender?.avatar_url || ''} />
-                                    <AvatarFallback><User className="w-5 h-5" /></AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <h4 className="font-bold text-sm">{req.sender?.full_name}</h4>
-                                    <p className="text-[10px] text-slate-500">Wants to be your friend</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button size="sm" onClick={() => handleRespond(req.id, 'accepted')} className="bg-green-600 hover:bg-green-700 rounded-xl h-8">
-                                    <Check className="w-3 h-3 mr-1" /> Accept
+            {outgoing.length > 0 && (
+                <section>
+                    <SectionLabel>Sent</SectionLabel>
+                    <PeopleCard>
+                        {outgoing.map((req) => (
+                            <PersonRow key={req.friendshipId} person={req.person} subtitle={`Sent ${ago(req.since)}`}>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={busy === req.friendshipId}
+                                    onClick={() => run(req.friendshipId, () => SocialService.remove(req.friendshipId))}
+                                    className="h-9 rounded-full px-3.5 text-[13px] font-semibold"
+                                >
+                                    {busy === req.friendshipId ? spinner : 'Cancel'}
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleRespond(req.id, 'declined')} className="rounded-xl h-8 border-slate-200 dark:border-slate-700">
-                                    <X className="w-3 h-3 mr-1" /> Decline
-                                </Button>
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="text-center py-10 text-slate-400 italic text-sm">No incoming requests</div>
-                )}
-            </TabsContent>
-
-            <TabsContent value="outgoing" className="space-y-4">
-                {outgoing.length > 0 ? (
-                    outgoing.map((req) => (
-                        <div key={req.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-                            <div className="flex items-center gap-3">
-                                <Avatar className="w-10 h-10">
-                                    <AvatarImage src={req.receiver?.avatar_url || ''} />
-                                    <AvatarFallback><User className="w-5 h-5" /></AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <h4 className="font-bold text-sm">{req.receiver?.full_name}</h4>
-                                    <p className="text-[10px] text-slate-500">Request pending...</p>
-                                </div>
-                            </div>
-                            <Button size="sm" variant="ghost" onClick={() => handleCancel(req.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl h-8">
-                                <X className="w-3 h-3 mr-1" /> Cancel
-                            </Button>
-                        </div>
-                    ))
-                ) : (
-                    <div className="text-center py-10 text-slate-400 italic text-sm">No sent requests</div>
-                )}
-            </TabsContent>
-        </Tabs>
+                            </PersonRow>
+                        ))}
+                    </PeopleCard>
+                </section>
+            )}
+        </div>
     );
 };
