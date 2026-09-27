@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { registerSW } from 'virtual:pwa-register';
+import { appAlert } from '@/lib/appAlert';
 
 // Service worker: offline app shell + Web Push. New versions activate
 // automatically; the page reloads once so everyone runs the latest build.
@@ -17,6 +18,23 @@ registerSW({
     setInterval(() => registration.update().catch(() => undefined), 60 * 60 * 1000);
   },
 });
+
+// Once the offline copy is saved: keep the app's storage from being cleared
+// when the phone runs low, and say (once) that it now works with no internet
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then(async (registration) => {
+    try {
+      if (navigator.storage?.persist && !(await navigator.storage.persisted())) await navigator.storage.persist();
+    } catch {
+      /* not supported */
+    }
+    const KEY = 'offline_ready_notice_v1';
+    if (registration.active && !localStorage.getItem(KEY)) {
+      localStorage.setItem(KEY, '1');
+      setTimeout(() => appAlert('Ready to use offline', 'The Power House now opens even with no internet.', 'success'), 4000);
+    }
+  }).catch(() => undefined);
+}
 
 /** Catches render errors so one broken screen doesn't blank the whole app. */
 class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {

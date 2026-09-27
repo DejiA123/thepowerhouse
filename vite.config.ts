@@ -29,8 +29,26 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /\.[a-z0-9]+$/i],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        globIgnores: ['**/*.mp4', '**/lovable-uploads/**', '**/assets/academy/**', 'push-sw.js'],
+        // The offline copy saved on install is kept small so it finishes quickly
+        // (iPhone suspends the app soon after it's closed). Big features used by
+        // few people are saved the first time they're opened instead (see below).
+        globIgnores: [
+          '**/*.mp4', '**/lovable-uploads/**', '**/assets/academy/**', 'push-sw.js',
+          '**/html2pdf-*.js', '**/html2canvas*.js',
+          '**/ManagementTeamPage-*.js', '**/ChoirPage-*.js',
+        ],
         runtimeCaching: [
+          {
+            // App code left out of the install-time copy: saved the first time it's used,
+            // then it works offline too (file names change with every release)
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'app-extras',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
           {
             // Images (uploads, avatars, storage) - fast from cache, refreshed in background
             urlPattern: ({ request }) => request.destination === 'image',
