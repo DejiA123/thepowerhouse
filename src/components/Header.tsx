@@ -1,17 +1,33 @@
 
-import { useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, Search, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import SearchDialog from "./SearchDialog";
-import MenuDrawer from "./MenuDrawer";
+// Loaded when first opened (and quietly once the app is idle), so they don't
+// slow down the app's start
+const loadSearch = () => import("./SearchDialog");
+const loadMenu = () => import("./MenuDrawer");
+const SearchDialog = lazy(loadSearch);
+const MenuDrawer = lazy(loadMenu);
 
 const Header = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchUsed, setSearchUsed] = useState(false);
+  const [menuUsed, setMenuUsed] = useState(false);
+
+  useEffect(() => {
+    const warm = () => {
+      loadMenu();
+      loadSearch();
+    };
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const t = setTimeout(() => (idle ? idle(warm) : warm()), 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleUserIconClick = () => {
     if (user) {
@@ -39,9 +55,41 @@ const Header = () => {
           </Link>
 
           <div className="flex items-center space-x-1">
-            <MenuDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground p-2 rounded-xl tap-feedback"
+              onClick={() => {
+                setMenuUsed(true);
+                setMenuOpen(true);
+              }}
+              aria-label="Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+            {menuUsed && (
+              <Suspense fallback={null}>
+                <MenuDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+              </Suspense>
+            )}
 
-            <SearchDialog searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-300 w-10 h-10 group"
+              onClick={() => {
+                setSearchUsed(true);
+                setSearchOpen(true);
+              }}
+            >
+              <Search className="w-5 h-5 transition-transform group-hover:scale-110" />
+              <span className="sr-only">Search</span>
+            </Button>
+            {searchUsed && (
+              <Suspense fallback={null}>
+                <SearchDialog searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
+              </Suspense>
+            )}
 
             <Button
               variant="ghost"

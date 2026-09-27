@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +23,7 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
-import SidebarCustomizer from "./SidebarCustomizer";
+const SidebarCustomizer = lazy(() => import("./SidebarCustomizer"));
 import { motion, AnimatePresence } from "framer-motion";
 
 interface MenuDrawerProps {
@@ -69,11 +69,6 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground p-2 rounded-xl tap-feedback">
-          <Menu className="w-5 h-5" />
-        </Button>
-      </SheetTrigger>
       <SheetContent side="left" className="w-[300px] sm:w-[400px] border-r border-border/50 bg-background/95 backdrop-blur-xl">
         <SheetHeader className="text-left border-b border-border/50 pb-4 mb-4">
           <SheetTitle className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600 dark:from-primary dark:to-violet-400">
@@ -224,10 +219,11 @@ const MenuDrawer = ({ menuOpen, setMenuOpen }: MenuDrawerProps) => {
           </div>
         </div>
       </SheetContent>
-      <SidebarCustomizer 
-        isOpen={showCustomizer} 
-        onClose={() => setShowCustomizer(false)} 
-      />
+      {showCustomizer && (
+        <Suspense fallback={null}>
+          <SidebarCustomizer isOpen={showCustomizer} onClose={() => setShowCustomizer(false)} />
+        </Suspense>
+      )}
     </Sheet>
   );
 };

@@ -183,6 +183,20 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
 };
 
+/**
+ * Fades out the splash screen (index.html) once sign-in is known and the
+ * first page's code has loaded (this sits inside the same Suspense boundary).
+ */
+const AppReady = () => {
+  const { loading } = useAuth();
+  useEffect(() => {
+    if (loading) return;
+    // Two frames: let the page paint underneath first
+    requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new Event('app-ready'))));
+  }, [loading]);
+  return null;
+};
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
@@ -195,6 +209,7 @@ const AppRoutes = () => {
       }}>
         <Layout>
           <Suspense fallback={<PageFallback />}>
+          <AppReady />
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/" element={<HomePage />} />

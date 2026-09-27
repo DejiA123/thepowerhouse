@@ -52,6 +52,12 @@
   <meta name="twitter:site" content="@powerhouse_intl" />
   <meta name="twitter:image" content="/favicon.png" />
 
+  <!-- Fonts load alongside the app instead of holding up the first paint -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700;800&display=swap" /></noscript>
+
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -69,6 +75,50 @@
     })();
   </script>
   <div id="root"></div>
+  <!-- Shown the instant the app opens, until the first screen is ready -->
+  <div id="splash" aria-hidden="true">
+    <img src="/icons/icon-192.png" alt="" width="88" height="88" />
+    <div class="splash-name">The Power House</div>
+    <div class="splash-bar"><span></span></div>
+  </div>
+  <style>
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: #ffffff;
+      transition: opacity 0.28s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    html.dark #splash { background: #0a0a0a; }
+    #splash img { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 10px 30px rgba(29, 63, 214, 0.18); }
+    #splash .splash-name { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #0f172a; }
+    html.dark #splash .splash-name { color: #f1f5f9; }
+    #splash .splash-bar { width: 120px; height: 3px; border-radius: 3px; overflow: hidden; background: rgba(29, 63, 214, 0.12); margin-top: 6px; }
+    #splash .splash-bar span { display: block; width: 40%; height: 100%; border-radius: 3px; background: #1d3fd6; animation: splash-slide 1.1s ease-in-out infinite; }
+    #splash.splash-hide { opacity: 0; pointer-events: none; }
+    @keyframes splash-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+  </style>
+  <script>
+    // The app fires "app-ready" once its first screen is on show
+    (function () {
+      var splash = document.getElementById('splash');
+      function hide() {
+        if (!splash) return;
+        var el = splash;
+        splash = null;
+        el.classList.add('splash-hide');
+        setTimeout(function () { el.parentNode && el.parentNode.removeChild(el); }, 320);
+      }
+      window.addEventListener('app-ready', hide);
+      setTimeout(hide, 12000);
+    })();
+  </script>
   <style>
     /* Prevent blue rubber-band background bleed behind the notch/status area on iOS Safari */
     html,

@@ -5,11 +5,11 @@ import {
   MessageSquare, MapPin, Settings, LogOut, FileText, Shield,
   ChevronLeft, ChevronRight, Bookmark, Handshake, MessageCircle
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
-import SidebarCustomizer from "./SidebarCustomizer";
+const SidebarCustomizer = lazy(() => import("./SidebarCustomizer"));
 import { Sparkles, PlusCircle } from "lucide-react";
 
 const DesktopSidebar = () => {
@@ -283,10 +283,11 @@ const DesktopSidebar = () => {
         )}
       </div>
 
-      <SidebarCustomizer 
-        isOpen={showCustomizer} 
-        onClose={() => setShowCustomizer(false)} 
-      />
+      {showCustomizer && (
+        <Suspense fallback={null}>
+          <SidebarCustomizer isOpen={showCustomizer} onClose={() => setShowCustomizer(false)} />
+        </Suspense>
+      )}
     </aside>
   );
 };

@@ -198,16 +198,6 @@ const SearchDialog = ({ searchOpen, setSearchOpen }: SearchDialogProps) => {
 
   return (
     <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-300 w-10 h-10 group"
-        >
-          <Search className="w-5 h-5 transition-transform group-hover:scale-110" />
-          <span className="sr-only">Search</span>
-        </Button>
-      </DialogTrigger>
 
       <DialogContent className="w-screen h-[100dvh] max-w-none m-0 p-0 border-none bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl duration-200 gap-0 data-[state=open]:slide-in-from-bottom-5 [&>button]:hidden">
         <DialogTitle className="sr-only">Search</DialogTitle>

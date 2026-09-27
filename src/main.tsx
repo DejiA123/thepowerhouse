@@ -28,6 +28,8 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('App crashed:', error, info.componentStack);
+    // Don't keep the splash screen over the error message
+    window.dispatchEvent(new Event('app-ready'));
   }
 
   render() {

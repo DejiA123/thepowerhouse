@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Book, Calendar, Heart, Info } from "lucide-react";
-import { motion } from "framer-motion";
 
 const BottomNavigation = () => {
   const location = useLocation();
@@ -41,18 +40,12 @@ const BottomNavigation = () => {
               className="flex flex-col items-center justify-start py-0 px-4 min-w-0 flex-1 h-full relative z-10"
               draggable="false"
             >
-              <motion.div
-                className="flex flex-col items-center relative"
-                whileTap={{ scale: 0.85 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              >
-                {/* Animated active pill behind the icon */}
+              {/* Plain CSS here: this bar is on every screen, so it mustn't pull the
+                  animation library into the app's start-up code */}
+              <div className="relative flex flex-col items-center transition-transform duration-150 active:scale-[0.85]">
+                {/* Active pill behind the icon */}
                 {isActive && (
-                  <motion.div
-                    layoutId="activeTabPill"
-                    className="absolute -inset-x-2 -inset-y-1 bg-primary/10 dark:bg-primary/20 rounded-2xl"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
+                  <div className="absolute -inset-x-2 -inset-y-1 rounded-2xl bg-primary/10 animate-in fade-in zoom-in-90 duration-200 dark:bg-primary/20" />
                 )}
                 <Icon
                   className={`w-[22px] h-[22px] transition-colors duration-200 mb-1 relative z-10 ${isActive
@@ -69,7 +62,7 @@ const BottomNavigation = () => {
                 >
                   {item.name}
                 </span>
-              </motion.div>
+              </div>
             </Link>
           );
         })}

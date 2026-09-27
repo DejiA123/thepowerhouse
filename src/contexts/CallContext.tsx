@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -8,8 +8,9 @@ import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone
 import { setAudioSession } from '@/lib/audioSession';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
-import IncomingCallScreen from '@/components/calls/IncomingCallScreen';
-import CallScreen from '@/components/calls/CallScreen';
+// Loaded when a call rings or starts, not at app start
+const IncomingCallScreen = lazy(() => import('@/components/calls/IncomingCallScreen'));
+const CallScreen = lazy(() => import('@/components/calls/CallScreen'));
 
 export interface IncomingCall {
   callId: string;
@@ -474,10 +475,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <CallContext.Provider value={value}>
       {children}
-      {incomingCall && !value.call && (
-        <IncomingCallScreen call={incomingCall} onAccept={acceptCall} onDecline={declineCall} />
-      )}
-      {value.call && <CallScreen />}
+      <Suspense fallback={null}>
+        {incomingCall && !value.call && (
+          <IncomingCallScreen call={incomingCall} onAccept={acceptCall} onDecline={declineCall} />
+        )}
+        {value.call && <CallScreen />}
+      </Suspense>
     </CallContext.Provider>
   );
 };

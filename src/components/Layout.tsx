@@ -1,10 +1,22 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
 import DesktopSidebar from "./DesktopSidebar";
-import GlobalMiniPlayer from "./GlobalMiniPlayer";
+import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+
+// The floating player (and its animation library) loads only once something plays
+const GlobalMiniPlayer = lazy(() => import("./GlobalMiniPlayer"));
+const MiniPlayerSlot = () => {
+  const { audioState } = useGlobalAudio();
+  if (!audioState.hasAudio || audioState.isBibleMode) return null;
+  return (
+    <Suspense fallback={null}>
+      <GlobalMiniPlayer />
+    </Suspense>
+  );
+};
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface LayoutProps {
@@ -254,7 +266,7 @@ const Layout = ({ children }: LayoutProps) => {
         {isMobile && showChrome && location.pathname !== '/follow-up' && !inConversation && <BottomNavigation />}
 
         {/* Global Mini Player for Background Audio */}
-        <GlobalMiniPlayer />
+        <MiniPlayerSlot />
       </div>
     </div>
   );

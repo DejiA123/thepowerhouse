@@ -153,7 +153,8 @@ export default defineConfig(({ mode }) => ({
       },
     },
     chunkSizeWarningLimit: 4000,
-    target: 'es2015',
+    // Modern JavaScript (iOS 14+, current Android): smaller and quicker to start than es2015
+    target: ['es2020', 'safari14'],
     minify: 'esbuild',
     sourcemap: false,
     assetsInlineLimit: 0,
