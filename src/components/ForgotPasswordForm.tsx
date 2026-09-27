@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Mail, KeyRound, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { appUrl } from "@/lib/authRedirect";
 
 interface ForgotPasswordFormProps {
   onBackToLogin: () => void;
@@ -24,7 +25,7 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://thepowerhouse.lovable.app/reset-password`,
+        redirectTo: appUrl('/reset-password'),
       });
 
       if (error) {

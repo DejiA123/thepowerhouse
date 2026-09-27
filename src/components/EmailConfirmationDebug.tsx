@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { appUrl } from '@/lib/authRedirect';
 
 export const EmailConfirmationDebug = () => {
   const [testEmail, setTestEmail] = useState('test@example.com');
@@ -16,7 +17,7 @@ export const EmailConfirmationDebug = () => {
         email: testEmail,
         password: testPassword,
         options: {
-          emailRedirectTo: `https://thepowerhouse.lovable.app/email-confirmation`,
+          emailRedirectTo: appUrl('/email-confirmation'),
           data: {
             full_name: 'Test User',
           },

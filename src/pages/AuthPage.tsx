@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { appAlert } from "@/lib/appAlert";
-import { peekNext, rememberNext, takeNext } from "@/lib/authRedirect";
+import { peekNext, rememberNext, takeNext, appUrl } from "@/lib/authRedirect";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
@@ -124,7 +124,7 @@ const AuthPage = () => {
     try {
       console.log('Attempting signup with:', {
         email: signupEmail,
-        redirectTo: `https://thepowerhouse.lovable.app/email-confirmation`
+        redirectTo: appUrl('/email-confirmation')
       });
 
       const { data, error } = await supabase.auth.signUp({
@@ -134,7 +134,7 @@ const AuthPage = () => {
           data: {
             full_name: signupFullName,
           },
-          emailRedirectTo: `https://thepowerhouse.lovable.app/email-confirmation`
+          emailRedirectTo: appUrl('/email-confirmation')
         }
       });
 

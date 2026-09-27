@@ -3,6 +3,13 @@
  * (/auth?next=…) and in storage, so it survives the email-confirmation link
  * and Google sign-in, which leave the app and come back.
  */
+/**
+ * A page of this app as a full address, for links in sign-up and password
+ * emails. Uses the address the app is open on (https://thepowerhouseintl.vercel.app
+ * for everyone), so the links always come back to the same app.
+ */
+export const appUrl = (path: string) => `${window.location.origin}${path}`;
+
 const NEXT_KEY = 'auth_next_v1';
 const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 

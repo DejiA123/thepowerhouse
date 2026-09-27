@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { detachPushFromUser } from '@/lib/push';
 import { installOfflineAuth, isOffline, storedSession } from '@/lib/offlineAuth';
+import { appUrl } from '@/lib/authRedirect';
 
 installOfflineAuth();
 
@@ -194,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         options: {
-          emailRedirectTo: `https://thepowerhouse.lovable.app/email-confirmation`,
+          emailRedirectTo: appUrl('/email-confirmation'),
           data: {
             full_name: fullName,
           },
