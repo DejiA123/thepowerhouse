@@ -97,7 +97,10 @@ const AppEvents = () => {
 
   // Link this device's push subscription to the signed-in user
   useEffect(() => {
-    if (user) syncPushSubscription();
+    if (!user) return;
+    // After the first screen is up: it talks to the server and isn't urgent
+    const t = setTimeout(() => syncPushSubscription(), 3000);
+    return () => clearTimeout(t);
   }, [user?.id]);
 
   // Notifications on automatically (silently if already allowed, otherwise asked on the first tap)

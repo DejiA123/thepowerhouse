@@ -109,8 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       };
 
-      // Offline: open straight away with the saved sign-in
-      if (isOffline()) keepSaved();
+      // Open straight away with the saved sign-in (online or not); Supabase
+      // renews it in the background and we switch to the fresh one when ready
+      keepSaved();
 
       // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(

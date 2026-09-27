@@ -1,10 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 const ScrollToTop = () => {
     const { pathname } = useLocation();
+    const opened = useRef(false);
 
     useEffect(() => {
+        // The app has only just opened, so it's already at the top. Skipping this
+        // here spares three forced page layouts while the first screen is drawn.
+        if (!opened.current) {
+            opened.current = true;
+            return;
+        }
+
         const resetAllScrollPositions = () => {
             // Reset window and body scroll
             window.scrollTo(0, 0);

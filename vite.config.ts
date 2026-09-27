@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' && componentTagger(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // New versions wait until the app is put away, then take over (see main.tsx)
+      registerType: 'prompt',
       // The app registers /sw.js itself (see src/lib/serviceWorker.ts)
       injectRegister: false,
       // public/manifest.json is the single source of truth for install metadata
@@ -24,7 +25,6 @@ export default defineConfig(({ mode }) => ({
         importScripts: ['/push-sw.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/functions\//, /^\/auth\//, /\.[a-z0-9]+$/i],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
@@ -70,7 +70,8 @@ export default defineConfig(({ mode }) => ({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-data',
-              networkTimeoutSeconds: 8,
+              // Weak signal: fall back to the saved copy after 4s rather than keep waiting
+              networkTimeoutSeconds: 4,
               expiration: { maxEntries: 1500, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [200] },
               plugins: [
@@ -112,13 +113,13 @@ export default defineConfig(({ mode }) => ({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'bible-api',
-              networkTimeoutSeconds: 8,
+              networkTimeoutSeconds: 4,
               expiration: { maxEntries: 800, maxAgeSeconds: 60 * 60 * 24 * 60 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            // Fonts (Inter, Outfit) so text looks the same with no connection
+            // Any Google Fonts a page pulls in (the app's own fonts ship in /fonts)
             urlPattern: ({ url }) => url.hostname === 'fonts.googleapis.com',
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'google-fonts-css', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },

@@ -5,10 +5,20 @@ import './index.css'
 import { registerSW } from 'virtual:pwa-register';
 import { appAlert } from '@/lib/appAlert';
 
-// Service worker: offline app shell + Web Push. New versions activate
-// automatically; the page reloads once so everyone runs the latest build.
-registerSW({
+// Service worker: offline app shell + Web Push.
+// A new version downloads in the background and waits. It takes over when the
+// app is put away (or right away if it arrived as the app was opening, before
+// anything was touched), so nobody sees the app reload while using it and
+// reopening doesn't mean starting twice.
+let updateReady = false;
+let touched = false;
+const openedAt = Date.now();
+const updateSW = registerSW({
   immediate: true,
+  onNeedRefresh() {
+    updateReady = true;
+    if (!touched && Date.now() - openedAt < 4000) updateSW(true);
+  },
   onRegisteredSW(_url, registration) {
     if (!registration) return;
     // Look for updates when the app returns to the foreground and hourly
@@ -18,6 +28,10 @@ registerSW({
     setInterval(() => registration.update().catch(() => undefined), 60 * 60 * 1000);
   },
 });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && updateReady) updateSW(true);
+});
+['pointerdown', 'keydown'].forEach((type) => window.addEventListener(type, () => (touched = true), { once: true, capture: true }));
 
 // Once the offline copy is saved: keep the app's storage from being cleared
 // when the phone runs low, and say (once) that it now works with no internet

@@ -347,16 +347,23 @@ export const enhancedApiBibleService = {
    */
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     const key = offlineTextKey(version, book, chapter);
-    // Books downloaded for offline reading open straight from the device
-    if (isDownloaded(version, book)) {
-      const saved = (await loadOfflineText(key)) as BibleChapter | null;
-      if (saved?.verses?.length) return saved;
+    // A chapter already on this phone opens instantly. Bible text doesn't change,
+    // so a saved copy is only refreshed (quietly, in the background) once a week.
+    const saved = (await loadOfflineText(key)) as (BibleChapter & { savedAt?: number }) | null;
+    if (saved?.verses?.length) {
+      const stale = !saved.savedAt || Date.now() - saved.savedAt > 7 * 24 * 60 * 60 * 1000;
+      if (stale && !isDownloaded(version, book) && navigator.onLine !== false) {
+        this.getChapterOnline(version, book, chapter)
+          .then((fresh) => fresh?.verses?.length && saveOfflineText(key, { ...fresh, savedAt: Date.now() }))
+          .catch(() => undefined);
+      }
+      return saved;
     }
     if (navigator.onLine !== false) {
       try {
         const fresh = await this.getChapterOnline(version, book, chapter);
         if (fresh) {
-          saveOfflineText(key, fresh);
+          saveOfflineText(key, { ...fresh, savedAt: Date.now() });
           return fresh;
         }
       } catch (error) {

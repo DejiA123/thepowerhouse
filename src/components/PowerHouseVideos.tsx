@@ -18,6 +18,9 @@ const PowerHouseVideos = () => {
   const [activeVideo, setActiveVideo] = useState<(VideoData & { isLive?: boolean }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveNow, setIsLiveNow] = useState(false);
+  // The YouTube player is only loaded once someone taps play (it's large, and on
+  // iPhone it would run alongside the app while it's opening)
+  const [playing, setPlaying] = useState(false);
   const [liveServiceInfo, setLiveServiceInfo] = useState<any>(null);
 
   const checkLiveStatus = async () => {
@@ -104,8 +107,11 @@ const PowerHouseVideos = () => {
 
   const embedSrc = (video: VideoData & { isLive?: boolean }) =>
     video.id === "live_stream"
-      ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=0`
-      : `https://www.youtube-nocookie.com/embed/${video.id}?autoplay=0`;
+      ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=1`
+      : `https://www.youtube-nocookie.com/embed/${video.id}?autoplay=1`;
+
+  // The live channel stream has no picture of its own until it's playing
+  const poster = (video: VideoData) => (video.id === "live_stream" ? "" : `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`);
 
   return (
     <section className="rounded-[26px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800 md:p-6">
@@ -147,17 +153,33 @@ const PowerHouseVideos = () => {
         <div className="grid items-start gap-5 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg">
-              <iframe
-                className="h-full w-full"
-                src={embedSrc(activeVideo)}
-                title={activeVideo.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-                loading="lazy"
-                {...({ fetchpriority: "low" } as any)}
-              ></iframe>
+              {playing ? (
+                <iframe
+                  className="h-full w-full"
+                  src={embedSrc(activeVideo)}
+                  title={activeVideo.title}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPlaying(true)}
+                  aria-label={`Play ${activeVideo.title}`}
+                  className="group absolute inset-0 h-full w-full"
+                >
+                  {poster(activeVideo) && (
+                    <img src={poster(activeVideo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+                    <span className="flex h-14 w-20 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg transition group-active:scale-95">
+                      <Play className="h-7 w-7 fill-current" />
+                    </span>
+                  </span>
+                </button>
+              )}
             </div>
             <div className="mt-3 px-1">
               {activeVideo.isLive ? (
@@ -181,7 +203,10 @@ const PowerHouseVideos = () => {
                   .map((video) => (
                     <button
                       key={video.id}
-                      onClick={() => setActiveVideo(video)}
+                      onClick={() => {
+                        setActiveVideo(video);
+                        setPlaying(true);
+                      }}
                       className="flex w-full gap-3 rounded-2xl p-1.5 text-left transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800/60"
                     >
                       <span className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">

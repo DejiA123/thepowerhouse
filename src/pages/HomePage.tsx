@@ -1,20 +1,25 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heart, MessageSquare, Users, Book, Lock, Calendar, Map, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import DailyScripture from "@/components/DailyScripture";
-import EventCountdown from "@/components/EventCountdown";
-import LocationsSection from "@/components/LocationsSection";
-import PowerHouseVideos from "@/components/PowerHouseVideos";
 import NotificationPrompt from "@/components/notifications/NotificationPrompt";
 import HomeToday, { type HomeBanner } from "@/components/home/HomeToday";
+import { useAfterFirstScreen } from "@/hooks/useAfterFirstScreen";
+
+// Further down the page: loaded just after the first screen is showing
+const DailyScripture = lazy(() => import("@/components/DailyScripture"));
+const EventCountdown = lazy(() => import("@/components/EventCountdown"));
+const LocationsSection = lazy(() => import("@/components/LocationsSection"));
+const PowerHouseVideos = lazy(() => import("@/components/PowerHouseVideos"));
 
 const HomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("welcome");
+  // The top of the page is drawn first; everything below it follows a moment later
+  const showRest = useAfterFirstScreen();
 
   const handleNewHereClick = () => {
     navigate("/new-here");
@@ -120,6 +125,8 @@ const HomePage = () => {
         teachingsUrl="https://www.youtube.com/@thepowerhouseintl/videos"
       />
 
+      {showRest && (
+      <Suspense fallback={null}>
       {/* Campus Fellowships - Premium Redesign */}
       <div className="px-4 mb-8 max-w-[1400px] mx-auto mt-6">
         <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">
@@ -285,6 +292,8 @@ const HomePage = () => {
       <div className="px-4 mb-6">
         <PowerHouseVideos />
       </div>
+      </Suspense>
+      )}
     </div>
   );
 };

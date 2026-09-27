@@ -1,41 +1,34 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Book, Shuffle } from "lucide-react";
+import { Book, Play, Shuffle } from "lucide-react";
 import { getTodaysScripture, getRandomScripture } from "@/utils/dailyScriptureUtils";
+
+// List of Shorts IDs
+const shortsIds = [
+  "JGUmWeuY4pU", "GA4qFuKt-2I", "dAh8tG6jxDI", "BxFJPCG9vMU", "EjGuZW77aVU",
+  "S1k8y0dK76s", "7liSmxfYtB8", "gXGmqnYQsyI", "DQHlK_kEZz4", "Jj0-3pTMjmg",
+  "lsSrFvBRU5Q", "QYydTsMvqUY", "FCNWG3FN-H0", "puyMbu13k_s", "mvp6pubURyk",
+  "cdFlwTCyvGg", "UTkYnhEmGkk", "7qataP2zPVo", "bf1Rokk-OMg", "UqZwLMeJ5Nc",
+  "PXBn8ha5ngg", "K7vu4qa-UVo", "LO0oG0HwN-8", "BZ6MlyT9q98", "moMneTgjIYM",
+  "0jiy0AG8jCg", "5kWyNjixmrk", "3IVfo4jkRIs", "ZSrxOZseS9c", "pcJlQJwb9v8"
+];
 
 const DailyScripture = ({ showVerse = true }: { showVerse?: boolean }) => {
   const [scripture, setScripture] = useState(getTodaysScripture());
-  const [randomIndex, setRandomIndex] = useState(0);
-
-  // List of Shorts IDs
-  const shortsIds = [
-    "JGUmWeuY4pU", "GA4qFuKt-2I", "dAh8tG6jxDI", "BxFJPCG9vMU", "EjGuZW77aVU",
-    "S1k8y0dK76s", "7liSmxfYtB8", "gXGmqnYQsyI", "DQHlK_kEZz4", "Jj0-3pTMjmg",
-    "lsSrFvBRU5Q", "QYydTsMvqUY", "FCNWG3FN-H0", "puyMbu13k_s", "mvp6pubURyk",
-    "cdFlwTCyvGg", "UTkYnhEmGkk", "7qataP2zPVo", "bf1Rokk-OMg", "UqZwLMeJ5Nc",
-    "PXBn8ha5ngg", "K7vu4qa-UVo", "LO0oG0HwN-8", "BZ6MlyT9q98", "moMneTgjIYM",
-    "0jiy0AG8jCg", "5kWyNjixmrk", "3IVfo4jkRIs", "ZSrxOZseS9c", "pcJlQJwb9v8"
-  ];
-
-  const channelId = "UC35azCG6jqVkR2G8aH91v4A";
-
-  const refreshVideo = () => {
-    const newIndex = Math.floor(Math.random() * shortsIds.length);
-    setRandomIndex(newIndex);
-  };
+  // A different Short each visit
+  const [randomIndex] = useState(() => Math.floor(Math.random() * shortsIds.length));
+  // The YouTube player only loads once play is tapped (it's large, and on
+  // iPhone it would run alongside the app while it's opening)
+  const [playing, setPlaying] = useState(false);
 
   const handleShuffle = () => {
     setScripture(getRandomScripture(scripture.reference));
   };
 
-  useEffect(() => {
-    refreshVideo();
-  }, []);
-
   const videoId = shortsIds[randomIndex];
-  const playlistUrl = `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`;
+  const playlistUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`;
 
   return (
     <div className="relative overflow-hidden rounded-3xl p-1 shadow-xl shadow-indigo-100/50">
@@ -85,17 +78,38 @@ const DailyScripture = ({ showVerse = true }: { showVerse?: boolean }) => {
             <div className="relative group w-full max-w-[260px] mx-auto">
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[20px] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
               <div className="relative aspect-[9/16] w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-100">
-                <iframe
-                  className="w-full h-full"
-                  src={playlistUrl}
-                  title="Daily Christian Inspiration"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allowFullScreen
-                  loading="lazy"
-                  {...({ fetchpriority: "low" } as any)}
-                ></iframe>
+                {playing ? (
+                  <iframe
+                    className="w-full h-full"
+                    src={playlistUrl}
+                    title="Daily Christian Inspiration"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  ></iframe>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPlaying(true)}
+                    aria-label="Play today's inspiration video"
+                    className="group/play absolute inset-0 h-full w-full"
+                  >
+                    {/* YouTube's picture of a Short has it upright in the middle; cropping to the frame shows just that */}
+                    <img
+                      src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/10">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-indigo-600 shadow-lg transition group-active/play:scale-95">
+                        <Play className="ml-0.5 h-6 w-6 fill-current" />
+                      </span>
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 

@@ -112,12 +112,14 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [user, refreshNotifications]);
 
   useEffect(() => {
-    refreshNotifications();
-    if (!user) return;
+    // Let the first screen load before checking notifications and unread chats
+    const first = setTimeout(refreshNotifications, 2500);
+    if (!user) return () => clearTimeout(first);
     const interval = setInterval(refreshNotifications, 60000);
     const onVisible = () => document.visibilityState === 'visible' && refreshNotifications();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
+      clearTimeout(first);
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
