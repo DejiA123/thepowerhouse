@@ -38,7 +38,7 @@ const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, on
 
   return (
     <Drawer open={!!message} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="z-[70] pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+      <DrawerContent className="pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
         <DrawerTitle className="sr-only">Message options</DrawerTitle>
         {message && (
           <div className="mx-auto w-full max-w-md px-3 pt-3">
