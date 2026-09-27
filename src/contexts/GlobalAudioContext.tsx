@@ -406,9 +406,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.error(error);
         reloadAndPlay(from);
       });
-      // iOS lock screen can report "playing" while no sound comes out: if time
-      // doesn't move, reload the file at the same position.
+      // iOS can report "playing" while no sound comes out: if time doesn't move,
+      // reload the file at the same position. Only on screen: in the background
+      // a reload can't restart the sound and would cut it off instead.
       setTimeout(() => {
+        if (document.visibilityState !== 'visible') return;
         if (!audio.paused && !audio.ended && Math.abs(audio.currentTime - from) < 0.25) reloadAndPlay(from);
       }, 2500);
     } else {
@@ -574,14 +576,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audio.currentTime = Math.min(Math.max(0, audio.currentTime + delta), Math.max(0, audio.duration - 0.5));
       };
       const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
-        ['play', () => {
-          ms.playbackState = 'playing';
-          resume();
-        }],
-        ['pause', () => {
-          ms.playbackState = 'paused';
-          pause();
-        }],
+        // Play and Pause are left to iPhone/Android themselves (no handler = the
+        // system plays/pauses the audio directly). That works even while the app
+        // is frozen in the background, which a JavaScript handler can't do: it
+        // made the lock-screen Play button do nothing after a pause. The app
+        // follows along through the audio element's play/pause events.
+        ['play', null],
+        ['pause', null],
         ['stop', reset],
         ['nexttrack', goToNextChapter],
         ['previoustrack', goToPreviousChapter],
