@@ -179,6 +179,19 @@ export const offlineAudioService = {
     }
   },
 
+  /** The saved copy of a chapter as a file, or null when it isn't on the device. */
+  async savedBlob(remoteUrl: string): Promise<Blob | null> {
+    if (!offlineAudioSupported() || !this.isSavedUrl(remoteUrl)) return null;
+    try {
+      const hit = await (await caches.open(CACHE_NAME)).match(remoteUrl);
+      if (!hit) return null;
+      const blob = await hit.blob();
+      return blob.type ? blob : new Blob([blob], { type: 'audio/mpeg' });
+    } catch {
+      return null;
+    }
+  },
+
   async downloadChapter(
     book: string,
     chapter: number,

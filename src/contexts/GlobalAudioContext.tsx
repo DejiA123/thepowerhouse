@@ -6,6 +6,7 @@ import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { setAudioSession } from '@/lib/audioSession';
 import { backgroundMusic } from '@/services/backgroundMusic';
 import { appAlert } from '@/lib/appAlert';
+import { isIOS } from '@/lib/push';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -62,6 +63,79 @@ if (typeof window !== 'undefined') {
   audio.setAttribute('webkit-playsinline', 'true');
   // Optional piano worship under the reading follows this element
   backgroundMusic.attach(audio);
+}
+
+// ── Next chapter ready in memory (Android, tablets and computers) ──
+// With the screen off, Android pulls the media notification a moment after the
+// sound stops and then freezes the app, and archive.org often takes several
+// seconds to start a file. So while a chapter plays, the whole next chapter is
+// fetched into memory: the switch at the end needs no connection and is instant.
+// iPhone keeps its own tried-and-tested path (streams, switched just before the end).
+const onIOS = typeof window !== 'undefined' && isIOS();
+const preloadWholeChapters = typeof window !== 'undefined' && !onIOS;
+
+interface PreloadedChapter {
+  remoteUrl: string;
+  controller: AbortController;
+  localUrl?: string;
+}
+let preloaded: PreloadedChapter | null = null;
+/** The memory copy the player is using right now; let go of once it moves on */
+let playingLocalUrl: string | null = null;
+
+const discardPreload = () => {
+  if (!preloaded) return;
+  preloaded.controller.abort();
+  if (preloaded.localUrl) URL.revokeObjectURL(preloaded.localUrl);
+  preloaded = null;
+};
+
+const hasPreloaded = (remoteUrl: string) => preloaded?.remoteUrl === remoteUrl && !!preloaded.localUrl;
+
+async function preloadChapter(remoteUrl: string) {
+  if (preloaded?.remoteUrl === remoteUrl) return;
+  discardPreload();
+  const entry: PreloadedChapter = { remoteUrl, controller: new AbortController() };
+  preloaded = entry;
+  const { signal } = entry.controller;
+  for (let attempt = 1; attempt <= 3 && !signal.aborted; attempt++) {
+    try {
+      // A downloaded chapter is read from the device; anything else is fetched once now
+      let blob = await offlineAudioService.savedBlob(remoteUrl);
+      if (!blob) {
+        if (navigator.onLine === false) return;
+        const response = await fetch(remoteUrl, { mode: 'cors', signal });
+        if (!response.ok) throw new Error(`Preload failed (${response.status})`);
+        blob = await response.blob();
+      }
+      if (signal.aborted) return;
+      entry.localUrl = URL.createObjectURL(blob.type.startsWith('audio/') ? blob : new Blob([blob], { type: 'audio/mpeg' }));
+      console.log('🎵 Next chapter ready in memory');
+      return;
+    } catch (error) {
+      if (signal.aborted) return;
+      console.warn(`Next chapter preload failed (attempt ${attempt})`, error);
+      await new Promise((resolve) => setTimeout(resolve, 4000 * attempt));
+    }
+  }
+}
+
+/** The memory copy of this chapter, if it's ready. The player owns it from here. */
+function takePreloaded(remoteUrl: string): string | null {
+  if (!preloaded || preloaded.remoteUrl !== remoteUrl) return null;
+  const local = preloaded.localUrl ?? null;
+  if (local) preloaded = null;
+  // Still downloading: stream instead, and stop the download competing with it
+  else discardPreload();
+  return local;
+}
+
+/** Point the player at a new file and let go of the previous memory copy. */
+function setPlayerSource(src: string, ownedLocalUrl: string | null = null) {
+  const previous = playingLocalUrl;
+  audio.src = src;
+  playingLocalUrl = ownedLocalUrl;
+  if (previous && previous !== src) URL.revokeObjectURL(previous);
 }
 
 interface GlobalAudioState {
@@ -149,6 +223,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const nextChapterUrlRef = useRef<{ url: string; book: string; chapter: number } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const autoAdvanceRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preloadTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Latest play request; an older one that gets cut off must not touch the state */
+  const playRequestRef = useRef(0);
+  /** The next chapter couldn't start by itself (phone in the background): start it when possible */
+  const pendingPlayRef = useRef(false);
+  const errorRetriesRef = useRef(0);
 
   // ── Wake Lock helpers ──
   const requestWakeLock = useCallback(async () => {
@@ -202,6 +282,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const url = await supabaseAudioService.getAudioUrl(nextBook, nextChapter, version);
       if (url) {
         nextChapterUrlRef.current = { url, book: nextBook, chapter: nextChapter };
+        const { autoPlayNext, loopChapter } = audioStateRef.current;
+        clearTimeout(preloadTimerRef.current);
+        if (preloadWholeChapters && autoPlayNext && !loopChapter) {
+          // Give the chapter that's starting the connection to itself for a moment first
+          preloadTimerRef.current = setTimeout(() => preloadChapter(url), 3000);
+        }
       } else {
         nextChapterUrlRef.current = null;
       }
@@ -238,7 +324,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       setAudioSession('playback');
-      audio.src = url;
+      playRequestRef.current++;
+      pendingPlayRef.current = false;
+      clearTimeout(preloadTimerRef.current);
+      discardPreload();
+      setPlayerSource(url);
       audio.load();
       await audio.play();
     } catch (error) {
@@ -258,6 +348,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // It is read from audioStateRef.current so setLoopBook() is the single source of truth.
     // This prevents any caller with a stale value from overwriting the user's toggle preference.
     const normalizedBook = normalizeBookApiName(book);
+    const request = ++playRequestRef.current;
+    pendingPlayRef.current = false;
+    errorRetriesRef.current = 0;
+    clearTimeout(preloadTimerRef.current);
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
 
@@ -300,7 +394,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const displayBookName = formatBookName(book);
 
       // No connection and not downloaded: say so, rather than silently not playing
-      if (navigator.onLine === false && !offlineAudioService.isSavedUrl(audioUrl)) {
+      if (navigator.onLine === false && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
         setAudioState(prev => ({ ...prev, isLoading: false }));
         appAlert(
           `${displayBookName} ${chapter} isn't downloaded`,
@@ -343,12 +437,36 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
-      // Play the copy saved on this device when available (works offline)
+      // The next chapter already in memory starts at once with no connection
+      // (see preloadChapter); otherwise the copy saved on this device, or the stream
       setAudioSession('playback');
-      audio.src = await offlineAudioService.resolvePlayableUrl(audioUrl);
+      const local = takePreloaded(audioUrl);
+      if (local) {
+        setPlayerSource(local, local);
+      } else {
+        const playable = await offlineAudioService.resolvePlayableUrl(audioUrl);
+        if (request !== playRequestRef.current) return;
+        setPlayerSource(playable);
+      }
       audio.loop = loopChapter;
       audio.load();
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (error) {
+        // A newer request took over: it's in charge of the player now
+        if (request !== playRequestRef.current) return;
+        const name = (error as DOMException)?.name;
+        if (name === 'NotAllowedError') {
+          // The phone wouldn't start sound on its own (app in the background):
+          // keep the chapter loaded and start it as soon as it's allowed
+          console.warn('🎵 Next chapter is waiting to be allowed to play');
+          pendingPlayRef.current = true;
+          setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: true }));
+        } else if (name !== 'AbortError' && name !== 'NotSupportedError') {
+          throw error;
+        }
+        // AbortError: paused straight away. NotSupportedError: the file didn't load, handleError tries again.
+      }
 
       // Acquire Wake Lock to keep CPU alive during background playback
       requestWakeLock();
@@ -361,12 +479,16 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
 
       const updatePosition = () => {
-        if ('mediaSession' in navigator && audio.duration) {
-          navigator.mediaSession.setPositionState({
-            duration: audio.duration,
-            playbackRate: audio.playbackRate,
-            position: audio.currentTime,
-          });
+        try {
+          if ('mediaSession' in navigator && audio.duration) {
+            navigator.mediaSession.setPositionState({
+              duration: audio.duration,
+              playbackRate: audio.playbackRate,
+              position: Math.min(audio.currentTime, audio.duration),
+            });
+          }
+        } catch {
+          /* not supported on this device */
         }
       };
 
@@ -379,14 +501,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       prefetchNextChapter(book, chapter, version);
 
     } catch (error) {
+      if (request !== playRequestRef.current) return;
       console.error('Failed to play MP3:', error);
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
     }
   }, [prefetchNextChapter, requestWakeLock]);
 
   // Reload the current file at the same spot and play (recovers a silent / stalled resume)
-  const reloadAndPlay = useCallback((position: number) => {
-    const src = audio.currentSrc || audio.src;
+  const reloadAndPlay = useCallback((position: number, src = audio.currentSrc || audio.getAttribute('src')) => {
     if (!src) return;
     console.warn('🎵 Resume stalled — reloading audio at', position.toFixed(1));
     const onReady = () => {
@@ -415,7 +537,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const resume = useCallback(() => {
     console.log('UI or Media Session: Resume requested');
     setAudioSession('playback');
-    if (audio.src) {
+    if (audio.getAttribute('src')) {
       const from = audio.currentTime;
       audio.play().catch((error) => {
         console.error(error);
@@ -434,7 +556,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const saved = loadPersistedAudioState();
       if (saved?.url) {
         const position = saved.position || 0;
-        audio.src = saved.url;
+        setPlayerSource(saved.url);
         audio.load();
         audio.addEventListener('loadedmetadata', () => {
           try {
@@ -458,6 +580,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             loopBook: saved.loopBook,
           };
         }
+        prefetchNextChapter(saved.book, saved.chapter, saved.version);
       } else if (audioStateRef.current.currentBook) {
         playBibleChapterMP3(
           audioStateRef.current.currentBook,
@@ -468,13 +591,17 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
       }
     }
-  }, [playBibleChapterMP3, reloadAndPlay]);
+  }, [playBibleChapterMP3, reloadAndPlay, prefetchNextChapter]);
 
   const reset = useCallback(() => {
     console.log('UI: Reset requested');
+    playRequestRef.current++;
+    pendingPlayRef.current = false;
+    clearTimeout(preloadTimerRef.current);
+    discardPreload();
     audio.pause();
     audio.currentTime = 0;
-    audio.src = '';
+    setPlayerSource('');
     audio.load();
     releaseWakeLock();
     clearPersistedAudioState();
@@ -617,6 +744,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handlePlay = () => {
+      pendingPlayRef.current = false;
       setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
@@ -634,9 +762,19 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       patchPersistedAudioState({ isPlaying: false, position: audio.currentTime });
     };
 
+    /** The file whose end was last handled, so a missed "ended" is only made up for once */
+    let endedSrc: string | null = null;
+
+    const handlePlaying = () => {
+      errorRetriesRef.current = 0;
+      endedSrc = null;
+      bindMediaSession();
+    };
+
     const handleEnded = () => {
       const { loopChapter, autoPlayNext, currentBook, currentChapter, loopBook } = audioStateRef.current;
       console.log(`🎵 handleEnded fired: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopChapter=${loopChapter} loopBook=${loopBook}`);
+      endedSrc = audio.currentSrc;
 
       // Clear any pending retry
       if (autoAdvanceRetryRef.current) {
@@ -684,37 +822,74 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const startWatchdog = () => {
+      let lastTime = -1;
+      let stuckSince = Date.now();
       const watchdogTimer = setInterval(() => {
-        if (!audio.paused && audio.duration > 0) {
+        const { autoPlayNext } = audioStateRef.current;
+        // iPhone: move on just before the end, while the sound is still going
+        // (keeps the lock-screen audio alive). Elsewhere the chapter plays to the
+        // last word and the next one, already in memory, follows at once.
+        if (onIOS && !audio.paused && audio.duration > 0) {
           const timeLeft = audio.duration - audio.currentTime;
-          if (timeLeft < 1 && audioStateRef.current.autoPlayNext && !isAutoAdvancingRef.current) {
+          if (timeLeft < 1 && autoPlayNext && !isAutoAdvancingRef.current) {
             handleEnded();
           }
+        }
+
+        // The chapter finished but the "ended" signal never arrived
+        if (audio.ended && autoPlayNext && !isAutoAdvancingRef.current && endedSrc !== audio.currentSrc) {
+          console.warn('🎵 Watchdog: chapter finished without an ended signal, moving on');
+          handleEnded();
+        }
+
+        // Android: the connection dropped mid-chapter and the sound froze.
+        // Pick it up again at the same spot.
+        const now = Date.now();
+        if (preloadWholeChapters && !audio.paused && !audio.ended && audio.getAttribute('src')) {
+          if (audio.currentTime !== lastTime) {
+            lastTime = audio.currentTime;
+            stuckSince = now;
+          } else if (now - stuckSince > 20000 && navigator.onLine !== false) {
+            stuckSince = now;
+            reloadAndPlay(audio.currentTime);
+          }
+        } else {
+          stuckSince = now;
         }
       }, 500);
       return watchdogTimer;
     };
 
     let lastSaved = 0;
+    let lastPosition = { src: '', time: 0 };
     const handleTimeUpdate = () => {
       const now = audio.currentTime;
+      lastPosition = { src: audio.currentSrc, time: now };
       if (Math.abs(now - lastSaved) >= 5) {
         lastSaved = now;
         patchPersistedAudioState({ position: now });
       }
-      setAudioState(prev => {
-        if (Math.abs(prev.currentTime - now) > 0.5) {
-          return { ...prev, currentTime: now };
-        }
-        return prev;
-      });
+      // Nobody sees the progress while the app is in the background: skip the
+      // redraws (saves battery, and Android is less likely to stop the app)
+      if (document.visibilityState === 'visible') {
+        setAudioState(prev => {
+          if (Math.abs(prev.currentTime - now) > 0.5) {
+            return { ...prev, currentTime: now };
+          }
+          return prev;
+        });
+      }
 
       if ('mediaSession' in navigator && audio.duration && Math.floor(audio.currentTime) % 5 === 0) {
-        navigator.mediaSession.setPositionState({
-          duration: audio.duration,
-          playbackRate: audio.playbackRate,
-          position: audio.currentTime,
-        });
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            playbackRate: audio.playbackRate,
+            position: Math.min(audio.currentTime, audio.duration),
+          });
+        } catch {
+          /* not supported on this device */
+        }
       }
     };
 
@@ -723,7 +898,21 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handleError = (e: Event) => {
+      const src = audio.getAttribute('src');
+      const state = audioStateRef.current;
+      // The connection dropped (common on the move, and when Android saves battery
+      // in the background): try the same spot again a few times before giving up
+      if (src && state.isBibleMode && state.hasAudio && errorRetriesRef.current < 3 && navigator.onLine !== false) {
+        const attempt = ++errorRetriesRef.current;
+        const position = audio.currentTime || (lastPosition.src === audio.currentSrc ? lastPosition.time : 0);
+        console.warn(`🎵 Audio error, trying again (${attempt}/3)`, audio.error);
+        setTimeout(() => {
+          if (audio.getAttribute('src') === src) reloadAndPlay(position, src);
+        }, 1500 * attempt);
+        return;
+      }
       console.error('❌ Audio playback error:', e);
+      pendingPlayRef.current = false;
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';
@@ -731,7 +920,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     audio.addEventListener('play', handlePlay);
-    audio.addEventListener('playing', bindMediaSession);
+    audio.addEventListener('playing', handlePlaying);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
@@ -747,6 +936,15 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (document.visibilityState === 'visible') {
         console.log('🎵 App returned to foreground — checking audio state');
         const state = audioStateRef.current;
+
+        // Progress wasn't redrawn in the background: catch up
+        setAudioState(prev => ({ ...prev, currentTime: audio.currentTime, duration: audio.duration || prev.duration }));
+
+        // The next chapter was loaded in the background but wasn't allowed to start: start it now
+        if (pendingPlayRef.current && audio.paused && audio.getAttribute('src')) {
+          console.warn('🎵 Visibility recovery: starting the chapter that was waiting');
+          audio.play().catch(err => console.error('Failed to start the waiting chapter:', err));
+        }
 
         // Re-acquire wake lock (OS releases it when page is hidden)
         if (state.isPlaying || (state.autoPlayNext && audio.src)) {
@@ -815,7 +1013,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     return () => {
       audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('playing', bindMediaSession);
+      audio.removeEventListener('playing', handlePlaying);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
@@ -842,7 +1040,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
     };
-  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, requestWakeLock, playBibleChapterMP3]);
+  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, requestWakeLock, playBibleChapterMP3, reloadAndPlay]);
 
   const stop = useCallback(() => {
     audio.pause();
@@ -856,7 +1054,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Update the ref immediately so event listeners (handleEnded) see the new value
     audioStateRef.current = { ...audioStateRef.current, autoPlayNext: enabled };
     setAudioState(prev => ({ ...prev, autoPlayNext: enabled }));
-  }, []);
+    // Get the next chapter ready (or let go of it) straight away, not only from the next chapter on
+    const { isBibleMode, currentBook, currentChapter, currentVersion } = audioStateRef.current;
+    if (enabled && isBibleMode && currentBook) prefetchNextChapter(currentBook, currentChapter, currentVersion);
+    else if (!enabled) {
+      clearTimeout(preloadTimerRef.current);
+      discardPreload();
+    }
+  }, [prefetchNextChapter]);
 
   const setLoopChapter = useCallback((enabled: boolean) => {
     setAudioState(prev => ({ ...prev, loopChapter: enabled }));
