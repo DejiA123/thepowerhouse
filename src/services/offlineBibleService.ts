@@ -11,7 +11,8 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { getAllBooksFlat } from '@/components/bible/bookUtils';
 import type { BibleChapter } from '@/types/bible';
-import { enhancedApiBibleService, offlineBibleText, OFFLINE_TEXT_MANIFEST } from './enhancedApiBibleService';
+import { enhancedApiBibleService } from './enhancedApiBibleService';
+import { offlineBibleText, OFFLINE_TEXT_MANIFEST } from './offlineTextStore';
 
 export const OFFLINE_TEXT_EVENT = 'offline-bible-text-changed';
 
@@ -209,27 +210,29 @@ export const offlineBibleService = {
       job.phase = 'saving';
       job.total = chapters.length;
       emit();
-      let lastEmit = 0;
-      for (let i = 0; i < chapters.length; i += 25) {
-        if (job.controller.signal.aborted) return { ok: false };
-        await Promise.all(
-          chapters.slice(i, i + 25).map((c) =>
-            offlineBibleText.save(version, c.book, c.chapter, c).then(() => {
-              job.done++;
-            }),
-          ),
-        );
-        if (Date.now() - lastEmit > 120) {
-          lastEmit = Date.now();
-          emit();
+      // One saved entry per book (see offlineTextStore)
+      const byBook = new Map<string, BibleChapter[]>();
+      chapters.forEach((c) => {
+        if (!byBook.has(c.book)) byBook.set(c.book, []);
+        byBook.get(c.book)!.push(c);
+      });
+      const saved: string[] = [];
+      for (const [book, list] of byBook) {
+        if (job.controller.signal.aborted) break;
+        if (!(await offlineBibleText.saveBook(version, book, list))) {
+          // The books saved so far can still be read offline
+          markBooks(version, saved, true);
+          return { ok: false, message: 'Not enough space on this phone. Free up some space and try again.' };
         }
+        saved.push(book);
+        job.done += list.length;
+        emit();
       }
-      // Saving can fail quietly when the phone is full: check the last chapter made it
-      const last = chapters[chapters.length - 1];
-      if (!(await offlineBibleText.load(version, last.book, last.chapter))?.verses?.length) {
-        return { ok: false, message: 'Not enough space on this phone. Free up some space and try again.' };
+      if (job.controller.signal.aborted) {
+        markBooks(version, saved, true);
+        return { ok: false };
       }
-      markBooks(version, [...new Set(chapters.map((c) => c.book))], true, true);
+      markBooks(version, saved, true, true);
       return { ok: true };
     } catch (error) {
       if (job.controller.signal.aborted) return { ok: false };
@@ -283,6 +286,7 @@ export const offlineBibleService = {
     emit();
     try {
       const chapters = Array.from({ length: info.chapters }, (_, i) => i + 1);
+      const collected: BibleChapter[] = [];
       // Two at a time: quick, and gentle on the free Bible services
       for (let i = 0; i < chapters.length; i += 2) {
         if (job.controller.signal.aborted) return { ok: false, failed: job.failed };
@@ -290,16 +294,21 @@ export const offlineBibleService = {
           chapters.slice(i, i + 2).map(async (c) => {
             const existing = await offlineBibleText.load(version, book, c);
             const data = existing?.verses?.length ? existing : await enhancedApiBibleService.getChapterOnline(version, book, c).catch(() => null);
-            if (data?.verses?.length) {
-              if (!existing) await offlineBibleText.save(version, book, c, data);
-            } else job.failed++;
+            if (data?.verses?.length) collected.push({ ...data, chapter: c });
+            else job.failed++;
             job.done++;
             emit();
           }),
         );
       }
-      if (!job.failed) markBooks(version, [book], true);
-      return { ok: !job.failed, failed: job.failed };
+      if (job.failed) {
+        // Keep the chapters that did arrive; the book can be tried again
+        await Promise.all(collected.map((c) => offlineBibleText.save(version, book, c.chapter, c)));
+        return { ok: false, failed: job.failed };
+      }
+      if (!(await offlineBibleText.saveBook(version, book, collected))) return { ok: false, failed: collected.length };
+      markBooks(version, [book], true);
+      return { ok: true, failed: 0 };
     } finally {
       jobs.delete(key);
       emit();
@@ -310,7 +319,7 @@ export const offlineBibleService = {
   async remove(version: string, book?: string) {
     const books = book ? BOOKS.filter((b) => b.apiName === book) : BOOKS;
     for (const b of books) {
-      await Promise.all(Array.from({ length: b.chapters }, (_, i) => offlineBibleText.remove(version, b.apiName, i + 1)));
+      await offlineBibleText.removeBook(version, b.apiName, b.chapters);
     }
     markBooks(version, books.map((b) => b.apiName), false);
     emit();

@@ -68,19 +68,33 @@ export const bookInfo = (apiName: string) => allBooks.find((b) => b.apiName.toLo
 
 const keyFor = (book: string, chapter: number) => `${book.toLowerCase()}:${chapter}`;
 
+// Read once and kept in memory: with the whole audio Bible saved the list is
+// large, and the player checks it on every redraw while playing
+let indexMemo: Index | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === INDEX_KEY || e.key === null) indexMemo = null;
+  });
+}
+
 const readIndex = (): Index => {
-  try {
-    return JSON.parse(localStorage.getItem(INDEX_KEY) || '{}');
-  } catch {
-    return {};
+  if (!indexMemo) {
+    try {
+      indexMemo = JSON.parse(localStorage.getItem(INDEX_KEY) || '{}');
+    } catch {
+      indexMemo = {};
+    }
   }
+  return indexMemo!;
 };
 
-const writeIndex = (index: Index) => {
+/** `change` names the one chapter added or removed, when it's just one. */
+const writeIndex = (index: Index, change?: { added?: string; removed?: string }) => {
+  indexMemo = index;
   localStorage.setItem(INDEX_KEY, JSON.stringify(index));
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
   // The offline player in the service worker (public/audio-sw.js) keeps a list too
-  navigator.serviceWorker?.controller?.postMessage({ type: 'AUDIO_DOWNLOADS_CHANGED' });
+  navigator.serviceWorker?.controller?.postMessage({ type: 'AUDIO_DOWNLOADS_CHANGED', ...change });
 };
 
 /**
@@ -231,7 +245,7 @@ export const offlineAudioService = {
     const entry: DownloadedChapter = { book: book.toLowerCase(), chapter, version, url, bytes: blob.size, savedAt: Date.now() };
     const index = readIndex();
     index[keyFor(book, chapter)] = entry;
-    writeIndex(index);
+    writeIndex(index, { added: url });
     // Save verse timings too, so "follow along" highlighting works offline
     getVerseTimings(book, chapter).catch(() => null);
     onProgress?.(1);
@@ -301,7 +315,7 @@ export const offlineAudioService = {
       objectUrls.delete(entry.url);
     }
     delete index[keyFor(book, chapter)];
-    writeIndex(index);
+    writeIndex(index, { removed: entry.url });
   },
 
   async removeBook(book: string) {

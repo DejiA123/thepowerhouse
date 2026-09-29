@@ -1,5 +1,6 @@
 // Enhanced API.Bible service - comprehensive replacement for Bible Brain API
 import type { BibleVersion, BibleChapter, BibleVerse } from '@/types/bible';
+import { isBookDownloaded, offlineBibleText } from './offlineTextStore';
 
 const API_BIBLE_KEY = '637e6ef15c343223a24a54c1dd11a487';
 const API_BIBLE_BASE_URL = 'https://api.scripture.api.bible/v1';
@@ -111,56 +112,6 @@ function normalizeBookName(bookName: string): string {
   const normalized = bookName.toLowerCase().trim();
   return BOOK_MAPPINGS[normalized] || bookName.toUpperCase().substring(0, 3);
 }
-
-const OFFLINE_TEXT_CACHE = 'bible-text-offline-v1';
-const offlineTextKey = (version: string, book: string, chapter: number) =>
-  `/offline-text/${encodeURIComponent(version)}/${encodeURIComponent(book.toLowerCase())}/${chapter}`;
-
-async function saveOfflineText(key: string, data: unknown) {
-  try {
-    if (!('caches' in window)) return;
-    const cache = await caches.open(OFFLINE_TEXT_CACHE);
-    await cache.put(key, new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-async function loadOfflineText(key: string): Promise<unknown | null> {
-  try {
-    if (!('caches' in window)) return null;
-    const hit = await (await caches.open(OFFLINE_TEXT_CACHE)).match(key);
-    return hit ? await hit.json() : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Chapter text saved on the device (used by "Read offline" downloads). */
-export const offlineBibleText = {
-  save: (version: string, book: string, chapter: number, data: BibleChapter) =>
-    saveOfflineText(offlineTextKey(version, book, chapter), data),
-  load: (version: string, book: string, chapter: number) =>
-    loadOfflineText(offlineTextKey(version, book, chapter)) as Promise<BibleChapter | null>,
-  async remove(version: string, book: string, chapter: number) {
-    try {
-      if ('caches' in window) await (await caches.open(OFFLINE_TEXT_CACHE)).delete(offlineTextKey(version, book, chapter));
-    } catch {
-      /* ignore */
-    }
-  },
-};
-
-/** Books downloaded for offline reading, per translation: { [version]: { books: { [book]: true } } } */
-export const OFFLINE_TEXT_MANIFEST = 'bible_text_downloads_v1';
-const isDownloaded = (version: string, book: string) => {
-  try {
-    const manifest = JSON.parse(localStorage.getItem(OFFLINE_TEXT_MANIFEST) || '{}');
-    return !!manifest[version]?.books?.[book.toLowerCase()];
-  } catch {
-    return false;
-  }
-};
 
 export const enhancedApiBibleService = {
   // Get all available Bible versions
@@ -346,15 +297,14 @@ export const enhancedApiBibleService = {
    * offline listening) is saved, so it still opens without an internet connection.
    */
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
-    const key = offlineTextKey(version, book, chapter);
     // A chapter already on this phone opens instantly. Bible text doesn't change,
     // so a saved copy is only refreshed (quietly, in the background) once a week.
-    const saved = (await loadOfflineText(key)) as (BibleChapter & { savedAt?: number }) | null;
+    const saved = (await offlineBibleText.load(version, book, chapter)) as (BibleChapter & { savedAt?: number }) | null;
     if (saved?.verses?.length) {
       const stale = !saved.savedAt || Date.now() - saved.savedAt > 7 * 24 * 60 * 60 * 1000;
-      if (stale && !isDownloaded(version, book) && navigator.onLine !== false) {
+      if (stale && !isBookDownloaded(version, book) && navigator.onLine !== false) {
         this.getChapterOnline(version, book, chapter)
-          .then((fresh) => fresh?.verses?.length && saveOfflineText(key, { ...fresh, savedAt: Date.now() }))
+          .then((fresh) => fresh?.verses?.length && offlineBibleText.save(version, book, chapter, { ...fresh, savedAt: Date.now() }))
           .catch(() => undefined);
       }
       return saved;
@@ -363,21 +313,21 @@ export const enhancedApiBibleService = {
       try {
         const fresh = await this.getChapterOnline(version, book, chapter);
         if (fresh) {
-          saveOfflineText(key, { ...fresh, savedAt: Date.now() });
+          offlineBibleText.save(version, book, chapter, { ...fresh, savedAt: Date.now() });
           return fresh;
         }
       } catch (error) {
-        const saved = await loadOfflineText(key);
-        if (saved) return saved as BibleChapter;
+        const saved = await offlineBibleText.load(version, book, chapter);
+        if (saved) return saved;
         throw error;
       }
     }
-    return (await loadOfflineText(key)) as BibleChapter | null;
+    return offlineBibleText.load(version, book, chapter);
   },
 
   /** The copy saved on this device when there is one (instant), otherwise the network. */
   async getChapterPreferCached(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
-    const saved = (await loadOfflineText(offlineTextKey(version, book, chapter))) as BibleChapter | null;
+    const saved = await offlineBibleText.load(version, book, chapter);
     if (saved?.verses?.length) return saved;
     return this.getChapter(version, book, chapter);
   },

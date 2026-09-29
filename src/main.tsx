@@ -8,6 +8,19 @@ import { recordLaunch } from '@/lib/launchReport';
 
 recordLaunch();
 
+// Bible text downloaded before it was saved one entry per book: move it over
+// once, in the background, well after the app has opened (see offlineTextStore)
+window.addEventListener(
+  'app-ready',
+  () => {
+    if (localStorage.getItem('bible_text_packed_v1') === '1') return;
+    setTimeout(() => {
+      import('@/services/offlineTextStore').then((m) => m.packDownloadedText()).catch(() => undefined);
+    }, 15000);
+  },
+  { once: true },
+);
+
 // Service worker: offline app shell + Web Push.
 // A new version downloads in the background and waits. It only takes over when
 // the app is put away, never while it's on screen: no reload (and white flash)

@@ -13,19 +13,40 @@
   // Tells the app this offline player is installed (see offlineAudioService)
   caches.open('audio-sw-ready-v1').catch(() => undefined);
 
-  let saved = new Set();
-  const refresh = () =>
-    caches
-      .open(AUDIO_CACHE)
-      .then((cache) => cache.keys())
-      .then((keys) => {
-        saved = new Set(keys.map((r) => r.url));
-      })
-      .catch(() => undefined);
-  refresh();
+  // Which chapters are saved. Listed a few seconds after the worker starts,
+  // not straight away: with the whole audio Bible saved, listing it while the
+  // app was opening slowed the opening (the app loads from the same storage).
+  let saved = null;
+  let listing = null;
+  let relist;
+  const listSaved = () => {
+    if (!listing) {
+      listing = caches
+        .open(AUDIO_CACHE)
+        .then((cache) => cache.keys())
+        .then((keys) => {
+          saved = new Set(keys.map((r) => r.url));
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          listing = null;
+        });
+    }
+    return listing;
+  };
+  setTimeout(listSaved, 5000);
 
   self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'AUDIO_DOWNLOADS_CHANGED') refresh();
+    const data = event.data;
+    if (!data || data.type !== 'AUDIO_DOWNLOADS_CHANGED') return;
+    // One chapter at a time while downloading (listing everything after each
+    // saved chapter made a whole-Bible download slower and slower)
+    if (saved && data.added) saved.add(data.added);
+    else if (saved && data.removed) saved.delete(data.removed);
+    else {
+      clearTimeout(relist);
+      relist = setTimeout(listSaved, 1000);
+    }
   });
 
   const isBibleAudio = (url) =>
@@ -79,7 +100,9 @@
     }
     if (!isBibleAudio(url)) return;
     const offline = self.navigator && self.navigator.onLine === false;
-    if (!offline && !saved.has(request.url)) return;
+    // Not listed yet (audio straight after opening): streams as before, and the list follows
+    if (!saved) listSaved();
+    if (!offline && !(saved && saved.has(request.url))) return;
     event.respondWith(fromPhone(request).catch(() => fetch(request)));
   });
 })();
