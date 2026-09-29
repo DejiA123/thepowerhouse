@@ -79,7 +79,19 @@ const readIndex = (): Index => {
 const writeIndex = (index: Index) => {
   localStorage.setItem(INDEX_KEY, JSON.stringify(index));
   window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  // The offline player in the service worker (public/audio-sw.js) keeps a list too
+  navigator.serviceWorker?.controller?.postMessage({ type: 'AUDIO_DOWNLOADS_CHANGED' });
 };
+
+/**
+ * Whether the service worker plays downloaded chapters itself (public/audio-sw.js).
+ * Then the player can keep the normal audio address and start straight from the
+ * tap; without it, the saved copy is read here first.
+ */
+let playerInWorker = false;
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.has('audio-sw-ready-v1').then((ready) => (playerInWorker = ready)).catch(() => undefined);
+}
 
 export const offlineAudioSupported = () => typeof window !== 'undefined' && 'caches' in window;
 
@@ -107,6 +119,11 @@ export const offlineAudioService = {
 
   isDownloaded(book: string, chapter: number) {
     return !!readIndex()[keyFor(book, chapter)];
+  },
+
+  /** Whether the chapter at this audio address is saved on the device. */
+  isSavedUrl(url: string) {
+    return Object.values(readIndex()).some((e) => e.url === url);
   },
 
   bookStatus(book: string) {
@@ -144,6 +161,9 @@ export const offlineAudioService = {
    */
   async resolvePlayableUrl(remoteUrl: string): Promise<string> {
     if (!offlineAudioSupported()) return remoteUrl;
+    // The service worker serves the saved copy for this address (instantly, with
+    // seeking, and with no connection); no need to read the whole file here
+    if (playerInWorker && navigator.serviceWorker?.controller) return remoteUrl;
     const existing = objectUrls.get(remoteUrl);
     if (existing) return existing;
     try {

@@ -5,6 +5,7 @@ import { bibleBooks } from '@/components/bible/BibleBookList';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { setAudioSession } from '@/lib/audioSession';
 import { backgroundMusic } from '@/services/backgroundMusic';
+import { appAlert } from '@/lib/appAlert';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -297,6 +298,17 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       };
 
       const displayBookName = formatBookName(book);
+
+      // No connection and not downloaded: say so, rather than silently not playing
+      if (navigator.onLine === false && !offlineAudioService.isSavedUrl(audioUrl)) {
+        setAudioState(prev => ({ ...prev, isLoading: false }));
+        appAlert(
+          `${displayBookName} ${chapter} isn't downloaded`,
+          'Connect to the internet to listen, or save chapters for offline listening in Settings → Offline audio Bible.',
+          'info',
+        );
+        return;
+      }
 
       const newState = {
         ...audioStateRef.current,

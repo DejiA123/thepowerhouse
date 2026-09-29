@@ -21,8 +21,9 @@ export default defineConfig(({ mode }) => ({
       // public/manifest.json is the single source of truth for install metadata
       manifest: false,
       workbox: {
-        // Web Push + notification click handling live in public/push-sw.js
-        importScripts: ['/push-sw.js'],
+        // Web Push + notification click handling live in public/push-sw.js;
+        // downloaded audio Bible chapters are played from the phone by public/audio-sw.js
+        importScripts: ['/push-sw.js', '/audio-sw.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         navigateFallback: '/index.html',
@@ -33,7 +34,7 @@ export default defineConfig(({ mode }) => ({
         // (iPhone suspends the app soon after it's closed). Big features used by
         // few people are saved the first time they're opened instead (see below).
         globIgnores: [
-          '**/*.mp4', '**/lovable-uploads/**', 'splash/**', '**/assets/academy/**', 'push-sw.js',
+          '**/*.mp4', '**/lovable-uploads/**', 'splash/**', '**/assets/academy/**', 'push-sw.js', 'audio-sw.js',
           '**/html2pdf-*.js', '**/html2canvas*.js',
           '**/ManagementTeamPage-*.js', '**/ChoirPage-*.js',
         ],
