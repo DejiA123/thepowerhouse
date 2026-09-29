@@ -5133,7 +5133,7 @@ const ChoirPage = () => {
                                                         <div key={song.id} className="space-y-4 group/song relative">
                                                             {/* ACTIONS */}
                                                             {isAdmin && !isLocked && (
-                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 transition-all [@media(hover:hover)]:translate-y-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/song:translate-y-0 [@media(hover:hover)]:group-hover/song:opacity-100">
                                                                     <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                         <Edit3 className="w-4 h-4" />
                                                                     </Button>
@@ -6125,7 +6125,7 @@ const ChoirPage = () => {
                                                         <div key={song.id} className="space-y-4 group/song relative">
                                                             {/* ACTIONS */}
                                                             {isAdmin && !isLocked && (
-                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 opacity-0 group-hover/song:opacity-100 transition-all translate-y-2 group-hover/song:translate-y-0">
+                                                                <div className="absolute top-2 right-2 z-20 flex gap-2 transition-all [@media(hover:hover)]:translate-y-2 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/song:translate-y-0 [@media(hover:hover)]:group-hover/song:opacity-100">
                                                                     <Button size="icon" variant="secondary" className="h-9 w-9 bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-blue-600 border-0 rounded-xl shadow-lg ring-1 ring-white/10" onClick={() => startEditSetSong(song)}>
                                                                         <Edit3 className="w-4 h-4" />
                                                                     </Button>
