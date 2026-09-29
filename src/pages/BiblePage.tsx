@@ -7,9 +7,8 @@ import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { BibleNavigation } from "@/components/bible/BibleNavigation";
 import { BibleVersionSelector } from "@/components/bible/BibleVersionSelector";
-import { BibleBookList, bibleBooks } from "@/components/bible/BibleBookList";
 import { normalizeBookApiName } from "@/components/bible/bookUtils";
-import { BibleChapterList } from "@/components/bible/BibleChapterList";
+import { BiblePassagePicker } from "@/components/bible/BiblePassagePicker";
 import { BibleChapterContent } from "@/components/bible/BibleChapterContent";
 // BibleHighlights component removed - functionality moved to BibleChapterContent
 import { BibleSearch } from "@/components/bible/BibleSearch";
@@ -175,28 +174,16 @@ const BiblePage = () => {
 
 
 
-  const handleBookSelect = (bookApiName: string) => {
+  // A book and chapter chosen in the passage picker
+  const handlePassageSelect = (bookApiName: string, chapter: number) => {
     scrollToTop();
     const normalized = normalizeBookApiName(bookApiName);
     setSelectedBook(normalized);
-    // Explicitly update preferences if we have a chapter
-    if (selectedChapter) {
-      setReadingPosition(normalized, selectedChapter);
-    }
-  };
-
-  const handleChapterSelect = (chapter: number) => {
-    scrollToTop();
     setSelectedChapter(chapter);
-    if (selectedBook) {
-      setReadingPosition(selectedBook, chapter);
-    }
+    setReadingPosition(normalized, chapter);
     setShouldAutoPlay(false); // Don't auto-play on manual chapter select
-    loadChapter(selectedBook!, chapter);
-    // Add to reading history
-    if (selectedBook) {
-      addToBibleHistory(selectedBook, chapter);
-    }
+    loadChapter(normalized, chapter);
+    addToBibleHistory(normalized, chapter);
   };
 
   const handleChapterChange = useCallback(async (chapter: number, isAutoPlay = false) => {
@@ -570,20 +557,12 @@ const BiblePage = () => {
       );
     }
 
-    if (selectedBook) {
-      console.log('BiblePage: Rendering BibleChapterList for book:', selectedBook);
-      return (
-        <BibleChapterList
-          selectedBook={selectedBook}
-          onChapterSelect={handleChapterSelect}
-          onBackToBooks={handleBackToBooks}
-        />
-      );
-    }
-
     return (
-      <BibleBookList
-        onBookSelect={handleBookSelect}
+      <BiblePassagePicker
+        initialBook={selectedBook || preferences.preferredBook || 'genesis'}
+        currentBook={preferences.preferredBook}
+        currentChapter={preferences.preferredChapter}
+        onSelect={handlePassageSelect}
         onCancel={() => {
           console.log('Cancel book selection - returning to current chapter');
           scrollToTop();
