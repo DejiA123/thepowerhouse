@@ -216,6 +216,20 @@ export async function uploadChatVideo(chatId: string, userId: string, file: File
   if (reason) throw new Error(reason);
 
   const ext = type === 'video/quicktime' ? 'mov' : type === 'video/webm' ? 'webm' : 'mp4';
+
+  // Not deployed yet: the media store's general upload link (also used by the choir pages)
+  const general = await supabase.functions
+    .invoke('get-r2-upload-url', { body: { fileName: `chat-${chatId}-${userId.slice(0, 8)}.${ext}`, fileType: type } })
+    .catch(() => null);
+  if (general && !general.error && general.data?.uploadUrl && general.data?.publicUrl) {
+    try {
+      await putWithProgress(general.data.uploadUrl, file, type, onProgress);
+      return general.data.publicUrl as string;
+    } catch {
+      /* fall back to app storage below */
+    }
+  }
+
   const path = `${userId}/chat/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { contentType: type, cacheControl: '31536000', upsert: false });
   if (uploadError) throw new Error(/size|large|exceed/i.test(uploadError.message) ? 'That video is too big to send. Try a shorter clip.' : uploadError.message);
