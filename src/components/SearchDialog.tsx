@@ -99,7 +99,7 @@ const SearchDialog = ({ searchOpen, setSearchOpen }: SearchDialogProps) => {
     { id: "serve", title: "Serve", description: "Volunteer in a team", icon: HandHeart, path: "/serve", category: "Page", color: "text-emerald-600", keywords: ["volunteer", "join team", "help"] },
     { id: "building", title: "Building Campaign", description: "Future home project", icon: Building, path: "/building-campaign", category: "Page", color: "text-amber-700", keywords: ["project", "construction", "fund", "future"] },
     { id: "new", title: "I'm New", description: "New to The Power House?", icon: UserPlus, path: "/new-here", category: "Page", color: "text-blue-400", keywords: ["visitor", "guest", "welcome"] },
-    { id: "followup", title: "Follow Up", description: "Discipleship resources", icon: UserPlus, path: "/follow-up", category: "Page", color: "text-violet-500", keywords: ["growth", "next steps"] },
+    { id: "followup", title: "Service feedback", description: "Tell us how the service went", icon: UserPlus, path: "/follow-up", category: "Page", color: "text-violet-500", keywords: ["follow up", "feedback", "survey", "suggestions"] },
     { id: "locations", title: "Locations", description: "Find a campus near you", icon: MapPin, path: "/locations", category: "Page", color: "text-cyan-500", keywords: ["address", "map", "directions"] },
     { id: "prayer", title: "Prayer Wall", description: "Submit and view prayers", icon: Sparkles, path: "/prayer", category: "Page", color: "text-yellow-500", keywords: ["request", "intercession"] },
 
