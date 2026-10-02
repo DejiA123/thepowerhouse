@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, WifiOff, Highlighter, GraduationCap, Settings, Share2, Eraser, Music } from "lucide-react";
+import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, Highlighter, GraduationCap, Settings, Share2, Eraser, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -1442,15 +1442,11 @@ const BibleAudioBar = ({
           <span className="block truncate text-[14.5px] font-semibold">
             {bookName(a.currentBook || '')} {a.currentChapter}
           </span>
-          <span className="block truncate text-[12px] text-white/65">
+          <span className="mt-0.5 block truncate text-[13px] font-medium tabular-nums text-white/90">
             {playingHere ? detail : `Playing · tap to open`}
           </span>
         </button>
-        {saved ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold text-emerald-300" title="Saved on this device">
-            <WifiOff className="h-3.5 w-3.5" /> Offline
-          </span>
-        ) : onOfflineOpen ? (
+        {!saved && onOfflineOpen ? (
           <button
             onClick={onOfflineOpen}
             className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/85 hover:bg-white/20"
