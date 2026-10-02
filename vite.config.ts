@@ -155,7 +155,7 @@ export default defineConfig(({ mode }) => ({
             handler: 'CacheFirst',
             options: {
               cacheName: 'worship-music',
-              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [200] },
             },
           },

@@ -11,7 +11,11 @@
  * It follows the Bible audio element: plays while the reading plays, fades
  * out when it pauses, and carries on across chapter changes.
  *
- * Music: Kevin MacLeod (incompetech.com), licensed under CC BY 4.0.
+ * Hymns: public-domain hymns (music, harmony and words; settings from the
+ * Open Hymnal Project) played on the Salamander Grand Piano by Alexander Holm
+ * (CC BY 3.0), with pads that follow each hymn's harmony.
+ * Piano & pads: Kevin MacLeod (incompetech.com), CC BY 4.0, with ambient pads added.
+ * Both recorded and mixed for this app.
  */
 
 export interface WorshipTrack {
@@ -20,17 +24,25 @@ export interface WorshipTrack {
   /** Original title, for the credit */
   title: string;
   url: string;
+  group: 'hymns' | 'ambient';
 }
 
 export const WORSHIP_TRACKS: WorshipTrack[] = [
-  { id: 'still-waters', name: 'Still Waters', title: 'Meditation Impromptu 01', url: '/audio/worship/still-waters.mp3' },
-  { id: 'quiet-prayer', name: 'Quiet Prayer', title: 'Meditation Impromptu 02', url: '/audio/worship/quiet-prayer.mp3' },
-  { id: 'morning-light', name: 'Morning Light', title: 'Meditation Impromptu 03', url: '/audio/worship/morning-light.mp3' },
-  { id: 'gentle-hymn', name: 'Gentle Hymn', title: 'Relaxing Piano Music', url: '/audio/worship/gentle-hymn.mp3' },
+  { id: 'amazing-grace', name: 'Amazing Grace', title: 'New Britain', url: '/audio/worship/amazing-grace.mp3', group: 'hymns' },
+  { id: 'it-is-well', name: 'It Is Well With My Soul', title: 'Ville du Havre', url: '/audio/worship/it-is-well.mp3', group: 'hymns' },
+  { id: 'be-thou-my-vision', name: 'Be Thou My Vision', title: 'Slane', url: '/audio/worship/be-thou-my-vision.mp3', group: 'hymns' },
+  { id: 'what-a-friend', name: 'What a Friend We Have in Jesus', title: 'Converse', url: '/audio/worship/what-a-friend.mp3', group: 'hymns' },
+  { id: 'holy-holy-holy', name: 'Holy, Holy, Holy', title: 'Nicaea', url: '/audio/worship/holy-holy-holy.mp3', group: 'hymns' },
+  { id: 'abide-with-me', name: 'Abide With Me', title: 'Eventide', url: '/audio/worship/abide-with-me.mp3', group: 'hymns' },
+  { id: 'still-waters', name: 'Still Waters', title: 'Meditation Impromptu 01', url: '/audio/worship/still-waters-ambient.mp3', group: 'ambient' },
+  { id: 'quiet-prayer', name: 'Quiet Prayer', title: 'Meditation Impromptu 02', url: '/audio/worship/quiet-prayer-ambient.mp3', group: 'ambient' },
+  { id: 'morning-light', name: 'Morning Light', title: 'Meditation Impromptu 03', url: '/audio/worship/morning-light-ambient.mp3', group: 'ambient' },
+  { id: 'gentle-hymn', name: 'Gentle Peace', title: 'Relaxing Piano Music', url: '/audio/worship/gentle-hymn-ambient.mp3', group: 'ambient' },
 ];
 
 export const MUSIC_CREDIT =
-  'Piano by Kevin MacLeod (incompetech.com): "Meditation Impromptu 01, 02, 03" and "Relaxing Piano Music" (excerpts). Licensed under CC BY 4.0.';
+  'Hymns: public domain (settings from the Open Hymnal Project), played on the Salamander Grand Piano by Alexander Holm, CC BY 3.0. ' +
+  'Piano & pads: Kevin MacLeod (incompetech.com), "Meditation Impromptu 01, 02, 03" and "Relaxing Piano Music" (excerpts, with ambient pads added), CC BY 4.0.';
 
 export interface BackgroundMusicSettings {
   enabled: boolean;
