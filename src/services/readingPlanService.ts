@@ -1,4 +1,6 @@
 import { getAllBooksFlat } from '@/components/bible/bookUtils';
+import { MCHEYNE } from '@/data/plans/mcheyne';
+import { MORNING_EVENING } from '@/data/plans/morningEvening';
 
 export interface DailyReading {
   day: number;
@@ -8,6 +10,10 @@ export interface DailyReading {
   teachingTitle?: string;
   teachingText?: string;
   reflectionQuestion?: string;
+  /** The calendar date this day belongs to, for plans that follow the year ("January 1") */
+  date?: string;
+  /** Spurgeon's Morning and Evening: which day's readings to show (month 1-12, day of month) */
+  classic?: { month: number; day: number };
 }
 
 export type PlanTag = 'start' | 'short' | 'jesus' | 'wisdom' | 'whole' | 'deep';
@@ -29,6 +35,10 @@ export interface ReadingPlan {
   /** Cover art: Tailwind gradient classes and an icon key (see the plans page) */
   cover: { gradient: string; icon: string };
   reward: string;
+  /** Where the plan comes from */
+  source?: string;
+  /** No longer offered; still shown to people who have started it */
+  retired?: boolean;
   dailyReadings: DailyReading[];
 }
 
@@ -99,90 +109,28 @@ function fromTracks(days: number, tracks: Chapter[][], describe?: (day: number) 
 const minutes = (chapters: number, days: number, devotional = false) =>
   Math.max(5, Math.round(((chapters / days) * 4 + (devotional ? 3 : 0)) / 5) * 5);
 
-// ── Devotional content ─────────────────────────────────────────────────
-
-const WISDOM_TEACHING = [
-  {
-    title: 'The Heart of Worship',
-    text: "The Psalms are the prayer book of the Bible. They give us a language for every emotion—joy, sorrow, fear, and praise. Today, as you read Psalm 1, notice the contrast between the one who delights in the Law and the one who doesn't. Wisdom starts with where we find our delight.",
-    question: "What are you 'delighting' in today? Is it God's word or the noise of the world?",
-  },
-  {
-    title: 'The Beginning of Knowledge',
-    text: "Proverbs reminds us that 'the fear of the Lord is the beginning of knowledge.' This isn't a terrifying fear, but a deep, reverent awe for who God is. When we respect God as the ultimate source of truth, our decisions begin to align with His wisdom.",
-    question: "In what decision this week do you need to seek God's 'reverent awe' more than your own logic?",
-  },
-  {
-    title: "God's Steadfast Love",
-    text: "Many Psalms reflect on God's 'hesed'—His loyal, covenant love. Even when we fail, His love remains. Wisdom is found in resting in this security, knowing that we are not defined by our performance but by His faithfulness.",
-    question: "How can you rest in God's steadfast love today instead of worrying about your mistakes?",
-  },
-];
-
-const FOUNDATIONS: DailyReading[] = [
-  {
-    day: 1,
-    readings: ['Genesis 1', 'John 1:1-5'],
-    description: 'The Creator and His Word',
-    teachingTitle: 'In the Beginning',
-    teachingText: "The Christian journey begins with an understanding of our origin. Scripture doesn't start with an argument for God's existence; it starts with His action. 'In the beginning, God created...'\n\nWhen we recognize God as Creator, we recognize His authority and His love. John's Gospel echoes this, revealing that the Word (Jesus) was there from the start. Today, as you read, consider that the same God who spoke the stars into existence is the same God who wants to speak into your life.\n\nHis Word is not just a book of rules, but a source of life and light that no darkness can overcome.",
-    reflectionQuestion: 'How does knowing that God is your Creator change the way you view your purpose today?',
-  },
-  {
-    day: 2,
-    readings: ['Ephesians 2:1-10', 'John 3:16-17'],
-    description: 'Grace: The Free Gift',
-    teachingTitle: 'Not by Works',
-    teachingText: "Many religions are about what man can do to reach God. Christianity is about what God has done to reach man. Grace is 'unmerited favor'—receiving something beautiful that we could never earn.\n\nPaul explains that we were spiritually dead, but God made us alive. This wasn't something we achieved; it's a gift. Why? So that no one can boast. Our salvation is anchored in His love, not our performance.\n\nYou are God's 'handiwork,' created in Christ Jesus to do good works. We don't do good works to be saved, but because we are saved.",
-    reflectionQuestion: "Are you trying to earn God's love, or are you resting in the gift of His grace?",
-  },
-  {
-    day: 3,
-    readings: ['Romans 8:1-17', 'Galatians 5:16-25'],
-    description: 'Life in the Spirit',
-    teachingTitle: 'The Helper Within',
-    teachingText: "The Christian life is not a solo effort. Before Jesus ascended, He promised a Helper—the Holy Spirit. Living 'in the Spirit' means our internal motivation and power come from God Himself.\n\nRomans 8 tells us there is no condemnation for those in Christ. We are no longer slaves to our old nature but are adopted as children. The Holy Spirit confirms this in our hearts, allowing us to cry out 'Abba, Father.'\n\nWhen we walk by the Spirit, we begin to see 'fruit' grow: love, joy, peace, and patience. It's a natural result of staying connected to the Vine.",
-    reflectionQuestion: 'In what area of your life do you need to stop relying on your own strength and start relying on the Holy Spirit?',
-  },
-  {
-    day: 4,
-    readings: ['Philippians 4:4-9', 'Matthew 6:25-34'],
-    description: 'The Power of Prayer',
-    teachingTitle: 'Anxious for Nothing',
-    teachingText: "Prayer is more than just asking God for things; it's an exchange. We give God our worries, and He gives us His peace. Paul encourages us in Philippians to not be anxious about anything, but in everything, by prayer and petition, with thanksgiving, present our requests to God.\n\nThe 'peace of God, which transcends all understanding' is a supernatural guard over our hearts and minds. Jesus reminds us that our Heavenly Father knows what we need. When we seek His kingdom first, all these concerns find their proper place.\n\nToday, spend time not just talking to God, but thanking Him. Gratitude is the key that unlocks the door to peace.",
-    reflectionQuestion: 'What is one specific worry you can hand over to God in prayer right now?',
-  },
-  {
-    day: 5,
-    readings: ['Psalm 119:105-112', 'Hebrews 4:12-13'],
-    description: 'The Living Word',
-    teachingTitle: 'A Lamp and a Light',
-    teachingText: "The Bible is not a static history book; it is 'alive and active.' It is described as a lamp to our feet and a light to our path. In a world of confusing messages, Scripture provides the stable truth we need to navigate.\n\nHebrews explains that God's Word penetrates deep, judging the thoughts and attitudes of the heart. It reveals our true selves and points us toward the Truth. When we read it, we aren't just gaining information; we are being transformed.\n\nMake it a habit to let the Word have the final say in your decisions. It is the solid ground upon which our faith is built.",
-    reflectionQuestion: 'When was the last time a specific verse gave you clarity in a difficult situation?',
-  },
-  {
-    day: 6,
-    readings: ['John 13:1-17', '1 Corinthians 12:12-27'],
-    description: 'Community and Service',
-    teachingTitle: 'The Body of Christ',
-    teachingText: "Following Jesus was never meant to be a private, isolated journey. We are called to be part of a community—the Body of Christ. Just as a human body has many parts with different functions, the Church is diverse yet unified.\n\nJesus modeled this through service, washing His disciples' feet. He told them, 'I have set you an example that you should do as I have done for you.' We find our greatest fulfillment when we use our unique gifts to serve others.\n\nWhen we support one another, the world sees a reflection of God's love. We were created for connection.",
-    reflectionQuestion: 'How can you use your unique gifts to encourage someone else in your church community this week?',
-  },
-  {
-    day: 7,
-    readings: ['Matthew 28:16-20', 'Acts 1:1-8'],
-    description: 'The Great Commission',
-    teachingTitle: 'Go and Make Disciples',
-    teachingText: "A foundation is only as good as what is built upon it. Jesus' final words to His followers were a call to action: 'Go and make disciples of all nations.' This isn't just for 'professional' missionaries; it's the calling of every believer.\n\nWe are empowered by the Holy Spirit to be witnesses. This means sharing our story—what God has done in our lives—with those around us. You don't need to have all the answers; you just need to share the Light you've found.\n\nAs you conclude this 7-day journey, remember that Jesus is with you always, to the very end of the age. Your mission starts today, right where you are.",
-    reflectionQuestion: 'Who is one person in your life who needs to hear about the hope you have in Christ?',
-  },
-];
-
 // ── The plans ──────────────────────────────────────────────────────────
 
 const GOSPELS = ['Matthew', 'Mark', 'Luke', 'John'];
 const PAUL = ['Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon'];
 const PROPHETS = ['Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel'];
+
+/**
+ * The Psalter as divided in the Book of Common Prayer (1662): every Psalm in a
+ * month, morning and evening. In months with 31 days, day 30 is read again.
+ */
+const BCP_PSALTER: [morning: string, evening: string][] = [
+  ['1-5', '6-8'], ['9-11', '12-14'], ['15-17', '18'], ['19-21', '22-23'], ['24-26', '27-29'], ['30-31', '32-34'],
+  ['35-36', '37'], ['38-40', '41-43'], ['44-46', '47-49'], ['50-52', '53-55'], ['56-58', '59-61'], ['62-64', '65-67'],
+  ['68', '69-70'], ['71-72', '73-74'], ['75-77', '78'], ['79-81', '82-85'], ['86-88', '89'], ['90-92', '93-94'],
+  ['95-97', '98-101'], ['102-103', '104'], ['105', '106'], ['107', '108-109'], ['110-113', '114-115'], ['116-118', '119:1-32'],
+  ['119:33-72', '119:73-104'], ['119:105-144', '119:145-176'], ['120-125', '126-131'], ['132-135', '136-138'], ['139-141', '142-143'],
+  ['144-146', '147-150'],
+];
+const psalmRef = (r: string) => (/^\d+(:|$)/.test(r) && !r.includes('-') ? `Psalm ${r}` : r.includes(':') ? `Psalm ${r}` : `Psalms ${r}`);
+
+/** How many chapters (or part chapters) a day's readings come to. */
+const passageCount = (days: DailyReading[]) => days.reduce((n, d) => n + d.readings.reduce((m, r) => m + expandReading(r).length, 0), 0);
 
 function buildPlans(): ReadingPlan[] {
   const psalms = chaptersOf(['Psalms']);
@@ -195,7 +143,50 @@ function buildPlans(): ReadingPlan[] {
     return { ...rest, totalChapters: chapters, duration: `${p.totalDays} days` };
   };
 
+  const mcheyne: DailyReading[] = MCHEYNE.map(([date, readings], i) => ({ day: i + 1, date, description: date, readings }));
+  const morningEvening: DailyReading[] = MORNING_EVENING.map(([date, morning, evening], i) => {
+    const [monthName, dayOfMonth] = date.split(' ');
+    const month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(monthName) + 1;
+    return { day: i + 1, date, description: date, readings: [morning, evening], classic: { month, day: Number(dayOfMonth) } };
+  });
+  const psalter: DailyReading[] = Array.from({ length: 31 }, (_, i) => {
+    const [morning, evening] = BCP_PSALTER[Math.min(i, 29)];
+    return { day: i + 1, readings: [psalmRef(morning), psalmRef(evening), `Proverbs ${i + 1}`] };
+  });
+
   return [
+    plan({
+      id: 'mcheyne',
+      name: "M'Cheyne Bible Reading Plan",
+      description: 'The classic plan: the whole Bible in a year, the New Testament and Psalms twice',
+      intro:
+        "Robert Murray M'Cheyne, minister of St Peter's, Dundee, drew up this calendar in 1842 for his congregation, and Christians around the world have used it ever since. Four chapters a day from different parts of the Bible take you through the Old Testament once and the New Testament and Psalms twice in a year. Day 1 is 1 January, but you can begin on any day.",
+      totalDays: 365,
+      minutesPerDay: 20,
+      chapters: passageCount(mcheyne),
+      countNoun: 'readings',
+      tags: ['whole', 'deep'],
+      cover: { gradient: 'from-indigo-700 via-blue-700 to-sky-600', icon: 'globe' },
+      reward: "You read the whole Bible with M'Cheyne, and the New Testament and Psalms twice.",
+      source: "Robert Murray M'Cheyne, Calendar for Daily Readings (1842). Classic edition transcribed by Ben Edgington (edginet.org/mcheyne), CC0.",
+      dailyReadings: mcheyne,
+    }),
+    plan({
+      id: 'morning-evening',
+      name: 'Morning and Evening',
+      description: "Spurgeon's much-loved daily readings for every morning and evening of the year",
+      intro:
+        "C. H. Spurgeon, the 'Prince of Preachers', wrote these short readings in the 1860s to open and close each day with a verse of Scripture and a word about Christ. Each day has a morning and an evening reading. Day 1 is 1 January, but you can begin on any day.",
+      totalDays: 366,
+      minutesPerDay: 10,
+      chapters: 732,
+      countNoun: 'readings',
+      tags: ['jesus', 'deep'],
+      cover: { gradient: 'from-amber-500 via-orange-500 to-indigo-700', icon: 'sunrise' },
+      reward: "You spent a whole year of mornings and evenings with Spurgeon's Morning and Evening.",
+      source: 'C. H. Spurgeon, Morning and Evening: Daily Readings (1865-1868). Public domain; text from the Christian Classics Ethereal Library.',
+      dailyReadings: morningEvening,
+    }),
     plan({
       id: 'bible-year',
       name: 'Bible in a Year',
@@ -208,6 +199,8 @@ function buildPlans(): ReadingPlan[] {
       tags: ['whole', 'deep'],
       cover: { gradient: 'from-indigo-600 via-blue-600 to-sky-500', icon: 'globe' },
       reward: 'You read the whole Bible. Every book, every chapter.',
+      // Replaced by M'Cheyne's plan; kept for anyone already reading it
+      retired: true,
       dailyReadings: fromTracks(365, [otNarrative, ntAndWisdom]),
     }),
     plan({
@@ -253,38 +246,19 @@ function buildPlans(): ReadingPlan[] {
       dailyReadings: fromTracks(21, [chaptersOf(['John'])]),
     }),
     plan({
-      id: 'foundations-faith',
-      name: 'Foundations of Faith',
-      description: 'Seven days on the core pillars of the Christian walk',
-      intro:
-        'A deep dive into the core pillars of the Christian faith: God as Creator, the gift of grace, life in the Spirit, prayer, the Word, the church and the Great Commission. Each day has a short devotional and a question to reflect on. Perfect for new believers and anyone wanting to strengthen their roots.',
-      totalDays: 7,
-      minutesPerDay: 10,
-      chapters: 14,
-      countNoun: 'readings',
-      tags: ['start', 'short'],
-      cover: { gradient: 'from-emerald-500 via-teal-500 to-cyan-500', icon: 'sprout' },
-      reward: 'You built on a solid foundation.',
-      dailyReadings: FOUNDATIONS,
-    }),
-    plan({
       id: 'psalms-proverbs',
       name: 'Psalms & Proverbs',
-      description: 'All 150 Psalms and 31 Proverbs in a month',
+      description: 'Every Psalm and every Proverb in a month',
       intro:
-        'Pray the Psalms and gain the practical wisdom of Proverbs. Each day brings around five Psalms for worship and one chapter of Proverbs — one for every day of the month.',
+        "Pray through all 150 Psalms in a month, morning and evening, as the Church has done for centuries with the Book of Common Prayer, and read the chapter of Proverbs for each day of the month.",
       totalDays: 31,
       minutesPerDay: minutes(181, 31),
       chapters: 181,
       tags: ['wisdom', 'short'],
       cover: { gradient: 'from-violet-500 via-purple-500 to-fuchsia-500', icon: 'music' },
       reward: 'You prayed every Psalm and read every Proverb.',
-      dailyReadings: fromTracks(31, [psalms, proverbs]).map((d, i) => ({
-        ...d,
-        teachingTitle: WISDOM_TEACHING[i]?.title,
-        teachingText: WISDOM_TEACHING[i]?.text,
-        reflectionQuestion: WISDOM_TEACHING[i]?.question,
-      })),
+      source: 'Psalms as divided in the Book of Common Prayer (1662); Proverbs one chapter a day.',
+      dailyReadings: psalter,
     }),
     plan({
       id: 'proverbs-month',
@@ -358,9 +332,27 @@ export interface Passage {
   label: string;
 }
 
-/** "Genesis 1-3" → three chapter passages; "John 1:1-5" → one passage with verses. */
+/**
+ * "Genesis 1-3" → three chapter passages; "John 1:1-5" → one passage with verses;
+ * "Exodus 11:1-12:21" → Exodus 11 from verse 1, then Exodus 12 to verse 21;
+ * "1 John 3:1,2" → verses 1 to 2.
+ */
 export function expandReading(ref: string): Passage[] {
-  const m = ref.trim().match(/^(.+?)\s+(\d+)(?:-(\d+))?(?::(\d+)(?:-(\d+))?)?$/);
+  const across = ref.trim().match(/^(.+?)\s+(\d+):(\d+)-(\d+):(\d+)$/);
+  if (across) {
+    const book = BOOKS.find((b) => b.name.toLowerCase() === (across[1] === 'Psalm' ? 'Psalms' : across[1]).toLowerCase());
+    if (!book) return [];
+    const [c1, v1, c2, v2] = across.slice(2).map(Number);
+    return Array.from({ length: c2 - c1 + 1 }, (_, i) => {
+      const chapter = c1 + i;
+      const verseStart = chapter === c1 && v1 > 1 ? v1 : undefined;
+      const verseEnd = chapter === c2 ? v2 : undefined;
+      const label = verseStart ? `${book.name} ${chapter}:${verseStart}-end` : verseEnd ? `${book.name} ${chapter}:1-${verseEnd}` : `${book.name} ${chapter}`;
+      return { book: book.apiName, bookName: book.name, chapter, verseStart, verseEnd, label };
+    });
+  }
+  const tidy = ref.trim().replace(/:(\d+)\s*,\s*(?:\d+\s*,\s*)*(\d+)$/, ':$1-$2');
+  const m = tidy.match(/^(.+?)\s+(\d+)(?:-(\d+))?(?::(\d+)(?:-(\d+))?)?$/);
   if (!m) return [];
   const rawName = m[1] === 'Psalm' ? 'Psalms' : m[1];
   const book = BOOKS.find((b) => b.name.toLowerCase() === rawName.toLowerCase());

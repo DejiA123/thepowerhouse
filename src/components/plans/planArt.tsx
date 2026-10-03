@@ -1,4 +1,4 @@
-import { BookOpen, Cross, Flame, Globe, Heart, Lightbulb, Music, Scroll, Sprout, Sun, Wind, type LucideIcon } from 'lucide-react';
+import { BookOpen, Cross, Flame, Globe, Heart, Lightbulb, Music, Scroll, Sprout, Sun, Sunrise, Wind, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReadingPlan } from '@/services/readingPlanService';
 
@@ -7,6 +7,7 @@ const ICONS: Record<string, LucideIcon> = {
   cross: Cross,
   heart: Heart,
   sun: Sun,
+  sunrise: Sunrise,
   sprout: Sprout,
   music: Music,
   lightbulb: Lightbulb,

@@ -160,6 +160,16 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
+            // Reading plan texts (Spurgeon's Morning and Evening, a month per file): kept once opened
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/plans/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'plan-texts',
+              expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Study notes (Tyndale Open Study Notes) rarely change: keep opened chapters for offline study
             urlPattern: ({ url }) => url.hostname === 'bible.helloao.org' && url.pathname.startsWith('/api/c/'),
             handler: 'StaleWhileRevalidate',

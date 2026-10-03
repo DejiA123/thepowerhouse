@@ -1,14 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, Check, Flame, Headphones, Loader2, Pause, RotateCcw, Trophy, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, Flame, Headphones, Loader2, Moon, Pause, RotateCcw, Sun, Trophy, X } from 'lucide-react';
 import { useGlobalAudio } from '@/contexts/GlobalAudioContext';
 import { cn } from '@/lib/utils';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { getChapterVerses } from '@/components/bible/verseText';
 import { expandReading, type Passage, type ReadingPlan } from '@/services/readingPlanService';
 
-type Step = { kind: 'devotional' } | { kind: 'passage'; passage: Passage };
+type Step = { kind: 'devotional' } | { kind: 'passage'; passage: Passage } | { kind: 'classic'; part: 'morning' | 'evening' };
+
+interface ClassicReading {
+  quote: string;
+  reference: string;
+  text: string[];
+}
+
+/** Spurgeon's Morning and Evening, one file per month (kept for offline once read). */
+const months = new Map<number, Promise<{ day: number; morning: ClassicReading; evening: ClassicReading }[]>>();
+const loadMonth = (month: number) => {
+  if (!months.has(month)) {
+    months.set(
+      month,
+      fetch(`/plans/morning-evening/${String(month).padStart(2, '0')}.json`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .catch((error) => {
+          months.delete(month);
+          throw error;
+        }),
+    );
+  }
+  return months.get(month)!;
+};
 
 interface PlanDayReaderProps {
   plan: ReadingPlan;
@@ -35,6 +58,8 @@ const PlanDayReader = ({ plan, day, version, isDone, streak, onComplete, onOpenD
   const reading = plan.dailyReadings.find((r) => r.day === day);
   const steps = useMemo<Step[]>(() => {
     const list: Step[] = [];
+    // Morning and Evening: the morning reading, then the evening one
+    if (reading?.classic) return [{ kind: 'classic', part: 'morning' }, { kind: 'classic', part: 'evening' }];
     if (reading?.teachingText) list.push({ kind: 'devotional' });
     (reading?.readings || []).forEach((ref) => expandReading(ref).forEach((passage) => list.push({ kind: 'passage', passage })));
     return list;
@@ -155,9 +180,11 @@ const PlanDayReader = ({ plan, day, version, isDone, streak, onComplete, onOpenD
               )}
               <p className="mt-8 text-sm text-muted-foreground">Today’s reading: {reading?.readings.join(' · ')}</p>
             </article>
-          ) : (
+          ) : step.kind === 'classic' && reading?.classic ? (
+            <ClassicView key={step.part} when={reading.classic} date={reading.date} part={step.part} fontSize={fontSize} onClose={onClose} />
+          ) : step.kind === 'passage' ? (
             <PassageView key={`${step.passage.book}-${step.passage.chapter}-${step.passage.verseStart ?? ''}`} passage={step.passage} version={version} fontSize={fontSize} onClose={onClose} />
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -289,6 +316,99 @@ const PassageView = ({ passage, version, fontSize, onClose }: { passage: Passage
             </p>
           ))}
         </div>
+      )}
+    </article>
+  );
+};
+
+/** A morning or evening reading from Spurgeon's Morning and Evening. */
+const ClassicView = ({
+  when,
+  date,
+  part,
+  fontSize,
+  onClose,
+}: {
+  when: { month: number; day: number };
+  date?: string;
+  part: 'morning' | 'evening';
+  fontSize: number;
+  onClose: () => void;
+}) => {
+  const navigate = useNavigate();
+  // undefined while loading, null when it couldn't be loaded
+  const [entry, setEntry] = useState<ClassicReading | null | undefined>(undefined);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setEntry(undefined);
+    loadMonth(when.month)
+      .then((days) => !cancelled && setEntry(days.find((d) => d.day === when.day)?.[part] ?? null))
+      .catch(() => !cancelled && setEntry(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [when.month, when.day, part, attempt]);
+
+  const passage = entry ? expandReading(entry.reference)[0] : undefined;
+  const Icon = part === 'morning' ? Sun : Moon;
+
+  return (
+    <article className="animate-in fade-in slide-in-from-right-4 duration-300">
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+          part === 'morning'
+            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
+            : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" /> {part === 'morning' ? 'Morning' : 'Evening'}
+        {date ? ` · ${date}` : ''}
+      </span>
+
+      {entry === undefined ? (
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="h-4 animate-pulse rounded bg-muted" style={{ width: `${70 + ((i * 37) % 30)}%` }} />
+          ))}
+        </div>
+      ) : entry === null ? (
+        <div className="mt-10 flex flex-col items-center text-center">
+          <p className="font-semibold text-foreground">Couldn’t load today’s reading</p>
+          <p className="mt-1 text-sm text-muted-foreground">Connect to the internet once to open it; after that it works offline.</p>
+          <button
+            onClick={() => setAttempt((n) => n + 1)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background"
+          >
+            <RotateCcw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      ) : (
+        <>
+          <blockquote className="mt-5 font-serif text-[23px] italic leading-snug text-foreground">{entry.quote}</blockquote>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[14px] font-semibold text-muted-foreground">{entry.reference}</span>
+            {passage && (
+              <button
+                onClick={() => {
+                  onClose();
+                  navigate(`/bible?book=${passage.book}&chapter=${passage.chapter}`);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-foreground transition active:scale-95"
+              >
+                <BookOpen className="h-3.5 w-3.5" /> Read {passage.bookName} {passage.chapter}
+              </button>
+            )}
+          </div>
+          <div className="mt-6 space-y-5 font-serif leading-[1.8] text-foreground/90" style={{ fontSize }}>
+            {entry.text.map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+          </div>
+          <p className="mt-8 text-sm text-muted-foreground">C. H. Spurgeon, Morning and Evening</p>
+        </>
       )}
     </article>
   );

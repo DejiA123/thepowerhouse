@@ -112,10 +112,10 @@ const BibleReadingPlansPage = () => {
   // ── Derived ─────────────────────────────────────────────────────────
   const active = plans.filter((p) => progress[p.id] && !isFinished(progress[p.id], p.totalDays));
   const finished = plans.filter((p) => progress[p.id] && isFinished(progress[p.id], p.totalDays));
-  const discover = plans.filter((p) => !progress[p.id] && (filter === 'all' || p.tags.includes(filter)));
+  const discover = plans.filter((p) => !progress[p.id] && !p.retired && (filter === 'all' || p.tags.includes(filter)));
   const { streak, doneToday } = useMemo(() => readingStreak(progress), [progress]);
   const totalDaysRead = useMemo(() => Object.values(progress).reduce((n, p) => n + completedCount(p), 0), [progress]);
-  const featured = active.length === 0 && filter === 'all' ? plans.find((p) => p.id === 'bible-year' && !progress[p.id]) : undefined;
+  const featured = active.length === 0 && filter === 'all' ? plans.find((p) => p.id === 'mcheyne' && !progress[p.id]) : undefined;
 
   const detailPlan = detailId ? readingPlanService.getPlanById(detailId) : null;
   const readerPlan = reader ? readingPlanService.getPlanById(reader.planId) : null;

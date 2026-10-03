@@ -154,6 +154,7 @@ const PlanDetailSheet = ({ plan, progress, open, onOpenChange, onStart, onOpenDa
             {/* About */}
             <h3 className="mb-1.5 mt-7 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">About this plan</h3>
             <p className="text-[15.5px] leading-relaxed text-foreground/90">{plan.intro}</p>
+            {plan.source && <p className="mt-2.5 text-[12.5px] leading-snug text-muted-foreground">Source: {plan.source}</p>}
 
             {/* Days */}
             <div className="mb-2 mt-7 flex items-baseline justify-between">
@@ -195,6 +196,7 @@ const PlanDetailSheet = ({ plan, progress, open, onOpenChange, onStart, onOpenDa
                       </span>
                       <span className="block truncate text-[12.5px] text-muted-foreground">
                         Day {d.day}
+                        {d.date ? ` · ${d.date}` : ''}
                         {d.teachingTitle ? ` · ${d.readings.join(' · ')}` : ''}
                         {isNext ? ' · Up next' : ''}
                       </span>
