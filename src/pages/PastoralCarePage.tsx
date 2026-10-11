@@ -53,7 +53,7 @@ const PastoralCarePage = () => {
                         onClick={() => navigate("/groups")}
                         className="mb-8 rounded-full bg-white/50 backdrop-blur-md dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 transition-all border border-white/20"
                     >
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Ministry Hub
+                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Teams
                     </Button>
 
                     <Badge className="mb-4 px-4 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-none font-bold text-xs uppercase tracking-widest">

@@ -47,6 +47,11 @@ const NewsPage = lazyPage(() => import("@/pages/NewsPage"));
 const GroupsPage = lazyPage(() => import("@/pages/GroupsPage"));
 const GivePage = lazyPage(() => import("@/pages/GivePage"));
 const ResourcesPage = lazyPage(() => import("@/pages/ResourcesPage"));
+const ChurchPage = lazyPage(() => import("@/pages/ChurchPage"));
+const MePage = lazyPage(() => import("@/pages/MePage"));
+const HelpPage = lazyPage(() => import("@/pages/HelpPage"));
+const LearnPage = lazyPage(() => import("@/pages/LearnPage"));
+const LocationsPage = lazyPage(() => import("@/pages/LocationsPage"));
 const GroupChatsPage = lazyPage(() => import("@/pages/GroupChatsPage"));
 const BibleReadingPlansPage = lazyPage(() => import("@/pages/BibleReadingPlansPage"));
 const ServicesPage = lazyPage(() => import("@/pages/ServicesPage"));
@@ -242,6 +247,11 @@ const AppRoutes = () => {
             <Route path="/groups" element={<GroupsPage />} />
             <Route path="/give" element={<GivePage />} />
             <Route path="/resources" element={<ResourcesPage />} />
+            <Route path="/church" element={<ChurchPage />} />
+            <Route path="/me" element={<MePage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/learn" element={<LearnPage />} />
+            <Route path="/locations" element={<LocationsPage />} />
             <Route
               path="/group-chats"
               element={

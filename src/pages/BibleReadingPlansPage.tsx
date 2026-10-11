@@ -123,7 +123,7 @@ const BibleReadingPlansPage = () => {
   // ── UI ──────────────────────────────────────────────────────────────
   return (
     <Page grouped>
-      <PageHeader title="Bible Plans" back={{ label: 'Resources', onClick: () => navigate('/resources') }} />
+      <PageHeader title="Bible Plans" back={{ label: 'Learn', onClick: () => navigate('/learn') }} />
 
       {/* Streak */}
       {(active.length > 0 || streak > 0) && (

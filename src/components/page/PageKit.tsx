@@ -25,6 +25,21 @@ export const Page = ({
   </div>
 );
 
+/** A big, easy-to-hit Back button that says where it goes. */
+export const BackButton = ({ label, onClick, className }: { label: string; onClick: () => void; className?: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'mb-2 inline-flex h-10 items-center gap-0.5 rounded-full border border-slate-200/80 bg-card pl-2 pr-4 text-[15px] font-semibold text-blue-600 shadow-sm transition active:scale-95 dark:border-slate-800 dark:text-blue-400',
+      className,
+    )}
+  >
+    <ChevronLeft className="h-5 w-5" />
+    {label}
+  </button>
+);
+
 export const PageHeader = ({
   title,
   eyebrow,
@@ -37,16 +52,7 @@ export const PageHeader = ({
   back?: { label: string; onClick: () => void };
 }) => (
   <header className="mb-4">
-    {back && (
-      <button
-        type="button"
-        onClick={back.onClick}
-        className="-ml-1.5 mb-1 inline-flex items-center text-[15px] font-medium text-blue-600 active:opacity-60 dark:text-blue-400"
-      >
-        <ChevronLeft className="h-5 w-5" />
-        {back.label}
-      </button>
-    )}
+    {back && <BackButton label={back.label} onClick={back.onClick} />}
     <div className="flex items-end justify-between gap-3">
       <div className="min-w-0">
         {eyebrow && <div className="text-sm font-medium text-muted-foreground">{eyebrow}</div>}
@@ -57,6 +63,80 @@ export const PageHeader = ({
       {action && <div className="shrink-0 pb-1">{action}</div>}
     </div>
   </header>
+);
+
+/** A page's title with its picture and one line saying what's here. */
+export const PageTitle = ({
+  icon: Icon,
+  tint,
+  title,
+  subtitle,
+  back,
+  action,
+}: {
+  icon?: LucideIcon;
+  /** Picture colour (a gradient class, see TILE in appDirectory) */
+  tint?: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  back?: { label: string; onClick: () => void };
+  action?: ReactNode;
+}) => (
+  <header className="mb-5">
+    {back && <BackButton label={back.label} onClick={back.onClick} />}
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        {Icon && (
+          <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', tint)}>
+            <Icon className="h-6 w-6" />
+          </span>
+        )}
+        <h1 className="truncate font-outfit text-[32px] font-extrabold leading-tight tracking-tight text-foreground md:text-4xl">{title}</h1>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+    {subtitle && <p className="mt-1.5 text-[16px] leading-snug text-muted-foreground">{subtitle}</p>}
+  </header>
+);
+
+/**
+ * A big picture button: a coloured picture, a name and one line saying what
+ * it's for. "row" puts the picture beside the words (more fit on a phone).
+ */
+export const PictureTile = ({
+  icon: Icon,
+  tint,
+  title,
+  subtitle,
+  onClick,
+  layout = 'stack',
+  badge,
+}: {
+  icon: LucideIcon;
+  tint: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClick: () => void;
+  layout?: 'stack' | 'row';
+  badge?: ReactNode;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'relative flex w-full rounded-[22px] border border-slate-200/70 bg-card text-left shadow-sm transition hover:border-blue-200 hover:shadow-md active:scale-[0.97] dark:border-slate-800 dark:hover:border-slate-700',
+      layout === 'row' ? 'min-h-[84px] items-center gap-3 p-3.5' : 'min-h-[128px] flex-col justify-between gap-3 p-4',
+    )}
+  >
+    <span className={cn('flex shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', layout === 'row' ? 'h-12 w-12' : 'h-[52px] w-[52px]', tint)}>
+      <Icon className={layout === 'row' ? 'h-6 w-6' : 'h-7 w-7'} />
+    </span>
+    <span className="min-w-0">
+      <span className="block font-outfit text-[17px] font-semibold leading-tight text-foreground">{title}</span>
+      {subtitle && <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{subtitle}</span>}
+    </span>
+    {badge && <span className="absolute right-3 top-3">{badge}</span>}
+  </button>
 );
 
 export interface SegmentOption<T extends string> {

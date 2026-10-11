@@ -2,7 +2,7 @@ import DepartmentsHub from "@/components/DepartmentsHub";
 import { Page } from "@/components/page/PageKit";
 
 const GroupsPage = () => (
-  <Page>
+  <Page wide>
     <DepartmentsHub />
   </Page>
 );

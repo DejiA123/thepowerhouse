@@ -69,7 +69,7 @@ const FollowUpPage = () => {
                 description: "Thank you for helping us grow.",
             });
             form.reset();
-            navigate('/resources');
+            navigate('/church');
         }
     }
 

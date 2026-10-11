@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Check, Eye, EyeOff, LayoutGrid, List, MapPin, RotateCcw, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -165,6 +165,16 @@ const ResourcesPage = () => {
     ResourceService.recordDownload(name, "Interactive Session", ResourceService.getClientIP(), ResourceService.getUserAgent()).catch(() => undefined);
   };
 
+  // A study opened from Learn (or a link): /resources?session=Prayer
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const session = searchParams.get("session");
+    if (!session) return;
+    openSession(session);
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const open = (item: ResourceItem) => {
     if (item.session) openSession(item.session);
     else if (item.to) navigate(item.to);
@@ -212,7 +222,8 @@ const ResourcesPage = () => {
   return (
     <Page grouped>
       <PageHeader
-        title={editing ? "Customise" : "Resources"}
+        title={editing ? "Customise" : "Everything"}
+        back={editing ? undefined : { label: "Me", onClick: () => navigate("/me") }}
         action={
           editing ? (
             <Button onClick={() => setEditing(false)} className="h-9 rounded-full bg-blue-600 px-4 font-semibold text-white hover:bg-blue-700">

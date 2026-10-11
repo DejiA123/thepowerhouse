@@ -1,6 +1,8 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight, Globe, Mic2, Music, Star, Users } from "lucide-react";
-import { ListGroup, ListRow, Page, PageHeader, SectionLabel } from "@/components/page/PageKit";
+import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
+import { CHOIR_BRANCH_KEY, TILE, rememberedChoir } from "@/data/appDirectory";
 
 const BRANCHES = [
   { id: "galway", name: "Galway Choir", icon: Star, tile: "bg-blue-600 text-white" },
@@ -9,36 +11,45 @@ const BRANCHES = [
   { id: "dublin", name: "Dublin Choir", icon: Users, tile: "bg-rose-500 text-white" },
 ];
 
-const LAST_KEY = "choir_last_location";
-
-const readLast = () => {
-  try {
-    return localStorage.getItem(LAST_KEY);
-  } catch {
-    return null;
-  }
-};
-
+/**
+ * Which choir are you in? Asked once, then remembered: links to a place in the
+ * choir ("singing lessons", a song) open your branch straight away.
+ */
 const ChoirPortalPage = () => {
   const navigate = useNavigate();
-  const last = BRANCHES.find((b) => b.id === readLast());
+  const { search } = useLocation();
+  const lastId = rememberedChoir();
+  const last = BRANCHES.find((b) => b.id === lastId);
+  // Heading somewhere in the choir (search, Help, a notification)?
+  const heading = search && search !== "?";
 
   const open = (id: string) => {
     try {
-      localStorage.setItem(LAST_KEY, id);
+      localStorage.setItem(CHOIR_BRANCH_KEY, id);
     } catch {
       /* private mode */
     }
-    navigate(`/groups/choir/${id}`);
+    navigate(`/groups/choir/${id}${heading ? search : ""}`, { replace: !!heading });
   };
+
+  // Already know your branch: carry straight on
+  useEffect(() => {
+    if (heading && lastId) navigate(`/groups/choir/${lastId}${search}`, { replace: true });
+  }, [heading, lastId, navigate, search]);
 
   return (
     <Page>
-      <PageHeader title="Choir" back={{ label: "Ministry Hub", onClick: () => navigate("/groups") }} />
+      <PageTitle
+        icon={Music}
+        tint={TILE.blue}
+        title="Choir"
+        subtitle={heading ? "Which choir are you in? We'll remember it." : "Pick your choir"}
+        back={{ label: "Teams", onClick: () => navigate("/groups") }}
+      />
 
       {last && (
         <>
-          <SectionLabel className="mt-1">Jump back in</SectionLabel>
+          <SectionLabel className="mt-1">Your choir</SectionLabel>
           <button
             onClick={() => open(last.id)}
             className="relative mb-1 flex w-full items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 p-4 text-left text-white shadow-lg shadow-blue-900/20 transition active:scale-[0.99]"
@@ -49,9 +60,9 @@ const ChoirPortalPage = () => {
             </span>
             <span className="relative min-w-0 flex-1">
               <span className="block font-outfit text-xl font-bold">{last.name}</span>
-              <span className="block text-[13px] text-white/85">Setlists, songs and rehearsals</span>
+              <span className="block text-[13px] text-white/85">Songs, rehearsals and lessons</span>
             </span>
-            <span className="relative rounded-full bg-white px-3.5 py-1.5 text-[13px] font-bold text-blue-700">Open</span>
+            <span className="relative rounded-full bg-white px-4 py-2 text-[14px] font-bold text-blue-700">Open</span>
           </button>
         </>
       )}
@@ -80,8 +91,9 @@ const ChoirPortalPage = () => {
             icon={b.icon}
             iconClassName={b.tile}
             title={b.name}
-            subtitle="Setlists, songs and rehearsals"
+            subtitle="Songs, rehearsals and lessons"
             onClick={() => open(b.id)}
+            className="min-h-[64px]"
           />
         ))}
       </ListGroup>

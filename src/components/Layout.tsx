@@ -1,10 +1,35 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
 import DesktopSidebar from "./DesktopSidebar";
+import AppTour from "./tour/AppTour";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import { SEARCH_EVENT } from "@/lib/appEvents";
+
+// "Find anything" loads when first asked for (and quietly once the app is idle)
+const loadSearch = () => import("./search/FindAnything");
+const FindAnything = lazy(loadSearch);
+const SearchSlot = () => {
+  const [request, setRequest] = useState<{ query: string; at: number } | null>(null);
+  useEffect(() => {
+    const onOpen = (e: Event) => setRequest({ query: (e as CustomEvent).detail?.query ?? "", at: Date.now() });
+    window.addEventListener(SEARCH_EVENT, onOpen);
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const t = setTimeout(() => (idle ? idle(() => loadSearch()) : loadSearch()), 3000);
+    return () => {
+      window.removeEventListener(SEARCH_EVENT, onOpen);
+      clearTimeout(t);
+    };
+  }, []);
+  if (!request) return null;
+  return (
+    <Suspense fallback={null}>
+      <FindAnything request={request} />
+    </Suspense>
+  );
+};
 
 // The floating player (and its animation library) loads only once something plays
 const GlobalMiniPlayer = lazy(() => import("./GlobalMiniPlayer"));
@@ -268,6 +293,10 @@ const Layout = ({ children }: LayoutProps) => {
         {/* Global Mini Player for Background Audio */}
         <MiniPlayerSlot />
       </div>
+
+      {/* Find anything, and the welcome tour (shown once; again from Help or Me) */}
+      <SearchSlot />
+      {showChrome && <AppTour />}
     </div>
   );
 };

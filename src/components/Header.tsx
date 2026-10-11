@@ -1,104 +1,44 @@
+import { Link, useLocation } from "react-router-dom";
+import { CircleHelp, Search } from "lucide-react";
+import { openSearch } from "@/lib/appEvents";
 
-import { lazy, Suspense, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, User } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-// Loaded when first opened (and quietly once the app is idle), so they don't
-// slow down the app's start
-const loadSearch = () => import("./SearchDialog");
-const loadMenu = () => import("./MenuDrawer");
-const SearchDialog = lazy(loadSearch);
-const MenuDrawer = lazy(loadMenu);
-
+/**
+ * Phones: the church's name, and two clearly labelled buttons that are always
+ * there: Search (find anything) and Help. Everything else is in the bottom bar.
+ */
 const Header = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [searchUsed, setSearchUsed] = useState(false);
-  const [menuUsed, setMenuUsed] = useState(false);
-
-  useEffect(() => {
-    const warm = () => {
-      loadMenu();
-      loadSearch();
-    };
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-    const t = setTimeout(() => (idle ? idle(warm) : warm()), 2500);
-    return () => clearTimeout(t);
-  }, []);
-
-  const handleUserIconClick = () => {
-    if (user) {
-      navigate("/settings");
-    } else {
-      navigate("/auth");
-    }
-  };
+  const { pathname } = useLocation();
+  // Home has its own big search box
+  const showSearch = pathname !== "/";
 
   return (
-    <header className="fixed top-0 w-full z-40 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm">
+    <header className="fixed top-0 w-full z-40 bg-background/85 backdrop-blur-xl border-b border-border/50 shadow-sm">
       <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
-        <div className="flex justify-between items-center">
-          <Link to="/" className="flex items-center space-x-1 tap-feedback">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
-              <img
-                src="/brand/logo-144.png"
-                alt="The Power House Logo"
-                className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
-              />
-            </div>
-            <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center h-12 sm:h-16 whitespace-nowrap">
-              The Power House
-            </h1>
+        <div className="flex h-12 sm:h-16 items-center justify-between gap-2">
+          <Link to="/" className="flex min-w-0 items-center gap-2 tap-feedback">
+            <img src="/brand/logo-144.png" alt="" className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
+            <span className="truncate font-outfit text-[18px] font-semibold text-foreground sm:text-xl">The Power House</span>
           </Link>
 
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground p-2 rounded-xl tap-feedback"
-              onClick={() => {
-                setMenuUsed(true);
-                setMenuOpen(true);
-              }}
-              aria-label="Menu"
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            {menuUsed && (
-              <Suspense fallback={null}>
-                <MenuDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
-              </Suspense>
+          <div className="flex shrink-0 items-center gap-2">
+            {showSearch && (
+              <button
+                onClick={() => openSearch()}
+                className="flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[14.5px] font-semibold text-foreground shadow-sm tap-feedback"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5 text-primary" />
+                <span className="hidden min-[380px]:inline">Search</span>
+              </button>
             )}
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-300 w-10 h-10 group"
-              onClick={() => {
-                setSearchUsed(true);
-                setSearchOpen(true);
-              }}
+            <Link
+              to="/help"
+              data-tour="help"
+              className="flex h-10 items-center gap-1.5 rounded-full border border-border bg-card pl-2.5 pr-3.5 text-[14.5px] font-semibold text-foreground shadow-sm tap-feedback"
             >
-              <Search className="w-5 h-5 transition-transform group-hover:scale-110" />
-              <span className="sr-only">Search</span>
-            </Button>
-            {searchUsed && (
-              <Suspense fallback={null}>
-                <SearchDialog searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
-              </Suspense>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleUserIconClick}
-              className="text-muted-foreground hover:text-foreground p-2 rounded-xl tap-feedback"
-            >
-              <User className="w-5 h-5" />
-            </Button>
+              <CircleHelp className="h-5 w-5 text-primary" />
+              Help
+            </Link>
           </div>
         </div>
       </div>
