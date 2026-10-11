@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
+import ChoirHome, { type ChoirSection } from "@/components/choir/ChoirHome";
+import SingingLessons from "@/components/choir/SingingLessons";
+import { BackButton } from "@/components/page/PageKit";
+import { CHOIR_BRANCH_KEY } from "@/data/appDirectory";
 import { SongwritingStudio } from "@/components/choir/SongwritingStudio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +113,16 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+/** The choir's tabs by their new names and old ones (older links still work) */
+const CHOIR_TABS: Record<string, string> = {
+    songs: 'vocalists',
+    vocalists: 'vocalists',
+    band: 'instrumentalists',
+    instrumentalists: 'instrumentalists',
+    lessons: 'academy',
+    academy: 'academy',
+};
 
 
 
@@ -2260,6 +2274,47 @@ const ChoirPage = () => {
         fetchData();
     }, [locationId, selectedWeekDate, selectedDay]);
 
+    // ── Choir home and its sections: every place in the choir has its own link
+    // (?tab=songs|band|lessons|singing, &section=instruments|basics, &course=…, &voice=male|female),
+    // so search, Help and the Teams page can open it directly
+    const tabParam = searchParams.get('tab') ?? '';
+    const view: 'home' | 'singing' | 'sections' =
+        tabParam === 'singing'
+            ? 'singing'
+            : CHOIR_TABS[tabParam] || searchParams.get('folderId') || searchParams.get('course')
+                ? 'sections'
+                : 'home';
+    const lessonsSection = searchParams.get('section');
+
+    const openSection = (section: ChoirSection) => {
+        const query =
+            section === 'instruments' ? 'tab=lessons&section=instruments'
+                : section === 'basics' ? 'tab=lessons&section=basics'
+                    : `tab=${section}`;
+        navigate({ search: `?${query}` });
+    };
+    const goChoirHome = () => navigate({ search: '' });
+
+    /** Open a course, at one of its lessons or at the men's/women's exercises. */
+    const openCourseAt = (id: string, target?: { module?: number; voice?: 'male' | 'female' }) => {
+        const course = academyCourses.flatMap((s) => s.courses).find((c) => c.id === id);
+        if (!course) return;
+        handleAccessCourse(course);
+        if (target?.voice) setActiveVocalFolder(target.voice);
+        const anchor = target?.voice ? 'vocal-training-resources' : target?.module !== undefined ? `course-module-${target.module}` : null;
+        if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 500);
+    };
+
+    // Remember this choir, so "Your team" and choir links open it next time
+    useEffect(() => {
+        if (!locationId || !['galway', 'kildare', 'athlone', 'dublin', 'national'].includes(locationId)) return;
+        try {
+            localStorage.setItem(CHOIR_BRANCH_KEY, locationId);
+        } catch {
+            /* private mode */
+        }
+    }, [locationId]);
+
     // Sync state with URL params (Deep Linking)
     useEffect(() => {
         const folderId = searchParams.get('folderId');
@@ -2273,10 +2328,20 @@ const ChoirPage = () => {
         if (tab) {
             if (tab === 'schedule') {
                 setIsScheduleOpen(true);
-            } else if (['vocalists', 'instrumentalists'].includes(tab)) {
-                setActiveTab(tab);
+            } else if (tab === 'roster') {
+                setIsRosterOpen(true);
+            } else if (tab === 'songwriting') {
+                setIsSongwritingOpen(true);
+            } else if (CHOIR_TABS[tab]) {
+                setActiveTab(CHOIR_TABS[tab]);
             }
         }
+
+        const course = searchParams.get('course');
+        const voice = searchParams.get('voice');
+        if (course) openCourseAt(course);
+        else if (tab === 'singing' && (voice === 'male' || voice === 'female')) openCourseAt('vocal-101', { voice });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
     // Refresh library when adding to setlist to ensure dropdown is fresh
@@ -4941,10 +5006,10 @@ const ChoirPage = () => {
                         <Button
                             variant="ghost"
                             className="text-white/80 hover:text-white hover:bg-white/10 w-fit pl-0"
-                            onClick={() => navigate(-1)}
+                            onClick={() => (view === 'home' ? navigate('/groups') : goChoirHome())}
                         >
                             <ArrowLeft className="w-5 h-5 mr-2" />
-                            Back to Groups
+                            {view === 'home' ? 'Teams' : 'Choir'}
                         </Button>
                         {locationId && <ChoirNotifyButton location={locationId} />}
                     </div>
@@ -5022,6 +5087,29 @@ const ChoirPage = () => {
 
             {/* Main Content */}
             <div id="main-content" className="container mx-auto px-2 sm:px-4 py-8 -mt-6 relative z-10">
+                {view === 'home' && (
+                    <ChoirHome
+                        locationId={locationId}
+                        onOpen={openSection}
+                        onRehearsals={() => setIsScheduleOpen(true)}
+                        onTeam={() => setIsRosterOpen(true)}
+                        onSongwriting={() => setIsSongwritingOpen(true)}
+                        onContributions={() => navigate('/groups/choir/contributions')}
+                    />
+                )}
+                {view === 'singing' && (
+                    <>
+                        <BackButton label="Choir" onClick={goChoirHome} />
+                        <SingingLessons
+                            modules={(academyCourses.flatMap((s) => s.courses).find((c) => c.id === 'vocal-101')?.modules ?? []) as { title: string; description?: string }[]}
+                            onVoice={(voice) => openCourseAt('vocal-101', { voice })}
+                            onModule={(m) => openCourseAt('vocal-101', { module: m })}
+                            onHarmony={() => openCourseAt('vocal-harmony')}
+                        />
+                    </>
+                )}
+                {view === 'sections' && <BackButton label="Choir" onClick={goChoirHome} className="ml-2" />}
+                {view === 'sections' && (
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCorners}
@@ -6418,7 +6506,9 @@ const ChoirPage = () => {
                             <AcademyDashboard locationId={locationId} isAdmin={isAdmin && !isLocked} />
 
                             {/* Course Sections */}
-                            {academyCourses.map((section, idx) => (
+                            {academyCourses
+                                .filter((section) => !lessonsSection || (lessonsSection === 'instruments' ? section.title === 'Instrumental Masterclasses' : section.title === 'Music 101'))
+                                .map((section, idx) => (
                                 <div key={idx} className="space-y-8">
                                     <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
                                         <div className="space-y-2">
@@ -6470,6 +6560,7 @@ const ChoirPage = () => {
                         document.body
                     )}
                 </DndContext>
+                )}
 
                 {/* Course Detail Modal */}
                 <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
@@ -6593,7 +6684,7 @@ const ChoirPage = () => {
                                                     const isCompleted = completedModules.has(moduleId);
 
                                                     return (
-                                                        <div key={mIdx}>
+                                                        <div key={mIdx} id={`course-module-${mIdx}`} className="scroll-mt-28">
                                                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${mIdx * 150}ms` }}>
                                                                 <div className="flex flex-col gap-4">
                                                                     <div className="flex items-center gap-3">
@@ -6784,7 +6875,7 @@ const ChoirPage = () => {
 
                                             {/* Vocal Training Resources Section (Specific to Vocal Lessons 101) */}
                                             {selectedCourse.id === 'vocal-101' && (
-                                                <div className="mt-16 space-y-6 pt-12 border-t border-slate-100 dark:border-slate-800">
+                                                <div id="vocal-training-resources" className="mt-16 scroll-mt-28 space-y-6 pt-12 border-t border-slate-100 dark:border-slate-800">
                                                     <div className="flex items-center justify-between">
                                                         <div className="space-y-1">
                                                             <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
