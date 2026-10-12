@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Church, Loader2, LocateFixed, Mail, MapPin, MessageCircle, Navigation, Phone, Radio, Sparkles } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BookOpen, Church, Loader2, LocateFixed, Mail, MapPin, MessageCircle, Navigation, Phone, PlayCircle, Radio, Sparkles } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
 import PowerHouseVideos from "@/components/PowerHouseVideos";
 import { ListGroup, ListRow, Page, PageHeader, SectionLabel } from "@/components/page/PageKit";
+import { RowPicture } from "@/components/nav/Places";
 import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,10 @@ const ServicesPage = () => {
   const [serviceTime, setServiceTime] = useState(false);
   const [liveServices, setLiveServices] = useState<LiveService[]>([]);
   const [modalService, setModalService] = useState<LiveService | null>(null);
+  const navigate = useNavigate();
+  // "Watch" opens this page on the live stream and sermons; otherwise it is "Find a church"
+  const [params] = useSearchParams();
+  const watching = params.get("watch") === "1";
 
   useEffect(() => {
     supabase
@@ -69,10 +75,69 @@ const ServicesPage = () => {
 
   return (
     <Page wide>
+      {watching && (
+        <div className="mx-auto max-w-2xl">
+          <PageHeader eyebrow="Live and past services" title="Watch" />
+          {/* Live now, or the live stream */}
+          <button
+            onClick={() => (liveNow ? setModalService(liveNow) : window.open(STREAMS_URL, "_blank", "noopener"))}
+            className="flex w-full items-center gap-4 rounded-3xl bg-slate-900 p-4 text-left text-white shadow-lg transition active:scale-[0.99] dark:bg-slate-800"
+          >
+            <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", liveNow ? "bg-red-600" : "bg-white/10")}>
+              <Radio className={cn("h-6 w-6", liveNow && "animate-pulse")} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={cn("block text-xs font-bold uppercase tracking-wider", liveNow || serviceTime ? "text-red-400" : "text-white/60")}>
+                {liveNow ? "● Live now" : serviceTime ? "● Service time" : "Live stream"}
+              </span>
+              <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Watch services live on YouTube"}</span>
+              <span className="block text-[13px] text-white/60">Sundays 10 AM · Wednesdays 7 PM</span>
+            </span>
+          </button>
+
+          {pastStreams.length > 0 && (
+            <>
+              <SectionLabel>Recent streams</SectionLabel>
+              <ListGroup>
+                {pastStreams.map((s) => (
+                  <ListRow
+                    key={s.id}
+                    leading={
+                      <span className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
+                        <img src={`https://i.ytimg.com/vi/${s.youtube_video_id}/mqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      </span>
+                    }
+                    title={s.title}
+                    subtitle={new Date(s.scheduled_time).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}
+                    onClick={() => setModalService(s)}
+                  />
+                ))}
+              </ListGroup>
+            </>
+          )}
+
+          <div className="mt-8">
+            <PowerHouseVideos />
+          </div>
+          <SectionLabel>Go in person</SectionLabel>
+          <ListGroup>
+            <ListRow
+              leading={<RowPicture icon={MapPin} color="sky" />}
+              title="Find a church"
+              subtitle="Service times, places and directions"
+              onClick={() => navigate("/services")}
+              chevron
+              className="min-h-[68px] py-3"
+            />
+          </ListGroup>
+        </div>
+      )}
+
+      {!watching && (
       <div className="mx-auto max-w-2xl">
         <PageHeader
-          eyebrow={savedCampus ? "Your campus" : "Our campuses"}
-          title="Services"
+          eyebrow="Service times, places and directions"
+          title="Find a church"
           action={
             <button
               onClick={locate}
@@ -175,49 +240,23 @@ const ServicesPage = () => {
           {campus.phone} · {campus.email}
         </p>
 
-        {/* Watch online */}
-        <SectionLabel>Can't make it in person?</SectionLabel>
-        <button
-          onClick={() => (liveNow ? setModalService(liveNow) : window.open(STREAMS_URL, "_blank", "noopener"))}
-          className="flex w-full items-center gap-4 rounded-3xl bg-slate-900 p-4 text-left text-white shadow-lg transition active:scale-[0.99] dark:bg-slate-800"
-        >
-          <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", liveNow ? "bg-red-600" : "bg-white/10")}>
-            <Radio className={cn("h-6 w-6", liveNow && "animate-pulse")} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className={cn("block text-xs font-bold uppercase tracking-wider", liveNow || serviceTime ? "text-red-400" : "text-white/60")}>
-              {liveNow ? "● Live now" : serviceTime ? "● Service time" : "Live stream"}
-            </span>
-            <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Watch services live on YouTube"}</span>
-            <span className="block text-[13px] text-white/60">Sundays 10 AM · Wednesdays 7 PM</span>
-          </span>
-        </button>
-
-        {pastStreams.length > 0 && (
-          <>
-            <SectionLabel>Recent streams</SectionLabel>
-            <ListGroup>
-              {pastStreams.map((s) => (
-                <ListRow
-                  key={s.id}
-                  leading={
-                    <span className="relative aspect-video w-20 shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
-                      <img src={`https://i.ytimg.com/vi/${s.youtube_video_id}/mqdefault.jpg`} alt="" loading="lazy" className="h-full w-full object-cover" />
-                    </span>
-                  }
-                  title={s.title}
-                  subtitle={new Date(s.scheduled_time).toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}
-                  onClick={() => setModalService(s)}
-                />
-              ))}
-            </ListGroup>
-          </>
-        )}
       </div>
+      )}
 
-      <div className="mt-8">
-        <PowerHouseVideos />
-      </div>
+      {!watching && (
+        <div className="mx-auto mt-6 max-w-2xl">
+          <ListGroup>
+            <ListRow
+              leading={<RowPicture icon={PlayCircle} color="red" />}
+              title="Watch online"
+              subtitle="Live services and sermons"
+              onClick={() => navigate("/services?watch=1")}
+              chevron
+              className="min-h-[68px] py-3"
+            />
+          </ListGroup>
+        </div>
+      )}
 
       <VideoModal
         isOpen={!!modalService}

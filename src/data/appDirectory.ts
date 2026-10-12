@@ -136,12 +136,12 @@ export const DESTINATIONS: Destination[] = [
   { id: 'plans', title: 'Bible plans', subtitle: 'Daily reading plans to follow', icon: CalendarDays, color: 'blue', crumb: 'Me › Learn › Bible plans', path: '/bible-reading-plans', keywords: 'reading plan devotional daily mcheyne spurgeon morning evening year' },
 
   // Church
-  { id: 'watch', title: 'Watch', subtitle: 'Live and past services', icon: PlayCircle, color: 'red', crumb: 'Church › Watch', path: '/services', keywords: 'live stream sunday service video sermon message preaching youtube teachings online' },
+  { id: 'watch', title: 'Watch', subtitle: 'Live and past services', icon: PlayCircle, color: 'red', crumb: 'Church › Watch', path: '/services?watch=1', keywords: 'live stream sunday service video sermon message preaching youtube teachings online' },
   { id: 'events', title: "What's on", subtitle: 'Events and news', icon: CalendarDays, color: 'orange', crumb: "Church › What's on", path: '/news', keywords: 'events news announcements calendar programme program this week conference' },
   { id: 'give', title: 'Give', subtitle: 'Tithes, offerings and seeds', icon: Heart, color: 'pink', crumb: 'Church › Give', path: '/give', keywords: 'donate offering tithe seed money pay giving card bank' },
   { id: 'prayer', title: 'Prayer Wall', subtitle: 'Ask for prayer, pray for others', icon: HandHeart, color: 'amber', crumb: 'Church › Prayer Wall', path: '/prayer', keywords: 'pray prayer request praise report testimony intercession' },
   { id: 'new', title: 'New here?', subtitle: 'Start your journey with us', icon: Compass, color: 'teal', crumb: 'Church › New here?', path: '/new-here', keywords: 'new visitor guest first time welcome faith saved' },
-  { id: 'locations', title: 'Find a church', subtitle: 'Our churches and service times', icon: MapPin, color: 'sky', crumb: 'Church › Find a church', path: '/locations', keywords: 'location address map directions where times galway dublin kildare athlone' },
+  { id: 'locations', title: 'Find a church', subtitle: 'Service times, places and directions', icon: MapPin, color: 'sky', crumb: 'Church › Find a church', path: '/services', keywords: 'location address map directions where times galway dublin kildare athlone' },
   { id: 'campus', title: 'Campus fellowships', subtitle: 'Believers Connect for students', icon: UsersRound, color: 'green', crumb: 'Church › Campus fellowships', path: '/campus-fellowships', keywords: 'students university college believers connect uog atu tus maynooth cork' },
   { id: 'building', title: 'Building campaign', subtitle: 'Our new church building', icon: Building2, color: 'slate', crumb: 'Church › Building campaign', path: '/building-campaign', keywords: 'building project pledge construction' },
   { id: 'feedback', title: 'Service feedback', subtitle: 'Tell us how the service went', icon: MessageSquareHeart, color: 'teal', crumb: 'Church › Service feedback', path: '/follow-up', keywords: 'feedback survey suggestions follow up' },
@@ -189,7 +189,7 @@ export const destination = (id: string) => DESTINATIONS.find((d) => d.id === id)
 /** The big picture buttons on Home, in order. */
 export const HOME_TILES: { id: string; title: string; subtitle: string; icon: LucideIcon; color: TileColor; to: string | (() => string) }[] = [
   { id: 'bible', title: 'Read the Bible', subtitle: 'Read and listen', icon: BookOpen, color: 'blue', to: '/bible' },
-  { id: 'watch', title: 'Watch', subtitle: 'Live and past', icon: PlayCircle, color: 'red', to: '/services' },
+  { id: 'watch', title: 'Watch', subtitle: 'Live and past', icon: PlayCircle, color: 'red', to: '/services?watch=1' },
   { id: 'give', title: 'Give', subtitle: 'Tithes and offerings', icon: Heart, color: 'pink', to: '/give' },
   { id: 'prayer', title: 'Pray', subtitle: 'Ask for prayer', icon: HandHeart, color: 'amber', to: '/prayer' },
   { id: 'messages', title: 'Messages', subtitle: 'Chat with church', icon: MessageCircle, color: 'indigo', to: '/group-chats' },

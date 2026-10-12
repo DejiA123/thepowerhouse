@@ -125,14 +125,14 @@ export const PictureTile = ({
     onClick={onClick}
     className={cn(
       'relative flex w-full rounded-[22px] border border-slate-200/70 bg-card text-left shadow-sm transition hover:border-blue-200 hover:shadow-md active:scale-[0.97] dark:border-slate-800 dark:hover:border-slate-700',
-      layout === 'row' ? 'min-h-[84px] items-center gap-3 p-3.5' : 'min-h-[128px] flex-col justify-between gap-3 p-4',
+      layout === 'row' ? 'min-h-[84px] items-center gap-2.5 p-3' : 'min-h-[128px] flex-col justify-between gap-3 p-4',
     )}
   >
-    <span className={cn('flex shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', layout === 'row' ? 'h-12 w-12' : 'h-[52px] w-[52px]', tint)}>
+    <span className={cn('flex shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', layout === 'row' ? 'h-11 w-11' : 'h-[52px] w-[52px]', tint)}>
       <Icon className={layout === 'row' ? 'h-6 w-6' : 'h-7 w-7'} />
     </span>
     <span className="min-w-0">
-      <span className="block font-outfit text-[17px] font-semibold leading-tight text-foreground">{title}</span>
+      <span className={cn('block font-outfit font-semibold leading-tight text-foreground', layout === 'row' ? 'text-[16.5px]' : 'text-[17px]')}>{title}</span>
       {subtitle && <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{subtitle}</span>}
     </span>
     {badge && <span className="absolute right-3 top-3">{badge}</span>}

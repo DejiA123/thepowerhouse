@@ -125,7 +125,7 @@ const DepartmentsDirectory = () => {
             icon={team.icon}
             tint={TILE[team.color]}
             title={team.name}
-            subtitle={memberCounts[team.name] ? `${team.description} · ${memberCounts[team.name]} people` : team.description}
+            subtitle={memberCounts[team.name] ? `${team.description} · ${memberCounts[team.name]} ${memberCounts[team.name] === 1 ? "person" : "people"}` : team.description}
             onClick={() => open(team)}
             badge={
               joined.has(team.name) ? (

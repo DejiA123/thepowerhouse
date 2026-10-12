@@ -51,7 +51,6 @@ const ChurchPage = lazyPage(() => import("@/pages/ChurchPage"));
 const MePage = lazyPage(() => import("@/pages/MePage"));
 const HelpPage = lazyPage(() => import("@/pages/HelpPage"));
 const LearnPage = lazyPage(() => import("@/pages/LearnPage"));
-const LocationsPage = lazyPage(() => import("@/pages/LocationsPage"));
 const GroupChatsPage = lazyPage(() => import("@/pages/GroupChatsPage"));
 const BibleReadingPlansPage = lazyPage(() => import("@/pages/BibleReadingPlansPage"));
 const ServicesPage = lazyPage(() => import("@/pages/ServicesPage"));
@@ -251,7 +250,7 @@ const AppRoutes = () => {
             <Route path="/me" element={<MePage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/learn" element={<LearnPage />} />
-            <Route path="/locations" element={<LocationsPage />} />
+            <Route path="/locations" element={<Navigate to="/services" replace />} />
             <Route
               path="/group-chats"
               element={
