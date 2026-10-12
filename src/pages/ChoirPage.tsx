@@ -5017,7 +5017,7 @@ const ChoirPage = () => {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"> {/* Mobile Responsive Layout */}
                         <div>
                             <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-                                {locationName} Choir Portal
+                                {locationName} Choir
                             </h1>
                             <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl">
                                 Leading the congregation in spirit and truth.
@@ -5048,6 +5048,9 @@ const ChoirPage = () => {
                                     )}
                                 </Button>
                             )}
+                            {/* On the choir home these are big picture buttons below instead */}
+                            {view !== 'home' && (
+                            <>
                             <Button
                                 className="bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-lg border-none flex-1 md:flex-none font-bold"
                                 onClick={() => setIsScheduleOpen(true)}
@@ -5079,6 +5082,8 @@ const ChoirPage = () => {
                                     <Wallet className="w-4 h-4 mr-2" />
                                     Monthly Contribution
                                 </Button>
+                            )}
+                            </>
                             )}
                         </div>
                     </div>
@@ -5154,21 +5159,21 @@ const ChoirPage = () => {
                                     className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
                                 >
                                     <Mic className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                    Vocalists
+                                    Songs
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="instrumentalists"
                                     className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
                                 >
                                     <Music className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                    Instrumentalists
+                                    Band
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="academy"
                                     className="rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all data-[state=active]:shadow-md flex items-center shrink-0"
                                 >
                                     <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
-                                    Academy
+                                    Lessons
                                 </TabsTrigger>
 
                             </TabsList>
