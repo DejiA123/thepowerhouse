@@ -5,6 +5,7 @@ import Header from "./Header";
 import BottomNavigation from "./BottomNavigation";
 import DesktopSidebar from "./DesktopSidebar";
 import AppTour from "./tour/AppTour";
+import UpdatePrompt from "./UpdatePrompt";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { SEARCH_EVENT } from "@/lib/appEvents";
 
@@ -297,6 +298,8 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Find anything, and the welcome tour (shown once; again from Help or Me) */}
       <SearchSlot />
       {showChrome && <AppTour />}
+      {/* "A new update is ready" with a Refresh button */}
+      <UpdatePrompt />
     </div>
   );
 };

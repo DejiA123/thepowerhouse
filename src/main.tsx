@@ -5,6 +5,7 @@ import './index.css'
 import { registerSW } from 'virtual:pwa-register';
 import { appAlert } from '@/lib/appAlert';
 import { recordLaunch } from '@/lib/launchReport';
+import { markUpdateReady, setUpdater } from '@/lib/appUpdate';
 
 recordLaunch();
 
@@ -22,14 +23,15 @@ window.addEventListener(
 );
 
 // Service worker: offline app shell + Web Push.
-// A new version downloads in the background and waits. It only takes over when
-// the app is put away, never while it's on screen: no reload (and white flash)
-// while opening or while in use, and the next open is already the new version.
+// A new version downloads in the background and waits. A pop-up then offers
+// "Refresh" (see UpdatePrompt); otherwise it takes over when the app is put
+// away, never on its own while it's on screen (no surprise reload).
 let updateReady = false;
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
     updateReady = true;
+    markUpdateReady();
   },
   onRegisteredSW(_url, registration) {
     if (!registration) return;
@@ -40,6 +42,7 @@ const updateSW = registerSW({
     setInterval(() => registration.update().catch(() => undefined), 60 * 60 * 1000);
   },
 });
+setUpdater(updateSW);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden' && updateReady) updateSW(true);
 });
