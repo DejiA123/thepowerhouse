@@ -130,8 +130,5 @@
     "vite-plugin-pwa": "^1.0.3",
     "workbox-range-requests": "^7.3.0"
   },
-  "overrides": {
-    "esbuild": "0.27.5"
-  },
   "comment": "Updated to trigger Lovable redeploy with latest changes - Bible translation persistence and auto-play fixes"
 }
