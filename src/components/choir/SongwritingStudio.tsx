@@ -154,12 +154,12 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
         if (!locationId) return;
         setIsLoading(true);
         try {
-            const themeRecord = await choirService.getSetlistInfo("songwriting_theme", locationId);
+            const themeRecord = await choirService.getSetlistInfo("songwriting_theme", locationId) as any;
             if (themeRecord?.value) {
                 setTheme(JSON.parse(themeRecord.value));
             }
 
-            const entriesRecord = await choirService.getSetlistInfo("songwriting_entries", locationId);
+            const entriesRecord = await choirService.getSetlistInfo("songwriting_entries", locationId) as any;
             if (entriesRecord?.value) {
                 const entries: SongwritingEntry[] = JSON.parse(entriesRecord.value);
                 setAllEntries(entries);
@@ -171,7 +171,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                 }
             }
 
-            const draftRecord = await choirService.getSetlistInfo("songwriting_collab_draft", locationId);
+            const draftRecord = await choirService.getSetlistInfo("songwriting_collab_draft", locationId) as any;
             if (draftRecord?.value) {
                 setCollabDraft(JSON.parse(draftRecord.value));
             }

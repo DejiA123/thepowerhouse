@@ -208,8 +208,10 @@ export default defineConfig(({ mode }) => ({
       },
     },
     chunkSizeWarningLimit: 4000,
-    // Modern JavaScript (iOS 14+, current Android): smaller and quicker to start than es2015
-    target: ['es2020', 'safari14'],
+    // Modern JavaScript (iOS 14+, current Android): smaller and quicker to start than es2015.
+    // A single 'es2020' target (no 'safari14' companion) — esbuild 0.27.2's transform API
+    // falsely reports destructuring as unsupported when the target list has multiple engines.
+    target: 'es2020',
     minify: 'esbuild',
     sourcemap: false,
     assetsInlineLimit: 0,

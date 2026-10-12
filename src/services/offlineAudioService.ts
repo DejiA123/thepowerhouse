@@ -237,7 +237,7 @@ export const offlineAudioService = {
         if (total) onProgress?.(received / total);
       }
     }
-    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const blob = new Blob(chunks as unknown as BlobPart[], { type: 'audio/mpeg' });
 
     const cache = await caches.open(CACHE_NAME);
     await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(blob.size) } }));
