@@ -156,7 +156,16 @@ const AppTour = () => {
     const measure = () => {
       setView(viewport());
       const el = current.target ? findTarget(current.target) : undefined;
-      setRect(el ? areaOf(el, current.first) : null);
+      if (!el) return setRect(null);
+      // Keep the lit-up frame fully on screen (the bottom bar touches the screen edge)
+      const r = areaOf(el, current.first);
+      const v = viewport();
+      const m = PAD + 6;
+      const l = Math.max(r.left, m);
+      const t = Math.max(r.top, m);
+      const rr = Math.min(r.right, v.w - m);
+      const b = Math.min(r.bottom, v.h - m);
+      setRect(new DOMRect(l, t, Math.max(0, rr - l), Math.max(0, b - t)));
     };
     const el = current.target ? findTarget(current.target) : undefined;
     if (el) {
