@@ -512,7 +512,7 @@ export class CallEngine {
     if (entry && !entry.analyser) entry.analyser = this.makeAnalyser(stream);
   }
 
-  private level(analyser?: { node: AnalyserNode; data: Uint8Array }) {
+  private level(analyser?: { node: AnalyserNode; data: Uint8Array<ArrayBuffer> }) {
     if (!analyser) return 0;
     analyser.node.getByteFrequencyData(analyser.data);
     let sum = 0;
