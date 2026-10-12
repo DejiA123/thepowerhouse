@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
 import ChoirHome, { type ChoirSection } from "@/components/choir/ChoirHome";
 import SingingLessons from "@/components/choir/SingingLessons";
-import { BackButton } from "@/components/page/PageKit";
 import { CHOIR_BRANCH_KEY } from "@/data/appDirectory";
 import { SongwritingStudio } from "@/components/choir/SongwritingStudio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -4996,32 +4995,34 @@ const ChoirPage = () => {
             {/* </Dialog> */}
 
             {/* Hero Header */}
-            <div className="relative h-auto md:h-[300px] overflow-hidden pb-8 pt-2" > {/* Removed pt-20, using pt-2 for a snug fit with global spacer */}
+            {/* Big on the choir home; a slim bar inside a section, so the content comes first */}
+            <div className={cn("relative h-auto overflow-hidden pt-2", view === 'home' ? "md:h-[300px] pb-8" : "pb-4")}>
                 < div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-500 opacity-90" ></div >
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1516280440614-6697288d5d38?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay"></div>
                 <div className="absolute inset-0 bg-black/20"></div>
 
-                <div className="relative h-full container mx-auto px-4 flex flex-col justify-end pb-8">
-                    <div className="flex justify-between items-start mb-4">  {/* Back Button Container */}
-                        <Button
-                            variant="ghost"
-                            className="text-white/80 hover:text-white hover:bg-white/10 w-fit pl-0"
+                <div className={cn("relative h-full container mx-auto px-4 flex flex-col justify-end", view === 'home' ? "pb-8" : "pb-3")}>
+                    <div className={cn("flex justify-between items-center", view === 'home' ? "mb-4" : "mb-2")}>
+                        <button
+                            className="inline-flex h-10 items-center gap-0.5 rounded-full bg-white/20 pl-2 pr-4 text-[15px] font-semibold text-white backdrop-blur transition active:scale-95"
                             onClick={() => (view === 'home' ? navigate('/groups') : goChoirHome())}
                         >
-                            <ArrowLeft className="w-5 h-5 mr-2" />
+                            <ArrowLeft className="w-5 h-5 mr-1" />
                             {view === 'home' ? 'Teams' : 'Choir'}
-                        </Button>
+                        </button>
                         {locationId && <ChoirNotifyButton location={locationId} />}
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6"> {/* Mobile Responsive Layout */}
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4"> {/* Mobile Responsive Layout */}
                         <div>
-                            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
+                            <h1 className={cn("font-bold text-white tracking-tight", view === 'home' ? "text-4xl md:text-5xl mb-2" : "text-2xl md:text-3xl")}>
                                 {locationName} Choir
                             </h1>
-                            <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl">
-                                Leading the congregation in spirit and truth.
-                            </p>
+                            {view === 'home' && (
+                                <p className="text-blue-100 text-lg md:text-xl font-medium max-w-2xl">
+                                    Leading the congregation in spirit and truth.
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap gap-3"> {/* Buttons visible on all screens */}
@@ -5048,43 +5049,7 @@ const ChoirPage = () => {
                                     )}
                                 </Button>
                             )}
-                            {/* On the choir home these are big picture buttons below instead */}
-                            {view !== 'home' && (
-                            <>
-                            <Button
-                                className="bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-lg border-none flex-1 md:flex-none font-bold"
-                                onClick={() => setIsScheduleOpen(true)}
-                            >
-                                <Calendar className="w-4 h-4 mr-2" />
-                                Schedule
-                            </Button>
-                            <Button
-                                className="bg-blue-500/30 text-white hover:bg-blue-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
-                                onClick={() => setIsRosterOpen(true)}
-                            >
-                                <Users className="w-4 h-4 mr-2" />
-                                Team Roster
-                            </Button>
-                            {locationId === 'galway' && (
-                                <Button
-                                    className="bg-violet-500/30 text-white hover:bg-violet-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none"
-                                    onClick={() => setIsSongwritingOpen(true)}
-                                >
-                                    <PenTool className="w-4 h-4 mr-2" />
-                                    Songwriting Studio
-                                </Button>
-                            )}
-                            {locationId === 'national' && (
-                                <Button
-                                    className="bg-blue-500/30 text-white hover:bg-blue-500/40 backdrop-blur-md border border-white/20 flex-1 md:flex-none font-bold"
-                                    onClick={() => navigate("/groups/choir/contributions")}
-                                >
-                                    <Wallet className="w-4 h-4 mr-2" />
-                                    Monthly Contribution
-                                </Button>
-                            )}
-                            </>
-                            )}
+                            {/* Schedule, Team, Songwriting and Contributions are big picture buttons on the choir home */}
                         </div>
                     </div>
                 </div>
@@ -5100,11 +5065,11 @@ const ChoirPage = () => {
                         onTeam={() => setIsRosterOpen(true)}
                         onSongwriting={() => setIsSongwritingOpen(true)}
                         onContributions={() => navigate('/groups/choir/contributions')}
+                        onSwitch={() => navigate('/groups/choir?pick=1')}
                     />
                 )}
                 {view === 'singing' && (
                     <>
-                        <BackButton label="Choir" onClick={goChoirHome} />
                         <SingingLessons
                             modules={(academyCourses.flatMap((s) => s.courses).find((c) => c.id === 'vocal-101')?.modules ?? []) as { title: string; description?: string }[]}
                             onVoice={(voice) => openCourseAt('vocal-101', { voice })}
@@ -5113,7 +5078,6 @@ const ChoirPage = () => {
                         />
                     </>
                 )}
-                {view === 'sections' && <BackButton label="Choir" onClick={goChoirHome} className="ml-2" />}
                 {view === 'sections' && (
                 <DndContext
                     sensors={sensors}

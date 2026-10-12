@@ -17,7 +17,8 @@ export interface MinistryTeam {
 }
 
 export const MINISTRY_TEAMS: MinistryTeam[] = [
-  { id: "choir", name: "Choir", icon: Music, description: "Songs, rehearsals and lessons", route: () => choirPath(), color: "blue" },
+  // Every choir (National and each branch) is listed first; yours is at the top
+  { id: "choir", name: "Choir", icon: Music, description: "Songs, rehearsals and lessons", route: "/groups/choir", color: "blue" },
   { id: "ushering", name: "Ushering", icon: DoorOpen, description: "Welcome and help people", route: "/groups/ushering", color: "orange" },
   { id: "evangelism", name: "Evangelism", icon: Megaphone, description: "Share the good news", route: "/groups/evangelism", color: "red" },
   { id: "pastoral", name: "Pastoral Care", icon: HeartHandshake, description: "Care for one another", route: "/groups/pastoral", color: "pink" },
@@ -84,6 +85,12 @@ const DepartmentsDirectory = () => {
     navigate(routeOf(team));
   };
 
+  // "Your team": straight into your own choir when it is the choir
+  const openFeatured = (team: MinistryTeam) => {
+    rememberTeam(team.id);
+    navigate(team.id === "choir" ? choirPath() : routeOf(team));
+  };
+
   const mine = MINISTRY_TEAMS.filter((t) => joined.has(t.name));
   const featured = mine[0] ?? MINISTRY_TEAMS.find((t) => t.id === recent[0]);
   const branch = featured?.id === "choir" ? BRANCH_NAMES[rememberedChoir() ?? ""] : undefined;
@@ -92,7 +99,7 @@ const DepartmentsDirectory = () => {
     <div>
       {featured && (
         <button
-          onClick={() => open(featured)}
+          onClick={() => openFeatured(featured)}
           className="relative block w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 p-5 text-left text-white shadow-lg shadow-blue-900/20 transition active:scale-[0.99]"
         >
           <span className="pointer-events-none absolute -right-12 -top-14 h-44 w-44 rounded-full bg-white/10" />

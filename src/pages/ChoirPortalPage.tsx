@@ -20,8 +20,8 @@ const ChoirPortalPage = () => {
   const { search } = useLocation();
   const lastId = rememberedChoir();
   const last = BRANCHES.find((b) => b.id === lastId);
-  // Heading somewhere in the choir (search, Help, a notification)?
-  const heading = search && search !== "?";
+  // Heading somewhere in the choir (search, Help, a notification)? "?pick=1" is just choosing a choir
+  const heading = !!search && search !== "?" && !new URLSearchParams(search).has("pick");
 
   const open = (id: string) => {
     try {

@@ -149,7 +149,8 @@ export const DESTINATIONS: Destination[] = [
 
   // Teams
   { id: 'teams', title: 'Teams', subtitle: 'Choir, ushering and every team', icon: Users, color: 'green', crumb: 'Teams', path: '/groups', keywords: 'ministry hub departments groups life groups serve' },
-  { id: 'choir', title: 'Choir', subtitle: 'Songs, rehearsals and lessons', icon: Music, color: 'blue', crumb: 'Teams › Choir', path: () => choirPath(), keywords: 'choir music worship singing singers praise team' },
+  { id: 'choir', title: 'Choir', subtitle: 'Songs, rehearsals and lessons', icon: Music, color: 'blue', crumb: 'Teams › Choir', path: '/groups/choir', keywords: 'choir music worship singing singers praise team branch galway dublin kildare athlone' },
+  { id: 'choir-national', title: 'TPH National Choir', subtitle: 'The official national choir portal', icon: Music, color: 'indigo', crumb: 'Teams › Choir › National', path: '/groups/choir/national', keywords: 'national choir tph official portal contributions' },
   { id: 'choir-songs', title: 'Choir songs', subtitle: 'Setlists, lyrics and song library', icon: ListMusic, color: 'indigo', crumb: 'Teams › Choir › Songs', path: () => choirPath('?tab=songs'), keywords: 'songs setlist set list lyrics praise worship library learning focus' },
   { id: 'choir-rehearsals', title: 'Rehearsal times', subtitle: 'When the choir meets', icon: Clock, color: 'orange', crumb: 'Teams › Choir › Rehearsals', path: () => choirPath('?tab=schedule'), keywords: 'rehearsal practice schedule times calendar soundcheck' },
   { id: 'choir-singing', title: 'Singing lessons', subtitle: "Lessons for men's and women's voices", icon: Mic, color: 'blue', crumb: 'Teams › Choir › Singing lessons', path: () => choirPath('?tab=singing'), keywords: 'singing lessons vocal training voice academy course breathing posture' },

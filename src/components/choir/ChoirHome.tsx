@@ -1,4 +1,4 @@
-import { Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, PenTool, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeftRight, Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, PenTool, UsersRound, Wallet } from "lucide-react";
 import { PictureTile } from "@/components/page/PageKit";
 import { TILE } from "@/data/appDirectory";
 
@@ -15,6 +15,7 @@ const ChoirHome = ({
   onTeam,
   onSongwriting,
   onContributions,
+  onSwitch,
 }: {
   locationId?: string;
   onOpen: (section: ChoirSection) => void;
@@ -22,6 +23,8 @@ const ChoirHome = ({
   onTeam: () => void;
   onSongwriting: () => void;
   onContributions: () => void;
+  /** Go to the list of every choir (National and the branches) */
+  onSwitch: () => void;
 }) => (
   <div className="mx-auto max-w-4xl">
     <h2 className="mb-3 px-1 font-outfit text-[22px] font-bold tracking-tight text-foreground">What do you need?</h2>
@@ -45,6 +48,12 @@ const ChoirHome = ({
       className="mt-4 w-full rounded-[18px] border border-dashed border-slate-300 py-3.5 text-[15px] font-semibold text-blue-600 dark:border-slate-700 dark:text-blue-400"
     >
       See every choir lesson
+    </button>
+    <button
+      onClick={onSwitch}
+      className="mt-3 flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-100 py-3.5 text-[15px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+    >
+      <ArrowLeftRight className="h-5 w-5" /> Switch to another choir
     </button>
   </div>
 );
