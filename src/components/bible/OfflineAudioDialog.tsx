@@ -14,6 +14,8 @@ import {
 } from '@/services/offlineAudioService';
 import { enhancedApiBibleService } from '@/services/enhancedApiBibleService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
+import { audioPlanFor, isOldTestament } from '@/services/audioBible/catalog';
+import { useAiVoice } from '@/services/aiVoice/engine';
 
 /* ── Background download manager (keeps going when the dialog is closed) ── */
 interface Job extends BookDownloadProgress {
@@ -53,11 +55,15 @@ if (typeof document !== 'undefined') {
   });
 }
 
+const jobKey = (source: string, book: string) => `${source}|${book}`;
+
 function startBookDownload(book: string, version: string, textVersion?: string) {
-  if (jobs.get(book)?.running) return;
+  const source = offlineAudioService.sourceFor(version, book) ?? 'KJV';
+  const key = jobKey(source, book);
+  if (jobs.get(key)?.running) return;
   const controller = new AbortController();
   const job: Job = { book, done: 0, total: bookInfo(book)?.chapters ?? 0, failed: 0, controller, running: true };
-  jobs.set(book, job);
+  jobs.set(key, job);
   emitJobs();
   offlineAudioService
     .downloadBook(book, version, (p) => {
@@ -78,7 +84,7 @@ function startBookDownload(book: string, version: string, textVersion?: string) 
       if (result.outOfSpace) appAlert(`${name}: not enough space`, 'Free up space on your phone, then tap Resume.', 'error');
       else if (result.failed) appAlert(`${name}: ${result.failed} chapters didn't download`, 'Check your connection and tap Resume.', 'error');
       else appAlert(`${name} is ready offline`, 'You can now listen without an internet connection.', 'success');
-      jobs.delete(book);
+      jobs.delete(key);
       emitJobs();
     });
 }
@@ -96,6 +102,7 @@ type CollectionId = keyof typeof COLLECTIONS;
 
 interface CollectionJob {
   id: CollectionId;
+  source: string;
   currentBook: string | null;
   failed: number;
   controller: AbortController;
@@ -104,11 +111,11 @@ let collectionJob: CollectionJob | null = null;
 
 const AVG_CHAPTER_BYTES = 2.5 * 1024 * 1024;
 
-function collectionStatus(id: CollectionId) {
+function collectionStatus(id: CollectionId, source: string) {
   let done = 0;
   let total = 0;
   COLLECTIONS[id].books.forEach((b) => {
-    const st = offlineAudioService.bookStatus(b);
+    const st = offlineAudioService.bookStatus(b, source);
     done += st.done;
     total += st.total;
   });
@@ -117,15 +124,16 @@ function collectionStatus(id: CollectionId) {
 
 async function startCollectionDownload(id: CollectionId, version: string) {
   if (collectionJob) return;
+  const source = offlineAudioService.sourceFor(version) ?? 'KJV';
   const controller = new AbortController();
-  const job: CollectionJob = { id, currentBook: null, failed: 0, controller };
+  const job: CollectionJob = { id, source, currentBook: null, failed: 0, controller };
   collectionJob = job;
   emitJobs();
   let outOfSpace = false;
   try {
     for (const book of COLLECTIONS[id].books) {
       if (controller.signal.aborted) break;
-      const st = offlineAudioService.bookStatus(book);
+      const st = offlineAudioService.bookStatus(book, source);
       if (st.done === st.total) continue;
       job.currentBook = book;
       emitJobs();
@@ -183,14 +191,20 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
   }, [open]);
 
   const info = bookInfo(book);
-  const status = offlineAudioService.bookStatus(book);
-  const job = jobs.get(book);
-  const chapterSaved = offlineAudioService.isDownloaded(book, chapter);
+  // Each recording is downloaded on its own (KJV, ESV); some can only be streamed
+  const plan = audioPlanFor(version, book);
+  const source = offlineAudioService.sourceFor(version, book);
+  const recordingName = plan.kind === 'recording' ? 'King James Version' : plan.translation;
+  const status = offlineAudioService.bookStatus(book, source ?? 'KJV');
+  const job = jobs.get(jobKey(source ?? 'KJV', book));
+  const chapterSaved = offlineAudioService.isDownloaded(book, chapter, version);
   const downloads = offlineAudioService.list();
-  const byBook = downloads.reduce<Record<string, { chapters: number; bytes: number }>>((acc, d) => {
-    acc[d.book] ||= { chapters: 0, bytes: 0 };
-    acc[d.book].chapters++;
-    acc[d.book].bytes += d.bytes;
+  const byBook = downloads.reduce<Record<string, { book: string; source: string; chapters: number; bytes: number }>>((acc, d) => {
+    const s = d.source ?? 'KJV';
+    const k = jobKey(s, d.book);
+    acc[k] ||= { book: d.book, source: s, chapters: 0, bytes: 0 };
+    acc[k].chapters++;
+    acc[k].bytes += d.bytes;
     return acc;
   }, {});
   const totalBytes = offlineAudioService.totalBytes();
@@ -229,8 +243,13 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
             </p>
           ) : (
             <>
+              {!source ? (
+                // Read by the AI voice, or a narration that may only be streamed
+                <NotDownloadable version={version} book={book} chapter={chapter} />
+              ) : (
+              <>
               {/* The whole audio Bible, one tap */}
-              <WholeAudioBible onDownload={() => setConfirmCollection('all')} />
+              <WholeAudioBible source={source} name={recordingName} onDownload={() => setConfirmCollection('all')} />
 
               {/* Current book */}
               <div className="rounded-2xl border border-border p-4">
@@ -252,7 +271,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                       className="flex-1 rounded-full"
                       onClick={() => {
                         job.controller.abort();
-                        jobs.delete(book);
+                        jobs.delete(jobKey(source, book));
                         emitJobs();
                       }}
                     >
@@ -266,7 +285,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                     <Button
                       variant="outline"
                       className="flex-1 rounded-full text-red-600"
-                      onClick={() => offlineAudioService.removeBook(book)}
+                      onClick={() => offlineAudioService.removeBook(book, source)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" /> Remove book
                     </Button>
@@ -285,8 +304,8 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Download more</p>
                 <div className="divide-y divide-border rounded-2xl border border-border">
                   {(['nt', 'ot'] as CollectionId[]).map((id) => {
-                    const st = collectionStatus(id);
-                    const running = collectionJob?.id === id;
+                    const st = collectionStatus(id, source);
+                    const running = collectionJob?.id === id && collectionJob.source === source;
                     const complete = st.done === st.total;
                     const current = running && collectionJob?.currentBook ? bookInfo(collectionJob.currentBook)?.name : null;
                     return (
@@ -322,6 +341,8 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                   })}
                 </div>
               </div>
+              </>
+              )}
 
               {downloading() && (
                 <p className="flex items-start gap-2 rounded-2xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
@@ -346,27 +367,31 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
                   </p>
                 ) : (
                   <div className="divide-y divide-border rounded-2xl border border-border">
-                    {Array.from(jobs.values()).filter((j) => j.book !== book && j.running).map((j) => (
-                      <div key={`job-${j.book}`} className="flex items-center gap-3 p-3">
+                    {Array.from(jobs.entries()).filter(([k, j]) => k !== jobKey(source ?? 'KJV', book) && j.running).map(([k, j]) => (
+                      <div key={`job-${k}`} className="flex items-center gap-3 p-3">
                         <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                         <p className="flex-1 text-sm font-medium">{bookInfo(j.book)?.name ?? j.book}</p>
                         <p className="text-xs text-muted-foreground">{j.done}/{j.total}</p>
                       </div>
                     ))}
-                    {Object.entries(byBook).map(([b, v]) => {
-                      const total = bookInfo(b)?.chapters ?? v.chapters;
+                    {Object.entries(byBook).map(([k, v]) => {
+                      const total = bookInfo(v.book)?.chapters ?? v.chapters;
+                      const name = bookInfo(v.book)?.name ?? v.book;
+                      const label = v.source === 'KJV' ? 'KJV' : v.source.replace(/^ENG/, '');
                       return (
-                        <div key={b} className="flex items-center gap-3 p-3">
+                        <div key={k} className="flex items-center gap-3 p-3">
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-foreground">{bookInfo(b)?.name ?? b}</p>
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {name} <span className="text-xs font-normal text-muted-foreground">{label}</span>
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {v.chapters === total ? 'Whole book' : `${v.chapters} of ${total} chapters`} · {formatBytes(v.bytes)}
                             </p>
                           </div>
                           <button
-                            onClick={() => offlineAudioService.removeBook(b)}
+                            onClick={() => offlineAudioService.removeBook(v.book, v.source)}
                             className={cn('rounded-full p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30')}
-                            aria-label={`Remove ${bookInfo(b)?.name ?? b}`}
+                            aria-label={`Remove ${name} ${label}`}
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -386,7 +411,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
               </div>
 
               <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-                Audio is the King James Version. Downloads stay on this device until you remove them. On iPhone, open the
+                {source ? `Audio is the ${recordingName}, narrated. ` : ''}Downloads stay on this device until you remove them. On iPhone, open the
                 app from your Home Screen so downloads are kept.
               </p>
             </>
@@ -399,6 +424,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
           {confirmCollection && (
             <ConfirmCollection
               id={confirmCollection}
+              source={source ?? 'KJV'}
               estimate={estimate}
               onStart={() => {
                 startCollectionDownload(confirmCollection, version);
@@ -413,9 +439,9 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
 };
 
 /** Big "download everything" card at the top of Listen offline */
-const WholeAudioBible = ({ onDownload }: { onDownload: () => void }) => {
-  const st = collectionStatus('all');
-  const running = collectionJob?.id === 'all';
+const WholeAudioBible = ({ source, name, onDownload }: { source: string; name: string; onDownload: () => void }) => {
+  const st = collectionStatus('all', source);
+  const running = collectionJob?.id === 'all' && collectionJob.source === source;
   const complete = st.total > 0 && st.done === st.total;
   const current = running && collectionJob?.currentBook ? bookInfo(collectionJob.currentBook)?.name : null;
   const pct = st.total ? (100 * st.done) / st.total : 0;
@@ -432,6 +458,7 @@ const WholeAudioBible = ({ onDownload }: { onDownload: () => void }) => {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[16px] font-bold text-foreground">{complete ? 'The whole audio Bible is on this phone' : 'The whole audio Bible'}</p>
+          {source !== 'KJV' && <p className="text-[12.5px] font-semibold text-blue-600 dark:text-blue-300">{name}</p>}
           <p className="text-[13px] text-muted-foreground">
             {complete
               ? `All ${st.total.toLocaleString()} chapters`
@@ -458,9 +485,9 @@ const WholeAudioBible = ({ onDownload }: { onDownload: () => void }) => {
 };
 
 const ConfirmCollection = ({
-  id, estimate, onStart,
-}: { id: CollectionId; estimate: { usage: number; quota: number } | null; onStart: () => void }) => {
-  const st = collectionStatus(id);
+  id, source, estimate, onStart,
+}: { id: CollectionId; source: string; estimate: { usage: number; quota: number } | null; onStart: () => void }) => {
+  const st = collectionStatus(id, source);
   const free = estimate ? estimate.quota - estimate.usage : null;
   const tooBig = free !== null && free < st.remainingBytes * 1.1;
   return (
@@ -488,6 +515,98 @@ const ConfirmCollection = ({
         <AlertDialogAction className="rounded-full" onClick={onStart}>Start download</AlertDialogAction>
       </AlertDialogFooter>
     </>
+  );
+};
+
+/**
+ * For translations whose audio can't be saved as files: those read by the AI
+ * voice (it's made on the phone, so it needs the voice and the text), and
+ * narrations the publisher only allows to be streamed.
+ */
+const NotDownloadable = ({ version, book, chapter }: { version: string; book: string; chapter: number }) => {
+  const ai = useAiVoice();
+  const plan = audioPlanFor(version, book);
+  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null);
+  const info = bookInfo(book);
+  const testament = isOldTestament(book) ? 'Old Testament' : 'New Testament';
+
+  const saveText = async () => {
+    const total = info?.chapters ?? 1;
+    setSaving({ done: 0, total });
+    let failed = 0;
+    for (let c = 1; c <= total; c++) {
+      const ok = await enhancedApiBibleService.getChapter(version, book, c).catch(() => null);
+      if (!ok) failed++;
+      setSaving({ done: c, total });
+    }
+    setSaving(null);
+    if (failed) appAlert(`${failed} chapters didn't save`, 'Check your connection and try again.', 'error');
+    else appAlert(`${info?.name ?? book} text saved`, 'The AI voice can now read it with no connection.', 'success');
+  };
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+      {plan.kind === 'narrated' ? (
+        <p className="text-[14px] leading-relaxed text-foreground">
+          The {plan.translation} {testament} narration can only be streamed: the publisher doesn't allow downloads. With no
+          connection, the AI voice reads it instead.
+        </p>
+      ) : plan.kind === 'none' ? (
+        <p className="text-[14px] leading-relaxed text-foreground">
+          The {plan.translation} can't be read aloud: its text isn't available in the app any more. Choose another translation
+          to listen.
+        </p>
+      ) : (
+        <p className="text-[14px] leading-relaxed text-foreground">
+          The {plan.translation} is read by a natural AI voice made on this phone, so there's nothing to download for each
+          chapter. To listen with no connection, have the voice on the phone and save the Bible text.
+        </p>
+      )}
+
+      {plan.kind !== 'none' && (
+        <>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">AI voice</p>
+              <p className="text-xs text-muted-foreground">
+                {ai.status === 'ready'
+                  ? 'On this phone'
+                  : ai.status === 'downloading'
+                    ? `Downloading · ${Math.round(ai.progress * 100)}%`
+                    : `Not downloaded · ${formatBytes(ai.totalBytes)}`}
+              </p>
+            </div>
+            {ai.status === 'ready' ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+            ) : ai.status === 'downloading' ? (
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-blue-600" />
+            ) : (
+              <Button size="sm" className="rounded-full" onClick={() => ai.download().catch(() => undefined)}>
+                <CloudDownload className="mr-1.5 h-4 w-4" /> Download
+              </Button>
+            )}
+          </div>
+          {ai.status === 'downloading' && <Progress value={ai.progress * 100} className="h-1.5" />}
+
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">{info?.name ?? book} text</p>
+              <p className="text-xs text-muted-foreground">
+                {saving ? `Saving · ${saving.done}/${saving.total}` : `${info?.chapters ?? ''} chapters, for reading and listening offline`}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" className="rounded-full" disabled={!!saving} onClick={saveText}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
+              {saving ? '' : 'Save'}
+            </Button>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Chapter {chapter} and any chapter you've opened are already saved. To save every book at once, use Bible settings →
+            Read offline.
+          </p>
+        </>
+      )}
+    </div>
   );
 };
 

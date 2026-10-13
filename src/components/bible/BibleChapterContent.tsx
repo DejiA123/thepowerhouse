@@ -5,7 +5,9 @@ import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
-import { estimateVerseTimings, getVerseTimings, verseAt, type VerseTimings } from "@/services/verseTimingService";
+import { estimateVerseTimings, getVerseTimings, TIMINGS_EVENT, verseAt, type VerseTimings } from "@/services/verseTimingService";
+import { audioPlanFor } from "@/services/audioBible/catalog";
+import { aiVoice } from "@/services/aiVoice/engine";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useAuth } from "@/contexts/AuthContext";
@@ -424,6 +426,11 @@ export const BibleChapterContent = ({
     return map;
   }, [chapterNotes]);
 
+  // A translation read by the AI voice: have the voice ready before Listen is tapped
+  useEffect(() => {
+    if (selectedVersion && audioPlanFor(selectedVersion, normalizeBookApiName(selectedBook)).kind === 'ai') aiVoice.warmUp();
+  }, [selectedVersion, selectedBook]);
+
   // Auto-play MP3 audio when shouldAutoPlay is true
   useEffect(() => {
     if (!shouldAutoPlay || !globalAudio) return;
@@ -490,17 +497,26 @@ export const BibleChapterContent = ({
     globalAudio.audioState.currentChapter === selectedChapter;
 
   // Load exact verse timings for this chapter once audio for it is loaded
+  // (each recording has its own; the AI voice's arrive as it reads)
+  const timingSource = globalAudio?.audioState.timingSource || 'KJV';
   useEffect(() => {
     setTimings(null);
     if (!audioOnThisChapter) return;
     let cancelled = false;
-    getVerseTimings(normalizeBookApiName(selectedBook), selectedChapter).then((t) => {
-      if (!cancelled) setTimings(t);
-    });
+    const load = () =>
+      getVerseTimings(normalizeBookApiName(selectedBook), selectedChapter, timingSource).then((t) => {
+        if (!cancelled) setTimings(t);
+      });
+    load();
+    const onChange = (event: Event) => {
+      if ((event as CustomEvent).detail === timingSource) load();
+    };
+    window.addEventListener(TIMINGS_EVENT, onChange);
     return () => {
       cancelled = true;
+      window.removeEventListener(TIMINGS_EVENT, onChange);
     };
-  }, [audioOnThisChapter, selectedBook, selectedChapter]);
+  }, [audioOnThisChapter, selectedBook, selectedChapter, timingSource]);
 
   const effectiveTimings = useMemo(() => {
     if (timings) return timings;
@@ -1395,10 +1411,18 @@ const BibleAudioBar = ({
 
   const playingHere =
     normalizeBookApiName(a.currentBook || '') === normalizeBookApiName(selectedBook) && a.currentChapter === selectedChapter;
-  const saved = offlineAudioService.isDownloaded(normalizeBookApiName(a.currentBook || ''), a.currentChapter);
+  const playingBook = normalizeBookApiName(a.currentBook || '');
+  // Only offer downloading where the recording's licence allows it (KJV, ESV)
+  const downloadable = !!offlineAudioService.sourceFor(a.currentVersion, playingBook);
+  const saved = !downloadable || offlineAudioService.isDownloaded(playingBook, a.currentChapter, a.currentVersion);
   const progress = a.duration ? Math.min(100, (100 * a.currentTime) / a.duration) : 0;
   const left = a.duration ? `${formatClock(a.duration - a.currentTime)} left` : a.isLoading ? 'Loading…' : '';
-  const detail = [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
+  const detail =
+    a.preparing != null
+      ? `Preparing the voice… ${Math.round(a.preparing * 100)}%`
+      : a.isLoading && a.voice === 'AI voice'
+        ? 'Starting the AI voice…'
+        : [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
 
   return (
     <div style={frame} className="pointer-events-none fixed z-[90] px-3">

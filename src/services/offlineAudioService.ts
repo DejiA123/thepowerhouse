@@ -1,12 +1,17 @@
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { getVerseTimings } from '@/services/verseTimingService';
+import { audioPlanFor, downloadSourceFor } from '@/services/audioBible/catalog';
+import { isNarratedKey, streamUrlFor } from '@/services/audioBible/narrated';
 
 /**
  * Offline audio Bible.
  * Chapter MP3s are saved in Cache Storage (persists across app restarts, works
  * in installed PWAs on iOS and Android). Playback uses the saved copy when it
  * exists, so chapters play with no internet connection.
+ *
+ * Each recording is kept apart: "KJV" (the original downloads) and the
+ * narrated translations whose licence allows downloading (ESV).
  */
 
 const CACHE_NAME = 'bible-audio-offline-v1';
@@ -20,6 +25,8 @@ export interface DownloadedChapter {
   url: string;
   bytes: number;
   savedAt: number;
+  /** Which recording: "KJV" (also when missing, for downloads from before) or e.g. "ENGESV" */
+  source?: string;
 }
 
 export interface BookDownloadProgress {
@@ -66,7 +73,9 @@ type Index = Record<string, DownloadedChapter>;
 const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
 export const bookInfo = (apiName: string) => allBooks.find((b) => b.apiName.toLowerCase() === apiName.toLowerCase());
 
-const keyFor = (book: string, chapter: number) => `${book.toLowerCase()}:${chapter}`;
+const keyFor = (book: string, chapter: number, source = 'KJV') =>
+  source === 'KJV' ? `${book.toLowerCase()}:${chapter}` : `${source}|${book.toLowerCase()}:${chapter}`;
+const sourceOf = (entry: DownloadedChapter) => entry.source ?? 'KJV';
 
 // Read once and kept in memory: with the whole audio Bible saved the list is
 // large, and the player checks it on every redraw while playing
@@ -123,16 +132,26 @@ const objectUrls = new Map<string, string>();
 export const offlineAudioService = {
   CHANGE_EVENT,
 
-  list(): DownloadedChapter[] {
-    return Object.values(readIndex()).sort((a, b) => {
-      const ia = allBooks.findIndex((x) => x.apiName === a.book);
-      const ib = allBooks.findIndex((x) => x.apiName === b.book);
-      return ia - ib || a.chapter - b.chapter;
-    });
+  /** Everything saved, or only one recording's chapters */
+  list(source?: string): DownloadedChapter[] {
+    return Object.values(readIndex())
+      .filter((e) => !source || sourceOf(e) === source)
+      .sort((a, b) => {
+        const ia = allBooks.findIndex((x) => x.apiName === a.book);
+        const ib = allBooks.findIndex((x) => x.apiName === b.book);
+        return ia - ib || a.chapter - b.chapter;
+      });
   },
 
-  isDownloaded(book: string, chapter: number) {
-    return !!readIndex()[keyFor(book, chapter)];
+  /** Which recording a translation's downloads are kept under, or null if it can't be downloaded */
+  sourceFor(version: string, book = 'john') {
+    return downloadSourceFor(version, book);
+  },
+
+  /** Saved for this translation (the KJV recording when no translation is given). */
+  isDownloaded(book: string, chapter: number, version?: string) {
+    const source = version ? downloadSourceFor(version, book) : 'KJV';
+    return !!source && !!readIndex()[keyFor(book, chapter, source)];
   },
 
   /** Whether the chapter at this audio address is saved on the device. */
@@ -140,14 +159,14 @@ export const offlineAudioService = {
     return Object.values(readIndex()).some((e) => e.url === url);
   },
 
-  bookStatus(book: string) {
+  bookStatus(book: string, source = 'KJV') {
     const info = bookInfo(book);
     const total = info?.chapters ?? 0;
     const index = readIndex();
     let done = 0;
     let bytes = 0;
     for (let c = 1; c <= total; c++) {
-      const entry = index[keyFor(book, c)];
+      const entry = index[keyFor(book, c, source)];
       if (entry) {
         done++;
         bytes += entry.bytes;
@@ -174,22 +193,26 @@ export const offlineAudioService = {
    * device, otherwise the original streaming URL.
    */
   async resolvePlayableUrl(remoteUrl: string): Promise<string> {
-    if (!offlineAudioSupported()) return remoteUrl;
+    // Narrated chapters not on the device stream from a fresh signed link
+    const stream = () => (isNarratedKey(remoteUrl) ? streamUrlFor(remoteUrl) : Promise.resolve(remoteUrl));
+    if (!offlineAudioSupported()) return stream();
     // The service worker serves the saved copy for this address (instantly, with
     // seeking, and with no connection); no need to read the whole file here
-    if (playerInWorker && navigator.serviceWorker?.controller) return remoteUrl;
+    if (playerInWorker && navigator.serviceWorker?.controller && (!isNarratedKey(remoteUrl) || this.isSavedUrl(remoteUrl))) {
+      return remoteUrl;
+    }
     const existing = objectUrls.get(remoteUrl);
     if (existing) return existing;
     try {
       const cache = await caches.open(CACHE_NAME);
       const hit = await cache.match(remoteUrl);
-      if (!hit) return remoteUrl;
+      if (!hit) return stream();
       const blob = await hit.blob();
       const local = URL.createObjectURL(blob.type ? blob : new Blob([blob], { type: 'audio/mpeg' }));
       objectUrls.set(remoteUrl, local);
       return local;
     } catch {
-      return remoteUrl;
+      return stream();
     }
   },
 
@@ -214,13 +237,16 @@ export const offlineAudioService = {
     signal?: AbortSignal,
   ): Promise<DownloadedChapter> {
     if (!offlineAudioSupported()) throw new Error('Offline downloads are not supported on this browser');
-    const url = await supabaseAudioService.getAudioUrl(book, chapter, version);
-    if (!url) throw new Error('Audio not available for this chapter');
+    const source = downloadSourceFor(version, book);
+    const url = source ? await supabaseAudioService.getAudioUrl(book, chapter, version) : null;
+    if (!source || !url) {
+      throw new Error(audioPlanFor(version, book).kind === 'narrated' ? 'This narration can only be streamed' : 'Audio not available for this chapter');
+    }
 
-    const existing = readIndex()[keyFor(book, chapter)];
+    const existing = readIndex()[keyFor(book, chapter, source)];
     if (existing && existing.url === url) return existing;
 
-    const response = await fetch(url, { signal, mode: 'cors' });
+    const response = await fetch(await streamUrlFor(url), { signal, mode: 'cors' });
     if (!response.ok || !response.body) throw new Error(`Download failed (${response.status})`);
 
     // Stream so we can report progress on slow connections
@@ -242,12 +268,13 @@ export const offlineAudioService = {
     const cache = await caches.open(CACHE_NAME);
     await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(blob.size) } }));
 
-    const entry: DownloadedChapter = { book: book.toLowerCase(), chapter, version, url, bytes: blob.size, savedAt: Date.now() };
+    const entry: DownloadedChapter = { book: book.toLowerCase(), chapter, version, url, bytes: blob.size, savedAt: Date.now(), source };
     const index = readIndex();
-    index[keyFor(book, chapter)] = entry;
+    index[keyFor(book, chapter, source)] = entry;
     writeIndex(index, { added: url });
     // Save verse timings too, so "follow along" highlighting works offline
-    getVerseTimings(book, chapter).catch(() => null);
+    const plan = audioPlanFor(version, book);
+    getVerseTimings(book, chapter, plan.kind === 'narrated' ? plan.fileset : 'KJV').catch(() => null);
     onProgress?.(1);
     return entry;
   },
@@ -264,11 +291,13 @@ export const offlineAudioService = {
     const total = info?.chapters ?? 0;
     const queue = Array.from({ length: total }, (_, i) => i + 1);
     const progress: BookDownloadProgress = { book, done: 0, total, failed: 0 };
+    const source = downloadSourceFor(version, book);
+    if (!source) return progress;
     const index = readIndex();
-    progress.done = queue.filter((c) => index[keyFor(book, c)]).length;
+    progress.done = queue.filter((c) => index[keyFor(book, c, source)]).length;
     onProgress({ ...progress });
 
-    const pending = queue.filter((c) => !index[keyFor(book, c)]);
+    const pending = queue.filter((c) => !index[keyFor(book, c, source)]);
     const worker = async () => {
       while (pending.length && !signal?.aborted && !progress.outOfSpace) {
         const chapter = pending.shift()!;
@@ -303,9 +332,9 @@ export const offlineAudioService = {
     return progress;
   },
 
-  async removeChapter(book: string, chapter: number) {
+  async removeChapter(book: string, chapter: number, source = 'KJV') {
     const index = readIndex();
-    const entry = index[keyFor(book, chapter)];
+    const entry = index[keyFor(book, chapter, source)];
     if (!entry) return;
     const cache = await caches.open(CACHE_NAME);
     await cache.delete(entry.url);
@@ -314,16 +343,17 @@ export const offlineAudioService = {
       URL.revokeObjectURL(local);
       objectUrls.delete(entry.url);
     }
-    delete index[keyFor(book, chapter)];
+    delete index[keyFor(book, chapter, source)];
     writeIndex(index, { removed: entry.url });
   },
 
-  async removeBook(book: string) {
+  /** Removes a book's chapters (of one recording, or of all of them) */
+  async removeBook(book: string, source?: string) {
     const index = readIndex();
     const cache = await caches.open(CACHE_NAME);
     await Promise.all(
       Object.entries(index)
-        .filter(([, e]) => e.book === book.toLowerCase())
+        .filter(([, e]) => e.book === book.toLowerCase() && (!source || sourceOf(e) === source))
         .map(async ([key, e]) => {
           await cache.delete(e.url);
           delete index[key];

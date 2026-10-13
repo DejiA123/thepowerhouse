@@ -7,6 +7,7 @@ import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, Graduati
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import WorshipMusicSettings from "./WorshipMusicSettings";
+import AiVoiceSettings from "./AiVoiceSettings";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -225,6 +226,8 @@ export const BibleMenuDialog = ({
             </div>
 
             <h3 className="px-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Listening</h3>
+
+            <AiVoiceSettings />
 
             <WorshipMusicSettings />
 

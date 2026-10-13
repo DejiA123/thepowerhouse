@@ -1,6 +1,8 @@
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 // Supabase Audio Service for Bible MP3 files
 import { supabase } from '@/integrations/supabase/client';
+import { audioPlanFor } from '@/services/audioBible/catalog';
+import { narratedKey } from '@/services/audioBible/narrated';
 
 const AUDIO_BUCKET = 'audio-bible';
 
@@ -337,13 +339,20 @@ export const supabaseAudioService = {
   },
 
   /**
-   * Get the public URL for an MP3 file
+   * The audio address of a chapter in this translation: the KJV recording on
+   * archive.org, or the fixed address of a narrated chapter (see
+   * audioBible/narrated). Null when the translation is read by the AI voice
+   * or has no audio (see audioBible/catalog).
    */
   async getAudioUrl(book: string, chapter: number, version: string): Promise<string | null> {
     try {
       console.log(`🔍 getAudioUrl called with: book="${book}", chapter=${chapter}, version="${version}"`);
 
-      const fileName = this.generateFileName(book, chapter, version);
+      const plan = audioPlanFor(version, normalizeBookApiName(book).toLowerCase());
+      if (plan.kind === 'narrated') return narratedKey(plan.fileset, normalizeBookApiName(book).toLowerCase(), chapter);
+      if (plan.kind !== 'recording') return null;
+
+      const fileName = this.generateFileName(book, chapter, 'KJV');
       console.log(`🔍 Generated fileName: "${fileName}"`);
 
       if (!fileName) {

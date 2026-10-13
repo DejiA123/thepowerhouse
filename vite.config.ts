@@ -37,12 +37,25 @@ export default defineConfig(({ mode }) => ({
           '**/*.mp4', '**/lovable-uploads/**', 'splash/**', '**/assets/academy/**', 'push-sw.js', 'audio-sw.js',
           '**/html2pdf-*.js', '**/html2canvas*.js',
           '**/ManagementTeamPage-*.js', '**/ChoirPage-*.js',
+          // The AI voice is only for those who use it (see src/services/aiVoice)
+          '**/voice.worker-*.js',
         ],
         runtimeCaching: [
           {
+            // The AI voice's code: kept apart so it's never pushed out by other app code
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/voice\.worker-[^/]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ai-voice-code',
+              expiration: { maxEntries: 3 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // App code left out of the install-time copy: saved the first time it's used,
-            // then it works offline too (file names change with every release)
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'),
+            // then it works offline too (file names change with every release).
+            // (The AI voice's speech engine, a .wasm file, is kept by the voice itself.)
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/') && !url.pathname.endsWith('.wasm'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'app-extras',
@@ -194,6 +207,10 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     'process.env': {},
+  },
+  // The AI voice's worker loads its speech engine as a module
+  worker: {
+    format: 'es',
   },
   // Production builds drop debug logging (the app logged thousands of lines per
   // session, which slowed phones). console.warn / console.error are kept.
