@@ -6,6 +6,7 @@ import { formatBytes } from '@/services/offlineAudioService';
 import { useAiVoice } from '@/services/aiVoice/engine';
 import { AI_VOICES, AI_VOICE_CREDIT } from '@/services/aiVoice/model';
 import { aiChapterAudio } from '@/services/aiVoice/chapterAudio';
+import { ACCESS_EVENT, hasAccess } from '@/services/audioBible/narrated';
 
 /** Plays a voice's short sample (made in advance, so it can be heard before downloading) */
 export function useVoiceSample() {
@@ -30,19 +31,27 @@ export function useVoiceSample() {
 }
 
 /** Which translations are read by people and which by the AI voice */
-export const VOICE_SUMMARY = [
-  { label: 'KJV, ESV, NLT', how: 'Narrated by people' },
-  { label: 'NKJV', how: 'New Testament narrated, Old Testament AI voice' },
-  { label: 'NASB, AMP, MSG, ASV', how: 'AI voice' },
-];
+function voiceSummary() {
+  // The NIV narration plays once Biblica has approved the app (checked automatically)
+  const nivNarrated = hasAccess('ENGNIVN1DA');
+  return [
+    { label: nivNarrated ? 'KJV, ESV, NLT, NIV' : 'KJV, ESV, NLT', how: 'Narrated by people' },
+    { label: 'NKJV', how: 'New Testament narrated, Old Testament AI voice' },
+    { label: nivNarrated ? 'NASB, AMP, MSG, ASV' : 'NIV, NASB, AMP, MSG, ASV', how: 'AI voice' },
+  ];
+}
 
 /** "Voice for the audio Bible": the AI voice download and the choice of voice, for Bible settings. */
 const AiVoiceSettings = () => {
   const ai = useAiVoice();
   const sample = useVoiceSample();
 
+  const [, setAccessTick] = useState(0);
   useEffect(() => {
     ai.refresh();
+    const bump = () => setAccessTick((t) => t + 1);
+    window.addEventListener(ACCESS_EVENT, bump);
+    return () => window.removeEventListener(ACCESS_EVENT, bump);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,7 +68,7 @@ const AiVoiceSettings = () => {
       </div>
 
       <div className="divide-y divide-slate-100 rounded-lg bg-slate-50 text-[13px] dark:divide-slate-700 dark:bg-slate-900/40">
-        {VOICE_SUMMARY.map((row) => (
+        {voiceSummary().map((row) => (
           <div key={row.label} className="flex justify-between gap-3 px-3 py-2">
             <span className="font-semibold text-slate-700 dark:text-slate-200">{row.label}</span>
             <span className="text-right text-slate-500 dark:text-slate-400">{row.how}</span>

@@ -35,6 +35,61 @@ export function narratedKey(fileset: string, book: string, chapter: number): str
 
 export const isNarratedKey = (url: string) => KEY_PATH.test(url);
 
+/* ── Recordings that need the publisher's permission (the NIV) ─────────
+   Bible Brain has them, but plays only some chapters for any key; the rest
+   need the publisher's approval for this app. Whether the whole recording
+   is open to this key is checked now and then (with a chapter that's
+   normally closed), and remembered: the moment the app is approved, the
+   narration replaces the AI voice everywhere by itself. */
+const ACCESS_KEY = 'bible_brain_access_v2';
+export const ACCESS_EVENT = 'bible-brain-access-changed';
+type Access = Record<string, { ok: boolean; at: number }>;
+const probing = new Set<string>();
+
+const readAccess = (): Access => {
+  try {
+    return JSON.parse(localStorage.getItem(ACCESS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+async function probeAccess(fileset: string) {
+  if (probing.has(fileset) || navigator.onLine === false) return;
+  probing.add(fileset);
+  try {
+    // Chapters this key can't play without approval. Bible Brain sometimes lets
+    // a closed chapter through by chance, so all of them must open to count.
+    const closed = /O\dDA$/.test(fileset) ? ['GEN/1', 'PSA/119', 'ISA/53'] : ['JHN/3', 'REV/22', 'ACT/2'];
+    let ok = true;
+    for (const chapter of closed) {
+      const res = await fetch(`${API}/bibles/filesets/${fileset}/${chapter}?key=${BIBLE_BRAIN_KEY}&v=4`);
+      if (res.status >= 500) return; // try again another time
+      if (!res.ok || !(await res.json())?.data?.[0]?.path) {
+        ok = false;
+        break;
+      }
+    }
+    const all = readAccess();
+    const changed = all[fileset]?.ok !== ok;
+    all[fileset] = { ok, at: Date.now() };
+    localStorage.setItem(ACCESS_KEY, JSON.stringify(all));
+    if (changed) window.dispatchEvent(new CustomEvent(ACCESS_EVENT, { detail: fileset }));
+  } catch {
+    /* offline or blocked: checked again next time */
+  } finally {
+    probing.delete(fileset);
+  }
+}
+
+/** Whether this app's key may play this recording (as last checked; checks again when due). */
+export function hasAccess(fileset: string): boolean {
+  const entry = readAccess()[fileset];
+  const due = !entry || Date.now() - entry.at > (entry.ok ? 7 : 1) * 24 * 60 * 60 * 1000;
+  if (due && typeof window !== 'undefined') setTimeout(() => probeAccess(fileset), 0);
+  return !!entry?.ok;
+}
+
 /** Signed links last about a day; keep them for an hour */
 const signed = new Map<string, { url: string; at: number }>();
 const inflight = new Map<string, Promise<string>>();

@@ -410,15 +410,6 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Each translation is read with its own audio (see audioBible/catalog)
       let plan: ChapterAudioPlan = audioPlanFor(version, normalizedBook);
-      if (plan.kind === 'none') {
-        setAudioState(prev => ({ ...prev, isLoading: false }));
-        appAlert(
-          `The ${plan.translation} can't be read aloud`,
-          `The ${plan.translation} text isn't available in the app any more. Choose another translation to listen.`,
-          'info',
-        );
-        return;
-      }
 
       let audioUrl: string | null = null;
       if (plan.kind !== 'ai') {
@@ -517,6 +508,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             appAlert(
               `${displayBookName} ${chapter} isn't saved for offline`,
               'Open this chapter once while online (or save the Bible offline in Settings) and the AI voice can read it anywhere.',
+              'info',
+            );
+          } else if (reason === 'no-text') {
+            appAlert(
+              `${displayBookName} ${chapter} has no ${plan.translation} text to read`,
+              `The ${plan.translation} text for this chapter isn't available in the app, so it can't be read aloud. Try another translation.`,
               'info',
             );
           } else if (reason !== 'cancelled') {

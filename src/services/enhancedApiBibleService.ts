@@ -51,6 +51,30 @@ const restrictedMappings: Record<string, string> = {
   'MSG': 'MSG', 'AMP': 'AMP', 'CSB': 'CSB', 'NASB': 'NASB'
 };
 
+/**
+ * The NIV comes from API.Bible once it's switched on for the app's key
+ * (Biblica licenses it there; free for non-commercial apps). Its id is
+ * remembered when the translation list loads.
+ */
+const API_NIV_KEY = 'api_bible_niv_id';
+const apiNivId = (): string | null => {
+  try {
+    return localStorage.getItem(API_NIV_KEY);
+  } catch {
+    return null;
+  }
+};
+const isNiv = (version: string) => /^niv$/i.test(version) || /^71c6efe4/i.test(version);
+
+/** A notice some sources put in place of the Bible text (Bolls.life's NIV since October 2026) */
+const isTextNotice = (text: string | undefined) => /has prohibited me from using the \w+ translation/i.test(text || '');
+
+/** The chapter saved on this phone, unless it's only a notice in place of the text */
+async function realSavedCopy(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
+  const saved = await offlineBibleText.load(version, book, chapter);
+  return saved?.verses?.length && isTextNotice(saved.verses[0]?.text) ? null : saved;
+}
+
 // Book ID mapping for Bolls.life (1=Genesis, 66=Revelation)
 // Bolls.life uses integer IDs for books in specific endpoints, but /get-text/{translation}/{book}{chapter}/ 
 // usually accepts standard abbreviations or integers? 
@@ -171,6 +195,15 @@ export const enhancedApiBibleService = {
               } else {
                 abbr = bible.name.substring(0, 4).toUpperCase();
               }
+            }
+          }
+
+          // Licensed on API.Bible: read the NIV from there
+          if (abbr === 'NIV' || /new international version/i.test(bible.name || '')) {
+            try {
+              localStorage.setItem(API_NIV_KEY, bible.id);
+            } catch {
+              /* not remembered */
             }
           }
 
@@ -300,7 +333,9 @@ export const enhancedApiBibleService = {
   async getChapter(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
     // A chapter already on this phone opens instantly. Bible text doesn't change,
     // so a saved copy is only refreshed (quietly, in the background) once a week.
-    const saved = (await offlineBibleText.load(version, book, chapter)) as (BibleChapter & { savedAt?: number }) | null;
+    let saved = (await offlineBibleText.load(version, book, chapter)) as (BibleChapter & { savedAt?: number }) | null;
+    // A notice saved in place of the text (see isTextNotice) isn't a real copy
+    if (saved?.verses?.length && isTextNotice(saved.verses[0]?.text)) saved = null;
     if (saved?.verses?.length) {
       const stale = !saved.savedAt || Date.now() - saved.savedAt > 7 * 24 * 60 * 60 * 1000;
       if (stale && !isBookDownloaded(version, book) && navigator.onLine !== false) {
@@ -318,17 +353,17 @@ export const enhancedApiBibleService = {
           return fresh;
         }
       } catch (error) {
-        const saved = await offlineBibleText.load(version, book, chapter);
+        const saved = await realSavedCopy(version, book, chapter);
         if (saved) return saved;
         throw error;
       }
     }
-    return offlineBibleText.load(version, book, chapter);
+    return realSavedCopy(version, book, chapter);
   },
 
   /** The copy saved on this device when there is one (instant), otherwise the network. */
   async getChapterPreferCached(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
-    const saved = await offlineBibleText.load(version, book, chapter);
+    const saved = await realSavedCopy(version, book, chapter);
     if (saved?.verses?.length) return saved;
     return this.getChapter(version, book, chapter);
   },
@@ -342,14 +377,15 @@ export const enhancedApiBibleService = {
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);
 
-      // Normalize inputs
-      const bibleId = this.normalizeVersionId(version);
+      // Normalize inputs (the NIV is read from API.Bible once it's licensed there)
+      const licensedNiv = isNiv(version) ? apiNivId() : null;
+      const bibleId = licensedNiv ?? this.normalizeVersionId(version);
 
       // CHECK FOR BOLLS.LIFE ID MATCH or RESTRICTED API.BIBLE UUIDs
       // Map API.Bible UUIDs to Bolls.life short codes to avoid 403 errors
       let targetBollsId = null;
 
-      if (restrictedMappings[bibleId] || restrictedMappings[version]) {
+      if (!licensedNiv && (restrictedMappings[bibleId] || restrictedMappings[version])) {
         targetBollsId = restrictedMappings[bibleId] || restrictedMappings[version];
       }
 
@@ -424,6 +460,11 @@ export const enhancedApiBibleService = {
 
       if (!Array.isArray(versesData) || versesData.length === 0) {
         throw new Error('Invalid response from Bolls.life');
+      }
+      // A notice instead of the Bible text: treat it as unavailable, so a real
+      // copy already saved on this phone is kept and shown
+      if (versesData.slice(0, 3).some((v: any) => isTextNotice(v?.text))) {
+        throw new Error(`${version} text not available from Bolls.life`);
       }
 
       // Map Bolls.life response to BibleVerse[]

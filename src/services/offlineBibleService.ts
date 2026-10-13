@@ -46,6 +46,11 @@ const FREE_USE_IDS: Record<string, string> = {
   '04da588535d2f823': 'eng_wmu', // World Messianic Bible British Edition
 };
 
+const UNAVAILABLE = 'text-unavailable';
+
+/** A text source's notice put in place of the Bible text (Bolls.life's NIV since October 2026) */
+export const isTextNotice = (text: string | undefined) => /has prohibited me from using the \w+ translation/i.test(text || '');
+
 export type WholeBibleSource = { kind: 'free-use'; id: string } | { kind: 'bolls'; code: string };
 
 const BOOKS = getAllBooksFlat();
@@ -155,6 +160,8 @@ async function fetchWholeBible(version: string, source: WholeBibleSource, signal
     const json = Object.values(files)[0];
     if (!json) throw new Error('Empty download');
     const verses = JSON.parse(strFromU8(json)) as BollsVerse[];
+    // Bolls.life replaced the NIV with a notice: never save it over real text already on the phone
+    if (verses.slice(0, 3).some((v) => isTextNotice(v.text))) throw new Error(UNAVAILABLE);
     const chapters = new Map<string, { book: (typeof BOOKS)[number]; chapter: number; verses: { verse: number; text: string }[] }>();
     verses.forEach((v) => {
       const book = BOOKS[v.book - 1];
@@ -237,6 +244,9 @@ export const offlineBibleService = {
     } catch (error) {
       if (job.controller.signal.aborted) return { ok: false };
       console.error('Whole Bible download failed', error);
+      if ((error as Error)?.message === UNAVAILABLE) {
+        return { ok: false, message: "This translation can't be downloaded at the moment. Chapters already on this phone stay." };
+      }
       const quota = error instanceof DOMException && error.name === 'QuotaExceededError';
       return { ok: false, message: quota ? 'Not enough space on this phone.' : 'Check your connection and try again.' };
     } finally {

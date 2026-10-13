@@ -4,12 +4,15 @@
  *  - KJV: Faith Comes By Hearing's KJV recording, saved on archive.org (unchanged).
  *  - ESV, NLT and the NKJV New Testament: real human narrators, streamed from
  *    Faith Comes By Hearing's Bible Brain (licensed through the app's key).
+ *  - NIV: Bible Brain's NIV narration as soon as Biblica approves the app's
+ *    key for it (checked automatically); until then the AI voice.
  *  - Every other translation: an AI voice made on the phone itself (see
  *    src/services/aiVoice). Publishers don't allow audio files of their
  *    translations to be made and handed out, but reading the text aloud on the
  *    reader's own device (like a screen reader) is fine.
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
+import { hasAccess } from './narrated';
 
 export interface NarratedBible {
   /** Bible Brain fileset for each testament (missing = not recorded) */
@@ -17,6 +20,8 @@ export interface NarratedBible {
   nt?: string;
   /** Downloading for offline listening is allowed by the licence */
   downloadable: boolean;
+  /** Plays only once the publisher has approved the app's key (see narrated.hasAccess) */
+  needsApproval?: boolean;
   narrator: string;
   credit: string;
 }
@@ -36,6 +41,14 @@ export const NARRATED: Record<string, NarratedBible> = {
     narrator: "her.BIBLE women's voices",
     credit: 'NLT © 1996, 2004, 2015 Tyndale House Foundation. her.BIBLE audio © 2020 Cru, via Faith Comes By Hearing.',
   },
+  NIV: {
+    ot: 'ENGNIVO1DA',
+    nt: 'ENGNIVN1DA',
+    downloadable: false,
+    needsApproval: true,
+    narrator: 'Narrated',
+    credit: 'NIV® © 1973, 1978, 1984, 2011 Biblica, Inc. Audio via Faith Comes By Hearing.',
+  },
   NKJV: {
     nt: 'ENGNKJN1DA',
     downloadable: false,
@@ -43,9 +56,6 @@ export const NARRATED: Record<string, NarratedBible> = {
     credit: 'NKJV® © 1982 Thomas Nelson. Audio ℗ 1985 Hosanna, via Faith Comes By Hearing.',
   },
 };
-
-/** Translations whose text can't be read aloud (the text source no longer has it). */
-const NO_AUDIO = new Set(['NIV']);
 
 const OT = new Set(bibleBooks['Old Testament'].map((b) => b.apiName));
 export const isOldTestament = (book: string) => OT.has(book.toLowerCase());
@@ -73,17 +83,17 @@ export function translationCode(version: string): string {
 export type ChapterAudioPlan =
   | { kind: 'recording'; translation: 'KJV' }
   | { kind: 'narrated'; translation: string; fileset: string; bible: NarratedBible }
-  | { kind: 'ai'; translation: string }
-  | { kind: 'none'; translation: string };
+  | { kind: 'ai'; translation: string };
 
 /** How this chapter of this translation is listened to. */
 export function audioPlanFor(version: string, book: string): ChapterAudioPlan {
   const translation = translationCode(version);
   if (translation === 'KJV') return { kind: 'recording', translation };
-  if (NO_AUDIO.has(translation)) return { kind: 'none', translation };
   const narrated = NARRATED[translation];
   const fileset = narrated && (isOldTestament(book) ? narrated.ot : narrated.nt);
-  if (narrated && fileset) return { kind: 'narrated', translation, fileset, bible: narrated };
+  if (narrated && fileset && (!narrated.needsApproval || hasAccess(fileset))) {
+    return { kind: 'narrated', translation, fileset, bible: narrated };
+  }
   return { kind: 'ai', translation };
 }
 
@@ -103,6 +113,5 @@ export function downloadSourceFor(version: string, book: string): string | null 
 export function voiceLabel(plan: ChapterAudioPlan): string {
   if (plan.kind === 'recording') return 'Narrated';
   if (plan.kind === 'narrated') return plan.bible.narrator;
-  if (plan.kind === 'ai') return 'AI voice';
-  return '';
+  return 'AI voice';
 }

@@ -551,11 +551,6 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
           The {plan.translation} {testament} narration can only be streamed: the publisher doesn't allow downloads. With no
           connection, the AI voice reads it instead.
         </p>
-      ) : plan.kind === 'none' ? (
-        <p className="text-[14px] leading-relaxed text-foreground">
-          The {plan.translation} can't be read aloud: its text isn't available in the app any more. Choose another translation
-          to listen.
-        </p>
       ) : (
         <p className="text-[14px] leading-relaxed text-foreground">
           The {plan.translation} is read by a natural AI voice made on this phone, so there's nothing to download for each
@@ -563,49 +558,47 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
         </p>
       )}
 
-      {plan.kind !== 'none' && (
-        <>
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">AI voice</p>
-              <p className="text-xs text-muted-foreground">
-                {ai.status === 'ready'
-                  ? 'On this phone'
-                  : ai.status === 'downloading'
-                    ? `Downloading · ${Math.round(ai.progress * 100)}%`
-                    : `Not downloaded · ${formatBytes(ai.totalBytes)}`}
-              </p>
-            </div>
-            {ai.status === 'ready' ? (
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-            ) : ai.status === 'downloading' ? (
-              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-blue-600" />
-            ) : (
-              <Button size="sm" className="rounded-full" onClick={() => ai.download().catch(() => undefined)}>
-                <CloudDownload className="mr-1.5 h-4 w-4" /> Download
-              </Button>
-            )}
+      <>
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">AI voice</p>
+            <p className="text-xs text-muted-foreground">
+              {ai.status === 'ready'
+                ? 'On this phone'
+                : ai.status === 'downloading'
+                  ? `Downloading · ${Math.round(ai.progress * 100)}%`
+                  : `Not downloaded · ${formatBytes(ai.totalBytes)}`}
+            </p>
           </div>
-          {ai.status === 'downloading' && <Progress value={ai.progress * 100} className="h-1.5" />}
-
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">{info?.name ?? book} text</p>
-              <p className="text-xs text-muted-foreground">
-                {saving ? `Saving · ${saving.done}/${saving.total}` : `${info?.chapters ?? ''} chapters, for reading and listening offline`}
-              </p>
-            </div>
-            <Button size="sm" variant="outline" className="rounded-full" disabled={!!saving} onClick={saveText}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
-              {saving ? '' : 'Save'}
+          {ai.status === 'ready' ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+          ) : ai.status === 'downloading' ? (
+            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-blue-600" />
+          ) : (
+            <Button size="sm" className="rounded-full" onClick={() => ai.download().catch(() => undefined)}>
+              <CloudDownload className="mr-1.5 h-4 w-4" /> Download
             </Button>
+          )}
+        </div>
+        {ai.status === 'downloading' && <Progress value={ai.progress * 100} className="h-1.5" />}
+
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">{info?.name ?? book} text</p>
+            <p className="text-xs text-muted-foreground">
+              {saving ? `Saving · ${saving.done}/${saving.total}` : `${info?.chapters ?? ''} chapters, for reading and listening offline`}
+            </p>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Chapter {chapter} and any chapter you've opened are already saved. To save every book at once, use Bible settings →
-            Read offline.
-          </p>
-        </>
-      )}
+          <Button size="sm" variant="outline" className="rounded-full" disabled={!!saving} onClick={saveText}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
+            {saving ? '' : 'Save'}
+          </Button>
+        </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Chapter {chapter} and any chapter you've opened are already saved. To save every book at once, use Bible settings →
+          Read offline.
+        </p>
+      </>
     </div>
   );
 };
