@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronRight, Pause, Play, Search, Share2, Shuffle } from 'lucide-react';
+import { BookOpen, ChevronRight, Pause, Play, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HOME_TILES, TILE } from '@/data/appDirectory';
 import { openSearch } from '@/lib/appEvents';
@@ -9,10 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useGlobalAudio } from '@/contexts/GlobalAudioContext';
 import { useBiblePreferences } from '@/hooks/useBiblePreferences';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
-import { bookDisplayName, parseReference } from '@/services/bibleSmartSearch';
-import { getRandomScripture, getTodaysScripture } from '@/utils/dailyScriptureUtils';
+import { bookDisplayName } from '@/services/bibleSmartSearch';
 import UserAvatar from '@/components/common/UserAvatar';
-import { appAlert } from '@/lib/appAlert';
+import VerseOfTheDay from './VerseOfTheDay';
 
 export interface HomeBanner {
   title: string;
@@ -37,7 +36,6 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
   const { user } = useAuth();
   const audio = useGlobalAudio();
   const { preferences } = useBiblePreferences();
-  const [verse, setVerse] = useState(getTodaysScripture);
   const [slide, setSlide] = useState(0);
   const carousel = useRef<HTMLDivElement>(null);
   const userTouched = useRef(false);
@@ -67,27 +65,6 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
       if (Math.abs(c.offsetLeft + c.clientWidth / 2 - center) < Math.abs(children[best].offsetLeft + children[best].clientWidth / 2 - center)) best = i;
     });
     if (best !== slide) setSlide(best);
-  };
-
-  const openVerse = () => {
-    const ref = parseReference(verse.reference.replace(/[–-]\d+$/, ''));
-    if (ref) navigate(`/bible?book=${ref.book}&chapter=${ref.chapter}`);
-    else navigate('/bible');
-  };
-
-  const shareVerse = async () => {
-    // Same layout as copying from the Bible page: reference, then the verse
-    const text = `${verse.reference}
-${verse.verse}`;
-    try {
-      if (navigator.share) await navigator.share({ text });
-      else {
-        await navigator.clipboard.writeText(text);
-        appAlert('Verse copied', 'Paste it anywhere to share.', 'success');
-      }
-    } catch {
-      /* share sheet dismissed */
-    }
   };
 
   // "Continue" — the audio Bible if something is loaded, otherwise the last chapter read
@@ -195,33 +172,8 @@ ${verse.verse}`;
         ))}
       </div>
 
-      {/* Verse of the day */}
-      <div className="relative mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 p-5 text-white shadow-xl shadow-blue-900/20 md:p-7">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-16 right-16 h-40 w-40 rounded-full bg-white/5" />
-        <div className="relative flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/80">Verse of the day</p>
-          <button
-            onClick={() => setVerse(getRandomScripture(verse.reference))}
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white/85 hover:bg-white/15"
-            aria-label="Another verse"
-          >
-            <Shuffle className="h-4 w-4" /> Another
-          </button>
-        </div>
-        <p className="relative mt-2 font-serif text-[19px] leading-relaxed md:text-2xl">“{verse.verse}”</p>
-        <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3">
-          <span className="font-semibold">{verse.reference}</span>
-          <div className="flex gap-2">
-            <button onClick={openVerse} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/30">
-              <BookOpen className="h-4 w-4" /> Read
-            </button>
-            <button onClick={shareVerse} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-white/30">
-              <Share2 className="h-4 w-4" /> Share
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Verse of the day: earlier days and other translations a tap away */}
+      <VerseOfTheDay />
 
       {/* The church's photo banners: swipe on phones, grid on larger screens */}
       <h2 className="mb-2.5 mt-7 px-1 text-[12.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Get involved</h2>
