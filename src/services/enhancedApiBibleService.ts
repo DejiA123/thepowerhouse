@@ -185,7 +185,7 @@ export const enhancedApiBibleService = {
             'WEB', 'WEBBE', 'WEBUS', 'WEBU', 'WMB', 'WMBBE',
             'ASVBT', 'BSB', 'LXXUP', 'BRENT', 'KJVCPB', 'DRA',
             'EMTV', 'FBV', 'GNV', 'OJPS', 'LSV', 'RV', 'OKE',
-            'F35', 'TOJBT2011', 'TCENT', 'T4T', 'KJV' // User specifically requested KJV removal
+            'F35', 'TOJBT2011', 'TOJB2011', 'TCENT', 'T4T', 'KJV' // User specifically requested KJV removal
           ];
 
           // Checks
@@ -201,7 +201,8 @@ export const enhancedApiBibleService = {
             'world english bible', 'targum', 'family 35', 'jps tanakh',
             'douay-rheims', 'cambridge paragraph', 'brenton',
             'revised version', 'free bible version', 'geneva bible',
-            'minor prophets', 'text-critical', 'translation for translators'
+            'minor prophets', 'text-critical', 'translation for translators',
+            'orthodox jewish', 'english majority text'
           ];
 
           const isBlockedName = blockedTerms.some(term =>
