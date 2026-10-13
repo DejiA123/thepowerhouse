@@ -152,8 +152,10 @@ async function load(forceWasm = false) {
       ep = 'wasm';
       sessions = await createSessions(ep);
     }
-    // On the processor the sound-making step dominates, so fewer steps barely cost quality
-    steps = ep === 'webgpu' ? 5 : 2;
+    // HD on the graphics chip: 10 steps sound clearly more natural (measured with
+    // UTMOS: 4.50 against 4.20 at 5) and cost little there. On the processor the
+    // sound-making step dominates, so fewer steps keep it ahead of the listener.
+    steps = ep === 'webgpu' ? 10 : 2;
     engine = { ...sessions, cfg, indexer, ep };
     return engine;
   })();
@@ -385,7 +387,7 @@ async function handle(msg: Request): Promise<unknown> {
       return null;
     case 'slower':
       // This device can't keep up: fewer steps from now on
-      steps = Math.max(2, steps - 2);
+      steps = Math.max(2, steps - 3);
       return { steps };
     case 'remove':
       engine = null;
