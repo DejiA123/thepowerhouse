@@ -4,15 +4,15 @@
  *  - KJV: Faith Comes By Hearing's KJV recording, saved on archive.org (unchanged).
  *  - ESV, NLT and the NKJV New Testament: real human narrators, streamed from
  *    Faith Comes By Hearing's Bible Brain (licensed through the app's key).
- *  - NIV: Bible Brain's NIV narration as soon as Biblica approves the app's
- *    key for it (checked automatically); until then the AI voice.
+ *  - NIV: The Listener's Bible (Max McLean), streamed from the church's
+ *    API.Bible account, where Biblica licenses it.
  *  - Every other translation: an AI voice made on the phone itself (see
  *    src/services/aiVoice). Publishers don't allow audio files of their
  *    translations to be made and handed out, but reading the text aloud on the
  *    reader's own device (like a screen reader) is fine.
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
-import { hasAccess } from './narrated';
+import { API_NIV_AUDIO_ID, NIV_AUDIO_COPYRIGHT } from '@/services/apiBible';
 
 export interface NarratedBible {
   /** Bible Brain fileset for each testament (missing = not recorded) */
@@ -20,8 +20,6 @@ export interface NarratedBible {
   nt?: string;
   /** Downloading for offline listening is allowed by the licence */
   downloadable: boolean;
-  /** Plays only once the publisher has approved the app's key (see narrated.hasAccess) */
-  needsApproval?: boolean;
   narrator: string;
   credit: string;
 }
@@ -42,12 +40,11 @@ export const NARRATED: Record<string, NarratedBible> = {
     credit: 'NLT © 1996, 2004, 2015 Tyndale House Foundation. her.BIBLE audio © 2020 Cru, via Faith Comes By Hearing.',
   },
   NIV: {
-    ot: 'ENGNIVO1DA',
-    nt: 'ENGNIVN1DA',
+    ot: `ABS-${API_NIV_AUDIO_ID}`,
+    nt: `ABS-${API_NIV_AUDIO_ID}`,
     downloadable: false,
-    needsApproval: true,
-    narrator: 'Narrated',
-    credit: 'NIV® © 1973, 1978, 1984, 2011 Biblica, Inc. Audio via Faith Comes By Hearing.',
+    narrator: 'Max McLean',
+    credit: NIV_AUDIO_COPYRIGHT,
   },
   NKJV: {
     nt: 'ENGNKJN1DA',
@@ -65,7 +62,7 @@ const API_BIBLE_IDS: [RegExp, string][] = [
   [/^de4e12af7f28f599/i, 'KJV'],
   [/^(06125adad2d5898a|f421fe261da7624f)/i, 'ASV'],
   [/^55ec700d9e0d77ea/i, 'EMTV'],
-  [/^71c6efe4/i, 'NIV'],
+  [/^(71c6efe4|78a9f6124f344018)/i, 'NIV'],
   [/^8d1c8f15/i, 'ESV'],
   [/^7142504b/i, 'NLT'],
   [/^26ff8c70/i, 'NASB'],
@@ -91,9 +88,7 @@ export function audioPlanFor(version: string, book: string): ChapterAudioPlan {
   if (translation === 'KJV') return { kind: 'recording', translation };
   const narrated = NARRATED[translation];
   const fileset = narrated && (isOldTestament(book) ? narrated.ot : narrated.nt);
-  if (narrated && fileset && (!narrated.needsApproval || hasAccess(fileset))) {
-    return { kind: 'narrated', translation, fileset, bible: narrated };
-  }
+  if (narrated && fileset) return { kind: 'narrated', translation, fileset, bible: narrated };
   return { kind: 'ai', translation };
 }
 

@@ -61,6 +61,8 @@ async function writeCached(key: string, entries: [number, number][]) {
  */
 export async function getVerseTimings(bookApiName: string, chapter: number, source = 'KJV'): Promise<VerseTimings | null> {
   if (source.startsWith('ai:')) return live.get(source) ?? null;
+  // API.Bible's recordings come without verse timings: they're estimated from the verses
+  if (source.startsWith('ABS-')) return null;
   const book = bookApiName.toLowerCase();
   const fileset = source === 'KJV' ? null : source;
   const key = cacheKey(fileset, book, chapter);

@@ -8,7 +8,7 @@ import { backgroundMusic } from '@/services/backgroundMusic';
 import { appAlert } from '@/lib/appAlert';
 import { isIOS } from '@/lib/push';
 import { audioPlanFor, voiceLabel, type ChapterAudioPlan } from '@/services/audioBible/catalog';
-import { isNarratedKey, streamUrlFor } from '@/services/audioBible/narrated';
+import { isNarratedKey, narratedStarted, streamUrlFor } from '@/services/audioBible/narrated';
 import { aiVoice } from '@/services/aiVoice/engine';
 import { AI_PROGRESS_EVENT, aiChapterAudio, isAiKey } from '@/services/aiVoice/chapterAudio';
 
@@ -441,6 +441,19 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             );
             return;
           }
+        } else if (plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
+          // Get the streaming link now: if the narration can't be reached (the
+          // service is down, or the month's allowance is used up), the AI voice reads it
+          try {
+            await streamUrlFor(audioUrl);
+          } catch (error) {
+            if (request !== playRequestRef.current) return;
+            console.warn('🎵 Narration unavailable, using the AI voice', error);
+            if (aiVoice.status === 'ready' || aiVoice.status === 'missing') {
+              plan = { kind: 'ai', translation: plan.translation };
+              audioUrl = null;
+            } else throw error;
+          }
         }
       }
 
@@ -550,6 +563,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }, { once: true });
       }
       audio.loop = loopChapter;
+      // Licensed narration (the NIV) is reported once it really plays (see apiBible.ts)
+      if (audioUrl && isNarratedKey(audioUrl)) {
+        const key = audioUrl;
+        audio.addEventListener('playing', () => narratedStarted(key), { once: true });
+      }
       audio.load();
       try {
         await audio.play();
@@ -1045,8 +1063,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const attempt = ++errorRetriesRef.current;
         const position = audio.currentTime || (lastPosition.src === audio.currentSrc ? lastPosition.time : 0);
         console.warn(`🎵 Audio error, trying again (${attempt}/3)`, audio.error);
-        setTimeout(() => {
-          if (audio.getAttribute('src') === src) reloadAndPlay(position, src);
+        // A narrated chapter's streaming link only lasts a while (an hour for the
+        // NIV): a long listen can outlive it, so ask for a fresh one
+        const key = state.audioUrl;
+        const streamingNarration = !!key && isNarratedKey(key) && src.startsWith('http') && src !== key;
+        setTimeout(async () => {
+          if (audio.getAttribute('src') !== src) return;
+          const next = streamingNarration ? await streamUrlFor(key!, true).catch(() => src) : src;
+          if (audio.getAttribute('src') === src) reloadAndPlay(position, next);
         }, 1500 * attempt);
         return;
       }

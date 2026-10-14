@@ -24,6 +24,8 @@ export interface BibleChapter {
   text?: string;
   reference?: string;
   version?: string;
+  /** API.Bible's fair-use token for licensed text (reported when shown, see apiBible.ts) */
+  fumsToken?: string;
 }
 
 export interface BibleAudioResponse {

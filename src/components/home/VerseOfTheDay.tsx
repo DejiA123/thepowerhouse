@@ -8,11 +8,13 @@ import { useBiblePreferences } from '@/hooks/useBiblePreferences';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { scriptureForDaysAgo } from '@/utils/dailyScriptureUtils';
 import { appAlert } from '@/lib/appAlert';
+import { reportView } from '@/services/apiBible';
 import { cn } from '@/lib/utils';
 
 /** Translations the verse of the day can be shown in (KJV is built in, so it shows instantly and offline) */
 const TRANSLATIONS = [
   { code: 'KJV', id: 'KJV', name: 'King James Version' },
+  { code: 'NIV', id: 'NIV', name: 'New International Version' },
   { code: 'NKJV', id: 'NKJV', name: 'New King James Version' },
   { code: 'ESV', id: 'ESV', name: 'English Standard Version' },
   { code: 'NLT', id: 'NLT', name: 'New Living Translation' },
@@ -139,6 +141,7 @@ const VerseOfTheDay = () => {
           .trim();
         if (cancelled) return;
         if (verse && !/has prohibited me from using/i.test(verse)) {
+          reportView(chapter?.fumsToken); // licensed text (the NIV): API.Bible's fair-use report
           saveText(code, scripture.reference, verse);
           setText({ code, reference: scripture.reference, verse });
         } else {

@@ -6,7 +6,8 @@ import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
 import { estimateVerseTimings, getVerseTimings, TIMINGS_EVENT, verseAt, type VerseTimings } from "@/services/verseTimingService";
-import { audioPlanFor } from "@/services/audioBible/catalog";
+import { audioPlanFor, translationCode } from "@/services/audioBible/catalog";
+import { NIV_COPYRIGHT, reportView } from "@/services/apiBible";
 import { aiVoice } from "@/services/aiVoice/engine";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
@@ -425,6 +426,11 @@ export const BibleChapterContent = ({
     });
     return map;
   }, [chapterNotes]);
+
+  // Licensed text (the NIV) shown: API.Bible's fair-use report (see apiBible.ts)
+  useEffect(() => {
+    reportView(chapterContent?.fumsToken);
+  }, [chapterContent]);
 
   // A translation read by the AI voice: have the voice ready before Listen is tapped
   useEffect(() => {
@@ -1168,6 +1174,10 @@ export const BibleChapterContent = ({
               })}
             </div>
 
+            {/* The NIV's copyright notice, as its licence asks */}
+            {translationCode(selectedVersion || '') === 'NIV' && (
+              <p className="mt-10 px-1 font-sans text-[11.5px] leading-relaxed text-muted-foreground">{NIV_COPYRIGHT}</p>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center py-8">

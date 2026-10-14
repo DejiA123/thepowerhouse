@@ -136,9 +136,11 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            // Bible text and the translation list (API.Bible, Bolls.life), for chapters read before
+            // Bible text and the translation list (API.Bible, Bolls.life), for chapters read before.
+            // (Not API.Bible's audio links: they only work for an hour.)
             urlPattern: ({ url }) =>
-              url.hostname === 'api.scripture.api.bible' || (url.hostname === 'bolls.life' && url.pathname.startsWith('/get-')),
+              ((url.hostname === 'rest.api.bible' || url.hostname === 'api.scripture.api.bible') && !url.pathname.includes('/audio-bibles/')) ||
+              (url.hostname === 'bolls.life' && url.pathname.startsWith('/get-')),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'bible-api',

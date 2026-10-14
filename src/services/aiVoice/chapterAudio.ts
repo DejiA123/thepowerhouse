@@ -11,6 +11,7 @@
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { setLiveTimings, type VerseTimings } from '@/services/verseTimingService';
+import { reportView } from '@/services/apiBible';
 import { aiVoice } from './engine';
 import { buildScript, looksLikeBibleText, type ScriptPart } from './script';
 
@@ -376,6 +377,7 @@ class ChapterJob {
     const verses = (data?.verses ?? []).map((v, i) => ({ verse: Number(v.verse) || i + 1, text: v.text || '' }));
     if (!verses.length) throw new Error(navigator.onLine === false ? 'offline-text' : 'no-text');
     if (!looksLikeBibleText(verses)) throw new Error('no-text');
+    reportView(data?.fumsToken); // licensed text read aloud (the NIV): API.Bible's fair-use report
     const info = allBooks.find((b) => b.apiName.toLowerCase() === this.ref.book.toLowerCase());
     this.parts = buildScript(info?.name ?? this.ref.book, this.ref.chapter, info?.chapters ?? 2, verses);
     this.totalChars = this.parts.reduce((s, p) => s + p.text.length, 0);

@@ -1,9 +1,7 @@
 // Enhanced API.Bible service - comprehensive replacement for Bible Brain API
 import type { BibleVersion, BibleChapter, BibleVerse } from '@/types/bible';
 import { isBookDownloaded, offlineBibleText } from './offlineTextStore';
-
-const API_BIBLE_KEY = '637e6ef15c343223a24a54c1dd11a487';
-const API_BIBLE_BASE_URL = 'https://api.scripture.api.bible/v1';
+import { API_BIBLE_BASE_URL, API_BIBLE_KEY, API_NIV_TEXT_ID } from './apiBible';
 
 // Cache for API.Bible data to reduce requests
 const cache = new Map<string, any>();
@@ -52,19 +50,46 @@ const restrictedMappings: Record<string, string> = {
 };
 
 /**
- * The NIV comes from API.Bible once it's switched on for the app's key
- * (Biblica licenses it there; free for non-commercial apps). Its id is
- * remembered when the translation list loads.
+ * The NIV comes from the church's API.Bible account, where Biblica licenses
+ * it (see apiBible.ts). The app keeps calling it "NIV" everywhere.
  */
-const API_NIV_KEY = 'api_bible_niv_id';
-const apiNivId = (): string | null => {
-  try {
-    return localStorage.getItem(API_NIV_KEY);
-  } catch {
-    return null;
-  }
+const isNiv = (version: string) => /^niv$/i.test(version) || /^(71c6efe4|78a9f6124f344018)/i.test(version);
+
+const VERSIONS_KEY = 'bible_versions_v2';
+
+/**
+ * Public-domain translations are read from the Free Use Bible API (free, no
+ * limits), keeping the church's API.Bible allowance for the licensed NIV.
+ * API.Bible id (before the dash) → Free Use Bible API translation.
+ */
+const FREE_USE_TEXT: Record<string, string> = {
+  de4e12af7f28f599: 'eng_kjv',
+  '06125adad2d5898a': 'eng_asv',
+  f421fe261da7624f: 'eng_asv',
 };
-const isNiv = (version: string) => /^niv$/i.test(version) || /^71c6efe4/i.test(version);
+
+async function fetchFreeUseChapter(translation: string, bookId: string, book: string, chapter: number, version: string): Promise<BibleChapter | null> {
+  const res = await fetch(`https://bible.helloao.org/api/${translation}/${bookId}/${chapter}.json`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const verses: BibleVerse[] = (json?.chapter?.content ?? [])
+    .filter((item: any) => item?.type === 'verse' && item.number)
+    .map((item: any) => ({
+      book,
+      chapter,
+      verse: String(item.number),
+      text: (item.content ?? [])
+        .map((c: any) => (typeof c === 'string' ? c : c && typeof c === 'object' && 'text' in c ? String(c.text) : ''))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+      reference: `${book} ${chapter}:${item.number}`,
+      version,
+    }))
+    .filter((v: BibleVerse) => v.text);
+  if (!verses.length) return null;
+  return { book, chapter, verses, text: verses.map((v) => v.text).join(' '), reference: `${book} ${chapter}`, version };
+}
 
 /** A notice some sources put in place of the Bible text (Bolls.life's NIV since October 2026) */
 const isTextNotice = (text: string | undefined) => /has prohibited me from using the \w+ translation/i.test(text || '');
@@ -140,6 +165,19 @@ function normalizeBookName(bookName: string): string {
 export const enhancedApiBibleService = {
   // Get all available Bible versions
   async getVersions(): Promise<BibleVersion[]> {
+    // The list rarely changes: kept for a day, which saves the API.Bible allowance
+    try {
+      const kept = JSON.parse(localStorage.getItem(VERSIONS_KEY) || 'null');
+      if (kept?.versions?.length && Date.now() - kept.at < 24 * 60 * 60 * 1000) {
+        kept.versions.forEach((v: BibleVersion) => {
+          versionMappings[v.abbreviation.toLowerCase()] = v.id;
+          versionMappings[v.abbreviation.toUpperCase()] = v.id;
+        });
+        return kept.versions;
+      }
+    } catch {
+      /* fetch it */
+    }
     try {
       console.log('🔍 Enhanced API.Bible Service: Fetching Bible versions...');
 
@@ -198,13 +236,10 @@ export const enhancedApiBibleService = {
             }
           }
 
-          // Licensed on API.Bible: read the NIV from there
-          if (abbr === 'NIV' || /new international version/i.test(bible.name || '')) {
-            try {
-              localStorage.setItem(API_NIV_KEY, bible.id);
-            } catch {
-              /* not remembered */
-            }
+          // Licensed NIV and Message: listed once, as "NIV" and "MSG" (the NIV is
+          // read from API.Bible, the Message from Bolls.life as before)
+          if (/^(NIV|NIV11|MSG)$/i.test(bible.abbreviation || '') || /new international version|^the message$/i.test(bible.name || '')) {
+            return null;
           }
 
           // Build version mappings for later use
@@ -318,6 +353,11 @@ export const enhancedApiBibleService = {
       });
 
       console.log(`✅ Enhanced API.Bible Service: Loaded ${finalVersions.length} Bible versions`);
+      try {
+        localStorage.setItem(VERSIONS_KEY, JSON.stringify({ at: Date.now(), versions: finalVersions }));
+      } catch {
+        /* fetched again next time */
+      }
       return finalVersions;
     } catch (error) {
       console.error('❌ Enhanced API.Bible Service error:', error);
@@ -377,8 +417,8 @@ export const enhancedApiBibleService = {
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);
 
-      // Normalize inputs (the NIV is read from API.Bible once it's licensed there)
-      const licensedNiv = isNiv(version) ? apiNivId() : null;
+      // Normalize inputs (the NIV is read from the church's API.Bible licence)
+      const licensedNiv = isNiv(version) ? API_NIV_TEXT_ID : null;
       const bibleId = licensedNiv ?? this.normalizeVersionId(version);
 
       // CHECK FOR BOLLS.LIFE ID MATCH or RESTRICTED API.BIBLE UUIDs
@@ -397,8 +437,17 @@ export const enhancedApiBibleService = {
       const bookId = normalizeBookName(book);
       const chapterId = `${bookId}.${chapter}`;
 
+      // Public domain (KJV, ASV): from the free source first, API.Bible if it can't be reached
+      const freeUse = FREE_USE_TEXT[bibleId.split('-')[0]];
+      if (freeUse) {
+        const free = await fetchFreeUseChapter(freeUse, bookId, book, chapter, bibleId).catch(() => null);
+        if (free) return free;
+      }
+
       // Fetch chapter data
-      const data = await makeApiRequest(`/bibles/${bibleId}/chapters/${chapterId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`);
+      // Licensed text comes with a token for API.Bible's fair-use reporting (see apiBible.ts)
+      const fums = licensedNiv ? '&fums-version=3' : '';
+      const data = await makeApiRequest(`/bibles/${bibleId}/chapters/${chapterId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false${fums}`);
 
       // Debug: Log the raw API response for John chapter 3
       if (book.toLowerCase().includes('john') && chapter === 3) {
@@ -427,7 +476,8 @@ export const enhancedApiBibleService = {
         verses,
         text: verses.map(v => v.text).join(' '),
         reference: `${book} ${chapter}`,
-        version: bibleId
+        version: bibleId,
+        ...(data.meta?.fumsToken ? { fumsToken: data.meta.fumsToken as string } : {}),
       };
     } catch (error) {
       console.error('❌ Enhanced API.Bible Service chapter error:', error);

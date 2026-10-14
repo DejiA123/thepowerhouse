@@ -1,11 +1,15 @@
 /**
- * Human-narrated chapters from Faith Comes By Hearing's Bible Brain.
+ * Human-narrated chapters: Faith Comes By Hearing's Bible Brain (ESV, NLT,
+ * NKJV) and the church's API.Bible account (the NIV, The Listener's Bible).
  *
- * Bible Brain hands out short-lived signed links, so each chapter is known in
- * the app by a fixed address on this site (see narratedKey). That address is
+ * Both hand out short-lived signed links, so each chapter is known in the
+ * app by a fixed address on this site (see narratedKey). That address is
  * what downloads are saved under (the offline player in public/audio-sw.js
  * serves them), and it is swapped for a fresh signed link to stream.
+ * API.Bible recordings have ids starting "ABS-".
  */
+import { API_BIBLE_BASE_URL, API_BIBLE_KEY, reportListen } from '@/services/apiBible';
+
 export const BIBLE_BRAIN_KEY = '56e1f369-6e9b-4f68-aa20-5f51c1111eef'; // public Bible Brain key already used by the app
 const API = 'https://4.dbt.io/api';
 
@@ -24,7 +28,7 @@ export const BOOK_CODES: Record<string, string> = {
   '3-john': '3JN', jude: 'JUD', revelation: 'REV',
 };
 
-const KEY_PATH = /\/audio-bible\/fcbh\/([A-Z0-9]+)\/([0-9A-Z]{3})\/(\d+)\.mp3$/;
+const KEY_PATH = /\/audio-bible\/fcbh\/([A-Za-z0-9-]+)\/([0-9A-Z]{3})\/(\d+)\.mp3$/;
 
 /** The fixed address of a narrated chapter (never fetched from the network itself). */
 export function narratedKey(fileset: string, book: string, chapter: number): string | null {
@@ -35,84 +39,49 @@ export function narratedKey(fileset: string, book: string, chapter: number): str
 
 export const isNarratedKey = (url: string) => KEY_PATH.test(url);
 
-/* ── Recordings that need the publisher's permission (the NIV) ─────────
-   Bible Brain has them, but plays only some chapters for any key; the rest
-   need the publisher's approval for this app. Whether the whole recording
-   is open to this key is checked now and then (with a chapter that's
-   normally closed), and remembered: the moment the app is approved, the
-   narration replaces the AI voice everywhere by itself. */
-const ACCESS_KEY = 'bible_brain_access_v2';
-export const ACCESS_EVENT = 'bible-brain-access-changed';
-type Access = Record<string, { ok: boolean; at: number }>;
-const probing = new Set<string>();
+/** A recording on the church's API.Bible account (not Bible Brain) */
+export const isApiBibleRecording = (fileset: string) => fileset.startsWith('ABS-');
 
-const readAccess = (): Access => {
-  try {
-    return JSON.parse(localStorage.getItem(ACCESS_KEY) || '{}');
-  } catch {
-    return {};
-  }
-};
-
-async function probeAccess(fileset: string) {
-  if (probing.has(fileset) || navigator.onLine === false) return;
-  probing.add(fileset);
-  try {
-    // Chapters this key can't play without approval. Bible Brain sometimes lets
-    // a closed chapter through by chance, so all of them must open to count.
-    const closed = /O\dDA$/.test(fileset) ? ['GEN/1', 'PSA/119', 'ISA/53'] : ['JHN/3', 'REV/22', 'ACT/2'];
-    let ok = true;
-    for (const chapter of closed) {
-      const res = await fetch(`${API}/bibles/filesets/${fileset}/${chapter}?key=${BIBLE_BRAIN_KEY}&v=4`);
-      if (res.status >= 500) return; // try again another time
-      if (!res.ok || !(await res.json())?.data?.[0]?.path) {
-        ok = false;
-        break;
-      }
-    }
-    const all = readAccess();
-    const changed = all[fileset]?.ok !== ok;
-    all[fileset] = { ok, at: Date.now() };
-    localStorage.setItem(ACCESS_KEY, JSON.stringify(all));
-    if (changed) window.dispatchEvent(new CustomEvent(ACCESS_EVENT, { detail: fileset }));
-  } catch {
-    /* offline or blocked: checked again next time */
-  } finally {
-    probing.delete(fileset);
-  }
-}
-
-/** Whether this app's key may play this recording (as last checked; checks again when due). */
-export function hasAccess(fileset: string): boolean {
-  const entry = readAccess()[fileset];
-  const due = !entry || Date.now() - entry.at > (entry.ok ? 7 : 1) * 24 * 60 * 60 * 1000;
-  if (due && typeof window !== 'undefined') setTimeout(() => probeAccess(fileset), 0);
-  return !!entry?.ok;
-}
-
-/** Signed links last about a day; keep them for an hour */
-const signed = new Map<string, { url: string; at: number }>();
+/** Signed links are kept until shortly before they run out */
+const signed = new Map<string, { url: string; until: number; fums?: string }>();
 const inflight = new Map<string, Promise<string>>();
 
-/** A playable link for a narrated chapter address (needs a connection). */
-export async function streamUrlFor(key: string): Promise<string> {
+async function signedLink(fileset: string, code: string, chapter: string) {
+  if (isApiBibleRecording(fileset)) {
+    const res = await fetch(`${API_BIBLE_BASE_URL}/audio-bibles/${fileset.slice(4)}/chapters/${code}.${chapter}?fums-version=3`, {
+      headers: { 'api-key': API_BIBLE_KEY },
+    });
+    if (!res.ok) throw new Error(`API.Bible ${res.status}`);
+    const json = await res.json();
+    const url: string | undefined = json?.data?.resourceUrl;
+    if (!url) throw new Error('No audio for this chapter');
+    const expires = Number(json?.data?.expiresAt) * 1000 || Date.now() + 50 * 60 * 1000;
+    return { url, until: expires - 5 * 60 * 1000, fums: json?.meta?.fumsToken as string | undefined };
+  }
+  const res = await fetch(`${API}/bibles/filesets/${fileset}/${code}/${chapter}?key=${BIBLE_BRAIN_KEY}&v=4`);
+  if (!res.ok) throw new Error(`Bible Brain ${res.status}`);
+  const json = await res.json();
+  const url: string | undefined = json?.data?.[0]?.path;
+  if (!url) throw new Error('No audio for this chapter');
+  // Bible Brain links last about a day
+  return { url, until: Date.now() + 60 * 60 * 1000 };
+}
+
+/** A playable link for a narrated chapter address (needs a connection). `fresh` skips the kept one. */
+export async function streamUrlFor(key: string, fresh = false): Promise<string> {
   const m = KEY_PATH.exec(key);
   if (!m) return key;
   const hit = signed.get(key);
-  if (hit && Date.now() - hit.at < 60 * 60 * 1000) return hit.url;
+  if (hit && !fresh && Date.now() < hit.until) return hit.url;
   if (inflight.has(key)) return inflight.get(key)!;
   const [, fileset, code, chapter] = m;
   const load = (async () => {
     let lastError: unknown;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const res = await fetch(`${API}/bibles/filesets/${fileset}/${code}/${chapter}?key=${BIBLE_BRAIN_KEY}&v=4`);
-        if (!res.ok) throw new Error(`Bible Brain ${res.status}`);
-        const json = await res.json();
-        const url: string | undefined = json?.data?.[0]?.path;
-        if (!url) throw new Error('No audio for this chapter');
-        signed.set(key, { url, at: Date.now() });
-        return url;
+        const link = await signedLink(fileset, code, chapter);
+        signed.set(key, link);
+        return link.url;
       } catch (error) {
         lastError = error;
         if (navigator.onLine === false) break;
@@ -127,4 +96,10 @@ export async function streamUrlFor(key: string): Promise<string> {
   } finally {
     inflight.delete(key);
   }
+}
+
+/** The narrated chapter at this address started playing: report it where the licence asks. */
+export function narratedStarted(key: string) {
+  const link = signed.get(key);
+  if (link?.fums) reportListen(link.fums);
 }
