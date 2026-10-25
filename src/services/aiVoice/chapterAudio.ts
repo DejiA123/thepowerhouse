@@ -477,7 +477,7 @@ export const aiChapterAudio = {
     const job = jobFor(ref, voice, true);
     setLiveTimings(timingId, job.timings);
     await job.textReady;
-    await aiVoice.load();
+    await aiVoice.ready();
     if (!isCurrent()) throw new Error('cancelled');
     const stream = job.attach();
     if (stream) return { src: stream, timingId, key };
