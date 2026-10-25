@@ -434,7 +434,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             );
             return;
           }
-        } else if (plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
+        } else if (!prefetchedPlayable && plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
           // Get the streaming link now: if the narration can't be reached (the
           // service is down, or the month's allowance is used up), the AI voice reads it
           try {
@@ -538,7 +538,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (local) {
           setPlayerSource(local, local);
         } else {
-          const playable = await offlineAudioService.resolvePlayableUrl(audioUrl!);
+          const playable = prefetchedPlayable ?? await offlineAudioService.resolvePlayableUrl(audioUrl!);
           if (request !== playRequestRef.current) return;
           setPlayerSource(playable);
         }
