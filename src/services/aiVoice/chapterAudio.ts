@@ -274,7 +274,7 @@ class ChapterJob {
     const next = this.queue.shift();
     if (next) {
       try {
-        sb.appendBuffer(next);
+        sb.appendBuffer(next as unknown as BufferSource);
       } catch (error) {
         this.queue.unshift(next);
         if ((error as DOMException).name === 'QuotaExceededError') {

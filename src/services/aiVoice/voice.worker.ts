@@ -276,7 +276,7 @@ async function infer(text: string, style: { ttl: ort.Tensor; dp: ort.Tensor }, s
       current_step: new ort.Tensor('float32', new Float32Array([step]), [1]),
       total_step: total,
     });
-    latent = out.denoised_latent.data as Float32Array;
+    latent = out.denoised_latent.data as unknown as typeof latent;
   }
   const { wav_tts: wav } = await e.voc.run({ latent: new ort.Tensor('float32', latent, [1, e.cfg.latentDim, frames]) });
   const data = wav.data as Float32Array;
