@@ -228,10 +228,30 @@ class AiVoiceEngine {
     return this.loaded;
   }
 
+  /** Chapters being made by the cloud voice */
+  private cloudJobs = new Set<string>();
+
   async synth(job: string, text: string, pause: number, voice = this.voice): Promise<SynthResult> {
-    await this.load();
     write(USED_KEY, '1');
-    return this.call<SynthResult>({ type: 'synth', job, text, voice, speed: 0.95, pause });
+    if (this.mode === 'cloud' || this.cloudJobs.has(job)) {
+      this.cloudJobs.add(job);
+      return cloudSynth(job, text, pause, voice);
+    }
+    try {
+      await this.load();
+      return await this.call<SynthResult>({ type: 'synth', job, text, voice, speed: 0.95, pause });
+    } catch (error) {
+      if (navigator.onLine === false) throw error;
+      // The on-device voice gave up (often out of memory): carry on with the cloud voice
+      console.warn('[ai-voice] on-device voice failed, using the cloud voice', error);
+      this.fellBack = true;
+      this.worker?.terminate();
+      this.worker = null;
+      this.loaded = null;
+      this.emit();
+      this.cloudJobs.add(job);
+      return cloudSynth(job, text, pause, voice);
+    }
   }
 
   /**
@@ -239,7 +259,7 @@ class AiVoiceEngine {
    * voice into memory now (it takes a while), so Listen starts sooner.
    */
   warmUp() {
-    if (this.status !== 'ready' || this.loaded || read(USED_KEY) !== '1') return;
+    if (this.mode === 'cloud' || this.status !== 'ready' || this.loaded || read(USED_KEY) !== '1') return;
     const start = () => this.load().catch(() => undefined);
     const idle = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => void) | undefined;
     if (idle) idle(start, { timeout: 4000 });
@@ -247,11 +267,13 @@ class AiVoiceEngine {
   }
 
   async end(job: string): Promise<Uint8Array> {
+    if (this.cloudJobs.delete(job)) return cloudEnd(job);
     const r = await this.call<{ mp3: Uint8Array }>({ type: 'end', job });
     return r.mp3;
   }
 
   drop(job: string) {
+    if (this.cloudJobs.delete(job)) return cloudDrop(job);
     if (this.worker) this.call({ type: 'drop', job }).catch(() => undefined);
   }
 
