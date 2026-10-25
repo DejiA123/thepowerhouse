@@ -67,8 +67,30 @@ const AiVoiceSettings = () => {
         ))}
       </div>
 
-      {/* The AI voice on this device */}
-      {ai.status === 'downloading' ? (
+      {/* Where the AI voice is made */}
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900/60" role="radiogroup" aria-label="Where the AI voice is made">
+        {([['cloud', 'Online voice'], ['device', 'On this device']] as const).map(([mode, label]) => (
+          <button
+            key={mode}
+            role="radio"
+            aria-checked={ai.mode === mode}
+            onClick={() => ai.setMode(mode)}
+            className={cn(
+              'rounded-lg px-3 py-2 text-[13px] font-semibold transition',
+              ai.mode === mode ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {ai.mode === 'cloud' ? (
+        <div className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <Check className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Ready. Nothing to download, works smoothly on phones. Chapters you've heard are kept for offline listening.</span>
+        </div>
+      ) : ai.status === 'downloading' ? (
         <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/40">
           <div className="mb-2 flex items-center justify-between text-[13px] font-medium text-blue-800 dark:text-blue-200">
             <span className="flex items-center gap-1.5">
