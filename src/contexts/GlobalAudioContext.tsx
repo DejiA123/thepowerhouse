@@ -523,7 +523,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
               'info',
             );
           } else if (reason !== 'cancelled') {
-            appAlert("The AI voice couldn't read this chapter", 'Please try again. If it keeps happening, restart the app.', 'error');
+            const why =
+              navigator.onLine === false ? "You're offline. Connect to the internet and try again." :
+              reason === 'AI credits have run out.' ? 'The AI voice has run out of credits for now. Please let the church office know.' :
+              reason === 'Too many requests, please wait a moment.' ? 'Lots of people are listening right now. Wait a moment and try again.' :
+              'Please try again. If it keeps happening, restart the app.';
+            appAlert("The AI voice couldn't read this chapter", why, 'error');
           }
           return;
         }

@@ -212,8 +212,9 @@ class AiVoiceEngine {
     return this.downloading;
   }
 
-  /** Gets the voice ready to speak (loads it into memory). */
+  /** Gets the on-device voice ready to speak (loads it into memory). Nothing to load for the cloud voice. */
   load(): Promise<void> {
+    if (this.mode === 'cloud') return Promise.resolve();
     if (!this.loaded) {
       this.loaded = this.call<{ ep: 'webgpu' | 'wasm' }>({ type: 'load', voice: this.voice })
         .then((r) => {
@@ -226,6 +227,26 @@ class AiVoiceEngine {
         });
     }
     return this.loaded;
+  }
+
+  /**
+   * Before reading a chapter: the cloud voice needs nothing; the on-device
+   * voice is loaded, and if it can't be (missing, out of memory) the cloud
+   * voice takes over instead of the chapter failing.
+   */
+  async ready(): Promise<void> {
+    if (this.mode === 'cloud') return;
+    try {
+      await this.load();
+    } catch (error) {
+      if (navigator.onLine === false) throw error;
+      console.warn('[ai-voice] on-device voice unavailable, using the cloud voice', error);
+      this.fellBack = true;
+      this.worker?.terminate();
+      this.worker = null;
+      this.loaded = null;
+      this.emit();
+    }
   }
 
   /** Chapters being made by the cloud voice */
