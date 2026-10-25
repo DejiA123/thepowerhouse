@@ -338,32 +338,6 @@ export const UnifiedThemeSettings = ({ onBack }: UnifiedThemeSettingsProps) => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Theme Selection */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Sun className="w-5 h-5" />
-            Appearance
-          </h2>
-
-          <div className="grid grid-cols-3 gap-3">
-            {['light', 'dark', 'system'].map((theme) => (
-              <Button
-                key={theme}
-                variant={settings.theme === theme ? "default" : "outline"}
-                onClick={() => handleThemeChange(theme as 'light' | 'dark' | 'system')}
-                className="flex flex-col items-center gap-2 h-20"
-              >
-                {getThemeIcon(theme)}
-                <span className="text-sm">{getThemeName(theme)}</span>
-              </Button>
-            ))}
-          </div>
-
-          <div className="text-sm text-muted-foreground mt-4">
-            Choose your preferred appearance. Light theme provides a bright, clean interface, while Dark theme offers a comfortable viewing experience in low-light conditions.
-          </div>
-        </div>
-
         {/* Color Theme Selection */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">

@@ -376,14 +376,11 @@ const applyTheme = () => {
     }
   }
 
-  const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const isDark = theme === 'system' ? isSystemDark : theme === 'dark';
-
-  if (isDark) {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
+  // Dark mode removed: always light.
+  void theme;
+  const isDark = false;
+  document.documentElement.classList.remove('dark');
+  document.body.classList.remove('dark');
 
   // Dynamically set iOS status bar style for PWA
   try {
