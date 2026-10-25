@@ -199,7 +199,7 @@ class ChapterJob {
   get speed() {
     if (this.work > 1) return this.made / this.work;
     // Not measured yet: what this device managed last time (graphics chips are quick)
-    if (aiVoice.mode === 'cloud') return 3;
+    if (aiVoice.mode === 'cloud') return 1.1;
     return knownSpeed() ?? (aiVoice.device === 'webgpu' ? 2 : 1);
   }
 
