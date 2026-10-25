@@ -404,14 +404,15 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let plan: ChapterAudioPlan = audioPlanFor(version, normalizedBook);
 
       let audioUrl: string | null = null;
+      /** A ready-to-play link got ahead of time: start with no waiting at all */
+      let prefetchedPlayable: string | null = null;
       if (plan.kind !== 'ai') {
-        if (nextChapterUrlRef.current &&
-          nextChapterUrlRef.current.book === normalizedBook &&
-          nextChapterUrlRef.current.chapter === chapter &&
-          audioStateRef.current.autoPlayNext &&
-          isAutoAdvancingRef.current) {
+        const pre = nextChapterUrlRef.current;
+        if (pre && normalizeBookApiName(pre.book) === normalizedBook && pre.chapter === chapter) {
           console.log('🎵 Using prefetched audio URL for smooth transition');
-          audioUrl = nextChapterUrlRef.current.url;
+          audioUrl = pre.url;
+          prefetchedPlayable = pre.playable ?? null;
+          nextChapterUrlRef.current = null;
         } else {
           audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
         }
