@@ -103,7 +103,7 @@ class AiVoiceEngine {
     write(VOICE_KEY, id);
     this.emit();
     // Fetch the new voice now so it's there offline too
-    if (this.status === 'ready' && navigator.onLine !== false) this.call({ type: 'load', voice: id }).catch(() => undefined);
+    if (this.mode === 'device' && this.status === 'ready' && navigator.onLine !== false) this.call({ type: 'load', voice: id }).catch(() => undefined);
   }
 
   get totalBytes() {

@@ -44,7 +44,7 @@ export interface PreparedChapter {
 export const AI_PROGRESS_EVENT = 'ai-voice:progress';
 
 const keyFor = (voice: string, ref: AiChapterRef) =>
-  `${self.location.origin}/__ai-voice__/${voice}/${ref.translation}/${ref.book.toLowerCase()}/${ref.chapter}.mp3`;
+  `${self.location.origin}/__ai-voice__/${aiVoice.mode === 'cloud' ? 'cloud-' : ''}${voice}/${ref.translation}/${ref.book.toLowerCase()}/${ref.chapter}.mp3`;
 
 export const isAiKey = (url: string) => url.includes('/__ai-voice__/');
 
@@ -199,6 +199,7 @@ class ChapterJob {
   get speed() {
     if (this.work > 1) return this.made / this.work;
     // Not measured yet: what this device managed last time (graphics chips are quick)
+    if (aiVoice.mode === 'cloud') return 3;
     return knownSpeed() ?? (aiVoice.device === 'webgpu' ? 2 : 1);
   }
 
@@ -328,7 +329,7 @@ class ChapterJob {
         this.work += r.genSeconds;
         this.doneChars += part.text.length;
         this.index++;
-        if (this.work > 4 && this.index % 4 === 0) {
+        if (aiVoice.mode !== 'cloud' && this.work > 4 && this.index % 4 === 0) {
           rememberSpeed(this.speed);
           rememberPace(this.speechMade / this.doneChars, this.voice);
         }
@@ -350,7 +351,7 @@ class ChapterJob {
         if (this.released) this.queue.push(tail);
       }
       this.state = 'done';
-      if (this.work > 2) {
+      if (aiVoice.mode !== 'cloud' && this.work > 2) {
         rememberSpeed(this.speed);
         // The graphics chip couldn't keep up comfortably: fewer quality steps from now on
         if (aiVoice.device === 'webgpu' && this.speed < 1.15) aiVoice.slower();
