@@ -5,7 +5,8 @@
  * phone has WebGPU, otherwise on the processor) and into MP3 for the player.
  */
 import * as ort from 'onnxruntime-web/webgpu';
-import runtimeUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+import runtimeAsset from '@/assets/wasm/ort-runtime.wasm.asset.json';
+const runtimeUrl = runtimeAsset.url;
 import { createMp3Encoder } from 'wasm-media-encoders';
 import { MODEL_CACHE, MODEL_FILES, voiceStyleUrl } from './model';
 
@@ -276,7 +277,7 @@ async function infer(text: string, style: { ttl: ort.Tensor; dp: ort.Tensor }, s
       current_step: new ort.Tensor('float32', new Float32Array([step]), [1]),
       total_step: total,
     });
-    latent = out.denoised_latent.data as Float32Array;
+    latent = out.denoised_latent.data as unknown as typeof latent;
   }
   const { wav_tts: wav } = await e.voc.run({ latent: new ort.Tensor('float32', latent, [1, e.cfg.latentDim, frames]) });
   const data = wav.data as Float32Array;
