@@ -2,6 +2,7 @@ import React, { createContext, useContext, useRef, useState, useCallback, useEff
 import { offlineAudioService } from '@/services/offlineAudioService';
 import { supabaseAudioService } from '@/services/supabaseAudioService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
+import { nextChapterAfter, previousChapterBefore } from '@/services/audioBible/nextChapter';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { setAudioSession } from '@/lib/audioSession';
 import { backgroundMusic } from '@/services/backgroundMusic';
@@ -234,7 +235,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const isAutoAdvancingRef = useRef<boolean>(false);
   const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
   const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
-  const nextChapterUrlRef = useRef<{ url: string; book: string; chapter: number } | null>(null);
+  const nextChapterUrlRef = useRef<{ url: string; book: string; chapter: number; playable?: string } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const autoAdvanceRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const preloadTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -273,28 +274,13 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const prefetchNextChapter = useCallback(async (book: string, chapter: number, version: string) => {
     try {
-      const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-      const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === book.toLowerCase());
-
-      let nextBook = book;
-      let nextChapter = chapter + 1;
-
-      if (bookInfo && nextChapter > bookInfo.chapters) {
-        // Check if loopBook is enabled
-        if (audioStateRef.current.loopBook) {
-          // Loop Book: prefetch chapter 1 of the same book
-          nextChapter = 1;
-        } else {
-          const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === book.toLowerCase());
-          if (currentBookIndex < allBooks.length - 1) {
-            nextBook = allBooks[currentBookIndex + 1].apiName;
-            nextChapter = 1;
-          } else {
-            nextChapterUrlRef.current = null;
-            return;
-          }
-        }
+      const next = nextChapterAfter(book, chapter, audioStateRef.current.loopBook);
+      if (!next) {
+        nextChapterUrlRef.current = null;
+        return;
       }
+      const nextBook = next.book;
+      const nextChapter = next.chapter;
 
       console.log(`🎵 Prefetching next chapter URL: ${nextBook} ${nextChapter}`);
       const nextPlan = audioPlanFor(version, nextBook);
@@ -310,6 +296,12 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const url = await supabaseAudioService.getAudioUrl(nextBook, nextChapter, version);
       if (url) {
         nextChapterUrlRef.current = { url, book: nextBook, chapter: nextChapter };
+        // Get the playable link now too, so the next chapter can start with no waiting
+        // (phones only let a new chapter start in the background if it starts at once)
+        offlineAudioService.resolvePlayableUrl(url).then((playable) => {
+          const ref = nextChapterUrlRef.current;
+          if (ref && ref.url === url) ref.playable = playable;
+        }).catch(() => undefined);
         const { autoPlayNext, loopChapter } = audioStateRef.current;
         clearTimeout(preloadTimerRef.current);
         if (preloadWholeChapters && autoPlayNext && !loopChapter) {
@@ -412,14 +404,15 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let plan: ChapterAudioPlan = audioPlanFor(version, normalizedBook);
 
       let audioUrl: string | null = null;
+      /** A ready-to-play link got ahead of time: start with no waiting at all */
+      let prefetchedPlayable: string | null = null;
       if (plan.kind !== 'ai') {
-        if (nextChapterUrlRef.current &&
-          nextChapterUrlRef.current.book === normalizedBook &&
-          nextChapterUrlRef.current.chapter === chapter &&
-          audioStateRef.current.autoPlayNext &&
-          isAutoAdvancingRef.current) {
+        const pre = nextChapterUrlRef.current;
+        if (pre && normalizeBookApiName(pre.book) === normalizedBook && pre.chapter === chapter) {
           console.log('🎵 Using prefetched audio URL for smooth transition');
-          audioUrl = nextChapterUrlRef.current.url;
+          audioUrl = pre.url;
+          prefetchedPlayable = pre.playable ?? null;
+          nextChapterUrlRef.current = null;
         } else {
           audioUrl = await supabaseAudioService.getAudioUrl(book, chapter, version);
         }
@@ -441,7 +434,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             );
             return;
           }
-        } else if (plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
+        } else if (!prefetchedPlayable && plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
           // Get the streaming link now: if the narration can't be reached (the
           // service is down, or the month's allowance is used up), the AI voice reads it
           try {
@@ -545,7 +538,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (local) {
           setPlayerSource(local, local);
         } else {
-          const playable = await offlineAudioService.resolvePlayableUrl(audioUrl!);
+          const playable = prefetchedPlayable ?? await offlineAudioService.resolvePlayableUrl(audioUrl!);
           if (request !== playRequestRef.current) return;
           setPlayerSource(playable);
         }
@@ -773,76 +766,34 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     isAutoAdvancingRef.current = true;
 
     const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter, loopBook } = audioStateRef.current;
-    console.log(`🔁 goToNextChapter: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopChapter=${loopChapter} loopBook=${loopBook}`);
-    if (!currentBook) {
+    console.log(`🔁 goToNextChapter: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopBook=${loopBook}`);
+    const next = currentBook ? nextChapterAfter(currentBook, currentChapter || 1, loopBook) : null;
+    if (!next) {
       isAutoAdvancingRef.current = false;
+      if (currentBook) {
+        console.log('End of Bible');
+        reset();
+      }
       return;
     }
-
-    const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-    const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-
-    if (bookInfo && currentChapter < bookInfo.chapters) {
-      const nextChapter = currentChapter + 1;
-      playBibleChapterMP3(currentBook, nextChapter, currentVersion, autoPlayNext, loopChapter);
-      if (chapterChangeCallbackRef.current) {
-        chapterChangeCallbackRef.current(nextChapter, true);
-      }
-    } else if (bookInfo) {
-      // Reached the last chapter of the book
-      if (loopBook) {
-        // Loop Book is ON — go back to chapter 1 of THIS book
-        console.log(`🔁 Loop Book: Restarting ${currentBook} from chapter 1`);
-        playBibleChapterMP3(currentBook, 1, currentVersion, autoPlayNext, loopChapter);
-        if (chapterChangeCallbackRef.current) {
-          chapterChangeCallbackRef.current(1, true);
-        }
-      } else {
-        // Normal behaviour — advance to the next book
-        const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-        if (currentBookIndex < allBooks.length - 1) {
-          const nextBook = allBooks[currentBookIndex + 1];
-          playBibleChapterMP3(nextBook.apiName, 1, currentVersion, autoPlayNext, loopChapter);
-          if (bookChangeCallbackRef.current) {
-            bookChangeCallbackRef.current(nextBook.apiName, 1, true);
-          }
-        } else {
-          console.log('End of Bible');
-          reset();
-        }
-      }
-    }
+    // Starts synchronously (no waiting) when the next chapter was got ready ahead
+    playBibleChapterMP3(next.book, next.chapter, currentVersion, autoPlayNext, loopChapter);
+    if (next.newBook) bookChangeCallbackRef.current?.(next.book, next.chapter, true);
+    else chapterChangeCallbackRef.current?.(next.chapter, true);
 
     setTimeout(() => {
       isAutoAdvancingRef.current = false;
     }, 1500);
-
   }, [playBibleChapterMP3, reset]);
 
   const goToPreviousChapter = useCallback(() => {
-    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter, loopBook } = audioStateRef.current;
+    const { currentBook, currentChapter, currentVersion, autoPlayNext, loopChapter } = audioStateRef.current;
     if (!currentBook) return;
-
-    const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-    const bookInfo = allBooks.find(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-
-    if (bookInfo && currentChapter > 1) {
-      const prevChapter = currentChapter - 1;
-      playBibleChapterMP3(currentBook, prevChapter, currentVersion, autoPlayNext, loopChapter);
-      if (chapterChangeCallbackRef.current) {
-        chapterChangeCallbackRef.current(prevChapter, false);
-      }
-    } else if (bookInfo) {
-      const currentBookIndex = allBooks.findIndex(b => b.apiName.toLowerCase() === currentBook.toLowerCase());
-      if (currentBookIndex > 0) {
-        const prevBook = allBooks[currentBookIndex - 1];
-        const lastChapterOfPrevBook = prevBook.chapters;
-        playBibleChapterMP3(prevBook.apiName, lastChapterOfPrevBook, currentVersion, autoPlayNext, loopChapter);
-        if (bookChangeCallbackRef.current) {
-          bookChangeCallbackRef.current(prevBook.apiName, lastChapterOfPrevBook, false);
-        }
-      }
-    }
+    const prev = previousChapterBefore(currentBook, currentChapter || 1);
+    if (!prev) return;
+    playBibleChapterMP3(prev.book, prev.chapter, currentVersion, autoPlayNext, loopChapter);
+    if (prev.newBook) bookChangeCallbackRef.current?.(prev.book, prev.chapter, false);
+    else chapterChangeCallbackRef.current?.(prev.chapter, false);
   }, [playBibleChapterMP3]);
 
   useEffect(() => {

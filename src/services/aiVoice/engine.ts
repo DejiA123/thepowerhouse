@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { AI_VOICES, DEFAULT_VOICE, MODEL_CACHE, MODEL_FILES, totalDownloadBytes } from './model';
+import { cloudDrop, cloudEnd, cloudSynth } from './cloudVoice';
 
 export type AiVoiceStatus = 'missing' | 'downloading' | 'ready' | 'error';
 
@@ -11,6 +12,7 @@ const READY_KEY = 'ai_voice_ready_v1';
 /** Has listened with the AI voice before (then it's got ready ahead of time) */
 const USED_KEY = 'ai_voice_used_v1';
 const VOICE_KEY = 'ai_voice_id';
+const MODE_KEY = 'ai_voice_mode_v1';
 const CHANGE = 'ai-voice:changed';
 
 export interface SynthResult {
@@ -38,8 +40,47 @@ const write = (key: string, value: string | null) => {
   }
 };
 
+/** Phones (and low-memory devices) can't hold the on-device voice model: they use the cloud voice */
+export function isPhoneLike() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const iPadOS = navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+  const memory = (navigator as any).deviceMemory as number | undefined;
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(ua) || iPadOS || (memory !== undefined && memory <= 4);
+}
+
+export type AiVoiceMode = 'cloud' | 'device';
+
 class AiVoiceEngine {
-  status: AiVoiceStatus = read(READY_KEY) === '1' ? 'ready' : 'missing';
+  private deviceStatus: AiVoiceStatus = read(READY_KEY) === '1' ? 'ready' : 'missing';
+  /** Switched to the cloud for this session after the on-device voice failed */
+  private fellBack = false;
+
+  /** Where the voice is made: chosen in settings, otherwise cloud on phones */
+  get mode(): AiVoiceMode {
+    if (this.fellBack) return 'cloud';
+    const saved = read(MODE_KEY);
+    if (saved === 'cloud' || saved === 'device') return saved;
+    return isPhoneLike() ? 'cloud' : 'device';
+  }
+
+  setMode(mode: AiVoiceMode) {
+    write(MODE_KEY, mode);
+    this.fellBack = false;
+    this.emit();
+  }
+
+  /** The cloud voice is always ready; the on-device one must be downloaded */
+  get status(): AiVoiceStatus {
+    return this.mode === 'cloud' ? 'ready' : this.deviceStatus;
+  }
+  set status(s: AiVoiceStatus) {
+    this.deviceStatus = s;
+  }
+  /** Whether the on-device voice is downloaded (for settings) */
+  get deviceVoiceStatus() {
+    return this.deviceStatus;
+  }
   /** 0–1 while downloading */
   progress = 0;
   error: string | null = null;
@@ -62,7 +103,7 @@ class AiVoiceEngine {
     write(VOICE_KEY, id);
     this.emit();
     // Fetch the new voice now so it's there offline too
-    if (this.status === 'ready' && navigator.onLine !== false) this.call({ type: 'load', voice: id }).catch(() => undefined);
+    if (this.mode === 'device' && this.status === 'ready' && navigator.onLine !== false) this.call({ type: 'load', voice: id }).catch(() => undefined);
   }
 
   get totalBytes() {
@@ -187,10 +228,30 @@ class AiVoiceEngine {
     return this.loaded;
   }
 
+  /** Chapters being made by the cloud voice */
+  private cloudJobs = new Set<string>();
+
   async synth(job: string, text: string, pause: number, voice = this.voice): Promise<SynthResult> {
-    await this.load();
     write(USED_KEY, '1');
-    return this.call<SynthResult>({ type: 'synth', job, text, voice, speed: 0.95, pause });
+    if (this.mode === 'cloud' || this.cloudJobs.has(job)) {
+      this.cloudJobs.add(job);
+      return cloudSynth(job, text, pause, voice);
+    }
+    try {
+      await this.load();
+      return await this.call<SynthResult>({ type: 'synth', job, text, voice, speed: 0.95, pause });
+    } catch (error) {
+      if (navigator.onLine === false) throw error;
+      // The on-device voice gave up (often out of memory): carry on with the cloud voice
+      console.warn('[ai-voice] on-device voice failed, using the cloud voice', error);
+      this.fellBack = true;
+      this.worker?.terminate();
+      this.worker = null;
+      this.loaded = null;
+      this.emit();
+      this.cloudJobs.add(job);
+      return cloudSynth(job, text, pause, voice);
+    }
   }
 
   /**
@@ -198,7 +259,7 @@ class AiVoiceEngine {
    * voice into memory now (it takes a while), so Listen starts sooner.
    */
   warmUp() {
-    if (this.status !== 'ready' || this.loaded || read(USED_KEY) !== '1') return;
+    if (this.mode === 'cloud' || this.status !== 'ready' || this.loaded || read(USED_KEY) !== '1') return;
     const start = () => this.load().catch(() => undefined);
     const idle = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => void) | undefined;
     if (idle) idle(start, { timeout: 4000 });
@@ -206,11 +267,13 @@ class AiVoiceEngine {
   }
 
   async end(job: string): Promise<Uint8Array> {
+    if (this.cloudJobs.delete(job)) return cloudEnd(job);
     const r = await this.call<{ mp3: Uint8Array }>({ type: 'end', job });
     return r.mp3;
   }
 
   drop(job: string) {
+    if (this.cloudJobs.delete(job)) return cloudDrop(job);
     if (this.worker) this.call({ type: 'drop', job }).catch(() => undefined);
   }
 
