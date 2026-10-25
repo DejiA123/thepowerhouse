@@ -376,7 +376,7 @@ const UserSettingsPage = () => {
           onClick={() => setCurrentView("bible")}
         />
         <ListRow icon={Download} iconClassName={tint.sky} title="Offline audio Bible" value={offlineSummary} onClick={() => setOfflineOpen(true)} />
-        <ListRow icon={Palette} iconClassName={tint.indigo} title="Appearance" value={themeLabel()} onClick={() => setCurrentView("theme")} />
+        <ListRow icon={Palette} iconClassName={tint.indigo} title="Appearance" onClick={() => setCurrentView("theme")} />
         <ListRow icon={MapPin} iconClassName={tint.teal} title="My campus" value={campus?.name ?? "Choose"} onClick={() => navigate("/services")} />
         <ListRow icon={Users} iconClassName={tint.amber} title="Social Circle" onClick={() => navigate("/social")} />
       </ListGroup>

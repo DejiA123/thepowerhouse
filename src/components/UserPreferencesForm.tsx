@@ -144,33 +144,6 @@ const UserPreferencesForm = () => {
         </div>
 
         <div className="space-y-2">
-          <Label>Theme</Label>
-          <Select
-            value={preferences.theme}
-            onValueChange={(value) => {
-              setPreferences(prev => {
-                const updated = { ...prev, theme: value };
-                // Save to localStorage for global theme effect
-                try {
-                  const userPrefs = localStorage.getItem('user_preferences');
-                  const parsed = userPrefs ? JSON.parse(userPrefs) : {};
-                  localStorage.setItem('user_preferences', JSON.stringify({ ...parsed, theme: value }));
-                  // Dispatch a custom event to trigger theme update immediately
-                  window.dispatchEvent(new Event('themechange'));
-                } catch (e) { }
-                return updated;
-              });
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="system">System</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="flex gap-2">
