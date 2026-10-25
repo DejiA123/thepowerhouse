@@ -118,13 +118,17 @@
 
 <body>
   <script>
-    // Apply theme background BEFORE React mounts to prevent white flash
+    // Dark mode has been removed: the app is always light.
     (function() {
-      var theme = localStorage.getItem('theme') || 'light';
-      var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      var bg = isDark ? '#0a0a0a' : '#ffffff';
-      document.documentElement.style.backgroundColor = bg;
-      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+      var html = document.documentElement;
+      html.style.backgroundColor = '#ffffff';
+      html.classList.remove('dark');
+      html.classList.add('light');
+      try { localStorage.setItem('theme', 'light'); } catch (e) {}
+      new MutationObserver(function() {
+        if (html.classList.contains('dark')) html.classList.remove('dark');
+        if (document.body && document.body.classList.contains('dark')) document.body.classList.remove('dark');
+      }).observe(html, { attributes: true, attributeFilter: ['class'], subtree: false });
     })();
   </script>
   <div id="root"></div>
