@@ -5,7 +5,8 @@
  * phone has WebGPU, otherwise on the processor) and into MP3 for the player.
  */
 import * as ort from 'onnxruntime-web/webgpu';
-import runtimeUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+import runtimeAsset from '@/assets/wasm/ort-runtime.wasm.asset.json';
+const runtimeUrl = runtimeAsset.url;
 import { createMp3Encoder } from 'wasm-media-encoders';
 import { MODEL_CACHE, MODEL_FILES, voiceStyleUrl } from './model';
 
