@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { AI_VOICES, DEFAULT_VOICE, MODEL_CACHE, MODEL_FILES, totalDownloadBytes } from './model';
+import { cloudDrop, cloudEnd, cloudSynth } from './cloudVoice';
 
 export type AiVoiceStatus = 'missing' | 'downloading' | 'ready' | 'error';
 
@@ -11,6 +12,7 @@ const READY_KEY = 'ai_voice_ready_v1';
 /** Has listened with the AI voice before (then it's got ready ahead of time) */
 const USED_KEY = 'ai_voice_used_v1';
 const VOICE_KEY = 'ai_voice_id';
+const MODE_KEY = 'ai_voice_mode_v1';
 const CHANGE = 'ai-voice:changed';
 
 export interface SynthResult {
@@ -38,8 +40,47 @@ const write = (key: string, value: string | null) => {
   }
 };
 
+/** Phones (and low-memory devices) can't hold the on-device voice model: they use the cloud voice */
+export function isPhoneLike() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const iPadOS = navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+  const memory = (navigator as any).deviceMemory as number | undefined;
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(ua) || iPadOS || (memory !== undefined && memory <= 4);
+}
+
+export type AiVoiceMode = 'cloud' | 'device';
+
 class AiVoiceEngine {
-  status: AiVoiceStatus = read(READY_KEY) === '1' ? 'ready' : 'missing';
+  private deviceStatus: AiVoiceStatus = read(READY_KEY) === '1' ? 'ready' : 'missing';
+  /** Switched to the cloud for this session after the on-device voice failed */
+  private fellBack = false;
+
+  /** Where the voice is made: chosen in settings, otherwise cloud on phones */
+  get mode(): AiVoiceMode {
+    if (this.fellBack) return 'cloud';
+    const saved = read(MODE_KEY);
+    if (saved === 'cloud' || saved === 'device') return saved;
+    return isPhoneLike() ? 'cloud' : 'device';
+  }
+
+  setMode(mode: AiVoiceMode) {
+    write(MODE_KEY, mode);
+    this.fellBack = false;
+    this.emit();
+  }
+
+  /** The cloud voice is always ready; the on-device one must be downloaded */
+  get status(): AiVoiceStatus {
+    return this.mode === 'cloud' ? 'ready' : this.deviceStatus;
+  }
+  set status(s: AiVoiceStatus) {
+    this.deviceStatus = s;
+  }
+  /** Whether the on-device voice is downloaded (for settings) */
+  get deviceVoiceStatus() {
+    return this.deviceStatus;
+  }
   /** 0–1 while downloading */
   progress = 0;
   error: string | null = null;
