@@ -5,6 +5,16 @@ const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'https://www.thepowerhouseinternational.org';
 
+/** Where notification taps open the app */
+const APP_ORIGIN = Deno.env.get('APP_ORIGIN') ?? 'https://thepowerhouseintl.vercel.app';
+const isApple = (endpoint: string) => {
+  try {
+    return new URL(endpoint).hostname.endsWith('push.apple.com');
+  } catch {
+    return false;
+  }
+};
+
 export const vapidPublicKey = VAPID_PUBLIC_KEY;
 export const pushConfigured = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 
@@ -49,7 +59,21 @@ export async function sendToSubscriptions(
 ): Promise<{ sent: number; failed: number; removed: number }> {
   if (!pushConfigured || subscriptions.length === 0) return { sent: 0, failed: 0, removed: 0 };
 
-  const body = JSON.stringify({ ...payload, timestamp: Date.now() });
+  const message = { ...payload, timestamp: Date.now() };
+  const body = JSON.stringify(message);
+  // iPhones and iPads (Apple's push service) also get Apple's "declarative"
+  // form: from iOS 18.4 the phone shows it itself if the app's background code
+  // doesn't wake up in time (that code still replaces it with the full version)
+  const appleBody = JSON.stringify({
+    ...message,
+    web_push: 8030,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+      navigate: new URL(payload.url || '/', APP_ORIGIN).href,
+      ...(payload.tag ? { tag: payload.tag } : {}),
+    },
+  });
   const expired: string[] = [];
   const failed: PushSubscriptionRow[] = [];
   const succeeded: string[] = [];
@@ -61,7 +85,7 @@ export async function sendToSubscriptions(
     try {
       const details = webpush.generateRequestDetails(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        body,
+        isApple(sub.endpoint) ? appleBody : body,
         {
           vapidDetails: { subject: VAPID_SUBJECT, publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY },
           TTL: options.ttl ?? 60 * 60 * 24,
