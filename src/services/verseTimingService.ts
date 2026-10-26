@@ -10,7 +10,8 @@
  * loaded, they are estimated from verse lengths.
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
-import { BIBLE_BRAIN_KEY, BOOK_CODES } from '@/services/audioBible/narrated';
+import { BIBLE_BRAIN_KEY, BOOK_CODES, narratedKey, streamUrlFor } from '@/services/audioBible/narrated';
+import { API_BIBLE_BASE_URL, API_BIBLE_KEY, API_NIV_TEXT_ID } from '@/services/apiBible';
 
 const API = 'https://4.dbt.io/api/timestamps';
 const CACHE = 'bible-verse-timings-v1';
@@ -61,8 +62,8 @@ async function writeCached(key: string, entries: [number, number][]) {
  */
 export async function getVerseTimings(bookApiName: string, chapter: number, source = 'KJV'): Promise<VerseTimings | null> {
   if (source.startsWith('ai:')) return live.get(source) ?? null;
-  // API.Bible's recordings come without verse timings: they're estimated from the verses
-  if (source.startsWith('ABS-')) return null;
+  // API.Bible's recordings (the NIV) come without verse timings: worked out from the audio
+  if (source.startsWith('ABS-')) return narrationTimings(bookApiName.toLowerCase(), chapter, source);
   const book = bookApiName.toLowerCase();
   const fileset = source === 'KJV' ? null : source;
   const key = cacheKey(fileset, book, chapter);
@@ -101,6 +102,77 @@ export async function getVerseTimings(bookApiName: string, chapter: number, sour
   inflight.delete(key);
   if (!memory.has(key)) memory.set(key, result);
   return result;
+}
+
+/* ── Narrations without published timings (the NIV) ─────────────────── */
+
+/** What the narrator says before verse 1: a book's first chapter, a psalm's number and title */
+async function announcement(book: string, chapter: number): Promise<string> {
+  const name = bibleBooks['Old Testament'].concat(bibleBooks['New Testament']).find((b) => b.apiName === book)?.name ?? book;
+  if (book === 'psalms') {
+    const key = `psalm_title_${chapter}`;
+    let title = localStorage.getItem(key);
+    if (title === null) {
+      try {
+        const res = await fetch(
+          `${API_BIBLE_BASE_URL}/bibles/${API_NIV_TEXT_ID}/chapters/PSA.${chapter}?content-type=text&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true`,
+          { headers: { 'api-key': API_BIBLE_KEY } },
+        );
+        const content: string = (await res.json())?.data?.content ?? '';
+        title = (content.split('[1]')[0] ?? '').replace(new RegExp(`Psalm\\s+${chapter}`), '').replace(/\s+/g, ' ').trim();
+        localStorage.setItem(key, title);
+      } catch {
+        title = '';
+      }
+    }
+    return `Psalm ${chapter}. ${title}`.trim();
+  }
+  return chapter === 1 ? `The book of ${name}, chapter one.` : '';
+}
+
+const working = new Map<string, Promise<VerseTimings | null>>();
+
+/** Works out (once, then kept) the verse timings of a narrated chapter from its audio. */
+function narrationTimings(book: string, chapter: number, source: string): Promise<VerseTimings | null> {
+  const key = cacheKey(`${source}-v1`, book, chapter);
+  if (memory.has(key)) return Promise.resolve(memory.get(key)!);
+  if (working.has(key)) return working.get(key)!;
+  const job = (async () => {
+    const cached = await readCached(key);
+    if (cached?.length) {
+      const map = new Map(cached);
+      memory.set(key, map);
+      return map;
+    }
+    if (navigator.onLine === false) return null;
+    try {
+      const audioKey = narratedKey(source, book, chapter);
+      if (!audioKey) return null;
+      const [{ enhancedApiBibleService }, { decodeForTimings, timingsFromAudio }] = await Promise.all([
+        import('@/services/enhancedApiBibleService'),
+        import('@/services/audioBible/narrationTimings'),
+      ]);
+      const [text, audio, intro] = await Promise.all([
+        enhancedApiBibleService.getChapter('NIV', book, chapter),
+        streamUrlFor(audioKey).then((url) => fetch(url)).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`audio ${r.status}`)))),
+        announcement(book, chapter),
+      ]);
+      const verses = (text?.verses ?? []).map((v, i) => ({ verse: Number(v.verse) || i + 1, text: v.text || '' })).filter((v) => v.text);
+      if (!verses.length) return null;
+      const { samples, sampleRate } = await decodeForTimings(audio);
+      const map = timingsFromAudio(samples, sampleRate, verses, intro);
+      writeCached(key, [...map.entries()]);
+      memory.set(key, map);
+      window.dispatchEvent(new CustomEvent(TIMINGS_EVENT, { detail: source }));
+      return map;
+    } catch (error) {
+      console.warn('[timings] could not work out the verse timings', error);
+      return null;
+    }
+  })();
+  working.set(key, job);
+  job.finally(() => working.delete(key));
+  return job;
 }
 
 /** Fallback: spread the chapter duration across verses by their length. */
