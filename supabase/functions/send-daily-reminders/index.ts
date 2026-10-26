@@ -98,6 +98,11 @@ async function claim(userId: string, column: 'daily_verse_last_sent' | 'reading_
   return !error && (data?.length ?? 0) > 0;
 }
 
+/** Nothing reached their phone: un-claim it so the next run (a minute later) tries again. */
+async function release(userId: string, column: 'daily_verse_last_sent' | 'reading_reminder_last_sent', date: string) {
+  await supabaseAdmin.from('notification_preferences').update({ [column]: null }).eq('user_id', userId).eq(column, date);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (!pushConfigured) return json({ ok: false, error: 'Push notifications are not configured' }, 503);
@@ -133,6 +138,7 @@ Deno.serve(async (req) => {
           { ttl: 60 * 60 * 6, urgency: 'normal', topic: 'daily-verse' },
         );
         verses += result.sent;
+        if (result.sent === 0) await release(p.user_id, 'daily_verse_last_sent', local.date);
       }
     }
 
@@ -169,6 +175,7 @@ Deno.serve(async (req) => {
           { ttl: 60 * 60 * 6, urgency: 'normal', topic: 'reading-reminder' },
         );
         readings += result.sent;
+        if (result.sent === 0) await release(p.user_id, 'reading_reminder_last_sent', local.date);
       }
     }
   }

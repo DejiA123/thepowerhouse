@@ -44,10 +44,14 @@ const formatTime = (hhmm: string) => {
  * The server sends the reminders (send-daily-reminders, every minute), so the
  * times live on the account together with this device's time zone.
  */
-async function saveReminders(userId: string, s: NotificationSettings) {
+async function saveReminders(userId: string, s: NotificationSettings, changed: Partial<NotificationSettings> = {}) {
+  // A new time (or switching it back on) counts from now: it can go out again today
+  const fresh = (keys: (keyof NotificationSettings)[]) => keys.some((k) => k in changed);
   const { error } = await supabase.from('notification_preferences').upsert(
     {
       user_id: userId,
+      ...(fresh(['dailyVerseTime', 'dailyVerseEnabled']) ? { daily_verse_last_sent: null } : {}),
+      ...(fresh(['readingReminderTime', 'readingRemindersEnabled']) ? { reading_reminder_last_sent: null } : {}),
       daily_verse_enabled: s.dailyVerseEnabled,
       daily_verse_time: s.dailyVerseTime,
       reading_reminder_enabled: s.readingRemindersEnabled,
@@ -172,7 +176,7 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
       });
       // The server sends daily reminders from what's saved on the account
       if (user && REMINDER_KEYS.some((k) => k in newSettings)) {
-        if (!(await saveReminders(user.id, updated))) throw new Error('Could not save reminder times');
+        if (!(await saveReminders(user.id, updated, newSettings))) throw new Error('Could not save reminder times');
         localStorage.setItem(`reminders_synced_v1_${user.id}`, '1');
       }
       // The server checks this before sending group chat / call notifications
