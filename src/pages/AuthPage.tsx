@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { appAlert } from "@/lib/appAlert";
 import { peekNext, rememberNext, takeNext, appUrl } from "@/lib/authRedirect";
+import { googleDirectSignIn, startGoogleSignIn } from "@/lib/googleSignIn";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
@@ -180,6 +181,11 @@ const AuthPage = () => {
     // Come back to where they were heading, however long Google takes
     if (next) rememberNext(next);
     try {
+      // Through Google's own page, which then shows the app's address (not the sign-in server's)
+      if (googleDirectSignIn()) {
+        await startGoogleSignIn();
+        return;
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

@@ -63,6 +63,7 @@ const FellowshipGroupPage = lazyPage(() => import("@/pages/FellowshipGroupPage")
 const SocialMediaPage = lazyPage(() => import("@/pages/SocialMediaPage"));
 const BibleNotesPage = lazyPage(() => import("@/pages/BibleNotesPage"));
 const EmailConfirmationPage = lazyPage(() => import("@/pages/EmailConfirmationPage"));
+const GoogleSignInPage = lazyPage(() => import("@/pages/GoogleSignInPage"));
 const PasswordResetPage = lazyPage(() => import("@/pages/PasswordResetPage"));
 const EmailConfirmationDebug = lazyPage(() =>
   import("@/components/EmailConfirmationDebug").then((m) => ({ default: m.EmailConfirmationDebug })),
@@ -284,6 +285,7 @@ const AppRoutes = () => {
               }
             />
             <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+            <Route path="/google-sign-in" element={<GoogleSignInPage />} />
             <Route path="/reset-password" element={<PasswordResetPage />} />
             <Route path="/debug-email" element={<EmailConfirmationDebug />} />
             <Route
