@@ -20,6 +20,8 @@ const INDEX_KEY = 'ai_voice_audio_index_v1';
 const SPEED_KEY = 'ai_voice_speed_v1';
 const PACE_KEY = 'ai_voice_pace_v1';
 const KEEP = 30;
+/** Phones that can't stream start once this much of the chapter is made (seconds) */
+const FIRST_PART_SECONDS = 25;
 /** Speaking pace before this device has measured it (characters a second) */
 const DEFAULT_CHARS_PER_SECOND = 13.5;
 
@@ -35,6 +37,8 @@ export interface AiChapterRef {
 export interface PreparedChapter {
   /** What the audio player plays */
   src: string;
+  /** Only the start of the chapter (phones that can't stream): carry on with continuation() */
+  partial?: boolean;
   /** For the verse highlighting (see verseTimingService) */
   timingId: string;
   key: string;
@@ -199,12 +203,13 @@ class ChapterJob {
   get speed() {
     if (this.work > 1) return this.made / this.work;
     // Not measured yet: what this device managed last time (graphics chips are quick)
-    if (aiVoice.mode === 'cloud') return 1.1;
+    if (aiVoice.mode === 'cloud') return 2;
     return knownSpeed() ?? (aiVoice.device === 'webgpu' ? 2 : 1);
   }
 
   /** 0–1: how close it is to starting to play */
   get readiness() {
+    if (!MediaSourceType) return this.waitingFor > 0 ? Math.min(0.99, this.made / this.waitingFor) : 0;
     if (this.released || this.state === 'done') return 1;
     const need = this.needed();
     return need <= 0 ? 0 : Math.min(0.99, this.made / need);
@@ -318,6 +323,10 @@ class ChapterJob {
       }
       if (this.index < this.parts.length) {
         const part = this.parts[this.index];
+        // The cloud voice makes several pieces at once: ask for the next ones now
+        for (let k = 1; k < aiVoice.piecesAhead && this.index + k < this.parts.length; k++) {
+          aiVoice.prefetch(this.id, this.parts[this.index + k].text, this.voice);
+        }
         const r = await aiVoice.synth(this.id, part.text, part.pause, this.voice);
         if (this.state !== 'running') return false;
         const start = this.made;
@@ -341,6 +350,7 @@ class ChapterJob {
         setLiveTimings(this.timingId, new Map(this.timings));
         this.maybeRelease();
         this.setDuration();
+        this.wake();
         this.progress();
         return true;
       }
@@ -360,7 +370,9 @@ class ChapterJob {
       this.maybeRelease();
       this.pump();
       this.progress();
+      this.complete = blob;
       this.resolveFinished(blob);
+      this.wake();
       // Kept in the line until it's saved, so asking for it meanwhile finds it here
       store(this.key, blob, this.timings).finally(() => {
         if (jobs.get(this.key) === this) jobs.delete(this.key);
@@ -396,6 +408,7 @@ class ChapterJob {
     }
     this.rejectText(error);
     this.rejectFinished(error);
+    this.wake();
     this.progress();
   }
 
@@ -406,6 +419,44 @@ class ChapterJob {
     const error = new Error('cancelled');
     this.rejectText(error);
     this.rejectFinished(error);
+    this.wake();
+  }
+
+  /* ── Phones that can't stream (iPhone): the start of the chapter first ──
+     They play what's made so far as an ordinary file, and when it runs out
+     carry on from the same spot in a longer one, until the whole chapter is in. */
+
+  private complete: Blob | null = null;
+  private waiters: (() => void)[] = [];
+  /** Seconds the player is waiting for (for "Preparing… N%") */
+  private waitingFor = 0;
+
+  private wake() {
+    const waiting = this.waiters;
+    this.waiters = [];
+    waiting.forEach((w) => w());
+  }
+
+  /** How much is made so far, from the start, without waiting */
+  get madeSeconds() {
+    return this.made;
+  }
+
+  /**
+   * The chapter from its start up to as far as it's made, once at least
+   * `seconds` of it are (or it's all made). `complete` when it's the whole chapter.
+   */
+  async upTo(seconds: number): Promise<{ blob: Blob; complete: boolean }> {
+    this.waitingFor = seconds;
+    for (;;) {
+      if (this.complete) return { blob: this.complete, complete: true };
+      if (this.state === 'failed') throw this.error ?? new Error('failed');
+      if (this.state === 'cancelled') throw new Error('cancelled');
+      if (this.made >= seconds && this.mp3.length) {
+        return { blob: new Blob(this.mp3 as BlobPart[], { type: 'audio/mpeg' }), complete: false };
+      }
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    }
   }
 }
 
@@ -481,9 +532,31 @@ export const aiChapterAudio = {
     if (!isCurrent()) throw new Error('cancelled');
     const stream = job.attach();
     if (stream) return { src: stream, timingId, key };
-    const blob = await job.finished;
+    // Can't stream (iPhone): start with the beginning as soon as there's enough of it
+    const first = await job.upTo(Math.min(FIRST_PART_SECONDS, Math.max(1, job.estimatedSeconds - 1)));
     if (!isCurrent()) throw new Error('cancelled');
-    return { src: URL.createObjectURL(blob), timingId, key };
+    return { src: URL.createObjectURL(first.blob), timingId, key, partial: !first.complete };
+  },
+
+  /**
+   * The beginning ran out (phones that can't stream): the chapter up to as far
+   * as it's made now, to carry on from `fromSeconds`. Waits until there's more.
+   */
+  async continuation(key: string, fromSeconds: number): Promise<{ src: string; partial: boolean }> {
+    const job = jobs.get(key);
+    if (!job) {
+      const saved = await fromDevice(key);
+      if (!saved) throw new Error('cancelled');
+      return { src: URL.createObjectURL(saved.blob), partial: false };
+    }
+    // Enough more that the next switch isn't moments away
+    const next = await job.upTo(fromSeconds + Math.min(30, Math.max(1, job.estimatedSeconds - fromSeconds)));
+    return { src: URL.createObjectURL(next.blob), partial: !next.complete };
+  },
+
+  /** The whole chapter's expected length (while it's still being made) */
+  estimatedSeconds(key: string): number {
+    return jobs.get(key)?.estimatedSeconds ?? 0;
   },
 
   /** Makes a chapter ahead of time (the next one), so it starts at once. */

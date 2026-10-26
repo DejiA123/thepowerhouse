@@ -2,6 +2,10 @@
  * The cloud voice: the same chapters read by Lovable AI instead of a voice
  * model on the phone (which is too big for many phones and froze them).
  * Each piece comes back as speech and is turned into MP3 in a small helper.
+ *
+ * Pieces are asked for a few at a time ahead of where the chapter is up to
+ * (each takes several seconds to make), and joined in order, so a chapter is
+ * ready several times faster than it takes to listen to.
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { SynthResult } from './engine';
@@ -11,6 +15,18 @@ const CLOUD_VOICE: Record<string, string> = {
   M1: 'Charon', M2: 'Orus', M3: 'Iapetus', M4: 'Fenrir', M5: 'Puck',
   F1: 'Kore', F2: 'Aoede', F3: 'Leda', F4: 'Zephyr', F5: 'Callirrhoe',
 };
+
+/** How many pieces are made at once */
+export const CLOUD_AHEAD = 4;
+
+/**
+ * The app's own backend (the same one the rest of the app uses). Not from the
+ * build settings: builds made outside Lovable (Vercel) don't have them, and
+ * the voice then called an address that doesn't exist.
+ */
+const backend = supabase as unknown as { functionsUrl?: URL; supabaseKey?: string };
+const FUNCTIONS_URL = backend.functionsUrl?.href ?? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const ANON_KEY = backend.supabaseKey ?? (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
 
 let worker: Worker | null = null;
 let nextId = 1;
@@ -25,6 +41,15 @@ function call<T>(msg: Record<string, unknown>, transfer: Transferable[] = []): P
       pending.delete(e.data.id);
       if (e.data.ok) p.resolve(e.data.result);
       else p.reject(new Error(e.data.error));
+    };
+    // The helper couldn't load (or stopped): fail now rather than wait forever, and start afresh next time
+    worker.onerror = (event) => {
+      console.error('[ai-voice] MP3 helper stopped', event);
+      const error = new Error('The voice could not be prepared');
+      pending.forEach((p) => p.reject(error));
+      pending.clear();
+      worker?.terminate();
+      worker = null;
     };
   }
   const id = nextId++;
@@ -66,29 +91,58 @@ export function parseWav(buf: ArrayBuffer): { pcm: Float32Array; sampleRate: num
   throw new Error('The voice sent something unreadable');
 }
 
+/** A piece normally takes 5–10 seconds: one that hangs is asked for again */
+const PIECE_TIMEOUT = 30_000;
+
 async function speak(text: string, voice: string): Promise<ArrayBuffer> {
   const { data: { session } } = await supabase.auth.getSession();
-  const base = import.meta.env.VITE_SUPABASE_URL;
-  const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${base}/functions/v1/bible-tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: anon, Authorization: `Bearer ${session?.access_token ?? anon}` },
-      body: JSON.stringify({ text, voice: CLOUD_VOICE[voice] ?? 'Charon' }),
-    });
-    if (res.ok) return res.arrayBuffer();
-    const retry = (res.status === 429 || res.status >= 500) && attempt < 3;
-    if (!retry) {
-      const msg = await res.json().then((j) => j?.error).catch(() => null);
-      throw new Error(msg || `The cloud voice failed (${res.status})`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PIECE_TIMEOUT);
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/bible-tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: `Bearer ${session?.access_token ?? ANON_KEY}` },
+        body: JSON.stringify({ text, voice: CLOUD_VOICE[voice] ?? 'Charon' }),
+        signal: controller.signal,
+      });
+      const audio = res.ok && /audio|octet-stream/i.test(res.headers.get('Content-Type') || '');
+      if (audio) return await res.arrayBuffer();
+      const retry = (res.status === 429 || res.status >= 500) && attempt < 3;
+      if (!retry) {
+        const msg = await res.json().then((j) => j?.error).catch(() => null);
+        throw new Error(msg || `The cloud voice failed (${res.status})`);
+      }
+    } catch (error) {
+      // Timed out, or the connection dropped: try again (a few times)
+      const transient = (error as Error)?.name === 'AbortError' || error instanceof TypeError;
+      if (!transient || attempt >= 3 || navigator.onLine === false) throw error;
+    } finally {
+      clearTimeout(timer);
     }
     await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt + Math.random() * 500));
   }
 }
 
+/** Speech asked for ahead of time, by chapter and piece */
+const ahead = new Map<string, Promise<{ pcm: Float32Array; sampleRate: number }>>();
+const aheadKey = (job: string, text: string, voice: string) => `${job}|${voice}|${text}`;
+
+/** Starts making a piece now, so it's ready by the time the chapter gets to it. */
+export function cloudPrefetch(job: string, text: string, voice: string) {
+  const key = aheadKey(job, text, voice);
+  if (ahead.has(key)) return;
+  const made = speak(text, voice).then(parseWav);
+  made.catch(() => undefined); // reported when the chapter gets to it
+  ahead.set(key, made);
+}
+
 export async function cloudSynth(job: string, text: string, pause: number, voice: string): Promise<SynthResult> {
   const started = performance.now();
-  const { pcm: speech, sampleRate } = parseWav(await speak(text, voice));
+  const key = aheadKey(job, text, voice);
+  const made = ahead.get(key) ?? speak(text, voice).then(parseWav);
+  ahead.delete(key);
+  const { pcm: speech, sampleRate } = await made;
   const silence = Math.floor(pause * sampleRate);
   const pcm = new Float32Array(speech.length + silence);
   pcm.set(speech);
@@ -104,5 +158,6 @@ export async function cloudSynth(job: string, text: string, pause: number, voice
 
 export const cloudEnd = (job: string) => call<Uint8Array>({ type: 'end', job });
 export const cloudDrop = (job: string) => {
+  for (const key of ahead.keys()) if (key.startsWith(`${job}|`)) ahead.delete(key);
   if (worker) call({ type: 'drop', job }).catch(() => undefined);
 };

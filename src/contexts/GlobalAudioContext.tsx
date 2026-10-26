@@ -248,6 +248,9 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const aiKeyRef = useRef<string | null>(null);
   /** Where to jump to once the chapter that's loading can play (picking up after a restart) */
   const startAtRef = useRef(0);
+  /** Playing only the start of an AI-voice chapter (phones that can't stream): more follows */
+  const aiPartialRef = useRef(false);
+  const aiContinuingRef = useRef(false);
 
   // ── Wake Lock helpers ──
   const requestWakeLock = useCallback(async () => {
@@ -462,6 +465,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const aiRef = plan.kind === 'ai' ? { version, translation: plan.translation, book: normalizedBook, chapter } : null;
       const aiKey = aiRef ? aiChapterAudio.keyFor(aiRef) : null;
       aiKeyRef.current = aiKey;
+      aiPartialRef.current = false;
       const voice = voiceLabel(plan);
 
       const newState = {
@@ -534,7 +538,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
         if (request !== playRequestRef.current) return;
         setPlayerSource(prepared.src, prepared.src);
-        const readiness = aiChapterAudio.readiness(prepared.key);
+        aiPartialRef.current = !!prepared.partial;
+        const readiness = prepared.partial ? null : aiChapterAudio.readiness(prepared.key);
         setAudioState(prev => ({ ...prev, isLoading: false, preparing: readiness !== null && readiness < 1 ? readiness : null }));
       } else {
         // The next chapter already in memory starts at once with no connection
@@ -623,6 +628,49 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
     }
   }, [prefetchNextChapter, requestWakeLock]);
+
+  /**
+   * Phones that can't stream an AI-voice chapter play its start as a file; when
+   * that runs out (or just before, on iPhone), carry on from the same spot in
+   * the longer file made since, until the whole chapter is in.
+   */
+  const continueAiChapter = useCallback(async () => {
+    const key = aiKeyRef.current;
+    if (!key || !aiPartialRef.current || aiContinuingRef.current) return;
+    aiContinuingRef.current = true;
+    const request = playRequestRef.current;
+    const at = audio.currentTime;
+    // Waiting for more (only shows when the sound has actually stopped)
+    const waitingTimer = setTimeout(() => {
+      if (audio.ended || audio.paused) setAudioState(prev => ({ ...prev, preparing: aiChapterAudio.readiness(key) ?? 0 }));
+    }, 600);
+    try {
+      const next = await aiChapterAudio.continuation(key, at);
+      if (request !== playRequestRef.current || aiKeyRef.current !== key) return;
+      const resumeAt = audio.ended ? at : Math.max(at, audio.currentTime);
+      aiPartialRef.current = next.partial;
+      audio.addEventListener('loadedmetadata', () => {
+        try {
+          audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 0.05));
+        } catch {
+          /* not seekable yet */
+        }
+      }, { once: true });
+      setPlayerSource(next.src, next.src);
+      audio.load();
+      await audio.play().catch(() => undefined);
+    } catch (error) {
+      if (request === playRequestRef.current && (error as Error)?.message !== 'cancelled') {
+        console.error('🎵 AI voice: the rest of the chapter could not be made', error);
+        appAlert("The AI voice couldn't finish this chapter", 'Please try again in a moment.', 'error');
+        setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
+      }
+    } finally {
+      clearTimeout(waitingTimer);
+      aiContinuingRef.current = false;
+      setAudioState(prev => (prev.preparing != null ? { ...prev, preparing: null } : prev));
+    }
+  }, []);
 
   // Reload the current file at the same spot and play (recovers a silent / stalled resume)
   const reloadAndPlay = useCallback((position: number, src = audio.currentSrc || audio.getAttribute('src')) => {
@@ -870,6 +918,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     const handleEnded = () => {
+      // Only the start of an AI-voice chapter ran out (phones that can't stream): carry on
+      if (aiKeyRef.current && aiPartialRef.current) {
+        continueAiChapter();
+        return;
+      }
       const { loopChapter, autoPlayNext, currentBook, currentChapter, loopBook } = audioStateRef.current;
       console.log(`🎵 handleEnded fired: book=${currentBook} ch=${currentChapter} autoPlay=${autoPlayNext} loopChapter=${loopChapter} loopBook=${loopBook}`);
       endedSrc = audio.currentSrc;
@@ -929,7 +982,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // last word and the next one, already in memory, follows at once.
         if (onIOS && !audio.paused && audio.duration > 0) {
           const timeLeft = audio.duration - audio.currentTime;
-          if (timeLeft < 1 && autoPlayNext && !isAutoAdvancingRef.current) {
+          if (aiKeyRef.current && aiPartialRef.current) {
+            // The start of an AI-voice chapter: switch to the longer one while the sound still goes
+            if (timeLeft < 1.2) continueAiChapter();
+          } else if (timeLeft < 1 && autoPlayNext && !isAutoAdvancingRef.current) {
             handleEnded();
           }
         }
@@ -992,14 +1048,21 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     };
 
+    /** The chapter's length: while only its start is playing, how long the whole will be */
+    const chapterDuration = () =>
+      aiKeyRef.current && aiPartialRef.current
+        ? Math.max(audio.duration || 0, aiChapterAudio.estimatedSeconds(aiKeyRef.current))
+        : audio.duration;
+
     const handleLoadedMetadata = () => {
-      setAudioState(prev => ({ ...prev, duration: audio.duration }));
+      setAudioState(prev => ({ ...prev, duration: chapterDuration() }));
     };
 
     // The AI voice's chapters grow while they're made: their length is updated as they do
     const handleDurationChange = () => {
       if (!Number.isFinite(audio.duration)) return;
-      setAudioState(prev => (Math.abs(prev.duration - audio.duration) > 0.5 ? { ...prev, duration: audio.duration } : prev));
+      const duration = chapterDuration();
+      setAudioState(prev => (Math.abs(prev.duration - duration) > 0.5 ? { ...prev, duration } : prev));
     };
 
     const handleError = (e: Event) => {
@@ -1177,7 +1240,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
     };
-  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, requestWakeLock, playBibleChapterMP3, reloadAndPlay]);
+  }, [goToNextChapter, goToPreviousChapter, reset, pause, resume, requestWakeLock, playBibleChapterMP3, reloadAndPlay, continueAiChapter]);
 
   const stop = useCallback(() => {
     audio.pause();

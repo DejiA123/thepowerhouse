@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { AI_VOICES, DEFAULT_VOICE, MODEL_CACHE, MODEL_FILES, totalDownloadBytes } from './model';
-import { cloudDrop, cloudEnd, cloudSynth } from './cloudVoice';
+import { CLOUD_AHEAD, cloudDrop, cloudEnd, cloudPrefetch, cloudSynth } from './cloudVoice';
 
 export type AiVoiceStatus = 'missing' | 'downloading' | 'ready' | 'error';
 
@@ -251,6 +251,16 @@ class AiVoiceEngine {
 
   /** Chapters being made by the cloud voice */
   private cloudJobs = new Set<string>();
+
+  /** How many pieces to ask for ahead of the one being made (only the cloud voice works in parallel) */
+  get piecesAhead() {
+    return this.mode === 'cloud' ? CLOUD_AHEAD : 0;
+  }
+
+  /** Starts making a later piece of the chapter now (cloud voice). */
+  prefetch(job: string, text: string, voice = this.voice) {
+    if (this.mode === 'cloud' || this.cloudJobs.has(job)) cloudPrefetch(job, text, voice);
+  }
 
   async synth(job: string, text: string, pause: number, voice = this.voice): Promise<SynthResult> {
     write(USED_KEY, '1');
