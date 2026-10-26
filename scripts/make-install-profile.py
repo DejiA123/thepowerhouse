@@ -4,9 +4,18 @@ profile" that adds The Power House to the Home Screen (a full-screen web app),
 as another way to install it than Safari's Share menu.
 
     python scripts/make-install-profile.py
+    python scripts/make-install-profile.py --sign cert.pem key.pem chain.pem
+
+Signed with a certificate iPhones trust (e.g. the church website's), the
+profile shows "Verified" instead of "Not Signed". The certificate files stay
+on this computer: only the signed profile is published. Sign again before the
+certificate expires (Let's Encrypt ones last about 90 days).
 """
 import base64
 import pathlib
+import shutil
+import subprocess
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 URL = 'https://thepowerhouseintl.vercel.app/'
@@ -68,4 +77,17 @@ profile = f"""<?xml version="1.0" encoding="UTF-8"?>
 """
 out = ROOT / 'public/install/ThePowerHouse.mobileconfig'
 out.write_text(profile, encoding='utf-8', newline='\n')
-print('wrote', out.relative_to(ROOT), len(profile), 'bytes')
+
+if sys.argv[1:2] == ['--sign']:
+    cert, key, *chain = sys.argv[2:]
+    openssl = shutil.which('openssl') or r'C:\Program Files\Git\mingw64\bin\openssl.exe'
+    signed = out.with_suffix('.signed')
+    subprocess.run(
+        [openssl, 'smime', '-sign', '-nodetach', '-outform', 'der', '-in', str(out), '-out', str(signed),
+         '-signer', cert, '-inkey', key, *(['-certfile', chain[0]] if chain else [])],
+        check=True,
+    )
+    signed.replace(out)
+    print('wrote', out.relative_to(ROOT), out.stat().st_size, 'bytes, signed')
+else:
+    print('wrote', out.relative_to(ROOT), len(profile), 'bytes (not signed)')
