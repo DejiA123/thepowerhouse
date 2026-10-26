@@ -1,6 +1,7 @@
-import { Bell, BellOff, BellRing, CheckCircle2, Loader2, PlusSquare, Share, Smartphone } from 'lucide-react';
+import { Bell, BellOff, BellRing, CheckCircle2, Loader2, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { openInstallGuide } from '@/lib/install';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Props {
@@ -65,24 +66,15 @@ const EnableNotificationsCard = ({ className, topics = [], compact, title, descr
           <div>
             <p className="font-semibold text-foreground">Install the app to get notifications</p>
             <p className="text-sm text-muted-foreground">
-              On iPhone, notifications work once The Power House is on your Home Screen.
+              On iPhone, notifications work once The Power House is on your Home Screen. Add it, then open it from there
+              and turn notifications on.
             </p>
           </div>
         </div>
-        <ol className="space-y-2 pl-1 text-sm text-foreground">
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-xs font-bold shadow-sm">1</span>
-            Tap <Share className="inline h-4 w-4 text-primary" /> <span className="font-medium">Share</span> in Safari
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-xs font-bold shadow-sm">2</span>
-            Choose <PlusSquare className="inline h-4 w-4 text-primary" /> <span className="font-medium">Add to Home Screen</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-xs font-bold shadow-sm">3</span>
-            Open the app from your Home Screen and turn notifications on
-          </li>
-        </ol>
+        <Button onClick={openInstallGuide} className="w-full rounded-full sm:w-auto sm:px-5">
+          <Smartphone className="h-4 w-4" />
+          <span className="ml-2">Show me how</span>
+        </Button>
       </div>,
     );
   }

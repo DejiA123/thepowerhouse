@@ -6,6 +6,8 @@ import { registerSW } from 'virtual:pwa-register';
 import { appAlert } from '@/lib/appAlert';
 import { recordLaunch } from '@/lib/launchReport';
 import { markUpdateReady, setUpdater } from '@/lib/appUpdate';
+// Catches Android's "this app can be installed" offer, which comes once, early
+import '@/lib/install';
 
 recordLaunch();
 

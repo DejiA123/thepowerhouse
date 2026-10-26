@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { SECTIONS } from '@/data/appDirectory';
-import { TOUR_DONE_KEY, TOUR_EVENT } from '@/lib/appEvents';
+import { TOUR_DONE_EVENT, TOUR_DONE_KEY, TOUR_EVENT } from '@/lib/appEvents';
 
 interface Step {
   /** The part of the screen to light up (data-tour="…"); none = a welcome card in the middle */
@@ -145,6 +145,7 @@ const AppTour = () => {
     } catch {
       /* private mode */
     }
+    window.dispatchEvent(new Event(TOUR_DONE_EVENT));
     setStep(null);
   }, []);
 

@@ -1,12 +1,13 @@
 import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bookmark, LogOut, Sparkles, UserRound } from "lucide-react";
+import { Bookmark, LogOut, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/common/UserAvatar";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
 import { PlaceRow, RowPicture } from "@/components/nav/Places";
 import { TILE } from "@/data/appDirectory";
 import { startTour } from "@/lib/appEvents";
+import { installedBefore, openInstallGuide, useInstallContext } from "@/lib/install";
 
 const SidebarCustomizer = lazy(() => import("@/components/SidebarCustomizer"));
 
@@ -16,6 +17,12 @@ const MePage = () => {
   const { user, signOut } = useAuth();
   const [shortcuts, setShortcuts] = useState(false);
   const meta = (user?.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
+  // Phones not yet installed; computers only when the browser can install it in one tap
+  const install = useInstallContext();
+  const canInstall =
+    install.kind !== 'installed' &&
+    (install.kind !== 'desktop' || install.canPrompt) &&
+    (install.kind !== 'android' || install.canPrompt || !installedBefore());
 
   return (
     <Page>
@@ -54,6 +61,16 @@ const MePage = () => {
 
       <SectionLabel>Help</SectionLabel>
       <ListGroup>
+        {canInstall && (
+          <ListRow
+            leading={<RowPicture icon={Smartphone} color="blue" />}
+            title="Install the app"
+            subtitle="Put The Power House on your Home Screen"
+            onClick={openInstallGuide}
+            chevron
+            className="min-h-[68px] py-3"
+          />
+        )}
         <ListRow
           leading={<RowPicture icon={Sparkles} color="violet" />}
           title="Show me around"

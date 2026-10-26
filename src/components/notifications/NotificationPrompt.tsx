@@ -27,7 +27,8 @@ const NotificationPrompt = ({ className }: { className?: string }) => {
   const [hidden, setHidden] = useState(dismissedRecently);
 
   if (!user || hidden) return null;
-  if (state !== 'default' && state !== 'granted-off' && state !== 'needs-install') return null;
+  // (iPhones that need the app installed first see "Get The Power House app" instead)
+  if (state !== 'default' && state !== 'granted-off') return null;
 
   return (
     <div className={cn('relative', className)}>

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import NotificationPrompt from "@/components/notifications/NotificationPrompt";
+import InstallCard from "@/components/install/InstallCard";
 import HomeToday, { type HomeBanner } from "@/components/home/HomeToday";
 import { useAfterFirstScreen } from "@/hooks/useAfterFirstScreen";
 
@@ -60,7 +61,8 @@ const HomePage = () => {
 
   return (
     <div className="bg-background min-h-screen pb-28 lg:pb-8">
-      <div className="max-w-5xl mx-auto px-4 pt-4 empty:hidden">
+      <div className="max-w-5xl mx-auto space-y-3 px-4 pt-4 empty:hidden">
+        <InstallCard />
         <NotificationPrompt />
       </div>
 

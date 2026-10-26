@@ -8,6 +8,7 @@ import AppTour from "./tour/AppTour";
 import UpdatePrompt from "./UpdatePrompt";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { SEARCH_EVENT } from "@/lib/appEvents";
+import { INSTALL_GUIDE_EVENT } from "@/lib/install";
 
 // "Find anything" loads when first asked for (and quietly once the app is idle)
 const loadSearch = () => import("./search/FindAnything");
@@ -28,6 +29,23 @@ const SearchSlot = () => {
   return (
     <Suspense fallback={null}>
       <FindAnything request={request} />
+    </Suspense>
+  );
+};
+
+// "Install the app" pictures: loaded the first time someone asks for them
+const InstallGuide = lazy(() => import("./install/InstallGuide"));
+const InstallGuideSlot = () => {
+  const [request, setRequest] = useState(0);
+  useEffect(() => {
+    const onOpen = () => setRequest(Date.now());
+    window.addEventListener(INSTALL_GUIDE_EVENT, onOpen);
+    return () => window.removeEventListener(INSTALL_GUIDE_EVENT, onOpen);
+  }, []);
+  if (!request) return null;
+  return (
+    <Suspense fallback={null}>
+      <InstallGuide request={request} />
     </Suspense>
   );
 };
@@ -297,6 +315,7 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* Find anything, and the welcome tour (shown once; again from Help or Me) */}
       <SearchSlot />
+      <InstallGuideSlot />
       {showChrome && <AppTour />}
       {/* "A new update is ready" with a Refresh button */}
       <UpdatePrompt />

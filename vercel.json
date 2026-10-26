@@ -1,4 +1,13 @@
 {
+  "headers": [
+    {
+      "source": "/install/(.*)\\.mobileconfig",
+      "headers": [
+        { "key": "Content-Type", "value": "application/x-apple-aspen-config" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
