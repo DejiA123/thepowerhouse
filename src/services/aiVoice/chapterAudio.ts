@@ -1,8 +1,8 @@
 /**
- * Chapters read by the AI voice.
+ * Chapters read aloud (the non-narrated translations).
  *
- * A chapter is made piece by piece in the background worker and streamed to
- * the app's one audio player as it's made (MediaSource), so listening starts
+ * A chapter is made online piece by piece and streamed to the app's one
+ * audio player as it's made (MediaSource), so listening starts
  * within seconds, with the lock screen, seeking back and "next chapter" all
  * working as for recorded chapters. Playback only starts once enough is made
  * that this device can stay ahead to the end, so it never stops mid-chapter.
@@ -17,9 +17,10 @@ import { buildScript, looksLikeBibleText, type ScriptPart } from './script';
 
 const AUDIO_CACHE = 'ai-voice-audio-v1';
 const INDEX_KEY = 'ai_voice_audio_index_v1';
-const SPEED_KEY = 'ai_voice_speed_v1';
 const PACE_KEY = 'ai_voice_pace_v1';
-const KEEP = 30;
+/** Chapters heard are kept (the most recent); chapters saved for offline are always kept */
+const KEEP = 60;
+const SAVED_KEY = 'ai_voice_saved_v1';
 /** Phones that can't stream start once this much of the chapter is made (seconds) */
 const FIRST_PART_SECONDS = 25;
 /** Speaking pace before this device has measured it (characters a second) */
@@ -72,13 +73,34 @@ const writeIndex = (keys: string[]) => {
   }
 };
 
+const readSaved = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+const writeSaved = (keys: string[]) => {
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(keys));
+  } catch {
+    /* storage full */
+  }
+};
+const markSaved = (key: string) => {
+  const saved = readSaved();
+  if (!saved.includes(key)) writeSaved([...saved, key]);
+};
+
 async function store(key: string, mp3: Blob, timings: VerseTimings) {
   try {
     const cache = await caches.open(AUDIO_CACHE);
     await cache.put(key, new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(mp3.size) } }));
     await cache.put(`${key}.json`, new Response(JSON.stringify([...timings]), { headers: { 'Content-Type': 'application/json' } }));
+    const saved = new Set(readSaved());
     const keys = [key, ...readIndex().filter((k) => k !== key)];
-    const old = keys.splice(KEEP);
+    const old = keys.splice(KEEP).filter((k) => !saved.has(k));
+    keys.push(...readIndex().filter((k) => saved.has(k) && !keys.includes(k)));
     writeIndex(keys);
     await Promise.all(old.flatMap((k) => [cache.delete(k), cache.delete(`${k}.json`)]));
   } catch (error) {
@@ -103,15 +125,6 @@ async function fromDevice(key: string): Promise<{ blob: Blob; timings: VerseTimi
 
 /* ── How fast this device makes speech ──────────────────────────────── */
 
-/** Seconds of speech made per second of work (above 1 = faster than listening) */
-function knownSpeed(): number | null {
-  try {
-    const v = Number(localStorage.getItem(SPEED_KEY));
-    return v > 0 ? v : null;
-  } catch {
-    return null;
-  }
-}
 /** Seconds of speech per character for a voice, as last measured */
 function knownPace(voice = aiVoice.voice): number | null {
   try {
@@ -131,13 +144,6 @@ function rememberPace(v: number, voice: string) {
   }
 }
 
-function rememberSpeed(v: number) {
-  try {
-    localStorage.setItem(SPEED_KEY, String(v));
-  } catch {
-    /* storage unavailable */
-  }
-}
 
 /* ── One chapter being made ─────────────────────────────────────────── */
 
@@ -202,9 +208,8 @@ class ChapterJob {
 
   get speed() {
     if (this.work > 1) return this.made / this.work;
-    // Not measured yet: what this device managed last time (graphics chips are quick)
-    if (aiVoice.mode === 'cloud') return 2;
-    return knownSpeed() ?? (aiVoice.device === 'webgpu' ? 2 : 1);
+    // Not measured yet: pieces are made several at a time, quicker than listening
+    return 2;
   }
 
   /** 0–1: how close it is to starting to play */
@@ -338,10 +343,7 @@ class ChapterJob {
         this.work += r.genSeconds;
         this.doneChars += part.text.length;
         this.index++;
-        if (aiVoice.mode !== 'cloud' && this.work > 4 && this.index % 4 === 0) {
-          rememberSpeed(this.speed);
-          rememberPace(this.speechMade / this.doneChars, this.voice);
-        }
+        if (this.index % 4 === 0 && this.doneChars > 300) rememberPace(this.speechMade / this.doneChars, this.voice);
         this.mp3.push(r.mp3);
         if (this.released) {
           this.queue.push(r.mp3);
@@ -361,11 +363,6 @@ class ChapterJob {
         if (this.released) this.queue.push(tail);
       }
       this.state = 'done';
-      if (aiVoice.mode !== 'cloud' && this.work > 2) {
-        rememberSpeed(this.speed);
-        // The graphics chip couldn't keep up comfortably: fewer quality steps from now on
-        if (aiVoice.device === 'webgpu' && this.speed < 1.15) aiVoice.slower();
-      }
       const blob = new Blob(this.mp3 as BlobPart[], { type: 'audio/mpeg' });
       this.maybeRelease();
       this.pump();
@@ -525,6 +522,8 @@ export const aiChapterAudio = {
         return { src: URL.createObjectURL(saved.blob), timingId, key };
       }
     }
+    // Made online: with no connection only chapters already kept can play
+    if (!jobs.has(key) && navigator.onLine === false) throw new Error('offline-audio');
     const job = jobFor(ref, voice, true);
     setLiveTimings(timingId, job.timings);
     await job.textReady;
@@ -563,7 +562,7 @@ export const aiChapterAudio = {
   prefetch(ref: AiChapterRef) {
     const voice = aiVoice.voice;
     const key = keyFor(voice, ref);
-    if (jobs.has(key) || readIndex().includes(key) || aiVoice.status !== 'ready') return;
+    if (jobs.has(key) || readIndex().includes(key) || navigator.onLine === false) return;
     jobFor(ref, voice, false);
   },
 
@@ -579,9 +578,56 @@ export const aiChapterAudio = {
     jobs.clear();
   },
 
-  async clearSaved() {
-    await caches.delete(AUDIO_CACHE).catch(() => undefined);
-    writeIndex([]);
+  /** Lets go of these chapters (saved for offline, or just heard) to free up space */
+  async removeSaved(refs: AiChapterRef[]) {
+    const keys = new Set(refs.map((r) => keyFor(aiVoice.voice, r)));
+    writeSaved(readSaved().filter((k) => !keys.has(k)));
+    writeIndex(readIndex().filter((k) => !keys.has(k)));
+    try {
+      const cache = await caches.open(AUDIO_CACHE);
+      await Promise.all([...keys].flatMap((k) => [cache.delete(k), cache.delete(`${k}.json`)]));
+    } catch {
+      /* nothing kept */
+    }
+  },
+
+  /** Whether this chapter is on the device (heard, or saved for offline) */
+  isKept(ref: AiChapterRef) {
+    return readIndex().includes(keyFor(aiVoice.voice, ref));
+  },
+
+  /** How many of these chapters are saved for offline */
+  savedCount(refs: AiChapterRef[]) {
+    const saved = new Set(readSaved());
+    return refs.filter((r) => saved.has(keyFor(aiVoice.voice, r))).length;
+  },
+
+  /**
+   * Saves chapters for offline listening: each is made now (if it isn't on the
+   * device already) and kept for good. One at a time, so listening comes first.
+   */
+  async saveForOffline(refs: AiChapterRef[], onProgress: (done: number) => void, signal: AbortSignal) {
+    const voice = aiVoice.voice;
+    let done = 0;
+    let failed = 0;
+    for (const ref of refs) {
+      if (signal.aborted) break;
+      const key = keyFor(voice, ref);
+      if (!readIndex().includes(key)) {
+        try {
+          const job = jobFor(ref, voice, false);
+          await job.finished;
+          // Wait until it's stored before marking it kept
+          for (let i = 0; i < 50 && !readIndex().includes(key); i++) await new Promise((r) => setTimeout(r, 100));
+        } catch {
+          failed++;
+          continue;
+        }
+      }
+      markSaved(key);
+      onProgress(++done);
+    }
+    return { done, failed };
   },
 
   keyFor: (ref: AiChapterRef) => keyFor(aiVoice.voice, ref),

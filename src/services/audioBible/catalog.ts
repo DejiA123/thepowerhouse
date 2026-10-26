@@ -6,10 +6,9 @@
  *    Faith Comes By Hearing's Bible Brain (licensed through the app's key).
  *  - NIV: The Listener's Bible (Max McLean), streamed from the church's
  *    API.Bible account, where Biblica licenses it.
- *  - Every other translation: an AI voice made on the phone itself (see
- *    src/services/aiVoice). Publishers don't allow audio files of their
- *    translations to be made and handed out, but reading the text aloud on the
- *    reader's own device (like a screen reader) is fine.
+ *  - Every other translation is non-narrated: read aloud from the text by the
+ *    voice chosen in Settings (see src/services/aiVoice), for the person
+ *    listening only. No audio files of these translations are handed out.
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { API_NIV_AUDIO_ID, NIV_AUDIO_COPYRIGHT } from '@/services/apiBible';
@@ -108,5 +107,5 @@ export function downloadSourceFor(version: string, book: string): string | null 
 export function voiceLabel(plan: ChapterAudioPlan): string {
   if (plan.kind === 'recording') return 'Narrated';
   if (plan.kind === 'narrated') return plan.bible.narrator;
-  return 'AI voice';
+  return 'Read aloud';
 }

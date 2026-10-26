@@ -6,9 +6,8 @@ import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
 import { bibleBooks } from "./BibleBookList";
 import { normalizeBookApiName } from "./bookUtils";
 import { estimateVerseTimings, getVerseTimings, TIMINGS_EVENT, verseAt, type VerseTimings } from "@/services/verseTimingService";
-import { audioPlanFor, translationCode } from "@/services/audioBible/catalog";
+import { translationCode } from "@/services/audioBible/catalog";
 import { NIV_COPYRIGHT, reportView } from "@/services/apiBible";
-import { aiVoice } from "@/services/aiVoice/engine";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useAuth } from "@/contexts/AuthContext";
@@ -432,10 +431,6 @@ export const BibleChapterContent = ({
     reportView(chapterContent?.fumsToken);
   }, [chapterContent]);
 
-  // A translation read by the AI voice: have the voice ready before Listen is tapped
-  useEffect(() => {
-    if (selectedVersion && audioPlanFor(selectedVersion, normalizeBookApiName(selectedBook)).kind === 'ai') aiVoice.warmUp();
-  }, [selectedVersion, selectedBook]);
 
   // Auto-play MP3 audio when shouldAutoPlay is true
   useEffect(() => {
@@ -1428,11 +1423,9 @@ const BibleAudioBar = ({
   const progress = a.duration ? Math.min(100, (100 * a.currentTime) / a.duration) : 0;
   const left = a.duration ? `${formatClock(a.duration - a.currentTime)} left` : a.isLoading ? 'Loading…' : '';
   const detail =
-    a.preparing != null
-      ? `Preparing the voice… ${Math.round(a.preparing * 100)}%`
-      : a.isLoading && a.voice === 'AI voice'
-        ? 'Starting the AI voice…'
-        : [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
+    a.preparing != null || a.isLoading
+      ? 'Loading…'
+      : [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
 
   return (
     <div style={frame} className="pointer-events-none fixed z-[90] px-3">

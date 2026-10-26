@@ -10,11 +10,7 @@ import { appAlert } from '@/lib/appAlert';
 import { isIOS } from '@/lib/push';
 import { audioPlanFor, voiceLabel, type ChapterAudioPlan } from '@/services/audioBible/catalog';
 import { isNarratedKey, narratedStarted, streamUrlFor } from '@/services/audioBible/narrated';
-import { aiVoice } from '@/services/aiVoice/engine';
 import { AI_PROGRESS_EVENT, aiChapterAudio, isAiKey } from '@/services/aiVoice/chapterAudio';
-
-/** Asks for the AI voice to be downloaded (see AiVoicePrompt), then plays this chapter */
-export const AI_VOICE_NEEDED_EVENT = 'ai-voice:needed';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -167,7 +163,7 @@ interface GlobalAudioState {
   isMiniPlayerHidden: boolean;
   duration: number;
   currentTime: number;
-  /** Who is reading: "Narrated", "AI voice"… */
+  /** Who is reading: "Narrated", "Read aloud"… */
   voice?: string;
   /** Which verse timings match this audio (see verseTimingService) */
   timingSource?: string;
@@ -424,8 +420,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         // No connection and not downloaded: say so, rather than silently not playing
         if (navigator.onLine === false && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
-          if (plan.kind === 'narrated' && aiVoice.status === 'ready') {
-            // The narration can only be streamed: offline, the AI voice reads it instead
+          if (plan.kind === 'narrated') {
+            // The narration can only be streamed: offline, the read-aloud copy kept on the phone plays instead
             plan = { kind: 'ai', translation: plan.translation };
             audioUrl = null;
           } else {
@@ -439,27 +435,16 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           }
         } else if (!prefetchedPlayable && plan.kind === 'narrated' && !offlineAudioService.isSavedUrl(audioUrl) && !hasPreloaded(audioUrl)) {
           // Get the streaming link now: if the narration can't be reached (the
-          // service is down, or the month's allowance is used up), the AI voice reads it
+          // service is down, or the month's allowance is used up), it's read aloud instead
           try {
             await streamUrlFor(audioUrl);
           } catch (error) {
             if (request !== playRequestRef.current) return;
-            console.warn('🎵 Narration unavailable, using the AI voice', error);
-            if (aiVoice.status === 'ready' || aiVoice.status === 'missing') {
-              plan = { kind: 'ai', translation: plan.translation };
-              audioUrl = null;
-            } else throw error;
+            console.warn('🎵 Narration unavailable, reading it aloud instead', error);
+            plan = { kind: 'ai', translation: plan.translation };
+            audioUrl = null;
           }
         }
-      }
-
-      // Read by the AI voice, which isn't on this phone yet: offer to get it
-      if (plan.kind === 'ai' && aiVoice.status !== 'ready') {
-        setAudioState(prev => ({ ...prev, isLoading: false }));
-        window.dispatchEvent(new CustomEvent(AI_VOICE_NEEDED_EVENT, {
-          detail: { book: normalizedBook, chapter, version, autoPlayNext, translation: plan.translation },
-        }));
-        return;
       }
 
       const aiRef = plan.kind === 'ai' ? { version, translation: plan.translation, book: normalizedBook, chapter } : null;
@@ -506,7 +491,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       setAudioSession('playback');
       if (aiRef) {
-        // Made on this phone, and streamed to the player as it's made
+        // Read aloud: made online and streamed to the player as it's made (or kept on the phone)
         let prepared;
         try {
           prepared = await aiChapterAudio.prepare(aiRef, () => request === playRequestRef.current);
@@ -514,10 +499,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (request !== playRequestRef.current) return;
           const reason = (error as Error)?.message;
           setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false, preparing: null }));
-          if (reason === 'offline-text') {
+          if (reason === 'offline-text' || reason === 'offline-audio') {
             appAlert(
               `${displayBookName} ${chapter} isn't saved for offline`,
-              'Open this chapter once while online (or save the Bible offline in Settings) and the AI voice can read it anywhere.',
+              'Connect to the internet to listen. Chapters you listen to are kept on this phone, and you can save whole books in Listen offline.',
               'info',
             );
           } else if (reason === 'no-text') {
@@ -529,10 +514,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } else if (reason !== 'cancelled') {
             const why =
               navigator.onLine === false ? "You're offline. Connect to the internet and try again." :
-              reason === 'AI credits have run out.' ? 'The AI voice has run out of credits for now. Please let the church office know.' :
+              reason === 'AI credits have run out.' ? 'Listening to this translation is paused for now. Please let the church office know.' :
               reason === 'Too many requests, please wait a moment.' ? 'Lots of people are listening right now. Wait a moment and try again.' :
               'Please try again. If it keeps happening, restart the app.';
-            appAlert("The AI voice couldn't read this chapter", why, 'error');
+            appAlert("This chapter couldn't be played", why, 'error');
           }
           return;
         }
@@ -661,8 +646,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       await audio.play().catch(() => undefined);
     } catch (error) {
       if (request === playRequestRef.current && (error as Error)?.message !== 'cancelled') {
-        console.error('🎵 AI voice: the rest of the chapter could not be made', error);
-        appAlert("The AI voice couldn't finish this chapter", 'Please try again in a moment.', 'error');
+        console.error('🎵 Read aloud: the rest of the chapter could not be made', error);
+        appAlert("This chapter couldn't be finished", 'Please try again in a moment.', 'error');
         setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
       }
     } finally {
@@ -1072,7 +1057,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // An AI-voice chapter can't be reloaded: start it again once (from the device if it's finished)
         if (aiRetries++ < 1) {
           startAtRef.current = lastPosition.src === audio.currentSrc ? lastPosition.time : audio.currentTime;
-          console.warn('🎵 AI voice playback error, starting the chapter again', audio.error);
+          console.warn('🎵 Read-aloud playback error, starting the chapter again', audio.error);
           playBibleChapterMP3(state.currentBook, state.currentChapter, state.currentVersion, state.autoPlayNext, state.loopChapter);
           return;
         }
@@ -1095,6 +1080,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       console.error('❌ Audio playback error:', e);
       pendingPlayRef.current = false;
+      if (src && aiKeyRef.current && state.isBibleMode && state.hasAudio) {
+        // Read aloud and already started again once: say so rather than just stop
+        appAlert("This chapter couldn't be played", 'Please try again in a moment.', 'error');
+      }
       setAudioState(prev => ({ ...prev, isLoading: false, hasAudio: false, isPlaying: false, isPaused: false }));
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'none';

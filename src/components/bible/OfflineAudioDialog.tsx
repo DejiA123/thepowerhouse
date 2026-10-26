@@ -15,7 +15,8 @@ import {
 import { enhancedApiBibleService } from '@/services/enhancedApiBibleService';
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { audioPlanFor, isOldTestament } from '@/services/audioBible/catalog';
-import { useAiVoice } from '@/services/aiVoice/engine';
+import { aiVoice, useAiVoice } from '@/services/aiVoice/engine';
+import { aiChapterAudio, type AiChapterRef } from '@/services/aiVoice/chapterAudio';
 
 /* ── Background download manager (keeps going when the dialog is closed) ── */
 interface Job extends BookDownloadProgress {
@@ -84,6 +85,36 @@ function startBookDownload(book: string, version: string, textVersion?: string) 
       if (result.outOfSpace) appAlert(`${name}: not enough space`, 'Free up space on your phone, then tap Resume.', 'error');
       else if (result.failed) appAlert(`${name}: ${result.failed} chapters didn't download`, 'Check your connection and tap Resume.', 'error');
       else appAlert(`${name} is ready offline`, 'You can now listen without an internet connection.', 'success');
+      jobs.delete(key);
+      emitJobs();
+    });
+}
+
+/* ── Read-aloud translations: each chapter of the book is made now and kept on the phone ── */
+const readAloudKey = (version: string, book: string) => `read-aloud|${aiVoice.voice}|${version}|${book}`;
+const readAloudRefs = (version: string, translation: string, book: string): AiChapterRef[] =>
+  Array.from({ length: bookInfo(book)?.chapters ?? 0 }, (_, i) => ({ version, translation, book, chapter: i + 1 }));
+
+function startReadAloudSave(book: string, version: string, translation: string) {
+  const key = readAloudKey(version, book);
+  if (jobs.get(key)?.running) return;
+  const refs = readAloudRefs(version, translation, book);
+  const controller = new AbortController();
+  const job: Job = { book, done: 0, total: refs.length, failed: 0, controller, running: true };
+  jobs.set(key, job);
+  emitJobs();
+  aiChapterAudio
+    .saveForOffline(refs, (done) => {
+      job.done = done;
+      emitJobs();
+    }, controller.signal)
+    .then(({ failed }) => {
+      if (controller.signal.aborted) return;
+      const name = bookInfo(book)?.name ?? book;
+      if (failed) appAlert(`${name}: ${failed} chapter${failed === 1 ? '' : 's'} didn't save`, 'Check your connection and tap Resume.', 'error');
+      else appAlert(`${name} is ready offline`, 'You can now listen without an internet connection.', 'success');
+    })
+    .finally(() => {
       jobs.delete(key);
       emitJobs();
     });
@@ -244,7 +275,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
           ) : (
             <>
               {!source ? (
-                // Read by the AI voice, or a narration that may only be streamed
+                // Read aloud, or a narration that may only be streamed
                 <NotDownloadable version={version} book={book} chapter={chapter} />
               ) : (
               <>
@@ -519,16 +550,21 @@ const ConfirmCollection = ({
 };
 
 /**
- * For translations whose audio can't be saved as files: those read by the AI
- * voice (it's made on the phone, so it needs the voice and the text), and
- * narrations the publisher only allows to be streamed.
+ * For translations without narration files to download: those read aloud
+ * (saved chapter by chapter as they're made), and narrations the publisher only
+ * allows to be streamed (read aloud instead when there's no connection).
  */
 const NotDownloadable = ({ version, book, chapter }: { version: string; book: string; chapter: number }) => {
-  const ai = useAiVoice();
+  useAiVoice();
+  useOfflineState();
   const plan = audioPlanFor(version, book);
   const [saving, setSaving] = useState<{ done: number; total: number } | null>(null);
   const info = bookInfo(book);
   const testament = isOldTestament(book) ? 'Old Testament' : 'New Testament';
+  const refs = readAloudRefs(version, plan.translation, book);
+  const audioJob = jobs.get(readAloudKey(version, book));
+  const audioSaved = aiChapterAudio.savedCount(refs);
+  const allSaved = refs.length > 0 && audioSaved === refs.length;
 
   const saveText = async () => {
     const total = info?.chapters ?? 1;
@@ -541,7 +577,7 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
     }
     setSaving(null);
     if (failed) appAlert(`${failed} chapters didn't save`, 'Check your connection and try again.', 'error');
-    else appAlert(`${info?.name ?? book} text saved`, 'The AI voice can now read it with no connection.', 'success');
+    else appAlert(`${info?.name ?? book} text saved`, 'You can now read it with no connection.', 'success');
   };
 
   return (
@@ -549,38 +585,57 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
       {plan.kind === 'narrated' ? (
         <p className="text-[14px] leading-relaxed text-foreground">
           The {plan.translation} {testament} narration can only be streamed: the publisher doesn't allow downloads. With no
-          connection, the AI voice reads it instead.
+          connection, the chapters you save here are read aloud instead.
         </p>
       ) : (
         <p className="text-[14px] leading-relaxed text-foreground">
-          The {plan.translation} is read by a natural AI voice made on this phone, so there's nothing to download for each
-          chapter. To listen with no connection, have the voice on the phone and save the Bible text.
+          The {plan.translation} is non-narrated: it's read aloud in the voice chosen in Settings. Chapters you listen to stay
+          on this phone, or save the whole book to listen with no connection.
         </p>
       )}
 
       <>
         <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">AI voice</p>
+            <p className="text-sm font-semibold text-foreground">{info?.name ?? book} audio</p>
             <p className="text-xs text-muted-foreground">
-              {ai.status === 'ready'
-                ? 'On this phone'
-                : ai.status === 'downloading'
-                  ? `Downloading · ${Math.round(ai.progress * 100)}%`
-                  : `Not downloaded · ${formatBytes(ai.totalBytes)}`}
+              {audioJob
+                ? `Saving · ${audioJob.done}/${audioJob.total}`
+                : `${audioSaved}/${refs.length} chapters saved for offline`}
             </p>
           </div>
-          {ai.status === 'ready' ? (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-          ) : ai.status === 'downloading' ? (
-            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-blue-600" />
-          ) : (
-            <Button size="sm" className="rounded-full" onClick={() => ai.download().catch(() => undefined)}>
-              <CloudDownload className="mr-1.5 h-4 w-4" /> Download
+          {audioJob ? (
+            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => audioJob.controller.abort()}>
+              <X className="mr-1 h-4 w-4" /> Stop
             </Button>
+          ) : (
+            <div className="flex shrink-0 items-center gap-1">
+              {audioSaved > 0 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 rounded-full text-muted-foreground"
+                  aria-label={`Remove the saved ${info?.name ?? book} audio`}
+                  onClick={() => aiChapterAudio.removeSaved(refs).then(emitJobs)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+              {allSaved ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              ) : (
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => startReadAloudSave(book, version, plan.translation)}
+                >
+                  <CloudDownload className="mr-1.5 h-4 w-4" /> {audioSaved > 0 ? 'Resume' : 'Save'}
+                </Button>
+              )}
+            </div>
           )}
         </div>
-        {ai.status === 'downloading' && <Progress value={ai.progress * 100} className="h-1.5" />}
+        {audioJob && <Progress value={audioJob.total ? (100 * audioJob.done) / audioJob.total : 0} className="h-1.5" />}
 
         <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3">
           <div className="min-w-0">

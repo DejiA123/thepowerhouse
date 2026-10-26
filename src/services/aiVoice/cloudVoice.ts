@@ -91,14 +91,17 @@ export function parseWav(buf: ArrayBuffer): { pcm: Float32Array; sampleRate: num
   throw new Error('The voice sent something unreadable');
 }
 
-/** A piece normally takes 5–10 seconds: one that hangs is asked for again */
-const PIECE_TIMEOUT = 30_000;
+/**
+ * A piece normally takes 2–8 seconds: one that hangs is asked for again,
+ * waiting a little longer each time (and longer for long pieces).
+ */
+const pieceTimeout = (text: string, attempt: number) => (15_000 + 30 * text.length) * attempt;
 
 async function speak(text: string, voice: string): Promise<ArrayBuffer> {
   const { data: { session } } = await supabase.auth.getSession();
   for (let attempt = 1; ; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PIECE_TIMEOUT);
+    const timer = setTimeout(() => controller.abort(), pieceTimeout(text, attempt));
     try {
       const res = await fetch(`${FUNCTIONS_URL}/bible-tts`, {
         method: 'POST',
@@ -115,8 +118,10 @@ async function speak(text: string, voice: string): Promise<ArrayBuffer> {
       }
     } catch (error) {
       // Timed out, or the connection dropped: try again (a few times)
-      const transient = (error as Error)?.name === 'AbortError' || error instanceof TypeError;
-      if (!transient || attempt >= 3 || navigator.onLine === false) throw error;
+      const timedOut = (error as Error)?.name === 'AbortError';
+      if (!(timedOut || error instanceof TypeError) || attempt >= 3 || navigator.onLine === false) throw error;
+      // Timed out: it has waited long enough already, so ask again straight away
+      if (timedOut) continue;
     } finally {
       clearTimeout(timer);
     }
@@ -152,7 +157,6 @@ export async function cloudSynth(job: string, text: string, pause: number, voice
     seconds: (speech.length + silence) / sampleRate,
     speechSeconds: speech.length / sampleRate,
     genSeconds: (performance.now() - started) / 1000,
-    ep: 'wasm',
   };
 }
 

@@ -22,14 +22,13 @@ const { aiVoice } = await import('./engine');
 
 describe('AI voice with the online (cloud) voice', () => {
   test('getting ready to read never starts the on-device voice', async () => {
-    aiVoice.setMode('cloud');
+    localStorage.setItem('ai_voice_mode_v1', 'device'); // a choice saved before there was one voice
     await aiVoice.ready();
-    await aiVoice.load();
     expect(workersStarted).toBe(0);
   });
 
   test('the online voice is always ready, with nothing to download', () => {
-    aiVoice.setMode('cloud');
+    expect(aiVoice.mode).toBe('cloud');
     expect(aiVoice.status).toBe('ready');
   });
 });

@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, Check, Loader2, Pause, Play, Trash2 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { AudioLines, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatBytes } from '@/services/offlineAudioService';
 import { useAiVoice } from '@/services/aiVoice/engine';
-import { AI_VOICES, AI_VOICE_CREDIT } from '@/services/aiVoice/model';
-import { aiChapterAudio } from '@/services/aiVoice/chapterAudio';
+import { AI_VOICES } from '@/services/aiVoice/voices';
 
-/** Plays a voice's short sample (made in advance, so it can be heard before downloading) */
+/** Plays a voice's short sample */
 export function useVoiceSample() {
   const player = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
@@ -29,22 +26,17 @@ export function useVoiceSample() {
   return { playing, toggle };
 }
 
-/** Which translations are read by people and which by the AI voice */
+/** Which translations have a narrator, and which are read aloud in the voice chosen here */
 const VOICE_SUMMARY = [
-  { label: 'KJV, NIV, ESV, NLT', how: 'Narrated by people' },
-  { label: 'NKJV', how: 'New Testament narrated, Old Testament AI voice' },
-  { label: 'NASB, AMP, MSG, ASV', how: 'AI voice' },
+  { label: 'KJV, NIV, ESV, NLT', how: 'Narrated' },
+  { label: 'NKJV', how: 'New Testament narrated, Old Testament non-narrated' },
+  { label: 'NASB, AMP, MSG, ASV', how: 'Non-narrated' },
 ];
 
-/** "Voice for the audio Bible": the AI voice download and the choice of voice, for Bible settings. */
+/** "Audio Bible voices": which translations are narrated, and the voice that reads the rest. */
 const AiVoiceSettings = () => {
   const ai = useAiVoice();
   const sample = useVoiceSample();
-
-  useEffect(() => {
-    ai.refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -53,7 +45,8 @@ const AiVoiceSettings = () => {
         <div>
           <span className="block font-medium text-slate-800 dark:text-slate-200">Audio Bible voices</span>
           <span className="block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Translations without a narrator are read by a natural AI voice, made on this device.
+            Translations without a narrator are read aloud in the voice you choose below. Chapters you listen to are kept on
+            this phone for offline listening.
           </span>
         </div>
       </div>
@@ -67,71 +60,8 @@ const AiVoiceSettings = () => {
         ))}
       </div>
 
-      {/* Where the AI voice is made */}
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900/60" role="radiogroup" aria-label="Where the AI voice is made">
-        {([['cloud', 'Online voice'], ['device', 'On this device']] as const).map(([mode, label]) => (
-          <button
-            key={mode}
-            role="radio"
-            aria-checked={ai.mode === mode}
-            onClick={() => ai.setMode(mode)}
-            className={cn(
-              'rounded-lg px-3 py-2 text-[13px] font-semibold transition',
-              ai.mode === mode ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 dark:text-slate-400',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {ai.mode === 'cloud' ? (
-        <div className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-          <Check className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Ready. Nothing to download, works smoothly on phones. Chapters you've heard are kept for offline listening.</span>
-        </div>
-      ) : ai.status === 'downloading' ? (
-        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950/40">
-          <div className="mb-2 flex items-center justify-between text-[13px] font-medium text-blue-800 dark:text-blue-200">
-            <span className="flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Downloading the AI voice
-            </span>
-            <span>{Math.round(ai.progress * 100)}%</span>
-          </div>
-          <Progress value={ai.progress * 100} className="h-1.5" />
-          <p className="mt-2 text-[11.5px] text-blue-700/80 dark:text-blue-300/80">Keep the app open. You can use the rest of the app meanwhile.</p>
-        </div>
-      ) : ai.status === 'ready' ? (
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/40">
-          <span className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-800 dark:text-emerald-200">
-            <Check className="h-4 w-4" /> AI voice ready, also offline
-          </span>
-          <button
-            onClick={async () => {
-              await aiChapterAudio.clearSaved();
-              await ai.remove();
-            }}
-            className="flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-medium text-slate-500 hover:bg-white hover:text-red-600 dark:hover:bg-slate-800"
-            aria-label="Remove the AI voice from this device"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Remove
-          </button>
-        </div>
-      ) : (
-        <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900/40">
-          {ai.status === 'error' && ai.error && <p className="mb-2 text-[12.5px] font-medium text-red-600">{ai.error}</p>}
-          <button
-            onClick={() => ai.download().catch(() => undefined)}
-            className="w-full rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition active:scale-[0.98]"
-          >
-            {ai.status === 'error' ? 'Try again' : 'Download the AI voice'} · {formatBytes(ai.totalBytes)}
-          </button>
-          <p className="mt-2 text-center text-[11.5px] text-slate-500 dark:text-slate-400">Once only. Wi-Fi recommended. Then it works offline.</p>
-        </div>
-      )}
-
       <div>
-        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">AI voice</p>
+        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Reading voice</p>
         <div className="grid grid-cols-2 gap-2">
           {AI_VOICES.map((voice) => {
             const chosen = ai.voice === voice.id;
@@ -167,7 +97,7 @@ const AiVoiceSettings = () => {
       </div>
 
       <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-        {AI_VOICE_CREDIT} Narrated audio by Faith Comes By Hearing.
+        Narrated audio by Faith Comes By Hearing, and The Listener's Bible (NIV, read by Max McLean).
       </p>
     </div>
   );
