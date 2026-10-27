@@ -91,15 +91,28 @@ const check = (enabled: boolean | null, time: string | null, fallback: string, l
   return local.minutes - target <= LATE_LIMIT_MINUTES ? 'due' : 'too-late';
 };
 
-/** Claim today's reminder for this person; false if another run already did. */
-async function claim(userId: string, column: 'daily_verse_last_sent' | 'reading_reminder_last_sent', date: string) {
-  const { data, error } = await supabaseAdmin
-    .from('notification_preferences')
-    .update({ [column]: date })
-    .eq('user_id', userId)
-    .or(`${column}.is.null,${column}.neq.${date}`)
-    .select('user_id');
-  return !error && (data?.length ?? 0) > 0;
+/**
+ * Claim today's reminder for this person; false if another run already did.
+ * (Two plain updates: an or(...) filter on an update fails on this database
+ * with "column … does not exist", which silently stopped every reminder.)
+ */
+async function claim(
+  userId: string,
+  column: 'daily_verse_last_sent' | 'reading_reminder_last_sent',
+  date: string,
+  note: (key: string) => void,
+) {
+  for (const unclaimed of ['never', 'other-day'] as const) {
+    let query = supabaseAdmin.from('notification_preferences').update({ [column]: date }).eq('user_id', userId);
+    query = unclaimed === 'never' ? query.is(column, null) : query.neq(column, date);
+    const { data, error } = await query.select('user_id');
+    if (error) {
+      note(`claim-error: ${error.message}`);
+      return false;
+    }
+    if ((data?.length ?? 0) > 0) return true;
+  }
+  return false;
 }
 
 /** Nothing reached their phone: un-claim it so the next run (a minute later) tries again. */
@@ -144,7 +157,7 @@ Deno.serve(async (req) => {
     note(`reading-${readingCheck}`);
 
     if (verseCheck === 'due') {
-      if (await claim(p.user_id, 'daily_verse_last_sent', local.date)) {
+      if (await claim(p.user_id, 'daily_verse_last_sent', local.date, note)) {
         const verse = scriptureForDate(local.year, local.month, local.day);
         const result = await sendToSubscriptions(
           await devicesFor(p.user_id),
@@ -165,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     if (readingCheck === 'due') {
-      if (await claim(p.user_id, 'reading_reminder_last_sent', local.date)) {
+      if (await claim(p.user_id, 'reading_reminder_last_sent', local.date, note)) {
         // Point to their reading plan when they have one on the go
         const { data: plans } = await supabaseAdmin
           .from('reading_plan_progress')
