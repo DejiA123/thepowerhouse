@@ -35,7 +35,7 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
     switch (field) {
       case 'name': return 'Enter your full name...';
       case 'about': return 'Tell the community about yourself...';
-      case 'phone': return 'e.g. +1 234 567 890';
+      case 'phone': return 'e.g. 089 123 4567';
       case 'links': return 'Website, Instagram, Twitter...';
       default: return 'Type here...';
     }
@@ -56,7 +56,8 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
         }
         break;
       case 'phone':
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        // Local numbers (089 123 4567) or international (+353 89 123 4567)
+        const phoneRegex = /^\+?\d{6,16}$/;
         if (!phoneRegex.test(value.replace(/[\s\-\(\)]/g, ''))) {
           return 'Please enter a valid phone number';
         }

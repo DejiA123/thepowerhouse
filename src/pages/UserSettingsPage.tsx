@@ -44,6 +44,8 @@ import { HelpCenter } from "@/components/HelpCenter";
 import { InviteFriend } from "@/components/InviteFriend";
 import { NotificationCenter } from "@/components/NotificationCenter";
 
+const PLACEHOLDER_PHONE = '+234 123 456 7890';
+
 type ViewType = "main" | "theme" | "account" | "bible" | "privacy" | "chat" | "help" | "invite" | "notifications";
 
 interface UserProfile {
@@ -144,7 +146,8 @@ const UserSettingsPage = () => {
         full_name: profileData.full_name || "New User",
         email: profileData.email || user.email || "",
         bio: (profileData as any).bio || "",
-        phone: profileData.phone || "",
+        // (accounts used to get a placeholder number nobody entered)
+        phone: profileData.phone && profileData.phone !== PLACEHOLDER_PHONE ? profileData.phone : "",
         avatar_url: profileData.avatar_url,
         updated_at: profileData.updated_at,
       });
