@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
         kind: 'chat',
         title: chatName,
         body: `${sender}: ${preview}`,
-        url: `/group-chats?chat=${message.chat_id}`,
+        // Opens the chat at this message
+        url: `/group-chats?chat=${message.chat_id}&message=${message.id}`,
         tag: `chat-${message.chat_id}`,
         renotify: true,
         image: isPhoto ? photoUrl : undefined,
@@ -267,12 +268,17 @@ Deno.serve(async (req) => {
     if (type === 'test') {
       let subs: PushSubscriptionRow[] = [];
       if (user) subs = await subscriptionsForUsers([user.id]);
+      // Reminders and messages find a phone through the account it's linked to
+      const linkedDevices = subs.length;
+      let thisDeviceLinked = false;
       if (typeof body.endpoint === 'string') {
         const { data } = await supabaseAdmin
           .from('push_subscriptions')
           .select('id, user_id, endpoint, p256dh, auth, failure_count')
           .eq('endpoint', body.endpoint);
-        subs = subs.concat((data ?? []) as PushSubscriptionRow[]);
+        const rows = (data ?? []) as PushSubscriptionRow[];
+        thisDeviceLinked = !!user && rows.some((r) => r.user_id === user.id);
+        subs = subs.concat(rows);
       }
       const result = await sendToSubscriptions(subs, {
         kind: 'test',
@@ -281,7 +287,7 @@ Deno.serve(async (req) => {
         url: '/',
         tag: 'test',
       }, { ttl: 300, urgency: 'high' });
-      return json({ ok: true, ...result });
+      return json({ ok: true, ...result, linkedDevices, thisDeviceLinked });
     }
 
     return json({ error: 'Unknown type' }, 400);

@@ -81,10 +81,14 @@ const toMinutes = (hhmm: string | null, fallback: string) => {
   return (Number.isFinite(h) ? h : 8) * 60 + (Number.isFinite(m) ? m : 0);
 };
 
-const isDue = (enabled: boolean | null, time: string | null, fallback: string, lastSent: string | null, local: LocalTime) => {
-  if (!enabled || lastSent === local.date) return false;
+type Check = 'due' | 'off' | 'sent-today' | 'not-yet' | 'too-late';
+
+const check = (enabled: boolean | null, time: string | null, fallback: string, lastSent: string | null, local: LocalTime): Check => {
+  if (!enabled) return 'off';
+  if (lastSent === local.date) return 'sent-today';
   const target = toMinutes(time, fallback);
-  return local.minutes >= target && local.minutes - target <= LATE_LIMIT_MINUTES;
+  if (local.minutes < target) return 'not-yet';
+  return local.minutes - target <= LATE_LIMIT_MINUTES ? 'due' : 'too-late';
 };
 
 /** Claim today's reminder for this person; false if another run already did. */
@@ -118,15 +122,32 @@ Deno.serve(async (req) => {
 
   let verses = 0;
   let readings = 0;
+  // Where each reminder stopped (counts only), so a run shows what's going on
+  const report: Record<string, number> = {};
+  const note = (key: string, n = 1) => (report[key] = (report[key] ?? 0) + n);
+  const devicesFor = async (userId: string) => {
+    const subs = await subscriptionsForUsers([userId]);
+    if (subs.length === 0) note('no-linked-device');
+    return subs;
+  };
+  const tally = (result: { sent: number; failed: number; removed: number }) => {
+    note('delivered', result.sent);
+    if (result.failed) note('delivery-failed', result.failed);
+    if (result.removed) note('expired-device-removed', result.removed);
+  };
 
   for (const p of (data ?? []) as Prefs[]) {
     const local = localTime(p.timezone || 'UTC', now);
+    const verseCheck = check(p.daily_verse_enabled, p.daily_verse_time, '08:00', p.daily_verse_last_sent, local);
+    const readingCheck = check(p.reading_reminder_enabled, p.reading_reminder_time, '19:00', p.reading_reminder_last_sent, local);
+    note(`verse-${verseCheck}`);
+    note(`reading-${readingCheck}`);
 
-    if (isDue(p.daily_verse_enabled, p.daily_verse_time, '08:00', p.daily_verse_last_sent, local)) {
+    if (verseCheck === 'due') {
       if (await claim(p.user_id, 'daily_verse_last_sent', local.date)) {
         const verse = scriptureForDate(local.year, local.month, local.day);
         const result = await sendToSubscriptions(
-          await subscriptionsForUsers([p.user_id]),
+          await devicesFor(p.user_id),
           {
             kind: 'reminder',
             title: `Verse of the day · ${verse.reference}`,
@@ -138,11 +159,12 @@ Deno.serve(async (req) => {
           { ttl: 60 * 60 * 6, urgency: 'normal', topic: 'daily-verse' },
         );
         verses += result.sent;
+        tally(result);
         if (result.sent === 0) await release(p.user_id, 'daily_verse_last_sent', local.date);
       }
     }
 
-    if (isDue(p.reading_reminder_enabled, p.reading_reminder_time, '19:00', p.reading_reminder_last_sent, local)) {
+    if (readingCheck === 'due') {
       if (await claim(p.user_id, 'reading_reminder_last_sent', local.date)) {
         // Point to their reading plan when they have one on the go
         const { data: plans } = await supabaseAdmin
@@ -154,7 +176,7 @@ Deno.serve(async (req) => {
         const plan = plans?.[0];
         const planName = plan ? PLAN_NAMES[plan.plan_id] : undefined;
         const result = await sendToSubscriptions(
-          await subscriptionsForUsers([p.user_id]),
+          await devicesFor(p.user_id),
           planName
             ? {
                 kind: 'reminder',
@@ -175,10 +197,11 @@ Deno.serve(async (req) => {
           { ttl: 60 * 60 * 6, urgency: 'normal', topic: 'reading-reminder' },
         );
         readings += result.sent;
+        tally(result);
         if (result.sent === 0) await release(p.user_id, 'reading_reminder_last_sent', local.date);
       }
     }
   }
 
-  return json({ ok: true, checked: data?.length ?? 0, verses, readings });
+  return json({ ok: true, version: 2, checked: data?.length ?? 0, verses, readings, report });
 });

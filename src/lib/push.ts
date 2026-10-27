@@ -326,9 +326,15 @@ export function sendPush(event: PushEvent): void {
     const extra: Record<string, unknown> = {};
     // Don't notify the device that made the change; for tests, target this device
     if (event.type === 'choir-song') extra.excludeEndpoint = await getCurrentEndpoint();
-    if (event.type === 'test') extra.endpoint = await getCurrentEndpoint();
-    const { error } = await supabase.functions.invoke('send-push', { body: { ...event, ...extra } });
+    if (event.type === 'test') {
+      // Make sure this phone is linked to the account first: reminders and
+      // messages find it that way (the test itself also goes to this phone directly)
+      await syncPushSubscription();
+      extra.endpoint = await getCurrentEndpoint();
+    }
+    const { data, error } = await supabase.functions.invoke('send-push', { body: { ...event, ...extra } });
     if (error) console.warn('[push] send failed', event.type, error.message);
+    else if (event.type === 'test' && data?.thisDeviceLinked === false) console.warn('[push] this device is not linked to the account', data);
   })().catch((e) => console.warn('[push] send failed', e));
 }
 
