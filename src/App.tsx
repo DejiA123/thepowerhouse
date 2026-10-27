@@ -18,7 +18,7 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
-import { registerAppServiceWorker } from "@/lib/serviceWorker";
+import { openPendingNavigation, registerAppServiceWorker } from "@/lib/serviceWorker";
 import { autoEnablePush, syncPushSubscription } from "@/lib/push";
 import { appAlert } from "@/lib/appAlert";
 
@@ -97,7 +97,13 @@ const AppEvents = () => {
       if (typeof url === "string" && url.startsWith("/")) navigate(url);
     };
     window.addEventListener("app:navigate", onNavigate);
-    return () => window.removeEventListener("app:navigate", onNavigate);
+    // Started by tapping a notification: open the page it was about
+    openPendingNavigation();
+    const t = setTimeout(openPendingNavigation, 1500);
+    return () => {
+      window.removeEventListener("app:navigate", onNavigate);
+      clearTimeout(t);
+    };
   }, [navigate]);
 
   // Link this device's push subscription to the signed-in user

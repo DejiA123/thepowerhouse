@@ -32,6 +32,9 @@ interface Props {
   onLeft: () => void;
   onActivity: (message: ChatMessage) => void;
   onRead: () => void;
+  /** Show this message (opened from its notification), then call onFocused */
+  focusMessageId?: string | null;
+  onFocused?: () => void;
 }
 
 type Reaction = { emoji: string; user_id: string; id: string };
@@ -62,7 +65,7 @@ function useKeyboardSafeHeight(ref: React.RefObject<HTMLElement>) {
   }, [ref]);
 }
 
-const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onRead }: Props) => {
+const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onRead, focusMessageId, onFocused }: Props) => {
   const { startCall, joinCall, ongoingCalls, refreshOngoingCall, call } = useCall();
   const onlineIds = useOnlineUsers();
 
@@ -331,6 +334,50 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       setLoadingOlder(false);
     }
   }, [chat.id, hasMore, loadingOlder, messages]);
+
+  // ── Opened from a message's notification: show that message ──────────
+  // It may still be on its way (the phone was asleep) or older than what's
+  // loaded, so fetch newer messages first, then older pages, until it's there.
+  const loadOlderRef = useRef(loadOlder);
+  loadOlderRef.current = loadOlder;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+  const onFocusedRef = useRef(onFocused);
+  onFocusedRef.current = onFocused;
+  useEffect(() => {
+    if (!focusMessageId || loading) return;
+    let cancelled = false;
+    const find = () =>
+      scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${focusMessageId.replace(/["\\]/g, '')}"]`) ?? null;
+    const settle = () => new Promise((r) => setTimeout(r, 250));
+    (async () => {
+      for (let attempt = 0; attempt < 6 && !cancelled; attempt++) {
+        const el = find();
+        if (el) {
+          initialScrollDone.current = true;
+          el.scrollIntoView({ block: 'center' });
+          el.animate?.(
+            [{ backgroundColor: 'rgba(59, 130, 246, 0.22)' }, { backgroundColor: 'rgba(59, 130, 246, 0)' }],
+            { duration: 2400, easing: 'ease-out' },
+          );
+          break;
+        }
+        if (attempt === 0) {
+          const confirmed = messagesRef.current.filter((m) => !m.pending && !String(m.id).startsWith('temp-'));
+          const last = confirmed[confirmed.length - 1];
+          const newer = last ? await GroupChatService.getMessagesAfter(chat.id, last.created_at).catch(() => []) : [];
+          if (!cancelled) newer.forEach(addMessage);
+        } else if (hasMoreRef.current) {
+          await loadOlderRef.current();
+        }
+        await settle();
+      }
+      if (!cancelled) onFocusedRef.current?.();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [focusMessageId, loading, chat.id, addMessage]);
 
   // Load older messages when the top comes into view
   useEffect(() => {

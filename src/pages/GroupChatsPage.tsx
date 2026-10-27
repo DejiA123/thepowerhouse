@@ -24,6 +24,8 @@ const GroupChatsPage = () => {
   const { ongoingCalls } = useCall();
   const [params, setParams] = useSearchParams();
   const selectedId = params.get('chat');
+  // Opened from a message's notification (?chat=…&message=…)
+  const focusMessageId = params.get('message');
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const names = useRef<Record<string, string>>({});
@@ -217,6 +219,8 @@ const GroupChatsPage = () => {
             onBack={closeChat}
             onActivity={onActivity}
             onRead={onRead}
+            focusMessageId={focusMessageId}
+            onFocused={() => setParams({ chat: selectedChat.id }, { replace: true })}
             onChatUpdated={(patch) => {
               setChats((prev) => prev.map((c) => (c.id === selectedChat.id ? { ...c, ...patch } : c)));
               setOpenedChat((prev) => (prev && prev.id === selectedChat.id ? { ...prev, ...patch } : prev));

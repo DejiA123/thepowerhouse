@@ -85,6 +85,10 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   let url = data.url || '/';
+  // A chat message opens the chat at that message
+  if (data.kind === 'chat' && data.messageId && url.indexOf('message=') === -1) {
+    url += (url.indexOf('?') === -1 ? '?' : '&') + 'message=' + encodeURIComponent(data.messageId);
+  }
   // "Join" button, or a tap on the call notification itself ("Tap to join").
   // iPhone can't show notification buttons, so the tap has to answer.
   const answering = event.action === 'answer' || (data.kind === 'call' && !event.action);
@@ -92,19 +96,43 @@ self.addEventListener('notificationclick', (event) => {
     url += (url.indexOf('?') === -1 ? '?' : '&') + 'answer=1';
   }
   const target = new URL(url, self.location.origin).href;
+  const path = new URL(target).pathname + new URL(target).search;
 
   event.waitUntil((async () => {
+    // Remembered too, in case the app doesn't get the message below (an iPhone
+    // can wake the app before it's listening): the app checks this when it shows
+    await rememberNavigation(path);
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existing = windows.find((c) => c.url.startsWith(self.location.origin));
     if (existing) {
-      await existing.focus();
-      existing.postMessage({ type: 'NOTIFICATION_NAVIGATE', url: new URL(target).pathname + new URL(target).search });
+      // Tell the app first: on iPhone focus() can fail, which used to stop the rest
+      existing.postMessage({ type: 'NOTIFICATION_NAVIGATE', url: path });
+      try {
+        await existing.focus();
+      } catch (e) {
+        /* the phone brings the app forward itself */
+      }
     } else {
-      await self.clients.openWindow(target);
+      try {
+        await self.clients.openWindow(target);
+      } catch (e) {
+        /* the app opens on its own and picks up the remembered page */
+      }
     }
     await updateBadge();
   })());
 });
+
+const NAV_CACHE = 'app-pending-navigation';
+const NAV_KEY = '/__pending-navigation';
+async function rememberNavigation(path) {
+  try {
+    const cache = await caches.open(NAV_CACHE);
+    await cache.put(NAV_KEY, new Response(JSON.stringify({ url: path, at: Date.now() }), { headers: { 'Content-Type': 'application/json' } }));
+  } catch (e) {
+    /* best effort */
+  }
+}
 
 self.addEventListener('notificationclose', (event) => {
   event.waitUntil(updateBadge());

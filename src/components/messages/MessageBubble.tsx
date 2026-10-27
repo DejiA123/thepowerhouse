@@ -139,7 +139,10 @@ const MessageBubble = ({
   );
 
   return (
-    <div className={cn('group/msg flex w-full items-end gap-2', isOwn ? 'justify-end' : 'justify-start', isLast ? 'mb-2' : 'mb-0.5')}>
+    <div
+      data-message-id={message.id}
+      className={cn('group/msg flex w-full items-end gap-2 rounded-xl', isOwn ? 'justify-end' : 'justify-start', isLast ? 'mb-2' : 'mb-0.5')}
+    >
       {!isOwn && (
         <div className="w-8 shrink-0">
           {isLast && <UserAvatar name={name} src={senderAvatar(message)} seed={message.user_id} className="h-8 w-8" />}
