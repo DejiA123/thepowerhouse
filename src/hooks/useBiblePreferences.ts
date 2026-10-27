@@ -83,65 +83,38 @@ const migrateTranslationPreference = (stored: BiblePreferences): BiblePreference
   return stored;
 };
 
-export const useBiblePreferences = () => {
-  const [preferences, setPreferences] = useState<BiblePreferences>(DEFAULT_PREFERENCES);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Generate a unique ID for this hook instance to track multiple instances
-  const hookId = Math.random().toString(36).substr(2, 9);
-  console.log(`🔍 useBiblePreferences: Hook instance ${hookId} created`);
-
-  // Load preferences from localStorage
-  useEffect(() => {
-    try {
-      // Check if localStorage is available (important for iOS Safari private mode)
-      if (typeof Storage !== 'undefined' && localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        console.log(`🔍 useBiblePreferences [${hookId}]: Loading from localStorage:`, stored);
-        if (stored) {
-          let parsed = JSON.parse(stored) as BiblePreferences;
-          console.log(`🔍 useBiblePreferences [${hookId}]: Parsed preferences:`, parsed);
-
-          // Apply migration
-          parsed = migrateTranslationPreference(parsed);
-
-          // Merge with defaults to ensure all properties exist
-          const merged = { ...DEFAULT_PREFERENCES, ...parsed };
-          console.log(`🔍 useBiblePreferences [${hookId}]: Merged preferences:`, merged);
-          console.log(`🔍 useBiblePreferences [${hookId}]: Font size in loaded preferences:`, merged.fontSize);
-          console.log(`🔍 useBiblePreferences [${hookId}]: Raw stored data:`, stored);
-          console.log(`🔍 useBiblePreferences [${hookId}]: About to set preferences with fontSize:`, merged.fontSize);
-
-          setPreferences(merged);
-
-          // Save back if migration occurred
-          if (parsed.preferredTranslation !== JSON.parse(stored).preferredTranslation) {
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-              console.log('✅ Migrated preferences saved to localStorage');
-            } catch (error) {
-              console.warn('⚠️ Could not save migrated preferences:', error);
-            }
-          }
-        } else {
-          console.log('🔍 useBiblePreferences: No stored preferences, using defaults:', DEFAULT_PREFERENCES);
-          setPreferences(DEFAULT_PREFERENCES);
-        }
-      } else {
-        console.log('🔍 useBiblePreferences: localStorage not available, using defaults:', DEFAULT_PREFERENCES);
-        setPreferences(DEFAULT_PREFERENCES);
+/** The saved preferences, read straight away (it's quick) so the Bible opens without a loading screen. */
+const readStoredPreferences = (): BiblePreferences => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return DEFAULT_PREFERENCES;
+    const raw = JSON.parse(stored) as BiblePreferences;
+    const parsed = migrateTranslationPreference(raw);
+    // Merge with defaults to ensure all properties exist
+    const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+    // Save back if migration occurred
+    if (parsed.preferredTranslation !== raw.preferredTranslation) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      } catch {
+        /* storage full */
       }
-    } catch (error) {
-      console.warn('⚠️ Could not load Bible preferences from localStorage:', error);
-      // On iOS Safari private mode, localStorage might throw an error
-      if (error instanceof DOMException && error.code === 22) {
-        console.warn('⚠️ localStorage quota exceeded or private mode detected');
-      }
-      setPreferences(DEFAULT_PREFERENCES);
-    } finally {
-      setIsLoaded(true);
     }
-  }, []);
+    return merged;
+  } catch (error) {
+    // Unreadable, or storage unavailable (iOS private mode)
+    console.warn('⚠️ Could not load Bible preferences from localStorage:', error);
+    return DEFAULT_PREFERENCES;
+  }
+};
+
+export const useBiblePreferences = () => {
+  const [preferences, setPreferences] = useState<BiblePreferences>(readStoredPreferences);
+  // Read before the first draw, so always ready (kept for the pages that check it)
+  const isLoaded = true;
+
+  // One id per hook instance (for the logs)
+  const [hookId] = useState(() => Math.random().toString(36).slice(2, 11));
 
   // Update preferences from localStorage when it changes in other tabs/instances
   useEffect(() => {
