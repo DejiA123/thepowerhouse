@@ -104,7 +104,13 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
             <SectionLabel>{friends.length === 1 ? '1 friend' : `${friends.length} friends`}</SectionLabel>
             <PeopleCard>
                 {friends.map((entry) => (
-                    <PersonRow key={entry.friendshipId} person={entry.person} subtitle={`Friends since ${monthYear(entry.since)}`}>
+                    <PersonRow
+                        key={entry.friendshipId}
+                        person={entry.person}
+                        subtitle={`Friends since ${monthYear(entry.since)}`}
+                        onOpen={() => opening !== entry.person.id && message(entry)}
+                        openLabel={`Message ${entry.person.name}`}
+                    >
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button

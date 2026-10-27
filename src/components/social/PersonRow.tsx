@@ -5,20 +5,46 @@ import type { Person } from '@/services/socialService';
 /**
  * One person in a Social Circle list: photo, name, a line about them, and
  * actions beside the name (or, with `below`, on their own line underneath).
+ * With `onOpen`, tapping the photo or name does it (e.g. opens your chat).
  */
-export const PersonRow = ({ person, subtitle, children, below }: { person: Person; subtitle?: ReactNode; children?: ReactNode; below?: ReactNode }) => (
-    <div className="px-4 py-3">
-        <div className="flex items-center gap-3">
+export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel }: {
+    person: Person;
+    subtitle?: ReactNode;
+    children?: ReactNode;
+    below?: ReactNode;
+    onOpen?: () => void;
+    openLabel?: string;
+}) => {
+    const who = (
+        <>
             <UserAvatar name={person.name} src={person.avatar} seed={person.id} className="h-12 w-12 text-base" />
-            <div className="min-w-0 flex-1">
-                <p className="truncate text-[15.5px] font-semibold leading-tight text-foreground">{person.name}</p>
-                {subtitle && <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">{subtitle}</p>}
+            <span className="block min-w-0 flex-1">
+                <span className="block truncate text-[15.5px] font-semibold leading-tight text-foreground">{person.name}</span>
+                {subtitle && <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">{subtitle}</span>}
+            </span>
+        </>
+    );
+    return (
+        <div className="px-4 py-3">
+            <div className="flex items-center gap-3">
+                {onOpen ? (
+                    <button
+                        type="button"
+                        onClick={onOpen}
+                        aria-label={openLabel}
+                        className="-my-1 -ml-1 flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-1 pl-1 text-left transition active:scale-[0.99] active:bg-slate-50 dark:active:bg-slate-800/60"
+                    >
+                        {who}
+                    </button>
+                ) : (
+                    <div className="flex min-w-0 flex-1 items-center gap-3">{who}</div>
+                )}
+                {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
             </div>
-            {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+            {below && <div className="mt-2.5 flex gap-2 pl-[60px]">{below}</div>}
         </div>
-        {below && <div className="mt-2.5 flex gap-2 pl-[60px]">{below}</div>}
-    </div>
-);
+    );
+};
 
 /** A rounded card holding a list of people. */
 export const PeopleCard = ({ children }: { children: ReactNode }) => (
