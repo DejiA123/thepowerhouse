@@ -17,6 +17,7 @@ import { bibleBooks } from '@/components/bible/BibleBookList';
 import { audioPlanFor, isOldTestament } from '@/services/audioBible/catalog';
 import { aiVoice, useAiVoice } from '@/services/aiVoice/engine';
 import { aiChapterAudio, type AiChapterRef } from '@/services/aiVoice/chapterAudio';
+import { church } from '@/config/church';
 
 /* ── Background download manager (keeps going when the dialog is closed) ── */
 interface Job extends BookDownloadProgress {
@@ -378,7 +379,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
               {downloading() && (
                 <p className="flex items-start gap-2 rounded-2xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
                   <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
-                  Keep The Power House open while it downloads. Your phone pauses downloads when it locks or you switch
+                  Keep {church.name} open while it downloads. Your phone pauses downloads when it locks or you switch
                   apps, and they carry on when you come back.
                 </p>
               )}

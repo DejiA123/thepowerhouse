@@ -19,6 +19,7 @@ import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import { openPendingNavigation, registerAppServiceWorker } from "@/lib/serviceWorker";
+import FeatureGate from "@/components/FeatureGate";
 import { autoEnablePush, syncPushSubscription } from "@/lib/push";
 import { appAlert } from "@/lib/appAlert";
 
@@ -224,6 +225,7 @@ const AppRoutes = () => {
         <Layout>
           <Suspense fallback={<PageFallback />}>
           <AppReady />
+          <FeatureGate>
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/" element={<HomePage />} />
@@ -347,6 +349,7 @@ const AppRoutes = () => {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </FeatureGate>
           </Suspense>
         </Layout>
       </AudioProvider>

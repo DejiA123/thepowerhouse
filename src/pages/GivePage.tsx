@@ -4,13 +4,10 @@ import { ListGroup, Page, PageHeader, SectionLabel } from "@/components/page/Pag
 import { useAuth } from "@/contexts/AuthContext";
 import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
+import { church } from '@/config/church';
 
-const BANK = {
-  bankName: "Allied Irish Banks",
-  accountName: "The Power House International",
-  iban: "IE85AIBK93745222068064",
-  bic: "AIBKIE2D",
-};
+/** Where offerings go (from the church's profile) */
+const BANK = church.giving;
 
 const TYPES = [
   { id: "TITHE", title: "Tithe", desc: "10% of our increase", icon: Wheat },

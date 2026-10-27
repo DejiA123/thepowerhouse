@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
 import type { Tables } from "@/integrations/supabase/types";
+import { church } from '@/config/church';
 
 type Event = Tables<"events">;
 type Tab = "events" | "updates" | "past";
@@ -81,9 +82,9 @@ const addToCalendar = (e: Event) => {
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//The Power House//Events//EN",
+    `PRODID:-//${church.name}//Events//EN`,
     "BEGIN:VEVENT",
-    `UID:${e.id}@thepowerhouse`,
+    `UID:${e.id}@${church.id}`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
     when,
     `SUMMARY:${esc(e.title)}`,
@@ -292,7 +293,7 @@ const NewsPage = () => {
                 </span>
               }
               title="Sunday Service"
-              subtitle="Every Sunday · 10:00 · Galway · Dublin · Kildare · Athlone"
+              subtitle={`Every Sunday · 10:00 · ${church.campuses.map((c) => c.name).join(" · ")}`}
               onClick={() => navigate("/services")}
             />
             {rest.map((e) => (

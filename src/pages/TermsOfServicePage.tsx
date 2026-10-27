@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { church } from '@/config/church';
 
 const TermsOfServicePage = () => {
   const navigate = useNavigate();
@@ -27,14 +28,14 @@ const TermsOfServicePage = () => {
                 Last Updated: {new Date().toLocaleDateString()}
               </p>
               <p>
-                Welcome to The Power House International mobile application. By using our app, you agree to be bound by these Terms of Service.
+                Welcome to {church.fullName} mobile application. By using our app, you agree to be bound by these Terms of Service.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-3">1. Acceptance of Terms</h2>
               <p>
-                By accessing and using The Power House International app ("the App"), you accept and agree to be bound by the terms and provision of this agreement.
+                By accessing and using {church.fullName} app ("the App"), you accept and agree to be bound by the terms and provision of this agreement.
               </p>
             </section>
 
@@ -78,7 +79,7 @@ const TermsOfServicePage = () => {
             <section>
               <h2 className="text-xl font-semibold mb-3">5. Intellectual Property</h2>
               <p>
-                The App and its original content, features, and functionality are and will remain the exclusive property of The Power House International and its licensors.
+                The App and its original content, features, and functionality are and will remain the exclusive property of {church.fullName} and its licensors.
               </p>
             </section>
 
@@ -92,7 +93,7 @@ const TermsOfServicePage = () => {
             <section>
               <h2 className="text-xl font-semibold mb-3">7. Limitation of Liability</h2>
               <p>
-                In no event shall The Power House International, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages.
+                In no event shall {church.fullName}, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages.
               </p>
             </section>
 
@@ -109,17 +110,17 @@ const TermsOfServicePage = () => {
                 If you have any questions about these Terms, please contact us:
               </p>
               <div className="mt-2 space-y-1">
-                <p><strong>The Power House International</strong></p>
-                <p>Email: contact.thepowerhouse@gmail.com</p>
-                <p>Phone: 089 953 4714</p>
-                <p>Address: The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit Heights, Galway, H91 958A</p>
+                <p><strong>{church.fullName}</strong></p>
+                <p>Email: {church.contact.email}</p>
+                <p>Phone: {church.contact.phone}</p>
+                <p>Address: {church.contact.address}</p>
               </div>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-3">10. Governing Law</h2>
               <p>
-                These Terms shall be governed and construed in accordance with the laws of Ireland, without regard to its conflict of law provisions.
+                These Terms shall be governed and construed in accordance with the laws of {church.locale.lawCountry}, without regard to its conflict of law provisions.
               </p>
             </section>
           </div>

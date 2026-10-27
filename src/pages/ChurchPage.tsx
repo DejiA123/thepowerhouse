@@ -2,6 +2,7 @@ import { Church, Globe } from "lucide-react";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
 import { PlaceRow, PlaceTile, RowPicture } from "@/components/nav/Places";
 import { TILE } from "@/data/appDirectory";
+import { church } from '@/config/church';
 
 /** Church: services, events, giving and prayer, then everything else about the church. */
 const ChurchPage = () => (
@@ -26,8 +27,8 @@ const ChurchPage = () => (
       <ListRow
         leading={<RowPicture icon={Globe} color="slate" />}
         title="Our website"
-        subtitle="thepowerhouseinternational.org"
-        href="https://www.thepowerhouseinternational.org/"
+        subtitle={church.website.replace(/^https?:\/\/(www\.)?/, "")}
+        href={church.website}
         chevron
         className="min-h-[68px] py-3"
       />

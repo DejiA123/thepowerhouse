@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { appAlert } from '@/lib/appAlert';
 import { SocialService, type DiscoverPage, type Person, type Relation } from '@/services/socialService';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel } from './PersonRow';
+import { church } from '@/config/church';
 
 type Found = DiscoverPage['people'][number];
 
@@ -150,7 +151,7 @@ export const UserSearch = ({ onChanged }: { onChanged: () => void }) => {
                 />
             ) : (
                 <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-                    <SectionLabel>{typed ? 'People' : 'Everyone in The Power House'}</SectionLabel>
+                    <SectionLabel>{typed ? 'People' : `Everyone in ${church.name}`}</SectionLabel>
                     <PeopleCard>
                         {people.map((found) => (
                             <PersonRow key={found.person.id} person={found.person} subtitle={subtitle(found)}>

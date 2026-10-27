@@ -1,8 +1,27 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 import { componentTagger } from "lovable-tagger";
+import { fillHtml, manifest } from "./src/config/brandFiles";
+
+/**
+ * The church's name, colours and icons in index.html and manifest.json, from
+ * its profile (src/config/church.ts), in the dev server and in the build.
+ */
+const churchBrand = (): Plugin => ({
+  name: 'church-brand',
+  transformIndexHtml: (html) => fillHtml(html),
+  configureServer(server) {
+    server.middlewares.use('/manifest.json', (_req, res) => {
+      res.setHeader('Content-Type', 'application/manifest+json');
+      res.end(JSON.stringify(manifest(), null, 2));
+    });
+  },
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify(manifest(), null, 2) });
+  },
+});
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,13 +31,14 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    churchBrand(),
     mode === 'development' && componentTagger(),
     VitePWA({
       // New versions wait until the app is put away, then take over (see main.tsx)
       registerType: 'prompt',
       // The app registers /sw.js itself (see src/lib/serviceWorker.ts)
       injectRegister: false,
-      // public/manifest.json is the single source of truth for install metadata
+      // manifest.json is made from the church profile (churchBrand above)
       manifest: false,
       workbox: {
         // Web Push + notification click handling live in public/push-sw.js;

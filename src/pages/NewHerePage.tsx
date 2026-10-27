@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Clock, Users, Heart, MessageCircle, Calendar, ArrowRight, Phone, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { church } from '@/config/church';
 
 const NewHerePage = () => {
     const navigate = useNavigate();
@@ -84,7 +85,7 @@ const NewHerePage = () => {
 
                 <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
                     <div className="inline-block px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium mb-4 animate-in fade-in slide-in-from-top-4 duration-700">
-                        Welcome to The PowerHouse International
+                        Welcome to {church.fullName}
                     </div>
 
                     <h1 className="text-4xl md:text-6xl font-bold tracking-tight animate-in fade-in slide-in-from-top-6 duration-700 delay-100">
@@ -214,11 +215,11 @@ const NewHerePage = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-6 justify-center pt-4">
-                        <a href="mailto:info@thepowerhouseinternational.org" className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-4 rounded-xl hover:bg-white/30 transition-all">
+                        <a href={`mailto:${church.contact.infoEmail}`} className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-4 rounded-xl hover:bg-white/30 transition-all">
                             <Mail className="w-5 h-5" />
                             <span className="font-semibold">Email Us</span>
                         </a>
-                        <a href="tel:+1234567890" className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-4 rounded-xl hover:bg-white/30 transition-all">
+                        <a href={`tel:${church.contact.phone.replace(/\s+/g, "")}`} className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-6 py-4 rounded-xl hover:bg-white/30 transition-all">
                             <Phone className="w-5 h-5" />
                             <span className="font-semibold">Call Us</span>
                         </a>

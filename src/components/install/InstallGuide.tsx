@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { installContext, type InstallContext } from '@/lib/install';
+import { church } from '@/config/church';
 
 /* ── Little drawings of the browser buttons to tap (the one to tap is ringed) ── */
 
@@ -155,8 +156,8 @@ function guideFor(context: InstallContext): Guide {
               <Picture className="space-y-1.5">
                 <AddBar />
                 <div className="flex items-center gap-1.5 rounded-lg bg-white px-2 py-1 dark:bg-slate-700">
-                  <img src="/icons/icon-192.png" alt="" className="h-5 w-5 rounded-md" />
-                  <span className="truncate text-[11.5px] font-medium text-slate-700 dark:text-slate-200">The Power House</span>
+                  <img src={church.brand.icon192} alt="" className="h-5 w-5 rounded-md" />
+                  <span className="truncate text-[11.5px] font-medium text-slate-700 dark:text-slate-200">{church.name}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-white px-2 py-1 text-[11px] text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                   Open as Web App

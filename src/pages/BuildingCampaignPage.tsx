@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Building2, Target, Users, Heart, TrendingUp, Gift, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
+import { church } from '@/config/church';
 
 const BuildingCampaignPage = () => {
     const navigate = useNavigate();
@@ -242,8 +243,8 @@ const BuildingCampaignPage = () => {
                     <div className="pt-8 border-t border-white/20 mt-8">
                         <p className="text-sm text-white/70">
                             For questions about the building campaign, please contact us at{" "}
-                            <a href="mailto:contact.thepowerhouse@gmail.com" className="underline hover:text-white">
-                                contact.thepowerhouse@gmail.com
+                            <a href={`mailto:${church.contact.email}`} className="underline hover:text-white">
+                                {church.contact.email}
                             </a>
                         </p>
                     </div>

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { church } from '../_shared/church.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,7 +90,7 @@ serve(async (req) => {
           price_data: {
             currency: "eur",
             product_data: { 
-              name: `${donationDisplayNames[donationType as keyof typeof donationDisplayNames]} - The Power House International`,
+              name: `${donationDisplayNames[donationType as keyof typeof donationDisplayNames]} - ${church.fullName}`,
               description: testimony ? `Testimony: ${testimony.substring(0, 100)}...` : `${donationDisplayNames[donationType as keyof typeof donationDisplayNames]} donation`
             },
             unit_amount: Math.round(parseFloat(amount) * 100), // Convert to cents

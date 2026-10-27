@@ -1,6 +1,7 @@
 import { ArrowLeftRight, Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, PenTool, UsersRound, Wallet } from "lucide-react";
 import { PictureTile } from "@/components/page/PageKit";
 import { TILE } from "@/data/appDirectory";
+import { church } from "@/config/church";
 
 export type ChoirSection = "songs" | "band" | "singing" | "instruments" | "basics" | "lessons";
 
@@ -36,7 +37,7 @@ const ChoirHome = ({
       <PictureTile icon={Music2} tint={TILE.sky} title="Instrument lessons" subtitle="Piano, drums, guitar, bass, sax" onClick={() => onOpen("instruments")} />
       <PictureTile icon={GraduationCap} tint={TILE.teal} title="Music basics" subtitle="Notes, chords and rhythm" onClick={() => onOpen("basics")} />
       <PictureTile icon={UsersRound} tint={TILE.green} title="Team" subtitle="Who's in the choir" onClick={onTeam} />
-      {locationId === "galway" && (
+      {locationId === church.choir.songwritingBranch && (
         <PictureTile icon={PenTool} tint={TILE.pink} title="Songwriting" subtitle="Write songs together" onClick={onSongwriting} />
       )}
       {locationId === "national" && (

@@ -5,6 +5,7 @@ import { PictureTile, SectionLabel } from "@/components/page/PageKit";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { TILE, choirPath, rememberedChoir, type TileColor } from "@/data/appDirectory";
+import { church } from "@/config/church";
 
 export interface MinistryTeam {
   id: string;
@@ -26,10 +27,7 @@ export const MINISTRY_TEAMS: MinistryTeam[] = [
 ];
 
 const BRANCH_NAMES: Record<string, string> = {
-  galway: "Galway",
-  kildare: "Kildare",
-  athlone: "Athlone",
-  dublin: "Dublin",
+  ...Object.fromEntries(church.campuses.map((c) => [c.id, c.name])),
   national: "National",
 };
 

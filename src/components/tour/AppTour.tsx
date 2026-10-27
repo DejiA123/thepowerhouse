@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { SECTIONS } from '@/data/appDirectory';
 import { TOUR_DONE_EVENT, TOUR_DONE_KEY, TOUR_EVENT } from '@/lib/appEvents';
+import { church, hasFeature } from '@/config/church';
 
 interface Step {
   /** The part of the screen to light up (data-tour="…"); none = a welcome card in the middle */
@@ -19,7 +20,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     emoji: '👋',
-    title: 'Welcome to The Power House',
+    title: `Welcome to ${church.name}`,
     body: "Let's take a quick look around. It takes less than a minute.",
   },
   {
@@ -40,7 +41,7 @@ const STEPS: Step[] = [
     target: 'search',
     emoji: '🔍',
     title: "Can't find something?",
-    body: 'Type what you want here, like “choir lessons” or “give”, and we will take you straight there.',
+    body: `Type what you want here, like “${hasFeature('choir') ? 'choir lessons' : 'Psalm 23'}” or “${hasFeature('giving') ? 'give' : 'prayer'}”, and we will take you straight there.`,
   },
   {
     target: 'help',

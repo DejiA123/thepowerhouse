@@ -43,6 +43,7 @@ import { ChatSupport } from "@/components/ChatSupport";
 import { HelpCenter } from "@/components/HelpCenter";
 import { InviteFriend } from "@/components/InviteFriend";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { church } from "@/config/church";
 
 const PLACEHOLDER_PHONE = '+234 123 456 7890';
 
@@ -192,7 +193,7 @@ const UserSettingsPage = () => {
         const state = await enablePush();
         setPushState(state);
         if (state === "on") appAlert("Notifications are on", "You'll get messages, calls and church updates.", "success");
-        else if (state === "denied") appAlert("Notifications are blocked", isIOS() ? "Turn them on in iPhone Settings → Notifications → The Power House." : "Allow notifications for this site in your browser settings.", "error");
+        else if (state === "denied") appAlert("Notifications are blocked", isIOS() ? `Turn them on in iPhone Settings → Notifications → ${church.name}.` : "Allow notifications for this site in your browser settings.", "error");
       } else {
         await disablePush();
         setPushState(await getPushState());

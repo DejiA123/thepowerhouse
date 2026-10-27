@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X, ExternalLink } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import { CHANNEL_ID, embedUrl } from "@/services/youtube";
+import { church } from '@/config/church';
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoMo
     : embedUrl(videoId);
 
   const handleExternalOpen = () => {
-    const url = channelStream ? `https://www.youtube.com/@thepowerhouseintl/streams` : `https://www.youtube.com/watch?v=${videoId}`;
+    const url = channelStream ? `https://www.youtube.com/${church.youtube.handle}/streams` : `https://www.youtube.com/watch?v=${videoId}`;
     window.open(url, '_blank');
   };
 

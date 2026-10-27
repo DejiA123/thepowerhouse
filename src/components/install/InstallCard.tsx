@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { TOUR_DONE_EVENT, TOUR_DONE_KEY } from '@/lib/appEvents';
 import { installedBefore, openInstallGuide, promptInstall, useInstallContext } from '@/lib/install';
+import { church } from '@/config/church';
 
 const DISMISS_KEY = 'install_card_dismissed_at';
 const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -18,7 +19,7 @@ const read = (key: string) => {
 const dismissedRecently = () => Date.now() - Number(read(DISMISS_KEY) || 0) < SNOOZE_MS;
 
 /**
- * "Get The Power House app" at the top of Home, for phones that haven't
+ * "Get <church> app" at the top of Home, for phones that haven't
  * installed it: one-tap Install where the browser allows it (Android), the
  * step-by-step pictures on iPhone, and how to reach Safari/Chrome from inside
  * Instagram, Facebook and the like. Waits until the welcome tour is over.
@@ -77,13 +78,13 @@ const InstallCard = () => {
       </button>
       <div className="flex items-start gap-3 pr-6">
         <img
-          src="/icons/icon-192.png"
+          src={church.brand.icon192}
           alt=""
           className="h-14 w-14 shrink-0 rounded-[14px] bg-white shadow-md ring-1 ring-black/5"
         />
         <div className="min-w-0">
           <p className="font-outfit text-[18px] font-bold leading-tight text-foreground">
-            {inApp ? `Open in ${target} to get the app` : 'Get The Power House app'}
+            {inApp ? `Open in ${target} to get the app` : `Get ${church.name} app`}
           </p>
           <p className="mt-1 text-[13.5px] leading-snug text-muted-foreground">
             {inApp

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookOpen, Church, Loader2, LocateFixed, Mail, MapPin, MessageCircle, Navigation, Phone, PlayCircle, Radio, Sparkles } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
-import PowerHouseVideos from "@/components/PowerHouseVideos";
+import ChurchVideos from "@/components/ChurchVideos";
 import { ListGroup, ListRow, Page, PageHeader, SectionLabel } from "@/components/page/PageKit";
 import { RowPicture } from "@/components/nav/Places";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
 import { CAMPUSES, directionsUrl, nextSundayLabel, telUrl, useCampus } from "@/data/campuses";
 import { useLiveStatus } from "@/services/youtube";
+import { church } from "@/config/church";
 
 interface LiveService {
   id: string;
@@ -49,7 +50,7 @@ const ServicesPage = () => {
       // Usual stream times: Sunday 10:00–13:00 and Wednesday 19:00–21:00
       const now = new Date();
       const h = now.getHours();
-      setServiceTime((now.getDay() === 0 && h >= 10 && h <= 13) || (now.getDay() === 3 && h >= 19 && h <= 21));
+      setServiceTime(church.liveTimes.some((t) => now.getDay() === t.day && h >= t.from && h <= t.to));
     };
     check();
     const t = setInterval(check, 60000);
@@ -94,7 +95,7 @@ const ServicesPage = () => {
               </span>
               <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Not live right now"}</span>
               <span className="block text-[13px] text-white/60">
-                {liveNow ? "Tap to watch, with the live chat" : "Live Sundays 10 AM · Wednesdays 7 PM. Sermons below"}
+                {liveNow ? "Tap to watch, with the live chat" : `Live ${church.liveTimesLabel}. Sermons below`}
               </span>
             </span>
           </button>
@@ -121,7 +122,7 @@ const ServicesPage = () => {
           )}
 
           <div id="latest-sermons" className="mt-8 scroll-mt-24">
-            <PowerHouseVideos />
+            <ChurchVideos />
           </div>
           <SectionLabel>Go in person</SectionLabel>
           <ListGroup>

@@ -4,6 +4,7 @@ import { Slider } from '@/components/ui/slider';
 import { Play, Pause, Volume2, VolumeX, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
 import { supabaseAudioService, type AudioFileInfo } from '@/services/supabaseAudioService';
 import { useBiblePreferences } from '@/hooks/useBiblePreferences';
+import { church } from '@/config/church';
 
 interface SupabaseAudioPlayerProps {
   book: string;
@@ -50,7 +51,7 @@ export const SupabaseAudioPlayer: React.FC<SupabaseAudioPlayerProps> = ({
     if ('mediaSession' in navigator && audioFileInfo) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: `${book} Chapter ${chapter}`,
-        artist: 'The PowerHouse',
+        artist: church.name,
         album: version,
         artwork: [
           { src: '/favicon.png', sizes: '192x192', type: 'image/png' }

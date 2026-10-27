@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { church } from '@/config/church';
 
 const IntroPage = () => {
   const navigate = useNavigate();
@@ -185,7 +186,7 @@ const IntroPage = () => {
               Welcome to,
             </h1>
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-8 drop-shadow-2xl">
-              The Power House International App
+              {church.fullName} App
             </h2>
             <p className="text-xl md:text-3xl text-white font-light drop-shadow-2xl">
               Experience Intimacy, Transformation & Dominion

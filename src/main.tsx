@@ -6,6 +6,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { appAlert } from '@/lib/appAlert';
 import { recordLaunch } from '@/lib/launchReport';
 import { markUpdateReady, setUpdater } from '@/lib/appUpdate';
+import { church } from '@/config/church';
 // Catches Android's "this app can be installed" offer, which comes once, early
 import '@/lib/install';
 
@@ -61,7 +62,7 @@ if ('serviceWorker' in navigator) {
     const KEY = 'offline_ready_notice_v1';
     if (registration.active && !localStorage.getItem(KEY)) {
       localStorage.setItem(KEY, '1');
-      setTimeout(() => appAlert('Ready to use offline', 'The Power House now opens even with no internet.', 'success'), 4000);
+      setTimeout(() => appAlert('Ready to use offline', `${church.name} now opens even with no internet.`, 'success'), 4000);
     }
   }).catch(() => undefined);
 }

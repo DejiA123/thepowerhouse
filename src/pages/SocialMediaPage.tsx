@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { church } from '@/config/church';
 
 // Social Media Icons as SVG components
 const TikTokIcon = () => (
@@ -47,45 +48,45 @@ const SocialMediaPage = () => {
   const socialMediaHandles = [
     {
       name: "TikTok",
-      handle: "@thepowerhouseintl",
-      url: "https://www.tiktok.com/@thepowerhouseintl",
+      handle: church.social.tiktok?.handle,
+      url: church.social.tiktok?.url,
       icon: <TikTokIcon />,
       color: "bg-black text-white",
       description: "Follow us for short-form videos, worship moments, and daily inspiration"
     },
     {
       name: "Facebook",
-      handle: "@ThePowerHouseWorldWide",
-      url: "https://www.facebook.com/ThePowerHouseWorldWide",
+      handle: church.social.facebook?.handle,
+      url: church.social.facebook?.url,
       icon: <FacebookIcon />,
       color: "bg-blue-600 text-white",
       description: "Connect with our community, see event updates, and share in fellowship"
     },
     {
       name: "Instagram",
-      handle: "@thepowerhouseintl",
-      url: "https://www.instagram.com/thepowerhouseintl",
+      handle: church.social.instagram?.handle,
+      url: church.social.instagram?.url,
       icon: <InstagramIcon />,
       color: "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
       description: "Visual stories of our ministry, worship moments, and community life"
     },
     {
       name: "YouTube",
-      handle: "@thepowerhouseintl",
-      url: "https://www.youtube.com/@thepowerhouseintl",
+      handle: church.social.youtube?.handle,
+      url: church.social.youtube?.url,
       icon: null,
       color: "bg-red-600 text-white",
       description: "Watch full sermons, worship sessions, and ministry updates"
     },
     {
       name: "X (Twitter)",
-      handle: "@ThePowerHIntl",
-      url: "https://twitter.com/ThePowerHIntl",
+      handle: church.social.x?.handle,
+      url: church.social.x?.url,
       icon: <TwitterIcon />,
       color: "bg-black text-white",
       description: "Quick updates, scripture quotes, and ministry highlights"
     }
-  ];
+  ].filter((s): s is typeof s & { handle: string; url: string } => !!s.url);
 
   const handleSocialMediaClick = (url: string) => {
     window.open(url, "_blank");
@@ -109,7 +110,7 @@ const SocialMediaPage = () => {
           </div>
           <h1 className="text-3xl font-bold mb-2">Connect With Us</h1>
           <p className="text-white/90">
-            Follow The Power House International on social media for daily inspiration, 
+            Follow {church.fullName} on social media for daily inspiration, 
             ministry updates, and to stay connected with our community.
           </p>
         </div>
@@ -166,7 +167,7 @@ const SocialMediaPage = () => {
             </h3>
             <p className="text-muted-foreground mb-4">
               Follow us on all platforms to never miss an update, sermon, or moment of worship. 
-              Join thousands of believers who are part of The Power House family online.
+              Join thousands of believers who are part of the {church.name} family online.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {socialMediaHandles.map((platform, index) => (

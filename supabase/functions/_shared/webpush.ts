@@ -1,12 +1,13 @@
 import webpush from 'npm:web-push@3.6.7';
 import { supabaseAdmin } from './supabaseAdmin.ts';
+import { church } from './church.ts';
 
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
-const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'https://www.thepowerhouseinternational.org';
+const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? church.website;
 
 /** Where notification taps open the app */
-const APP_ORIGIN = Deno.env.get('APP_ORIGIN') ?? 'https://thepowerhouseintl.vercel.app';
+const APP_ORIGIN = Deno.env.get('APP_ORIGIN') ?? church.appUrl;
 const isApple = (endpoint: string) => {
   try {
     return new URL(endpoint).hostname.endsWith('push.apple.com');

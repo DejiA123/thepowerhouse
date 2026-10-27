@@ -112,6 +112,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { church } from '@/config/church';
 
 /** The choir's tabs by their new names and old ones (older links still work) */
 const CHOIR_TABS: Record<string, string> = {
@@ -1581,7 +1582,7 @@ const ChoirPage = () => {
     };
 
     const navigate = useNavigate();
-    const { locationId } = useParams(); // Get the location (galway, athlone, etc.)
+    const { locationId } = useParams(); // The choir branch (a campus id, or "national")
     const [searchParams] = useSearchParams(); // Added for deep linking
     const { user } = useAuth();
 
@@ -2159,7 +2160,7 @@ const ChoirPage = () => {
                         const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
 
                         // Targeted city locations for automated archiving
-                        const cityLocations = ['galway', 'dublin', 'kildare', 'athlone'];
+                        const cityLocations = church.choir.branches;
 
                         if (cityLocations.includes(locationId) && currentMonday.getTime() > startOfWeek(dbDate, { weekStartsOn: 1 }).getTime()) {
                             console.log(`New week detected for ${locationId}! Archiving previous week's Praise & Worship...`);
@@ -2228,10 +2229,10 @@ const ChoirPage = () => {
                         setWeeklySchedule(JSON.parse(fetchedInfo['weekly_schedule']));
                     } catch (e) {
                         console.error("Error parsing schedule:", e);
-                        setWeeklySchedule(locationId === 'galway' ? DEFAULT_GALWAY_SCHEDULE : []);
+                        setWeeklySchedule(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_SCHEDULE : []);
                     }
                 } else {
-                    setWeeklySchedule(locationId === 'galway' ? DEFAULT_GALWAY_SCHEDULE : []);
+                    setWeeklySchedule(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_SCHEDULE : []);
                 }
 
                 // Fetch Praise Roster
@@ -2241,10 +2242,10 @@ const ChoirPage = () => {
                         setPraiseRoster(JSON.parse(fetchedInfo[praiseRosterKey]));
                     } catch (e) {
                         console.error("Error parsing praise roster:", e);
-                        setPraiseRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
+                        setPraiseRoster(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
                     }
                 } else {
-                    setPraiseRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
+                    setPraiseRoster(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_PRAISE_ROSTER : []);
                 }
 
                 // Fetch Prayer Roster
@@ -2254,10 +2255,10 @@ const ChoirPage = () => {
                         setPrayerRoster(JSON.parse(fetchedInfo[prayerRosterKey]));
                     } catch (e) {
                         console.error("Error parsing prayer roster:", e);
-                        setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
+                        setPrayerRoster(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
                     }
                 } else {
-                    setPrayerRoster(locationId === 'galway' ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
+                    setPrayerRoster(locationId === church.choir.songwritingBranch ? DEFAULT_GALWAY_PRAYER_ROSTER : []);
                 }
 
                 // Fetch Prayer Checklist & Stats
@@ -2306,7 +2307,7 @@ const ChoirPage = () => {
 
     // Remember this choir, so "Your team" and choir links open it next time
     useEffect(() => {
-        if (!locationId || !['galway', 'kildare', 'athlone', 'dublin', 'national'].includes(locationId)) return;
+        if (!locationId || ![...church.choir.branches, 'national'].includes(locationId)) return;
         try {
             localStorage.setItem(CHOIR_BRANCH_KEY, locationId);
         } catch {
@@ -2878,7 +2879,7 @@ const ChoirPage = () => {
 
         requestDeletion("this week's setlist (archive)", async () => {
             try {
-                const cityLocations = ['galway', 'dublin', 'kildare', 'athlone'];
+                const cityLocations = church.choir.branches;
                 const isCity = cityLocations.includes(locationId);
 
                 const result = await archiveWeeklySetlist(
@@ -4132,8 +4133,8 @@ const ChoirPage = () => {
                             </div>
                         </div>
 
-                        {/* Prayer Roster - Only for Galway */}
-                        {locationId === 'galway' && (
+                        {/* Prayer Roster - only the songwriting branch has one */}
+                        {locationId === church.choir.songwritingBranch && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between border-b border-blue-100 dark:border-blue-800 pb-3">
                                     <div className="flex items-center gap-3">
@@ -4733,8 +4734,8 @@ const ChoirPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Songwriting Studio Modal - Galway Only */}
-            {locationId === 'galway' && (
+            {/* Songwriting Studio Modal - that branch only */}
+            {locationId === church.choir.songwritingBranch && (
                 <SongwritingStudio
                     locationId={locationId}
                     isOpen={isSongwritingOpen}
@@ -4981,7 +4982,7 @@ const ChoirPage = () => {
 
                             <div className="pt-4 flex justify-center">
                                 <Badge variant="outline" className="text-[10px] font-black tracking-[0.2em] uppercase border-slate-800 text-slate-600 px-4 py-1.5 rounded-full bg-slate-900/50">
-                                    TPH National Command
+                                    {church.initials} National Command
                                 </Badge>
                             </div>
                         </div>
@@ -6454,7 +6455,7 @@ const ChoirPage = () => {
                                         Introducing High Excellence
                                     </Badge>
                                     <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight leading-none">
-                                        The Power House <span className="text-blue-500">Choir Academy</span>
+                                        {church.name} <span className="text-blue-500">{church.labels.choirAcademy}</span>
                                     </h2>
                                     <p className="text-slate-400 text-lg font-medium leading-relaxed italic pr-8 mb-8 border-l-2 border-blue-600 pl-6">
                                         Elevating our worship through professional training, spiritual alignment, and technical mastery.
@@ -7213,7 +7214,7 @@ const ChoirPage = () => {
                                         </div>
                                         <div className="text-right hidden sm:block">
                                             <Badge variant="outline" className="text-[10px] font-black tracking-[0.2em] uppercase border-slate-200 text-slate-400 px-3 py-1 rounded-full">
-                                                Live TPH Planner
+                                                Live {church.initials} Planner
                                             </Badge>
                                         </div>
                                     </div>
@@ -7284,7 +7285,7 @@ const ChoirPage = () => {
                                                                 </div>
                                                             )}
                                                             <span className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em] mt-2">
-                                                                TPH COMMAND
+                                                                {church.initials} COMMAND
                                                             </span>
                                                         </div>
                                                     </div>

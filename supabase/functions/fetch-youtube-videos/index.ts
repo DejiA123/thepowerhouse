@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { church } from '../_shared/church.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,27 +67,27 @@ async function logApiUsage(functionName: string, apiCalls: number, quotaUnits: n
 const getFallbackVideos = () => [
   {
     id: "b3BstGR_mvQ",
-    title: "The Power House International - Sunday Service",
-    description: "Join us for an inspiring Sunday service filled with worship and powerful teaching from God's Word at The Power House International...",
+    title: `${church.fullName} - Sunday Service`,
+    description: `Join us for an inspiring Sunday service filled with worship and powerful teaching from God's Word at ${church.fullName}...`,
     thumbnail: "https://img.youtube.com/vi/b3BstGR_mvQ/mqdefault.jpg",
     publishedAt: new Date().toISOString(),
-    channelTitle: "The Power House International"
+    channelTitle: church.fullName
   },
   {
     id: "dQjzVjtd7V8",
-    title: "The Power House International - Bible Study",
-    description: "Deep dive into Scripture with interactive Bible study and discussion at The Power House International...",
+    title: `${church.fullName} - Bible Study`,
+    description: `Deep dive into Scripture with interactive Bible study and discussion at ${church.fullName}...`,
     thumbnail: "https://img.youtube.com/vi/dQjzVjtd7V8/mqdefault.jpg",
     publishedAt: new Date(Date.now() - 86400000).toISOString(),
-    channelTitle: "The Power House International"
+    channelTitle: church.fullName
   },
   {
     id: "PtgkWFryLN8",
-    title: "The Power House International - Shorts",
-    description: "Quick inspiration and powerful moments from The Power House International...",
+    title: `${church.fullName} - Shorts`,
+    description: `Quick inspiration and powerful moments from ${church.fullName}...`,
     thumbnail: "https://img.youtube.com/vi/PtgkWFryLN8/mqdefault.jpg",
     publishedAt: new Date(Date.now() - 172800000).toISOString(),
-    channelTitle: "The Power House International"
+    channelTitle: church.fullName
   }
 ];
 
@@ -138,7 +139,7 @@ serve(async (req) => {
       const fallbackData = { 
         videos: getFallbackVideos(),
         error: 'Rate limited - showing fallback videos',
-        fallbackUrl: 'https://www.youtube.com/@thepowerhouseintl/shorts',
+        fallbackUrl: `https://www.youtube.com/${church.youtube.handle}/shorts`,
         isFallback: true,
         cachedAt: new Date().toISOString()
       };
@@ -168,7 +169,7 @@ serve(async (req) => {
     try {
       // Get channel info from handle
       const channelResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=@thepowerhouseintl&type=channel&key=${YOUTUBE_API_KEY}`
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${church.youtube.handle}&type=channel&key=${YOUTUBE_API_KEY}`
       )
       if (channelResponse.ok) {
         const channelData = await channelResponse.json()
@@ -183,7 +184,7 @@ serve(async (req) => {
     // If we couldn't get the channel ID, use the direct channel search
     if (!channelId) {
       const searchResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&q="The Power House International"&type=channel&key=${YOUTUBE_API_KEY}`
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&q="${church.fullName}"&type=channel&key=${YOUTUBE_API_KEY}`
       )
       if (searchResponse.ok) {
         const searchData = await searchResponse.json()
@@ -194,7 +195,7 @@ serve(async (req) => {
     }
     
     if (!channelId) {
-      throw new Error('Could not find The Power House International channel')
+      throw new Error(`Could not find the ${church.fullName} channel`)
     }
     
     // Fetch latest shorts/videos from the channel
@@ -272,7 +273,7 @@ serve(async (req) => {
     const fallbackData = { 
       videos: fallbackVideos,
       error: 'Using fallback videos - YouTube API unavailable',
-      fallbackUrl: 'https://www.youtube.com/@thepowerhouseintl/shorts',
+      fallbackUrl: `https://www.youtube.com/${church.youtube.handle}/shorts`,
       isFallback: true,
       cachedAt: new Date().toISOString()
     };

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { church } from '../_shared/church.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
@@ -47,8 +48,8 @@ serve(async (req) => {
                 'Authorization': `Bearer ${RESEND_API_KEY}`
             },
             body: JSON.stringify({
-                from: 'The Powerhouse <noreply@thepowerhouse.ie>',
-                to: ['youths.powerhouse@gmail.com'],
+                from: church.email.from,
+                to: [church.email.feedbackTo],
                 subject: 'New Service Feedback',
                 html: emailHtml
             })

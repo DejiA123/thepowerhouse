@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, CircleHelp, Search } from "lucide-react";
 import { openSearch } from "@/lib/appEvents";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
+import { church } from '@/config/church';
 
 /** Pages without a Back button of their own: the top bar gives them one */
 const NEEDS_BACK = ["/give", "/news", "/prayer", "/services", "/social", "/groups/ushering", "/groups/evangelism"];
@@ -38,8 +39,8 @@ const Header = () => {
             </button>
           ) : (
             <Link to="/" className="flex min-w-0 items-center gap-2 tap-feedback">
-              <img src="/brand/logo-144.png" alt="" className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
-              <span className="truncate font-outfit text-[18px] font-semibold text-foreground sm:text-xl">The Power House</span>
+              <img src={church.brand.logo} alt="" className="h-10 w-10 shrink-0 object-contain sm:h-12 sm:w-12" />
+              <span className="truncate font-outfit text-[18px] font-semibold text-foreground sm:text-xl">{church.name}</span>
             </Link>
           )}
 

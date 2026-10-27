@@ -14,6 +14,7 @@ import { googleDirectSignIn, startGoogleSignIn } from "@/lib/googleSignIn";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
+import { church } from '@/config/church';
 
 /** Built-in browsers of social apps, where Google blocks sign-in */
 const inAppBrowser = () => /FBAN|FBAV|FB_IAB|Instagram|Line\/|LinkedInApp|Snapchat|TikTok|musical_ly|BytedanceWebview|Twitter|MicroMessenger/i.test(navigator.userAgent);
@@ -219,7 +220,7 @@ const AuthPage = () => {
         <Card className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/30 dark:border-slate-700/30 transform hover:scale-[1.02] transition-all duration-500 hover:shadow-3xl dark:hover:shadow-2xl">
           <CardHeader className="text-center pb-8">
             <CardTitle className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-blue-600 to-indigo-600 dark:from-slate-100 dark:via-blue-400 dark:to-indigo-400 bg-clip-text text-transparent mb-3 tracking-tight">
-              The Power House
+              {church.name}
             </CardTitle>
             <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">
               Sign in to your account or create a new one

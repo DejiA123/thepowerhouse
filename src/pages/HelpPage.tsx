@@ -5,11 +5,12 @@ import { PlaceRow } from "@/components/nav/Places";
 import { HOW_DO_I, TILE, destination } from "@/data/appDirectory";
 import { openSearch, startTour } from "@/lib/appEvents";
 import { cn } from "@/lib/utils";
+import { hasFeature } from "@/config/church";
 
 const TIPS = [
   { icon: Home, text: "Lost? Tap Home at the bottom of the screen to start again." },
   { icon: Undo2, text: "The Back button at the top of a page takes you to where you were." },
-  { icon: Search, text: "Search finds anything, even inside pages. Try “choir lessons”." },
+  { icon: Search, text: `Search finds anything, even inside pages. Try “${hasFeature("choir") ? "choir lessons" : "Psalm 23"}”.` },
 ];
 
 /** Help: the tour, common questions (each one takes you there) and a few tips. */
@@ -44,7 +45,7 @@ const HelpPage = () => {
       <SectionLabel>How do I…</SectionLabel>
       <ListGroup>
         {HOW_DO_I.map((q) => (
-          <PlaceRow key={q.question} id={q.to} title={q.question} subtitle={destination(q.to).crumb} />
+          <PlaceRow key={q.question} id={q.to} title={q.question} subtitle={destination(q.to)?.crumb} />
         ))}
       </ListGroup>
 

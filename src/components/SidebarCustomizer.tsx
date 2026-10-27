@@ -14,6 +14,7 @@ import {
 import { useSidebarShortcuts, ICON_MAP, PRESET_SHORTCUTS } from "@/hooks/useSidebarShortcuts";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { church } from '@/config/church';
 
 interface SidebarCustomizerProps {
   isOpen: boolean;
@@ -43,14 +44,14 @@ const SidebarCustomizer = ({ isOpen, onClose }: SidebarCustomizerProps) => {
     if (pathname === "/group-chats") return "Group Chats";
     
     // Pattern matches
-    if (pathname.includes("/groups/choir/galway")) return "Galway Choir";
-    if (pathname.includes("/groups/choir/dublin")) return "Dublin Choir";
+    const branch = church.campuses.find((c) => pathname.includes(`/groups/choir/${c.id}`));
+    if (branch) return `${branch.name} Choir`;
     if (pathname.includes("/groups/choir")) return "Choir Portal";
     if (pathname.includes("/groups/management")) return "Management";
     
     // Fallback to title but remove the site name
     const title = document.title.split('|')[0].trim();
-    if (title && title !== "The Power House" && title !== "The PowerHouse") {
+    if (title && title !== church.name) {
       return title;
     }
     

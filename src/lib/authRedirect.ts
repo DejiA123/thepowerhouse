@@ -5,7 +5,7 @@
  */
 /**
  * A page of this app as a full address, for links in sign-up and password
- * emails. Uses the address the app is open on (https://thepowerhouseintl.vercel.app
+ * emails. Uses the address the app is open on (the church's app address
  * for everyone), so the links always come back to the same app.
  */
 export const appUrl = (path: string) => `${window.location.origin}${path}`;

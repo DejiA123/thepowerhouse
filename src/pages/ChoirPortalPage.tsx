@@ -3,13 +3,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight, Globe, Mic2, Music, Star, Users } from "lucide-react";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
 import { CHOIR_BRANCH_KEY, TILE, rememberedChoir } from "@/data/appDirectory";
+import { campusName, church } from "@/config/church";
 
-const BRANCHES = [
-  { id: "galway", name: "Galway Choir", icon: Star, tile: "bg-blue-600 text-white" },
-  { id: "kildare", name: "Kildare Choir", icon: Music, tile: "bg-amber-500 text-white" },
-  { id: "athlone", name: "Athlone Choir", icon: Mic2, tile: "bg-emerald-500 text-white" },
-  { id: "dublin", name: "Dublin Choir", icon: Users, tile: "bg-rose-500 text-white" },
+const LOOKS = [
+  { icon: Star, tile: "bg-blue-600 text-white" },
+  { icon: Music, tile: "bg-amber-500 text-white" },
+  { icon: Mic2, tile: "bg-emerald-500 text-white" },
+  { icon: Users, tile: "bg-rose-500 text-white" },
 ];
+
+/** A choir branch for each campus that has one */
+const BRANCHES = church.choir.branches.map((id, i) => ({ id, name: `${campusName(id)} Choir`, ...LOOKS[i % LOOKS.length] }));
 
 /**
  * Which choir are you in? Asked once, then remembered: links to a place in the
@@ -78,7 +82,7 @@ const ChoirPortalPage = () => {
         </span>
         <span className="relative min-w-0 flex-1">
           <span className="block text-[11px] font-bold uppercase tracking-wider text-blue-200">Official portal</span>
-          <span className="block font-outfit text-xl font-bold">TPH National Choir</span>
+          <span className="block font-outfit text-xl font-bold">{church.labels.nationalChoir}</span>
         </span>
         <ChevronRight className="relative h-5 w-5 text-white/70" />
       </button>

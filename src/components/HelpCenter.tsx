@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronLeft, Search, Book, Volume2, Users, Settings, MessageCircle, Mail } from "lucide-react";
+import { church } from '@/config/church';
 
 interface HelpCenterProps {
   onBack: () => void;
@@ -174,9 +175,8 @@ export const HelpCenter = ({ onBack, onChatSupport }: HelpCenterProps) => {
         <div className="space-y-3 pt-6 border-t border-border">
           <h3 className="font-semibold text-foreground">Still need help?</h3>
           <div className="space-y-2 text-sm text-muted-foreground">
-            <p>📧 Email: support@biblereader.app</p>
-            <p>📱 Phone: +1 (555) 123-4567</p>
-            <p>🕒 Support Hours: Monday-Friday, 9 AM - 5 PM EST</p>
+            <p>📧 Email: {church.contact.email}</p>
+            <p>📱 Phone: {church.contact.phone}</p>
           </div>
         </div>
       </div>

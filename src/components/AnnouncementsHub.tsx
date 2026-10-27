@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
+import { church } from '@/config/church';
 
 const CACHE_KEY = "announcements_hub_cache";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -26,7 +27,7 @@ const readCache = (): any[] => {
 
 const Post = ({ post, isAdmin, onEdit, onDelete }: { post: any; isAdmin: boolean; onEdit: () => void; onDelete: () => void }) => {
   const [open, setOpen] = useState(false);
-  const author = post.profiles?.full_name || "The Power House";
+  const author = post.profiles?.full_name || church.name;
   const isNew = Date.now() - new Date(post.created_at).getTime() < WEEK;
   const long = (post.content || "").length > 260 || (post.content || "").split("\n").length > 5;
 

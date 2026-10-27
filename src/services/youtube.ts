@@ -5,8 +5,9 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { church } from '@/config/church';
 
-export const CHANNEL_ID = 'UC35azCG6jqVkR2G8aH91v4A';
+export const CHANNEL_ID = church.youtube.channelId;
 export const CHANNEL_URL = `https://www.youtube.com/channel/${CHANNEL_ID}`;
 
 export interface YouTubeVideo {

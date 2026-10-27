@@ -11,6 +11,7 @@ import { isIOS } from '@/lib/push';
 import { audioPlanFor, voiceLabel, type ChapterAudioPlan } from '@/services/audioBible/catalog';
 import { isNarratedKey, narratedStarted, streamUrlFor } from '@/services/audioBible/narrated';
 import { AI_PROGRESS_EVENT, aiChapterAudio, isAiKey } from '@/services/aiVoice/chapterAudio';
+import { church } from '@/config/church';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -467,7 +468,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isBibleMode: true,
         trackTitle: `${displayBookName} ${chapter}`,
         trackArtist: `${plan.translation} · ${voice}`,
-        trackImage: '/church-logo.png',
+        trackImage: church.brand.artwork,
         currentTime: 0,
         duration: 0,
         voice,
@@ -484,7 +485,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           artist: `Bible Audio · ${voice}`,
           album: plan.translation,
           artwork: [
-            { src: '/church-logo.png', sizes: '512x512', type: 'image/png' },
+            { src: church.brand.artwork, sizes: '512x512', type: 'image/png' },
           ],
         });
       }

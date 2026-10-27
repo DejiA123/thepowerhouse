@@ -22,6 +22,7 @@ import { DEFAULT_SECTIONS, itemById, type ResourceItem } from "@/data/resourceCa
 import { useResourcesLayout, type ResourcesLayout } from "@/hooks/useResourcesLayout";
 import { cn } from "@/lib/utils";
 import { ResourceService } from "@/services/resourceService";
+import { church } from '@/config/church';
 
 const Badge = ({ count }: { count: number }) => (
   <span className="min-w-[22px] shrink-0 rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-[22px] text-white">{count > 99 ? "99+" : count}</span>
@@ -391,7 +392,7 @@ const ResourcesPage = () => {
                       icon={MapPin}
                       iconClassName="bg-blue-600 text-white"
                       title={campus ? `Your church: ${campus.name}` : "Find your church"}
-                      subtitle={campus ? `Sunday ${campus.times.sunday} · ${campus.street}` : "Galway · Dublin · Kildare · Athlone"}
+                      subtitle={campus ? `Sunday ${campus.times.sunday} · ${campus.street}` : church.campuses.map((c) => c.name).join(" · ")}
                       onClick={() => navigate("/services")}
                     />
                   </ListGroup>
@@ -469,7 +470,7 @@ const ResourcesPage = () => {
             <DialogTitle className="font-outfit text-2xl font-extrabold">{viewing}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto whitespace-pre-wrap p-5 text-lg leading-relaxed text-slate-700 dark:text-slate-300">
-            {`Interactive Session: ${viewing}\n\nThis is a sample interactive session document from The Power House International Church.\n\nHere you would find the full content of the session, including scripture references, prayer points, and discussion questions.`}
+            {`Interactive Session: ${viewing}\n\nThis is a sample interactive session document from ${church.legalName}.\n\nHere you would find the full content of the session, including scripture references, prayer points, and discussion questions.`}
           </div>
           <div className="border-t p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
             <Button onClick={() => setViewing(null)} className="h-11 w-full rounded-full">

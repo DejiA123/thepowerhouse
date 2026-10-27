@@ -10,11 +10,12 @@ import {
   useLiveStatus,
   type YouTubeVideo,
 } from "@/services/youtube";
+import { church } from "@/config/church";
 
 type Playable = YouTubeVideo & { isLive?: boolean };
 
 /** Latest sermons from the church's YouTube channel, played in the app (and the live service, with its chat, while it's on). */
-const PowerHouseVideos = () => {
+const ChurchVideos = () => {
   const [videos, setVideos] = useState<YouTubeVideo[]>(cachedVideos);
   const [isLoading, setIsLoading] = useState(() => cachedVideos().length === 0);
   // A video picked from "Up next" (otherwise the live service, or the newest video)
@@ -54,7 +55,7 @@ const PowerHouseVideos = () => {
             <h2 className="font-outfit text-xl font-bold leading-tight text-foreground md:text-2xl">
               {liveVideo ? "Live now" : "Latest sermons"}
             </h2>
-            <p className="text-xs text-muted-foreground">From The Power House on YouTube</p>
+            <p className="text-xs text-muted-foreground">From {church.name} on YouTube</p>
           </div>
         </div>
         <a
@@ -174,4 +175,4 @@ const PowerHouseVideos = () => {
   );
 };
 
-export default PowerHouseVideos;
+export default ChurchVideos;

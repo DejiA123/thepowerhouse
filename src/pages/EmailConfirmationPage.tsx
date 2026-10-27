@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Mail, ArrowRight, Home, LogIn } from 'lucide-react';
+import { church } from '@/config/church';
 
 const EmailConfirmationPage = () => {
   const [searchParams] = useSearchParams();
@@ -40,7 +41,7 @@ const EmailConfirmationPage = () => {
 
           {/* Subtitle */}
           <p className="text-xl text-gray-700 mb-2 font-semibold">
-            Welcome to The Power House
+            Welcome to {church.name}
           </p>
 
           {/* Description */}

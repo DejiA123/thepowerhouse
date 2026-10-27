@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { church } from '@/config/church';
 
 interface ProfileEditFormProps {
   field: 'name' | 'about' | 'phone' | 'links';
@@ -35,7 +36,7 @@ export const ProfileEditForm = ({ field, currentValue, onBack, onSave }: Profile
     switch (field) {
       case 'name': return 'Enter your full name...';
       case 'about': return 'Tell the community about yourself...';
-      case 'phone': return 'e.g. 089 123 4567';
+      case 'phone': return `e.g. ${church.locale.phoneExample}`;
       case 'links': return 'Website, Instagram, Twitter...';
       default: return 'Type here...';
     }

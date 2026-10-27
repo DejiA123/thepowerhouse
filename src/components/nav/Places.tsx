@@ -21,6 +21,8 @@ const useOpen = () => {
 export const PlaceRow = ({ id, title, subtitle, trailing }: { id: string; title?: ReactNode; subtitle?: ReactNode; trailing?: ReactNode }) => {
   const open = useOpen();
   const d = destination(id);
+  // A part this church has switched off
+  if (!d) return null;
   return (
     <ListRow
       leading={<RowPicture icon={d.icon} color={d.color} />}
@@ -38,6 +40,7 @@ export const PlaceRow = ({ id, title, subtitle, trailing }: { id: string; title?
 export const PlaceTile = ({ id, title, subtitle, layout }: { id: string; title?: ReactNode; subtitle?: ReactNode; layout?: 'stack' | 'row' }) => {
   const open = useOpen();
   const d = destination(id);
+  if (!d) return null;
   return (
     <PictureTile
       icon={d.icon}

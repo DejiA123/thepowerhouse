@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { church } from '../_shared/church.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,13 +93,13 @@ serve(async (req) => {
 
     console.log('YouTube API key found, proceeding with video fetch...')
 
-    // Try to find the correct channel ID by searching for @thepowerhouseintl handle
-    console.log('Searching for @thepowerhouseintl channel...')
+    // Try to find the correct channel ID by searching for the church's handle
+    console.log(`Searching for ${church.youtube.handle} channel...`)
     let channelId = null;
     
     try {
       const handleSearchResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=%40thepowerhouseintl&type=channel&key=${YOUTUBE_API_KEY}&maxResults=1`
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(church.youtube.handle)}&type=channel&key=${YOUTUBE_API_KEY}&maxResults=1`
       )
       
       if (handleSearchResponse.ok) {
@@ -119,7 +120,7 @@ serve(async (req) => {
       console.log('Trying channel name search...')
       try {
         const nameSearchResponse = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&q="The Power House International"&type=channel&key=${YOUTUBE_API_KEY}&maxResults=5`
+          `https://www.googleapis.com/youtube/v3/search?part=snippet&q="${church.fullName}"&type=channel&key=${YOUTUBE_API_KEY}&maxResults=5`
         )
         
         if (nameSearchResponse.ok) {
@@ -130,7 +131,7 @@ serve(async (req) => {
             // Look for the exact match or best match
             for (const item of nameData.items) {
               const title = item.snippet.title.toLowerCase()
-              if (title.includes('power house') && title.includes('international')) {
+              if (title.includes(church.name.toLowerCase())) {
                 channelId = item.id?.channelId || item.snippet?.channelId
                 console.log('Found channel ID from name search:', channelId, 'Title:', item.snippet.title)
                 break;
@@ -150,8 +151,8 @@ serve(async (req) => {
     }
     
     if (!channelId) {
-      console.error('Could not find The Power House International channel')
-      throw new Error('Could not find The Power House International channel. Please check the channel URL: https://www.youtube.com/@thepowerhouseintl')
+      console.error(`Could not find the ${church.fullName} channel`)
+      throw new Error(`Could not find the ${church.fullName} channel. Please check the channel URL: https://www.youtube.com/${church.youtube.handle}`)
     }
     
     console.log('Using channel ID:', channelId)
@@ -244,7 +245,7 @@ serve(async (req) => {
     
     if (shortVideos.length === 0) {
       console.error('No suitable videos found after duration filtering')
-      throw new Error('No suitable videos found from The Power House International channel')
+      throw new Error(`No suitable videos found from the ${church.fullName} channel`)
     }
     
     // Select video based on day of year for daily rotation
@@ -266,10 +267,10 @@ serve(async (req) => {
     const dailyVideo = {
       id: selectedVideo.id || 'unknown',
       title: selectedVideo.snippet.title || 'Daily Christian Inspiration',
-      description: (selectedVideo.snippet.description?.substring(0, 100) + '...') || 'Daily inspiration from The Power House International',
+      description: (selectedVideo.snippet.description?.substring(0, 100) + '...') || `Daily inspiration from ${church.fullName}`,
       thumbnail: selectedVideo.snippet.thumbnails?.medium?.url || selectedVideo.snippet.thumbnails?.default?.url || 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
       publishedAt: selectedVideo.snippet.publishedAt || new Date().toISOString(),
-      channelTitle: selectedVideo.snippet.channelTitle || 'The Power House International',
+      channelTitle: selectedVideo.snippet.channelTitle || church.fullName,
       duration: selectedVideo.contentDetails?.duration || 'PT5M'
     }
 
@@ -330,18 +331,18 @@ serve(async (req) => {
       JSON.stringify({
         video: {
           id: "0jiy0AG8jCg",
-          title: "The Power House International - Daily Christian Inspiration",
-          description: "Daily Christian inspiration from The Power House International. Join us for powerful teaching and worship...",
+          title: `${church.fullName} - Daily Christian Inspiration`,
+          description: `Daily Christian inspiration from ${church.fullName}. Join us for powerful teaching and worship...`,
           thumbnail: "https://img.youtube.com/vi/0jiy0AG8jCg/mqdefault.jpg",
           publishedAt: new Date().toISOString(),
-          channelTitle: "The Power House International",
+          channelTitle: church.fullName,
           duration: "PT5M"
         },
         totalShortVideos: 1,
         success: true,
         isFallback: true,
-        error: `Using fallback video - ${errorMessage}. Please visit https://www.youtube.com/@thepowerhouseintl for the latest content.`,
-        fallbackUrl: 'https://www.youtube.com/@thepowerhouseintl'
+        error: `Using fallback video - ${errorMessage}. Please visit https://www.youtube.com/${church.youtube.handle} for the latest content.`,
+        fallbackUrl: `https://www.youtube.com/${church.youtube.handle}`
       }),
       {
         headers: {

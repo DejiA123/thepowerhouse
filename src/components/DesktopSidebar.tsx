@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
 import { openSearch } from "@/lib/appEvents";
+import { church } from '@/config/church';
 const SidebarCustomizer = lazy(() => import("./SidebarCustomizer"));
 
 /**
@@ -65,8 +66,8 @@ const DesktopSidebar = () => {
       {/* Logo */}
       <div className={cn("flex items-center gap-3 pb-4 pt-6", collapsed ? "justify-center px-2" : "px-5")}>
         <Link to="/" className="flex min-w-0 items-center gap-3">
-          <img src="/brand/logo-144.png" alt="The Power House" className="h-11 w-11 shrink-0 object-contain drop-shadow-md" />
-          {!collapsed && <span className="truncate font-outfit text-[17px] font-semibold tracking-tight text-foreground">The Power House</span>}
+          <img src={church.brand.logo} alt={church.name} className="h-11 w-11 shrink-0 object-contain drop-shadow-md" />
+          {!collapsed && <span className="truncate font-outfit text-[17px] font-semibold tracking-tight text-foreground">{church.name}</span>}
         </Link>
       </div>
 

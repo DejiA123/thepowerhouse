@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { openInstallGuide } from '@/lib/install';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { church } from '@/config/church';
 
 interface Props {
   className?: string;
@@ -66,7 +67,7 @@ const EnableNotificationsCard = ({ className, topics = [], compact, title, descr
           <div>
             <p className="font-semibold text-foreground">Install the app to get notifications</p>
             <p className="text-sm text-muted-foreground">
-              On iPhone, notifications work once The Power House is on your Home Screen. Add it, then open it from there
+              On iPhone, notifications work once {church.name} is on your Home Screen. Add it, then open it from there
               and turn notifications on.
             </p>
           </div>

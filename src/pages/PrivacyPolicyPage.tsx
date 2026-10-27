@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { church } from '@/config/church';
 
 const PrivacyPolicyPage = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const PrivacyPolicyPage = () => {
                 Last Updated: {new Date().toLocaleDateString()}
               </p>
               <p>
-                The Power House International ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
+                {church.fullName} ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
               </p>
             </section>
 
@@ -81,7 +82,7 @@ const PrivacyPolicyPage = () => {
               <p>When you use our App's video features, we access the following data through YouTube API Services:</p>
               <ul className="list-disc pl-6 mt-2 space-y-1">
                 <li>Public video information (titles, descriptions, thumbnails)</li>
-                <li>Channel information from The Power House International</li>
+                <li>Channel information from {church.fullName}</li>
                 <li>Video metadata for displaying content in the App</li>
               </ul>
               <p className="mt-2">
@@ -207,11 +208,11 @@ const PrivacyPolicyPage = () => {
                 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
               </p>
               <div className="mt-2 space-y-1 bg-muted p-4 rounded-lg">
-                <p><strong>The Power House International</strong></p>
-                <p><strong>Email:</strong> privacy@thepowerhouseintl.org</p>
-                <p><strong>Alternative Email:</strong> info@thepowerhouseintl.org</p>
-                <p><strong>Phone:</strong> +1 (XXX) XXX-XXXX</p>
-                <p><strong>Address:</strong> [Church Physical Address]</p>
+                <p><strong>{church.fullName}</strong></p>
+                <p><strong>Email:</strong> {church.contact.privacyEmail}</p>
+                <p><strong>Alternative Email:</strong> {church.contact.email}</p>
+                <p><strong>Phone:</strong> {church.contact.phone}</p>
+                <p><strong>Address:</strong> {church.contact.address}</p>
               </div>
             </section>
 

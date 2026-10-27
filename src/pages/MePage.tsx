@@ -8,6 +8,7 @@ import { PlaceRow, RowPicture } from "@/components/nav/Places";
 import { TILE } from "@/data/appDirectory";
 import { startTour } from "@/lib/appEvents";
 import { installedBefore, openInstallGuide, useInstallContext } from "@/lib/install";
+import { church } from "@/config/church";
 
 const SidebarCustomizer = lazy(() => import("@/components/SidebarCustomizer"));
 
@@ -65,7 +66,7 @@ const MePage = () => {
           <ListRow
             leading={<RowPicture icon={Smartphone} color="blue" />}
             title="Install the app"
-            subtitle="Put The Power House on your Home Screen"
+            subtitle={`Put ${church.name} on your Home Screen`}
             onClick={openInstallGuide}
             chevron
             className="min-h-[68px] py-3"

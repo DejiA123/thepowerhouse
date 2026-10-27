@@ -10,6 +10,7 @@ import {
   subscriptionsForUsers,
   type PushSubscriptionRow,
 } from '../_shared/webpush.ts';
+import { church } from '../_shared/church.ts';
 
 const FRESH_MS = 10 * 60 * 1000; // only notify about things created in the last 10 minutes
 
@@ -283,7 +284,7 @@ Deno.serve(async (req) => {
       const result = await sendToSubscriptions(subs, {
         kind: 'test',
         title: 'Notifications are on 🎉',
-        body: "You'll now get messages, calls and choir updates from The Power House.",
+        body: `You'll now get messages, calls and choir updates from ${church.name}.`,
         url: '/',
         tag: 'test',
       }, { ttl: 300, urgency: 'high' });

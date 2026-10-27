@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { serviceAttendanceService } from "@/services/serviceAttendanceService";
 import { supabase } from "@/integrations/supabase/client";
+import { church } from '@/config/church';
 
 const EventCountdown = () => {
   const [timeLeft, setTimeLeft] = useState({
@@ -54,7 +55,7 @@ const EventCountdown = () => {
     title: "Sunday Service",
     date: getNextSunday().toDateString(),
     time: "10:00 AM",
-    location: "The Power House",
+    location: church.name,
     capacity: 500
   };
 
