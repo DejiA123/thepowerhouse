@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
 import { cn } from "@/lib/utils";
 import { CAMPUSES, directionsUrl, nextSundayLabel, telUrl, useCampus } from "@/data/campuses";
+import { useLiveStatus } from "@/services/youtube";
 
 interface LiveService {
   id: string;
@@ -20,12 +21,15 @@ interface LiveService {
   scheduled_time: string;
 }
 
-const STREAMS_URL = "https://www.youtube.com/@thepowerhouseintl/streams";
 
 const ServicesPage = () => {
   const { campus: savedCampus, setCampusId, findNearest, locating } = useCampus();
   const campus = savedCampus ?? CAMPUSES[0];
-  const [liveNow, setLiveNow] = useState<LiveService | null>(null);
+  // Live right now (marked by the church team, or found on the YouTube channel)
+  const live = useLiveStatus();
+  const liveNow: LiveService | null = live.live && live.videoId
+    ? { id: "live", title: live.title || "Live service", description: "", youtube_video_id: live.videoId, is_live: true, service_type: "", scheduled_time: "" }
+    : null;
   const [serviceTime, setServiceTime] = useState(false);
   const [liveServices, setLiveServices] = useState<LiveService[]>([]);
   const [modalService, setModalService] = useState<LiveService | null>(null);
@@ -42,12 +46,6 @@ const ServicesPage = () => {
       .then(({ data }) => data && setLiveServices(data as LiveService[]));
 
     const check = async () => {
-      try {
-        const { data } = await supabase.from("live_services").select("*").eq("is_live", true).maybeSingle();
-        setLiveNow((data as LiveService) ?? null);
-      } catch {
-        setLiveNow(null);
-      }
       // Usual stream times: Sunday 10:00–13:00 and Wednesday 19:00–21:00
       const now = new Date();
       const h = now.getHours();
@@ -80,7 +78,11 @@ const ServicesPage = () => {
           <PageHeader eyebrow="Live and past services" title="Watch" />
           {/* Live now, or the live stream */}
           <button
-            onClick={() => (liveNow ? setModalService(liveNow) : window.open(STREAMS_URL, "_blank", "noopener"))}
+            onClick={() =>
+              liveNow
+                ? setModalService(liveNow)
+                : document.getElementById("latest-sermons")?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
             className="flex w-full items-center gap-4 rounded-3xl bg-slate-900 p-4 text-left text-white shadow-lg transition active:scale-[0.99] dark:bg-slate-800"
           >
             <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", liveNow ? "bg-red-600" : "bg-white/10")}>
@@ -90,8 +92,10 @@ const ServicesPage = () => {
               <span className={cn("block text-xs font-bold uppercase tracking-wider", liveNow || serviceTime ? "text-red-400" : "text-white/60")}>
                 {liveNow ? "● Live now" : serviceTime ? "● Service time" : "Live stream"}
               </span>
-              <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Watch services live on YouTube"}</span>
-              <span className="block text-[13px] text-white/60">Sundays 10 AM · Wednesdays 7 PM</span>
+              <span className="block truncate text-[16px] font-bold">{liveNow ? liveNow.title : "Not live right now"}</span>
+              <span className="block text-[13px] text-white/60">
+                {liveNow ? "Tap to watch, with the live chat" : "Live Sundays 10 AM · Wednesdays 7 PM. Sermons below"}
+              </span>
             </span>
           </button>
 
@@ -116,7 +120,7 @@ const ServicesPage = () => {
             </>
           )}
 
-          <div className="mt-8">
+          <div id="latest-sermons" className="mt-8 scroll-mt-24">
             <PowerHouseVideos />
           </div>
           <SectionLabel>Go in person</SectionLabel>

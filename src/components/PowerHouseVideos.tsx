@@ -1,132 +1,64 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import LiveChat from "@/components/LiveChat";
+import {
+  CHANNEL_URL,
+  cachedVideos,
+  embedUrl,
+  latestVideos,
+  relativeDate,
+  useLiveStatus,
+  type YouTubeVideo,
+} from "@/services/youtube";
 
-interface VideoData {
-  id: string;
-  title: string;
-  thumbnail: string;
-  pubDate: string;
-  link: string;
-}
+type Playable = YouTubeVideo & { isLive?: boolean };
 
+/** Latest sermons from the church's YouTube channel, played in the app (and the live service, with its chat, while it's on). */
 const PowerHouseVideos = () => {
-  const channelId = "UC35azCG6jqVkR2G8aH91v4A";
-  const channelUrl = `https://www.youtube.com/channel/${channelId}`;
-
-  const [videos, setVideos] = useState<VideoData[]>([]);
-  const [activeVideo, setActiveVideo] = useState<(VideoData & { isLive?: boolean }) | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLiveNow, setIsLiveNow] = useState(false);
+  const [videos, setVideos] = useState<YouTubeVideo[]>(cachedVideos);
+  const [isLoading, setIsLoading] = useState(() => cachedVideos().length === 0);
+  // A video picked from "Up next" (otherwise the live service, or the newest video)
+  const [picked, setPicked] = useState<Playable | null>(null);
   // The YouTube player is only loaded once someone taps play (it's large, and on
   // iPhone it would run alongside the app while it's opening)
   const [playing, setPlaying] = useState(false);
-  const [liveServiceInfo, setLiveServiceInfo] = useState<any>(null);
-
-  const checkLiveStatus = async () => {
-    try {
-      // 1. Check Supabase for manually marked live services
-      const { data: liveData } = await supabase
-        .from('live_services')
-        .select('*')
-        .eq('is_live', true)
-        .maybeSingle();
-
-      if (liveData) {
-        setIsLiveNow(true);
-        setLiveServiceInfo(liveData);
-        return { isLive: true, videoId: liveData.youtube_video_id, title: liveData.title };
-      }
-
-      // 2. Time-based simulation (fallback)
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentDay = now.getDay();
-      const isSundayService = currentDay === 0 && currentHour >= 10 && currentHour <= 13;
-      const isWednesdayService = currentDay === 3 && currentHour >= 19 && currentHour <= 21;
-
-      if (isSundayService || isWednesdayService) {
-        setIsLiveNow(true);
-        return { isLive: true, channelId };
-      }
-
-      setIsLiveNow(false);
-      return { isLive: false };
-    } catch (err) {
-      console.error("Error checking live status:", err);
-      return { isLive: false };
-    }
-  };
-
-  const fetchVideos = async () => {
-    try {
-      const liveStatus = await checkLiveStatus();
-
-      const response = await fetch(
-        `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.youtube.com%2Ffeeds%2Fvideos.xml%3Fchannel_id%3D${channelId}`
-      );
-      const data = await response.json();
-
-      if (data.items) {
-        const formattedVideos = data.items.map((item: any) => ({
-          id: item.guid.split(":")[2],
-          title: item.title,
-          thumbnail: `https://i.ytimg.com/vi/${item.guid.split(":")[2]}/mqdefault.jpg`,
-          pubDate: new Date(item.pubDate).toLocaleDateString(),
-          link: item.link
-        }));
-
-        setVideos(formattedVideos);
-
-        // Priority: 1. Active Live Stream, 2. Latest Video
-        if (liveStatus.isLive) {
-          setActiveVideo({
-            id: liveStatus.videoId || "live_stream", // special ID for channel live embed
-            title: liveStatus.title || "Live Service",
-            thumbnail: formattedVideos[0]?.thumbnail || "",
-            pubDate: "LIVE NOW",
-            link: channelUrl,
-            isLive: true
-          });
-        } else if (formattedVideos.length > 0) {
-          setActiveVideo(formattedVideos[0]);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching videos:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const live = useLiveStatus();
 
   useEffect(() => {
-    fetchVideos();
-    const interval = setInterval(checkLiveStatus, 60000); // Check live status every minute
-    return () => clearInterval(interval);
+    latestVideos()
+      .then((v) => v.length && setVideos(v))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const embedSrc = (video: VideoData & { isLive?: boolean }) =>
-    video.id === "live_stream"
-      ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=1`
-      : `https://www.youtube-nocookie.com/embed/${video.id}?autoplay=1`;
+  const liveVideo: Playable | null =
+    live.live && live.videoId
+      ? { id: live.videoId, title: live.title || "Live service", thumbnail: "", publishedAt: "", isLive: true }
+      : null;
+  const activeVideo: Playable | null = picked ?? liveVideo ?? videos[0] ?? null;
 
-  // The live channel stream has no picture of its own until it's playing
-  const poster = (video: VideoData) => (video.id === "live_stream" ? "" : `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`);
+  // The newest video or live service changed: show it from its picture again
+  useEffect(() => {
+    if (!picked) setPlaying(false);
+  }, [liveVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const poster = (video: Playable) => `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
 
   return (
     <section className="rounded-[26px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800 md:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400">
-            <Video className="h-5 w-5" />
+            {liveVideo ? <Radio className="h-5 w-5 animate-pulse" /> : <Video className="h-5 w-5" />}
           </span>
           <div>
-            <h2 className="font-outfit text-xl font-bold leading-tight text-foreground md:text-2xl">Latest sermons</h2>
+            <h2 className="font-outfit text-xl font-bold leading-tight text-foreground md:text-2xl">
+              {liveVideo ? "Live now" : "Latest sermons"}
+            </h2>
             <p className="text-xs text-muted-foreground">From The Power House on YouTube</p>
           </div>
         </div>
         <a
-          href={channelUrl}
+          href={CHANNEL_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
@@ -135,13 +67,13 @@ const PowerHouseVideos = () => {
         </a>
       </div>
 
-      {isLoading ? (
+      {isLoading && !activeVideo ? (
         <div className="flex aspect-video items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/60">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : !activeVideo ? (
         <a
-          href={channelUrl}
+          href={CHANNEL_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex aspect-video flex-col items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white"
@@ -155,8 +87,9 @@ const PowerHouseVideos = () => {
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-lg">
               {playing ? (
                 <iframe
+                  key={activeVideo.id}
                   className="h-full w-full"
-                  src={embedSrc(activeVideo)}
+                  src={embedUrl(activeVideo.id)}
                   title={activeVideo.title}
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -170,9 +103,7 @@ const PowerHouseVideos = () => {
                   aria-label={`Play ${activeVideo.title}`}
                   className="group absolute inset-0 h-full w-full"
                 >
-                  {poster(activeVideo) && (
-                    <img src={poster(activeVideo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                  )}
+                  <img src={poster(activeVideo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/15">
                     <span className="flex h-14 w-20 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg transition group-active:scale-95">
                       <Play className="h-7 w-7 fill-current" />
@@ -187,16 +118,32 @@ const PowerHouseVideos = () => {
                   <Radio className="h-3 w-3" /> Live now
                 </span>
               ) : (
-                <p className="text-xs font-semibold text-muted-foreground">{activeVideo.pubDate}</p>
+                <p className="text-xs font-semibold text-muted-foreground">{relativeDate(activeVideo.publishedAt)}</p>
               )}
               <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-foreground">{activeVideo.title}</h3>
             </div>
+            {activeVideo.isLive && <LiveChat videoId={activeVideo.id} />}
           </div>
 
-          {videos.length > 1 && (
+          {(videos.length > 1 || (liveVideo && videos.length > 0) || (picked && liveVideo)) && (
             <div className="lg:col-span-4">
-              <p className="mb-2 px-1 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Up next</p>
+              <p className="mb-2 px-1 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
+                {liveVideo ? "Also watch" : "Up next"}
+              </p>
               <div className="-mx-1 max-h-[440px] space-y-1 overflow-y-auto px-1">
+                {/* Back to the live service after watching something else */}
+                {picked && liveVideo && picked.id !== liveVideo.id && (
+                  <button
+                    onClick={() => {
+                      setPicked(null);
+                      setPlaying(true);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-2xl bg-red-50 p-2.5 text-left dark:bg-red-950/40"
+                  >
+                    <Radio className="h-5 w-5 shrink-0 animate-pulse text-red-600" />
+                    <span className="text-[13.5px] font-semibold text-red-700 dark:text-red-300">Back to the live service</span>
+                  </button>
+                )}
                 {videos
                   .filter((v) => v.id !== activeVideo.id)
                   .slice(0, 8)
@@ -204,7 +151,7 @@ const PowerHouseVideos = () => {
                     <button
                       key={video.id}
                       onClick={() => {
-                        setActiveVideo(video);
+                        setPicked(video);
                         setPlaying(true);
                       }}
                       className="flex w-full gap-3 rounded-2xl p-1.5 text-left transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800/60"
@@ -214,7 +161,7 @@ const PowerHouseVideos = () => {
                       </span>
                       <span className="min-w-0 py-0.5">
                         <span className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground">{video.title}</span>
-                        <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">{video.pubDate}</span>
+                        <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">{relativeDate(video.publishedAt)}</span>
                       </span>
                     </button>
                   ))}
