@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
+import { track } from "@/lib/activity";
 import {
   CHANNEL_URL,
   cachedVideos,
@@ -41,6 +42,11 @@ const ChurchVideos = () => {
   useEffect(() => {
     if (!picked) setPlaying(false);
   }, [liveVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A video started (for Admin → Activity)
+  useEffect(() => {
+    if (playing && activeVideo) track('video_watched', { title: activeVideo.title, live: !!activeVideo.isLive });
+  }, [playing, activeVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const poster = (video: Playable) => `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
 

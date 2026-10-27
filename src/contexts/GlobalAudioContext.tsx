@@ -8,10 +8,11 @@ import { setAudioSession } from '@/lib/audioSession';
 import { backgroundMusic } from '@/services/backgroundMusic';
 import { appAlert } from '@/lib/appAlert';
 import { isIOS } from '@/lib/push';
-import { audioPlanFor, voiceLabel, type ChapterAudioPlan } from '@/services/audioBible/catalog';
+import { audioPlanFor, voiceLabel, type ChapterAudioPlan, translationCode } from '@/services/audioBible/catalog';
 import { isNarratedKey, narratedStarted, streamUrlFor } from '@/services/audioBible/narrated';
 import { AI_PROGRESS_EVENT, aiChapterAudio, isAiKey } from '@/services/aiVoice/chapterAudio';
 import { church } from '@/config/church';
+import { track } from '@/lib/activity';
 
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
@@ -370,6 +371,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // This prevents any caller with a stale value from overwriting the user's toggle preference.
     const normalizedBook = normalizeBookApiName(book);
     const request = ++playRequestRef.current;
+    track('bible_listen', { book: normalizedBook, chapter, translation: translationCode(version) });
     pendingPlayRef.current = false;
     errorRetriesRef.current = 0;
     clearTimeout(preloadTimerRef.current);

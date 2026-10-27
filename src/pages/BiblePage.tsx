@@ -21,6 +21,8 @@ import OfflineBibleSheet from "@/components/bible/OfflineBibleSheet";
 
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { track } from "@/lib/activity";
+import { translationCode } from "@/services/audioBible/catalog";
 
 const BiblePage = () => {
   console.log('🔍 BiblePage: Component rendering...');
@@ -132,6 +134,7 @@ const BiblePage = () => {
 
   const loadChapter = useCallback(async (bookApiName: string, chapterNum: number) => {
     console.log(`📖 BiblePage: Loading ${bookApiName} chapter ${chapterNum}`);
+    track('bible_read', { book: bookApiName, chapter: chapterNum, translation: translationCode(selectedVersion) });
     setLoading(true);
     setCurrentVerse(0);
     setLoadError(null);

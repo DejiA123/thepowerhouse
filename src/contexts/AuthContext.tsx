@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { detachPushFromUser } from '@/lib/push';
 import { installOfflineAuth, isOffline, storedSession } from '@/lib/offlineAuth';
 import { appUrl } from '@/lib/authRedirect';
+import { trackSignOut } from '@/lib/activity';
 
 installOfflineAuth();
 
@@ -218,6 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       console.log('AuthProvider: Attempting sign out...');
+      await trackSignOut().catch(() => undefined);
       // Stop personal (chat/call) pushes to this device before the session ends
       if (!isOffline()) await detachPushFromUser().catch(() => undefined);
       // Offline the server can't be told; sign out on this device regardless

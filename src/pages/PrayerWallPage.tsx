@@ -14,6 +14,7 @@ import { appAlert } from "@/lib/appAlert";
 import { sendPush } from "@/lib/push";
 import { uniqueTopic } from "@/lib/realtime";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/activity";
 
 type Tab = "wall" | "mine" | "answered";
 
@@ -304,7 +305,10 @@ const PrayerWallPage = () => {
       fetchPrayers(requests.map((x) => x.id));
       return;
     }
-    if (!was) sendPush({ type: "prayer-prayed", prayerRequestId: r.id });
+    if (!was) {
+      sendPush({ type: "prayer-prayed", prayerRequestId: r.id });
+      track("prayed");
+    }
   };
 
   const markAnswered = async () => {

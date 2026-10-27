@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
+import { track } from "@/lib/activity";
 
 interface PrayerRequestFormProps {
   onSuccess?: () => void;
@@ -46,6 +47,7 @@ const PrayerRequestForm = ({ onSuccess }: PrayerRequestFormProps) => {
       appAlert("Couldn't post your request", error.message, "error");
       return;
     }
+    track("prayer_posted");
     setTitle("");
     setContent("");
     setHideName(false);

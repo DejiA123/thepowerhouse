@@ -16,6 +16,7 @@ import GroupInfoSheet from './GroupInfoSheet';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
 } from './chatUtils';
+import { track } from '@/lib/activity';
 
 interface Me {
   id: string;
@@ -393,6 +394,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   // ── Sending ───────────────────────────────────────────────────────
   const sendContent = useCallback(async (content: string, existingTempId?: string) => {
+    if (!existingTempId) track('message_sent', { chat: chat.name, chatId: chat.id });
     const tempId = existingTempId ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic: ChatMessage = {
       id: tempId,

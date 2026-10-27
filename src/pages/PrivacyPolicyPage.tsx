@@ -78,7 +78,17 @@ const PrivacyPolicyPage = () => {
                 <li>Giving and donation records</li>
               </ul>
 
-              <h3 className="text-lg font-semibold mt-4 mb-2">2.2 YouTube API Data</h3>
+              <h3 className="text-lg font-semibold mt-4 mb-2">2.2 How You Use the App</h3>
+              <p>
+                To improve the App and to support you, we record what you do in it: for example the pages you open, the Bible
+                chapters you read or listen to, and that you sent a message, posted or prayed for a prayer request, or watched a
+                video. We record <strong>actions only, never their content</strong>: never the words of your messages, prayers,
+                notes or searches. Visitors who are not signed in are counted without their name. This record can only be seen by
+                the church's administrators and pastors, and is deleted after 6 months. Feedback you send from the Help page is
+                kept until it has been dealt with.
+              </p>
+
+              <h3 className="text-lg font-semibold mt-4 mb-2">2.3 YouTube API Data</h3>
               <p>When you use our App's video features, we access the following data through YouTube API Services:</p>
               <ul className="list-disc pl-6 mt-2 space-y-1">
                 <li>Public video information (titles, descriptions, thumbnails)</li>
@@ -89,7 +99,7 @@ const PrivacyPolicyPage = () => {
                 <strong>We do not store, collect, or access your personal YouTube viewing history or account data.</strong> The YouTube API is used solely to display our church's public video content.
               </p>
 
-              <h3 className="text-lg font-semibold mt-4 mb-2">2.3 Usage Information</h3>
+              <h3 className="text-lg font-semibold mt-4 mb-2">2.4 Usage Information</h3>
               <ul className="list-disc pl-6 mt-2 space-y-1">
                 <li>Bible reading progress and preferences</li>
                 <li>App usage statistics and interactions</li>

@@ -9,6 +9,10 @@ import { markUpdateReady, setUpdater } from '@/lib/appUpdate';
 import { church } from '@/config/church';
 // Catches Android's "this app can be installed" offer, which comes once, early
 import '@/lib/install';
+import { startActivity } from '@/lib/activity';
+
+// What people use in the app, for the church's admins (actions only, never content)
+startActivity();
 
 recordLaunch();
 

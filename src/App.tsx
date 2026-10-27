@@ -22,6 +22,7 @@ import { openPendingNavigation, registerAppServiceWorker } from "@/lib/serviceWo
 import FeatureGate from "@/components/FeatureGate";
 import { autoEnablePush, syncPushSubscription } from "@/lib/push";
 import { appAlert } from "@/lib/appAlert";
+import { trackPage } from "@/lib/activity";
 
 /**
  * Pages are loaded on demand so the first screen appears quickly instead of
@@ -65,6 +66,9 @@ const SocialMediaPage = lazyPage(() => import("@/pages/SocialMediaPage"));
 const BibleNotesPage = lazyPage(() => import("@/pages/BibleNotesPage"));
 const EmailConfirmationPage = lazyPage(() => import("@/pages/EmailConfirmationPage"));
 const GoogleSignInPage = lazyPage(() => import("@/pages/GoogleSignInPage"));
+const AdminPage = lazyPage(() => import("@/pages/admin/AdminPage"));
+const AdminFeedbackPage = lazyPage(() => import("@/pages/admin/AdminFeedbackPage"));
+const AdminActivityPage = lazyPage(() => import("@/pages/admin/AdminActivityPage"));
 const PasswordResetPage = lazyPage(() => import("@/pages/PasswordResetPage"));
 const EmailConfirmationDebug = lazyPage(() =>
   import("@/components/EmailConfirmationDebug").then((m) => ({ default: m.EmailConfirmationDebug })),
@@ -124,6 +128,10 @@ const AppEvents = () => {
   // After Google sign-in or the email-confirmation link (which leave the app and
   // land on the home page), carry on to where the person was heading
   const location = useLocation();
+  // Each page opened (for Admin → Activity)
+  useEffect(() => {
+    trackPage();
+  }, [location.pathname, location.search]);
   useEffect(() => {
     if (!user || (location.pathname !== "/" && location.pathname !== "/email-confirmation")) return;
     const next = peekNext();
@@ -294,6 +302,10 @@ const AppRoutes = () => {
             />
             <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
             <Route path="/google-sign-in" element={<GoogleSignInPage />} />
+            {/* Church admins: feedback and activity */}
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+            <Route path="/admin/feedback" element={<ProtectedRoute><AdminFeedbackPage /></ProtectedRoute>} />
+            <Route path="/admin/activity" element={<ProtectedRoute><AdminActivityPage /></ProtectedRoute>} />
             <Route path="/reset-password" element={<PasswordResetPage />} />
             <Route path="/debug-email" element={<EmailConfirmationDebug />} />
             <Route

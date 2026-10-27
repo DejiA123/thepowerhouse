@@ -1,4 +1,5 @@
 import { syncPushSubscription } from '@/lib/push';
+import { track } from '@/lib/activity';
 
 /** Where a tapped notification wants to go, kept by the service worker (see push-sw.js) */
 const NAV_CACHE = 'app-pending-navigation';
@@ -39,6 +40,7 @@ export function registerAppServiceWorker() {
     const data = event.data || {};
     switch (data.type) {
       case 'NOTIFICATION_NAVIGATE':
+        track('notification_opened', { path: data.url });
         // Handled now: don't open it again later
         caches?.open(NAV_CACHE).then((c) => c.delete(NAV_KEY)).catch(() => undefined);
         goTo(data.url);

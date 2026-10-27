@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bookmark, LogOut, Smartphone, Sparkles, UserRound } from "lucide-react";
+import { Bookmark, LogOut, ShieldCheck, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/common/UserAvatar";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
@@ -9,6 +9,7 @@ import { TILE } from "@/data/appDirectory";
 import { startTour } from "@/lib/appEvents";
 import { installedBefore, openInstallGuide, useInstallContext } from "@/lib/install";
 import { church } from "@/config/church";
+import { useIsAdmin } from "@/lib/admin";
 
 const SidebarCustomizer = lazy(() => import("@/components/SidebarCustomizer"));
 
@@ -20,6 +21,7 @@ const MePage = () => {
   const meta = (user?.user_metadata ?? {}) as { full_name?: string; avatar_url?: string };
   // Phones not yet installed; computers only when the browser can install it in one tap
   const install = useInstallContext();
+  const isAdmin = useIsAdmin();
   const canInstall =
     install.kind !== 'installed' &&
     (install.kind !== 'desktop' || install.canPrompt) &&
@@ -59,6 +61,22 @@ const MePage = () => {
         <PlaceRow id="notes" />
         <PlaceRow id="learn" />
       </ListGroup>
+
+      {isAdmin && (
+        <>
+          <SectionLabel>Church admin</SectionLabel>
+          <ListGroup>
+            <ListRow
+              leading={<RowPicture icon={ShieldCheck} color="slate" />}
+              title="Admin"
+              subtitle="Feedback and how the app is being used"
+              onClick={() => navigate("/admin")}
+              chevron
+              className="min-h-[68px] py-3"
+            />
+          </ListGroup>
+        </>
+      )}
 
       <SectionLabel>Help</SectionLabel>
       <ListGroup>

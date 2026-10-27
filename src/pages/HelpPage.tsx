@@ -6,6 +6,7 @@ import { HOW_DO_I, TILE, destination } from "@/data/appDirectory";
 import { openSearch, startTour } from "@/lib/appEvents";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/config/church";
+import FeedbackCard from "@/components/feedback/FeedbackCard";
 
 const TIPS = [
   { icon: Home, text: "Lost? Tap Home at the bottom of the screen to start again." },
@@ -41,6 +42,9 @@ const HelpPage = () => {
         </span>
         <span className="shrink-0 rounded-full bg-white px-4 py-2 text-[15px] font-bold text-indigo-600">Start</span>
       </button>
+
+      {/* "Is the app helping you?" */}
+      <FeedbackCard />
 
       <SectionLabel>How do I…</SectionLabel>
       <ListGroup>
