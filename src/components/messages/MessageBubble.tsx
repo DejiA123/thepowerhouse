@@ -238,21 +238,22 @@ const MessageBubble = ({
           </button>
         )}
 
+        {/* Reactions sit on the bubble's bottom edge, in front of it (like WhatsApp) */}
         {reactions.length > 0 && (
-          <div className={cn('-mt-1.5 flex flex-wrap gap-1', isOwn ? 'mr-2 justify-end' : 'ml-2')}>
+          <div className={cn('relative z-10 -mt-2 mb-1 flex flex-wrap gap-1', isOwn ? 'mr-2 justify-end' : 'ml-2')}>
             {reactions.map((r) => (
               <button
                 key={r.emoji}
                 onClick={() => onToggleReaction(message.id, r.emoji)}
                 className={cn(
-                  'flex h-6 items-center gap-1 rounded-full border px-1.5 text-xs shadow-sm transition active:scale-90',
+                  'flex h-7 items-center gap-1 rounded-full border-2 px-1.5 text-[15px] leading-none shadow-md transition active:scale-90',
                   r.mine
-                    ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950'
-                    : 'border-border bg-card',
+                    ? 'border-white bg-blue-50 dark:border-slate-900 dark:bg-blue-950'
+                    : 'border-white bg-white dark:border-slate-900 dark:bg-slate-800',
                 )}
               >
                 <span>{r.emoji}</span>
-                {r.count > 1 && <span className="font-medium text-muted-foreground">{r.count}</span>}
+                {r.count > 1 && <span className="text-xs font-semibold text-muted-foreground">{r.count}</span>}
               </button>
             ))}
           </div>
