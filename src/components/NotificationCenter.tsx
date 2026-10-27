@@ -396,15 +396,29 @@ export const NotificationCenter = ({ onBack }: NotificationCenterProps) => {
     </div>
   );
 };
-/** Any time of day, in 5-minute steps (the phone shows its own time wheel) */
-const TimeInput = ({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) => (
-  <input
-    type="time"
-    step={300}
-    value={value}
-    disabled={disabled}
-    onChange={(e) => e.target.value && onChange(e.target.value)}
-    className="h-11 min-w-[8.5rem] rounded-xl border border-border bg-card px-3 text-[16px] font-semibold text-foreground shadow-sm outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
-    aria-label="Reminder time"
-  />
-);
+/**
+ * Any time of day, in 5-minute steps (the phone shows its own time wheel).
+ * Saved once the wheel is closed (the ✓), not while it's turning: saving
+ * redraws the page, which used to close the wheel mid-choice.
+ */
+const TimeInput = ({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) => {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    if (!draft) setDraft(value); // "Reset" empties it: keep the saved time
+    else if (draft !== value) onChange(draft);
+  };
+  return (
+    <input
+      type="time"
+      step={300}
+      value={draft}
+      disabled={disabled}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      className="h-11 min-w-[8.5rem] rounded-xl border border-border bg-card px-3 text-[16px] font-semibold text-foreground shadow-sm outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
+      aria-label="Reminder time"
+    />
+  );
+};
