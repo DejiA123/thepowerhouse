@@ -2505,6 +2505,7 @@ export type Database = {
       }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       cleanup_youtube_api_usage: { Args: never; Returns: number }
+      current_church_id: { Args: never; Returns: string }
       get_resource_download_count: {
         Args: { _resource_category: string; _resource_name: string }
         Returns: number
@@ -2532,6 +2533,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      in_current_church: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_chat_member: { Args: { _chat_id: string }; Returns: boolean }
       is_user_attending_service: {
