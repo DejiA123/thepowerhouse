@@ -1,0 +1,1 @@
+alter function public.reserved_church_slug(text) set search_path = public;
