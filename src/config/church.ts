@@ -148,7 +148,7 @@ const THE_POWER_HOUSE: ChurchProfile = {
   contact: {
     email: 'contact.thepowerhouse@gmail.com',
     infoEmail: 'info@thepowerhouseinternational.org',
-    privacyEmail: 'privacy@thepowerhouseintl.org',
+    privacyEmail: 'privacy@thepowerhouseinternational.org',
     phone: '089 953 4714',
     address: 'The Power House International Church, Unit 22 Marangonii House, Monivea Rd, Ballybrit Heights, Galway, H91 958A',
   },
