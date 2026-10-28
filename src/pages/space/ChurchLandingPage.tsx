@@ -111,9 +111,9 @@ const ChurchLandingPage = () => {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center px-6 text-center">
         <p className="font-outfit text-[22px] font-bold text-foreground">We couldn't find that church</p>
-        <p className="mt-1 text-[14.5px] text-muted-foreground">Check the link, or search for it.</p>
+        <p className="mt-1 text-[14.5px] text-muted-foreground">Check the link, or use your church's join code.</p>
         <button onClick={() => navigate('/find')} className="mt-5 h-12 rounded-full bg-blue-600 px-7 text-[15px] font-semibold text-white">
-          Find your church
+          Join with a code
         </button>
       </div>
     );
@@ -138,7 +138,7 @@ const ChurchLandingPage = () => {
       />
       <div className="relative mx-auto max-w-md px-5 pb-10 pt-[max(env(safe-area-inset-top),16px)]">
         <button onClick={() => navigate('/find')} className="mt-2 flex items-center gap-1 text-[15px] font-semibold text-white/85">
-          <ChevronLeft className="h-5 w-5" /> Find a church
+          <ChevronLeft className="h-5 w-5" /> Back
         </button>
         <ChurchLogo row={row} className="mx-auto mt-6 h-24 w-24 rounded-[26px] text-[34px] shadow-xl ring-4 ring-white/25" />
         <h1 className="mt-4 text-center font-outfit text-[26px] font-bold leading-tight text-white">{row.name}</h1>
