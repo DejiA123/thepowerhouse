@@ -47,6 +47,81 @@ export type Database = {
         }
         Relationships: []
       }
+      app_activity: {
+        Row: {
+          area: string | null
+          created_at: string
+          detail: Json | null
+          device: string | null
+          event: string
+          id: number
+          path: string | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          area?: string | null
+          created_at?: string
+          detail?: Json | null
+          device?: string | null
+          event: string
+          id?: never
+          path?: string | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          area?: string | null
+          created_at?: string
+          detail?: Json | null
+          device?: string | null
+          event?: string
+          id?: never
+          path?: string | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      app_feedback: {
+        Row: {
+          can_contact: boolean
+          created_at: string
+          device: string | null
+          id: string
+          kind: string | null
+          message: string | null
+          page: string | null
+          rating: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          can_contact?: boolean
+          created_at?: string
+          device?: string | null
+          id?: string
+          kind?: string | null
+          message?: string | null
+          page?: string | null
+          rating?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          can_contact?: boolean
+          created_at?: string
+          device?: string | null
+          id?: string
+          kind?: string | null
+          message?: string | null
+          page?: string | null
+          rating?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bible_highlights: {
         Row: {
           book: string
@@ -1972,6 +2047,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_activity_members: {
+        Args: { search?: string }
+        Returns: {
+          areas: string[]
+          avatar_url: string
+          full_name: string
+          last_at: string
+          user_id: string
+        }[]
+      }
+      admin_activity_overview: { Args: never; Returns: Json }
       can_view_sensitive_profile_data: {
         Args: { _profile_user_id: string }
         Returns: boolean
