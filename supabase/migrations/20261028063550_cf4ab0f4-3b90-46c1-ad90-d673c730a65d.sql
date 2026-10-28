@@ -1,0 +1,1 @@
+revoke execute on function public.join_default_church() from public, anon, authenticated;
