@@ -15,6 +15,7 @@ import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
 import { church } from '@/config/church';
+import { JOINING_KEY, onPlatform } from '@/lib/churchSpace';
 
 /** Built-in browsers of social apps, where Google blocks sign-in */
 const inAppBrowser = () => /FBAN|FBAV|FB_IAB|Instagram|Line\/|LinkedInApp|Snapchat|TikTok|musical_ly|BytedanceWebview|Twitter|MicroMessenger/i.test(navigator.userAgent);
@@ -135,6 +136,8 @@ const AuthPage = () => {
         options: {
           data: {
             full_name: signupFullName,
+            // Signing up from a church's page on Church Space: join that church (not The Power House)
+            ...(onPlatform && localStorage.getItem(JOINING_KEY) ? { church_id: localStorage.getItem(JOINING_KEY) } : {}),
           },
           emailRedirectTo: appUrl('/email-confirmation')
         }

@@ -4,7 +4,7 @@
  * (manifest.json). Made from the church profile when the app is built, and
  * served the same way by the dev server (see vite.config.ts).
  */
-import { church, hasFeature } from './church';
+import { church, hasFeature, PLATFORM } from './church';
 
 /** Values for the %CHURCH_…% placeholders in index.html */
 export const htmlValues: Record<string, string> = {
@@ -13,6 +13,8 @@ export const htmlValues: Record<string, string> = {
   DESCRIPTION: church.description,
   X_HANDLE: church.social.x?.handle ?? '',
   THEME_COLOR: church.brand.themeColor,
+  DB_ID: church.dbId,
+  SPACE_HOSTS: JSON.stringify(PLATFORM.hosts),
 };
 
 export const fillHtml = (html: string) => html.replace(/%CHURCH_([A-Z_]+)%/g, (all, key: string) => htmlValues[key] ?? all);

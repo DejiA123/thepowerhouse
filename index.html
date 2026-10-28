@@ -138,6 +138,19 @@
     <div class="splash-name">%CHURCH_NAME%</div>
     <div class="splash-bar"><span></span></div>
   </div>
+  <script>
+    // On the Church Space address: the chosen church's name and logo (or Church Space's), not this one's
+    (function () {
+      if (%CHURCH_SPACE_HOSTS%.indexOf(location.hostname) < 0) return;
+      var row = null;
+      try { row = JSON.parse(localStorage.getItem('church_space_v1') || 'null'); } catch (e) {}
+      if (row && row.id === '%CHURCH_DB_ID%') return;
+      var img = document.querySelector('#splash img');
+      var name = document.querySelector('#splash .splash-name');
+      if (img) img.src = (row && row.profile && row.profile.icon192) || '/space/icon-192.png';
+      if (name) name.textContent = row ? row.name : 'Church Space';
+    })();
+  </script>
   <style>
     #splash {
       position: fixed;

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bookmark, LogOut, ShieldCheck, Smartphone, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bookmark, LogOut, ShieldCheck, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/common/UserAvatar";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
@@ -10,6 +10,7 @@ import { startTour } from "@/lib/appEvents";
 import { installedBefore, openInstallGuide, useInstallContext } from "@/lib/install";
 import { church } from "@/config/church";
 import { useIsAdmin } from "@/lib/admin";
+import { chosenChurch, forgetChurch, onPlatform } from "@/lib/churchSpace";
 
 const SidebarCustomizer = lazy(() => import("@/components/SidebarCustomizer"));
 
@@ -104,6 +105,16 @@ const MePage = () => {
       <SectionLabel>Settings</SectionLabel>
       <ListGroup>
         <PlaceRow id="settings" />
+        {onPlatform && chosenChurch && (
+          <ListRow
+            leading={<RowPicture icon={ArrowLeftRight} color="slate" />}
+            title={`Your church: ${church.name}`}
+            subtitle="Switch to another church"
+            onClick={forgetChurch}
+            chevron
+            className="min-h-[68px] py-3"
+          />
+        )}
         <PlaceRow id="everything" />
         <div className="hidden md:block">
           <ListRow

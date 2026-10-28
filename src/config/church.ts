@@ -1,10 +1,11 @@
 /**
  * Everything that makes this app one particular church's app.
  *
- * Church Space (see PLATFORM) runs the same app for many churches. For now
- * The Power House is the only one, so its profile lives here in code; later
- * each church's profile comes from the database, picked by the address the
- * app is opened on. Nothing else in the app should name the church, its
+ * Church Space (see PLATFORM) runs the same app for many churches. The Power
+ * House's profile lives here in code and is what its own address shows. On the
+ * Church Space address, each church's profile comes from the database (made by
+ * "Create your church space") and is put in `church` before the app starts
+ * (see lib/churchSpace). Nothing else in the app should name the church, its
  * places, links or contact details: read them from `church`.
  *
  * Plain data only (no React or browser code): vite.config.ts reads it too,
@@ -14,7 +15,36 @@
 /** The product that runs every church's app */
 export const PLATFORM = {
   name: 'Church Space',
-} as const;
+  /** The general address, where people find, join and create churches */
+  url: 'https://churchspaceapp.vercel.app',
+  /** Addresses that work as Church Space (space.localhost: for trying it on a computer) */
+  hosts: ['churchspaceapp.vercel.app', 'space.localhost'],
+  /** The church that every other address opens (The Power House's own) */
+  defaultChurchId: '7a1c0de5-0000-4000-8000-000000000001',
+  icon192: '/space/icon-192.png',
+  icon512: '/space/icon-512.png',
+  themeColor: '#2563eb',
+};
+
+/** Words a church's link can't be, because they're pages of the app (the database has the same list) */
+export const RESERVED_SLUGS = [
+  'admin', 'api', 'assets', 'auth', 'banners', 'bible', 'bible-notes', 'bible-reading-plans', 'brand', 'building-campaign',
+  'c', 'campus-fellowship', 'campus-fellowships', 'church', 'church-space', 'churchspace', 'create-church', 'debug-email',
+  'editor-frame', 'email-confirmation', 'find', 'follow-up', 'follow-up-team', 'fonts', 'fellowship-group', 'give',
+  'google-sign-in', 'group-chats', 'groups', 'help', 'icons', 'install', 'intro', 'join', 'learn', 'locations',
+  'manifest', 'me', 'new-here', 'news', 'prayer', 'privacy-policy', 'reset-password', 'resources', 'serve', 'services',
+  'settings', 'social', 'social-media', 'space', 'splash', 'sw', 'team-follow-up', 'terms-of-service', 'test', 'workbox',
+];
+
+/** A church's link from its name ("Grace Chapel Dublin" → "gracechapeldublin") */
+export const slugFromName = (name: string) =>
+  name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(the|church|of|and)\b/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 30);
 
 export interface Campus {
   id: string;
@@ -61,7 +91,14 @@ export type FeatureId =
   | 'teamFollowUp';
 
 export interface ChurchProfile {
+  /** The church's link ("thepowerhouse") */
   id: string;
+  /** Its id in the database */
+  dbId: string;
+  /** Accent colour: one of PALETTES (config/palettes) or "#rrggbb" */
+  colour: string;
+  /** Town and country, for finding it ("Galway, Ireland") */
+  city: string;
   /** Short name, as on the Home Screen and in the header: "The Power House" */
   name: string;
   /** Full name: "The Power House International" */
@@ -136,8 +173,11 @@ export interface ChurchProfile {
   features: Record<FeatureId, boolean>;
 }
 
-const THE_POWER_HOUSE: ChurchProfile = {
+export const THE_POWER_HOUSE: ChurchProfile = {
   id: 'thepowerhouse',
+  dbId: '7a1c0de5-0000-4000-8000-000000000001',
+  colour: 'blue',
+  city: 'Galway, Ireland',
   name: 'The Power House',
   fullName: 'The Power House International',
   initials: 'TPH',
@@ -268,8 +308,88 @@ const THE_POWER_HOUSE: ChurchProfile = {
   },
 };
 
-/** The church this app is for */
-export const church: ChurchProfile = THE_POWER_HOUSE;
+/** The church this app is for (on Church Space, replaced before the app starts: lib/churchSpace) */
+export const church: ChurchProfile = { ...THE_POWER_HOUSE };
+
+/** What a church sets up for itself in "Create your church space" */
+export interface SpaceProfile {
+  city: string;
+  colour: string;
+  logo: string;
+  icon192: string;
+  icon512: string;
+  features: Partial<Record<FeatureId, boolean>>;
+  /** Only found by its exact link (the Test Church) */
+  hidden: boolean;
+}
+
+/** A church as the database has it (church_directory) */
+export interface ChurchRow {
+  id: string;
+  slug: string;
+  name: string;
+  join_mode: 'open' | 'approval';
+  profile: Partial<SpaceProfile> | null;
+  members?: number;
+}
+
+const ALL_OFF = Object.fromEntries(Object.keys(THE_POWER_HOUSE.features).map((id) => [id, false])) as Record<FeatureId, boolean>;
+
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter((w) => /^[A-Za-z0-9]/.test(w) && !/^(the|of|and)$/i.test(w))
+    .map((w) => w[0].toUpperCase())
+    .join('')
+    .slice(0, 3) || name.slice(0, 2).toUpperCase();
+
+/** A church's whole profile from its database row (The Power House's is the one above) */
+export const profileFromRow = (row: ChurchRow): ChurchProfile => {
+  if (row.id === THE_POWER_HOUSE.dbId) return { ...THE_POWER_HOUSE };
+  const p = row.profile ?? {};
+  const icon192 = p.icon192 || PLATFORM.icon192;
+  const icon512 = p.icon512 || PLATFORM.icon512;
+  return {
+    id: row.slug,
+    dbId: row.id,
+    colour: p.colour || 'blue',
+    city: p.city ?? '',
+    name: row.name,
+    fullName: row.name,
+    initials: initialsOf(row.name),
+    legalName: row.name,
+    description: `${row.name}: Bible, prayer, messages and more`,
+    website: '',
+    appUrl: row.slug ? `${PLATFORM.url}/${row.slug}` : PLATFORM.url,
+    contact: { email: '', infoEmail: '', privacyEmail: '', phone: '', address: p.city ?? '' },
+    brand: {
+      logo: p.logo || icon192,
+      artwork: icon512,
+      icon192,
+      icon512,
+      maskable512: icon512,
+      themeColor: PLATFORM.themeColor,
+      backgroundColor: '#ffffff',
+    },
+    youtube: { channelId: '', handle: '' },
+    social: {},
+    liveTimes: [],
+    liveTimesLabel: '',
+    giving: { bankName: '', accountName: '', iban: '', bic: '' },
+    campuses: [],
+    locale: { language: 'en', timeZone: 'UTC', lawCountry: '', phoneExample: '' },
+    banners: [],
+    choir: { branches: [], songwritingBranch: '' },
+    labels: { choirAcademy: 'Choir Academy', nationalChoir: 'National Choir' },
+    features: { ...ALL_OFF, ...p.features },
+  };
+};
+
+/** The Church Space address before a church is chosen */
+export const platformProfile = (): ChurchProfile => ({
+  ...profileFromRow({ id: '', slug: '', name: PLATFORM.name, join_mode: 'open', profile: {} }),
+  description: "Bible, prayer, messages and more, in your church's own app",
+});
 
 /** A campus's name from its id ("galway" → "Galway") */
 export const campusName = (id: string) => church.campuses.find((c) => c.id === id)?.name ?? id;

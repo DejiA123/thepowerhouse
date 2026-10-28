@@ -57,6 +57,18 @@ const ServicesPage = () => {
     return () => clearInterval(t);
   }, []);
 
+  // A church that hasn't added its places and service times yet
+  if (!campus) {
+    return (
+      <Page>
+        <PageHeader title="Services" back={{ label: "Church", onClick: () => navigate("/church") }} />
+        <p className="mt-6 rounded-[22px] border border-dashed border-border p-8 text-center text-[14.5px] text-muted-foreground">
+          {church.name}'s service times and places will show here once the church adds them.
+        </p>
+      </Page>
+    );
+  }
+
   const locate = async () => {
     const found = await findNearest();
     if (found) appAlert(`${found.campus.name} is closest`, `About ${Math.round(found.km)} km away`, "success");

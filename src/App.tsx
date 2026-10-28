@@ -23,6 +23,8 @@ import FeatureGate from "@/components/FeatureGate";
 import { autoEnablePush, syncPushSubscription } from "@/lib/push";
 import { appAlert } from "@/lib/appAlert";
 import { trackPage } from "@/lib/activity";
+import { chosenChurch, onPlatform } from "@/lib/churchSpace";
+import { RESERVED_SLUGS } from "@/config/church";
 
 /**
  * Pages are loaded on demand so the first screen appears quickly instead of
@@ -69,6 +71,18 @@ const GoogleSignInPage = lazyPage(() => import("@/pages/GoogleSignInPage"));
 const AdminPage = lazyPage(() => import("@/pages/admin/AdminPage"));
 const AdminFeedbackPage = lazyPage(() => import("@/pages/admin/AdminFeedbackPage"));
 const AdminActivityPage = lazyPage(() => import("@/pages/admin/AdminActivityPage"));
+const FindChurchPage = lazyPage(() => import("@/pages/space/FindChurchPage"));
+const ChurchLandingPage = lazyPage(() => import("@/pages/space/ChurchLandingPage"));
+const CreateChurchPage = lazyPage(() => import("@/pages/space/CreateChurchPage"));
+
+/** On the Church Space address: its own full-screen pages (find, a church's page, create) */
+const isSpaceScreen = (pathname: string) => {
+  if (!onPlatform) return false;
+  if (pathname === "/find" || pathname === "/create-church") return true;
+  if (pathname === "/") return !chosenChurch;
+  const slug = pathname.match(/^\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])\/?$/)?.[1];
+  return !!slug && !RESERVED_SLUGS.includes(slug);
+};
 const PasswordResetPage = lazyPage(() => import("@/pages/PasswordResetPage"));
 const EmailConfirmationDebug = lazyPage(() =>
   import("@/components/EmailConfirmationDebug").then((m) => ({ default: m.EmailConfirmationDebug })),
@@ -222,6 +236,20 @@ const AppReady = () => {
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
+
+  if (isSpaceScreen(pathname)) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<FindChurchPage />} />
+          <Route path="/find" element={<FindChurchPage />} />
+          <Route path="/create-church" element={<CreateChurchPage />} />
+          <Route path="/:slug" element={<ChurchLandingPage />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   try {
     return (

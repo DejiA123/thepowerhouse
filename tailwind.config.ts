@@ -23,6 +23,10 @@ export default {
 		},
 		extend: {
 			colors: {
+				// The church's accent colour, chosen per church (index.css, lib/churchSpace)
+				blue: Object.fromEntries(
+					['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'].map((shade) => [shade, `rgb(var(--brand-${shade}) / <alpha-value>)`]),
+				),
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

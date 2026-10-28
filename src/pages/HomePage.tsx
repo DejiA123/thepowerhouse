@@ -34,9 +34,10 @@ const HomePage = () => {
       {showRest && (
         <Suspense fallback={null}>
           <div className="mx-auto mt-8 max-w-5xl space-y-6 px-4">
-            <EventCountdown />
+            {/* Service times come with the church's campuses; sermons with its YouTube channel */}
+            {church.campuses.length > 0 && <EventCountdown />}
             <DailyScripture showVerse={false} />
-            <ChurchVideos />
+            {hasFeature('watch') && <ChurchVideos />}
           </div>
         </Suspense>
       )}

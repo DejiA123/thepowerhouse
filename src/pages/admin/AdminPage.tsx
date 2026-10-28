@@ -6,6 +6,7 @@ import { RowPicture } from '@/components/nav/Places';
 import { supabase } from '@/integrations/supabase/client';
 import { notSetUp } from '@/lib/admin';
 import AdminGate, { NotSetUp } from './AdminGate';
+import ChurchAdminSection from './ChurchAdminSection';
 
 interface Overview {
   active_today: number;
@@ -76,6 +77,8 @@ const AdminPage = () => {
           className="min-h-[68px] py-3"
         />
       </ListGroup>
+
+      <ChurchAdminSection />
 
       {!!data?.top_areas?.length && (
         <>

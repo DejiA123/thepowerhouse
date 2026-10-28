@@ -1,3 +1,5 @@
+// First: which church this is (before anything reads its name, colours or parts)
+import '@/lib/churchSpace';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'

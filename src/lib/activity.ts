@@ -8,6 +8,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { installContext, isInstalled } from '@/lib/install';
+import { currentChurchId } from '@/lib/churchSpace';
 
 export type ActivityEvent =
   | 'open'
@@ -137,6 +138,7 @@ async function flush(leaving = false) {
         apikey: ANON_KEY,
         Authorization: `Bearer ${token ?? ANON_KEY}`,
         Prefer: 'return=minimal',
+        ...(currentChurchId ? { 'x-church-id': currentChurchId } : {}),
       },
       body: JSON.stringify(sendable),
     });
@@ -152,6 +154,8 @@ async function flush(leaving = false) {
 
 /** Records something a person did (see ActivityEvent). Never pass what they wrote. */
 export function track(event: ActivityEvent, detail?: Record<string, unknown>) {
+  // On Church Space before a church is chosen there's no church to record it for
+  if (!currentChurchId) return;
   try {
     const row: Row = {
       user_id: userId,

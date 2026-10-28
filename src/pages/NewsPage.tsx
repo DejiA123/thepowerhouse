@@ -286,16 +286,19 @@ const NewsPage = () => {
 
           <SectionLabel>Coming up</SectionLabel>
           <ListGroup>
-            <ListRow
-              leading={
-                <span className="flex h-[46px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
-                  <Church className="h-5 w-5" />
-                </span>
-              }
-              title="Sunday Service"
-              subtitle={`Every Sunday · 10:00 · ${church.campuses.map((c) => c.name).join(" · ")}`}
-              onClick={() => navigate("/services")}
-            />
+            {/* Only for a church whose places (and service times) are in its profile */}
+            {church.campuses.length > 0 && (
+              <ListRow
+                leading={
+                  <span className="flex h-[46px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
+                    <Church className="h-5 w-5" />
+                  </span>
+                }
+                title="Sunday Service"
+                subtitle={`Every Sunday · ${church.campuses[0].times.sunday} · ${church.campuses.map((c) => c.name).join(" · ")}`}
+                onClick={() => navigate("/services")}
+              />
+            )}
             {rest.map((e) => (
               <ListRow
                 key={e.id}
