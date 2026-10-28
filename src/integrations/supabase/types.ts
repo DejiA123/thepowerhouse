@@ -865,18 +865,21 @@ export type Database = {
         Row: {
           church_id: string
           joined_at: string
+          source: string
           status: string
           user_id: string
         }
         Insert: {
           church_id: string
           joined_at?: string
+          source?: string
           status?: string
           user_id: string
         }
         Update: {
           church_id?: string
           joined_at?: string
+          source?: string
           status?: string
           user_id?: string
         }
@@ -2499,12 +2502,63 @@ export type Database = {
         }[]
       }
       admin_activity_overview: { Args: never; Returns: Json }
+      answer_join_request: {
+        Args: { p_accept: boolean; p_user: string }
+        Returns: undefined
+      }
       can_view_sensitive_profile_data: {
         Args: { _profile_user_id: string }
         Returns: boolean
       }
+      church_admin_info: {
+        Args: never
+        Returns: {
+          id: string
+          join_code: string
+          join_mode: string
+          name: string
+          profile: Json
+          slug: string
+        }[]
+      }
+      church_by_code: { Args: { code: string }; Returns: string }
+      church_directory: {
+        Args: { find_id?: string; find_slug?: string; search?: string }
+        Returns: {
+          id: string
+          join_mode: string
+          members: number
+          name: string
+          profile: Json
+          slug: string
+        }[]
+      }
+      church_join_requests: {
+        Args: never
+        Returns: {
+          asked_at: string
+          avatar_url: string
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       cleanup_youtube_api_usage: { Args: never; Returns: number }
+      create_church: {
+        Args: {
+          p_join_mode: string
+          p_name: string
+          p_profile: Json
+          p_role: string
+          p_slug: string
+        }
+        Returns: {
+          id: string
+          join_code: string
+          slug: string
+        }[]
+      }
       current_church_id: { Args: never; Returns: string }
       get_resource_download_count: {
         Args: { _resource_category: string; _resource_name: string }
@@ -2544,6 +2598,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_church: { Args: { target: string }; Returns: string }
       log_youtube_api_usage: {
         Args: {
           _api_calls_made?: number
@@ -2563,6 +2618,11 @@ export type Database = {
           _user_agent?: string
         }
         Returns: string
+      }
+      reserved_church_slug: { Args: { _slug: string }; Returns: boolean }
+      set_church_join_mode: {
+        Args: { p_join_mode: string }
+        Returns: undefined
       }
     }
     Enums: {
