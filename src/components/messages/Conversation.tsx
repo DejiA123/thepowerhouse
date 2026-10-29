@@ -646,14 +646,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         </button>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={() => startCall({ id: chat.id, name: chat.name }, 'video')}
+            onClick={() => startCall(chat, 'video')}
             className="flex h-10 w-10 items-center justify-center rounded-full text-blue-600 hover:bg-muted dark:text-blue-400"
             aria-label="Start video call"
           >
             <Video className="h-5 w-5" />
           </button>
           <button
-            onClick={() => startCall({ id: chat.id, name: chat.name }, 'audio')}
+            onClick={() => startCall(chat, 'audio')}
             className="flex h-10 w-10 items-center justify-center rounded-full text-blue-600 hover:bg-muted dark:text-blue-400"
             aria-label="Start voice call"
           >
@@ -668,7 +668,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       {/* Ongoing call banner */}
       {ongoing && !inThisCall && (
         <button
-          onClick={() => joinCall({ callId: ongoing.callId, chatId: chat.id, chatName: chat.name, callType: ongoing.callType })}
+          onClick={() => joinCall({ callId: ongoing.callId, chatId: chat.id, chatName: title, callType: ongoing.callType })}
           className="flex items-center gap-3 bg-emerald-600 px-4 py-2.5 text-left text-white"
         >
           <PhoneCall className="h-5 w-5 animate-pulse" />
@@ -768,7 +768,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onlineIds={onlineIds}
         onCall={(type) => {
           setInfoOpen(false);
-          startCall({ id: chat.id, name: chat.name }, type);
+          startCall(chat, type);
         }}
       />
     </div>

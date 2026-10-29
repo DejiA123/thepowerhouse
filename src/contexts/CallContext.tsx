@@ -6,6 +6,7 @@ import { appAlert } from '@/lib/appAlert';
 import { CallEngine, type CallSnapshot, type CallType } from '@/lib/calls/callEngine';
 import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone';
 import { setAudioSession } from '@/lib/audioSession';
+import { chatTitle } from '@/components/messages/chatUtils';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
 // Loaded when a call rings or starts, not at app start
@@ -38,7 +39,7 @@ interface CallContextType {
   ongoingCalls: Record<string, OngoingCall>;
   minimized: boolean;
   setMinimized: (value: boolean) => void;
-  startCall: (chat: { id: string; name: string }, type: CallType) => Promise<void>;
+  startCall: (chat: { id: string; name: string; description?: string | null }, type: CallType) => Promise<void>;
   joinCall: (call: { callId: string; chatId: string; chatName: string; callType: CallType }) => Promise<void>;
   acceptCall: () => void;
   declineCall: () => void;
@@ -113,16 +114,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const { data } = await supabase
       .from('chat_participants')
-      .select('chat_id, group_chats(name)')
+      .select('chat_id, group_chats(name, description)')
       .eq('user_id', user.id);
     const ids: string[] = [];
     (data || []).forEach((row: any) => {
       ids.push(row.chat_id);
-      if (row.group_chats?.name) chatNamesRef.current[row.chat_id] = row.group_chats.name;
+      // What call screens show: for a private chat, the other person's name
+      if (row.group_chats?.name) chatNamesRef.current[row.chat_id] = chatTitle(row.group_chats, me?.name);
     });
     chatIdsRef.current = ids;
     setChatIds(ids);
-  }, [user]);
+  }, [user, me]);
 
   useEffect(() => {
     loadChats();
@@ -150,7 +152,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIncomingCall({
             callId: payload.callId,
             chatId: info.chatId,
-            chatName: payload.groupName || chatNamesRef.current[info.chatId] || 'Group chat',
+            chatName: chatNamesRef.current[info.chatId] || payload.groupName || 'Group chat',
             callType: info.callType,
             initiatorId: payload.initiatorId,
             initiatorName: payload.initiatorName || 'Someone',
@@ -242,7 +244,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return next;
   }, [me]);
 
-  const startCall = useCallback(async (chat: { id: string; name: string }, type: CallType) => {
+  const startCall = useCallback(async (chat: { id: string; name: string; description?: string | null }, type: CallType) => {
     if (!user || !me) return;
     if (engineRef.current && engineRef.current.getSnapshot().status !== 'ended') {
       appAlert("You're already in a call");
@@ -250,7 +252,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     // Get the microphone/camera first: if that fails, nobody gets rung for nothing
     const callId = crypto.randomUUID();
-    const started = await launch({ callId, chatId: chat.id, chatName: chat.name, callType: type, isInitiator: true });
+    const started = await launch({ callId, chatId: chat.id, chatName: chatTitle(chat, me.name), callType: type, isInitiator: true });
     if (!started) return;
 
     const { data, error } = await supabase
@@ -340,7 +342,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const stop = startRingtone('outgoing');
     const timeout = setTimeout(() => {
       if (engine.getSnapshot().status === 'waiting') {
-        appAlert('No answer', `Nobody joined the call in ${call.chatName}.`);
+        appAlert('No answer', `${call.chatName} didn't pick up.`);
         finishCall(engine, 'no-answer');
       }
     }, RING_TIMEOUT_MS);
@@ -409,17 +411,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (async () => {
       const { data: row } = await supabase
         .from('call_sessions')
-        .select('id, chat_id, call_type, status, initiated_by, group_chats(name)')
+        .select('id, chat_id, call_type, status, initiated_by, group_chats(name, description)')
         .eq('id', callId)
         .maybeSingle();
       if (!row || (row.status !== 'ringing' && row.status !== 'active')) {
         appAlert('This call has ended');
         return;
       }
+      const chat = (row as any).group_chats;
       const info = {
         callId: row.id,
         chatId: row.chat_id,
-        chatName: (row as any).group_chats?.name || 'Group chat',
+        chatName: chat?.name ? chatTitle(chat, me?.name) : 'Group chat',
         callType: (row.call_type === 'video' ? 'video' : 'audio') as CallType,
       };
       if (autoAnswer) {
@@ -434,7 +437,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     })();
-  }, [location.search, location.pathname, user, navigate, joinCall]);
+  }, [location.search, location.pathname, user, me, navigate, joinCall]);
 
   const refreshOngoingCall = useCallback(async (chatId: string) => {
     const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
