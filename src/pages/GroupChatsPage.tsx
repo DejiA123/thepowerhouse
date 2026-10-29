@@ -11,6 +11,7 @@ import CreateGroupDialog from '@/components/messages/CreateGroupDialog';
 import NotificationPrompt from '@/components/notifications/NotificationPrompt';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { isAnsweredCall } from '@/components/messages/chatUtils';
 
 const CACHE_KEY = (userId: string) => `chat_list_cache_v2_${userId}`;
 
@@ -108,7 +109,7 @@ const GroupChatsPage = () => {
             user_id: message.user_id,
             sender_name: names.current[message.user_id] || undefined,
           },
-          unread: message.user_id !== user.id && !isOpen ? chat.unread + 1 : chat.unread,
+          unread: message.user_id !== user.id && !isOpen && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
         };
         return [updated, ...prev.filter((_, i) => i !== index)];
       });

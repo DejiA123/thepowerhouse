@@ -8,7 +8,7 @@ import { GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { uniqueTopic } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
-import { isPrivateChat, previewText } from '@/components/messages/chatUtils';
+import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -202,7 +202,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         if (!msg || msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
         if (!myChats.current.has(msg.chat_id)) return;
         GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
-        if (document.visibilityState !== 'visible') return;
+        // An answered call just went into the chat: they were on it, no banner
+        if (document.visibilityState !== 'visible' || isAnsweredCall(String(msg.content || ''))) return;
 
         // A private chat ("A & B") shows just the person, like the phone's own notifications
         if (!(msg.chat_id in chatNames.current)) {

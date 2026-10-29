@@ -14,7 +14,7 @@ import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import {
-  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, formatLastSeen, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
+  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
 } from './chatUtils';
 import { track } from '@/lib/activity';
 
@@ -166,7 +166,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setReadMarks(Object.fromEntries((marks || []).filter((m) => m.user_id !== me.id && m.last_read_at).map((m) => [m.user_id, m.last_read_at!])));
 
         const lastRead = membership?.last_read_at;
-        const firstUnread = lastRead ? data.find((m) => m.user_id !== me.id && m.created_at > lastRead) : null;
+        const firstUnread = lastRead ? data.find((m) => m.user_id !== me.id && m.created_at > lastRead && !isAnsweredCall(m.content)) : null;
         setUnreadAnchor(firstUnread?.id ?? null);
 
         if (data.length) setReactions(await GroupChatService.getReactions(data.map((m) => m.id)));

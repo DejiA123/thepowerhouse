@@ -24,7 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
 import { GroupChatService, type ChatSummary } from '@/services/groupChatService';
 import { SocialService, type CircleEntry, type PrivateChat } from '@/services/socialService';
-import { formatListTime, parseCall, previewText } from '@/components/messages/chatUtils';
+import { formatListTime, isAnsweredCall, parseCall, previewText } from '@/components/messages/chatUtils';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
 
 interface Props {
@@ -76,7 +76,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                     [chat.id]: {
                         ...chat,
                         last_message: { content: message.content, created_at: message.created_at, user_id: message.user_id },
-                        unread: message.user_id !== user.id ? chat.unread + 1 : chat.unread,
+                        unread: message.user_id !== user.id && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
                     },
                 };
             });

@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, ImageOff, Phone, PhoneMissed, PhoneOutgoing, SmilePlus, Video } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, ImageOff, PhoneIncoming, PhoneMissed, PhoneOutgoing, SmilePlus, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
@@ -49,16 +49,16 @@ const ChatPhoto = ({ url, onOpen }: { url: string; onOpen: (url: string) => void
   );
 };
 
-/** A call in the chat, like WhatsApp: "Missed voice call · Tap to call back" or "Voice call · No answer". */
+/** A call in the chat, like WhatsApp: "Missed voice call · Tap to call back", "Voice call · 2 min". Tap to call. */
 const CallRow = ({ call, isOwn, meta, onCall }: {
-  call: { type: 'audio' | 'video'; missed: boolean };
+  call: NonNullable<ReturnType<typeof parseCall>>;
   isOwn: boolean;
   meta: React.ReactNode;
   onCall?: (type: 'audio' | 'video') => void;
 }) => {
   const { title, detail } = describeCall(call, isOwn);
   const missed = call.missed && !isOwn;
-  const Icon = call.type === 'video' ? Video : missed ? PhoneMissed : isOwn ? PhoneOutgoing : Phone;
+  const Icon = call.type === 'video' ? Video : missed ? PhoneMissed : isOwn ? PhoneOutgoing : PhoneIncoming;
   return (
     <button type="button" onClick={() => onCall?.(call.type)} className="flex items-center gap-3 py-0.5 text-left">
       <span

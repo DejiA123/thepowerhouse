@@ -81,6 +81,9 @@ export interface CallSession {
     ended_at?: string | null;
 }
 
+// Answered calls kept in a chat ("::call::ended:…", see chatUtils) aren't unread: you were on the call
+const ANSWERED_CALLS = '::call::ended:%';
+
 const MESSAGE_SELECT = `*, user:user_id ( id, email, full_name, avatar_url, user_metadata )`;
 
 const normalizeMessage = (msg: any): ChatMessage => ({
@@ -167,6 +170,7 @@ export class GroupChatService {
                     .eq('chat_id', m.chat_id)
                     .eq('is_deleted', false)
                     .neq('user_id', user.id)
+                    .not('content', 'like', ANSWERED_CALLS)
                     .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01'),
             ]);
 
@@ -435,6 +439,7 @@ export class GroupChatService {
                 .eq('chat_id', m.chat_id)
                 .eq('is_deleted', false)
                 .neq('user_id', user.id)
+                .not('content', 'like', ANSWERED_CALLS)
                 .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
             return count || 0;
         }));
@@ -457,7 +462,8 @@ export class GroupChatService {
             .eq('chat_id', chatId)
             .eq('is_deleted', false)
             .gt('created_at', participant.last_read_at || '1970-01-01')
-            .neq('user_id', user.id);
+            .neq('user_id', user.id)
+            .not('content', 'like', ANSWERED_CALLS);
         return count || 0;
     }
 
