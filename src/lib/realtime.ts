@@ -20,6 +20,16 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 
+// Reconnected after a drop: nothing missed meanwhile is replayed, so tell the
+// screens to fetch it ('app:resync'), once, after the channels have rejoined.
+// Heard from the channels themselves (they report SUBSCRIBED again on every
+// rejoin): this works the same in every supabase-js version.
+let resyncTimer: ReturnType<typeof setTimeout> | undefined;
+const resyncSoon = () => {
+  clearTimeout(resyncTimer);
+  resyncTimer = setTimeout(() => window.dispatchEvent(new Event('app:resync')), 1500);
+};
+
 function dispatch(topic: string, entry: Entry, event: string, payload: unknown) {
   entry.listeners.forEach((l) => {
     if (l.event === '*' || l.event === event) {
@@ -44,9 +54,13 @@ function ensure(topic: string): Entry {
     if (entry) dispatch(topic, entry, message.event, message.payload);
   });
 
+  let joinedBefore = false;
   const joined = new Promise<void>((resolve) => {
     channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') resolve();
+      if (status !== 'SUBSCRIBED') return;
+      if (joinedBefore) resyncSoon();
+      joinedBefore = true;
+      resolve();
     });
   });
 
@@ -127,22 +141,6 @@ export function keepRealtimeAwake() {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('online', wake);
   window.addEventListener('pageshow', wake);
-
-  // Reconnected after a drop: nothing missed meanwhile is replayed, so tell the
-  // screens to fetch it ('app:resync'), once the channels have rejoined
-  let dropped = false;
-  let resync: ReturnType<typeof setTimeout> | undefined;
-  const drop = () => {
-    dropped = true;
-  };
-  rt.stateChangeCallbacks.close.push(['keep-awake-drop', drop]);
-  rt.stateChangeCallbacks.error.push(['keep-awake-drop', drop]);
-  rt.stateChangeCallbacks.open.push(['keep-awake-open', () => {
-    if (!dropped) return;
-    dropped = false;
-    clearTimeout(resync);
-    resync = setTimeout(() => window.dispatchEvent(new Event('app:resync')), 1500);
-  }]);
 }
 
 /** Unique channel name for postgres_changes subscriptions (never shared). */
