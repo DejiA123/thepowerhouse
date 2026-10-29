@@ -8,6 +8,7 @@ import { GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { uniqueTopic } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
+import { isPrivateChat, previewText } from '@/components/messages/chatUtils';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -203,16 +204,19 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
         if (document.visibilityState !== 'visible') return;
 
-        if (!chatNames.current[msg.chat_id]) {
-          const { data: chat } = await supabase.from('group_chats').select('name').eq('id', msg.chat_id).maybeSingle();
-          chatNames.current[msg.chat_id] = chat?.name || 'Group chat';
+        // A private chat ("A & B") shows just the person, like the phone's own notifications
+        if (!(msg.chat_id in chatNames.current)) {
+          const { data: chat } = await supabase.from('group_chats').select('name, description').eq('id', msg.chat_id).maybeSingle();
+          chatNames.current[msg.chat_id] = chat && isPrivateChat(chat) ? '' : chat?.name || 'Group chat';
         }
         const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', msg.user_id).maybeSingle();
+        const senderName = sender?.full_name || 'Someone';
+        const preview = previewText(String(msg.content || '')).slice(0, 120);
         pushBanner({
           kind: 'chat',
           key: msg.id,
-          title: chatNames.current[msg.chat_id],
-          message: `${sender?.full_name || 'Someone'}: ${String(msg.content || '').slice(0, 120)}`,
+          title: chatNames.current[msg.chat_id] || senderName,
+          message: chatNames.current[msg.chat_id] ? `${senderName}: ${preview}` : preview,
           url: `/group-chats?chat=${msg.chat_id}`,
         });
       })
