@@ -100,6 +100,8 @@ export class CallEngine {
   private localAnalyser?: { ctx: AudioContext; node: AnalyserNode; data: Uint8Array };
   private audioOut: CallAudio | null = null;
   private audioRoute: AudioRoute | null = null;
+  /** When the last other person left (the call then waits a little for them to come back) */
+  private aloneSince: number | null = null;
   private destroyed = false;
 
   constructor(
@@ -163,6 +165,7 @@ export class CallEngine {
         ];
     if (patch.stream) this.audioOut?.play(userId, patch.stream);
     const anyConnected = participants.some((p) => p.connection === 'connected');
+    if (anyConnected) this.aloneSince = null;
     this.set({
       participants,
       ...(anyConnected && this.snapshot.status !== 'active' && this.snapshot.status !== 'ended'
@@ -173,7 +176,15 @@ export class CallEngine {
 
   private removeParticipant(userId: string) {
     this.audioOut?.remove(userId);
-    this.set({ participants: this.snapshot.participants.filter((p) => p.userId !== userId) });
+    const participants = this.snapshot.participants.filter((p) => p.userId !== userId);
+    if (participants.length === 0 && this.snapshot.startedAt) this.aloneSince ??= Date.now();
+    this.set({ participants });
+  }
+
+  /** How long people talked: from the first person connecting until everyone else left. */
+  talkSeconds() {
+    const { startedAt } = this.snapshot;
+    return startedAt ? Math.round(((this.aloneSince ?? Date.now()) - startedAt) / 1000) : 0;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────

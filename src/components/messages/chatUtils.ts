@@ -18,20 +18,42 @@ export const IMAGE_PREFIX = '::image::';
 export const VIDEO_PREFIX = '::video::';
 export const CALL_PREFIX = '::call::';
 
-/** A call nobody answered, kept in the chat like WhatsApp: "::call::missed:audio" */
+// Calls are kept in the chat like WhatsApp: "::call::missed:audio" (nobody answered)
+// or "::call::ended:video:125" (answered, lasted 125 seconds)
 export const missedCallContent = (type: 'audio' | 'video') => `${CALL_PREFIX}missed:${type}`;
+export const answeredCallContent = (type: 'audio' | 'video', seconds: number) =>
+  `${CALL_PREFIX}ended:${type}:${Math.max(1, Math.round(seconds))}`;
 
-export function parseCall(content: string): { type: 'audio' | 'video'; missed: boolean } | null {
+type CallRecord = { type: 'audio' | 'video'; missed: boolean; seconds: number };
+
+export function parseCall(content: string): CallRecord | null {
   if (!content.startsWith(CALL_PREFIX)) return null;
-  const [outcome, type] = content.slice(CALL_PREFIX.length).split(':');
-  return { type: type === 'video' ? 'video' : 'audio', missed: outcome === 'missed' };
+  const [outcome, type, seconds] = content.slice(CALL_PREFIX.length).split(':');
+  return { type: type === 'video' ? 'video' : 'audio', missed: outcome === 'missed', seconds: Number(seconds) || 0 };
 }
 
-/** What a call says from my side: the caller sees "Voice call · No answer", everyone else "Missed voice call". */
-export function describeCall(call: { type: 'audio' | 'video'; missed: boolean }, mine: boolean) {
+/** An answered call isn't unread for anyone (they were on it) and gets no banner. */
+export const isAnsweredCall = (content: string) => parseCall(content)?.missed === false;
+
+/** "45 sec", "2 min", "1 hr 5 min" */
+function formatCallLength(seconds: number) {
+  if (seconds < 60) return `${seconds} sec`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} hr ${m} min` : `${h} hr`;
+}
+
+/**
+ * What a call says from my side: "Voice call · 2 min" for everyone once answered;
+ * otherwise the caller sees "Voice call · No answer" and everyone else "Missed voice call".
+ */
+export function describeCall(call: CallRecord, mine: boolean) {
   const kind = call.type === 'video' ? 'video call' : 'voice call';
-  if (call.missed && !mine) return { title: `Missed ${kind}`, detail: 'Tap to call back' };
-  return { title: kind[0].toUpperCase() + kind.slice(1), detail: call.missed ? 'No answer' : '' };
+  const Kind = kind[0].toUpperCase() + kind.slice(1);
+  if (!call.missed) return { title: Kind, detail: formatCallLength(call.seconds) };
+  return mine ? { title: Kind, detail: 'No answer' } : { title: `Missed ${kind}`, detail: 'Tap to call back' };
 }
 
 export const isGifUrl = (url: string) => /\.gif(?:$|[?#])/i.test(url);
@@ -62,7 +84,7 @@ export const previewText = (content: string, mine = false) => {
   const call = parseCall(content || '');
   if (call) {
     const { title, detail } = describeCall(call, mine);
-    return `${call.type === 'video' ? '📹' : '📞'} ${title}${mine && detail ? ` · ${detail}` : ''}`;
+    return `${call.type === 'video' ? '📹' : '📞'} ${title}${mine || !call.missed ? ` · ${detail}` : ''}`;
   }
   const { imageUrl, videoUrl, text } = parseMessageContent(content || '');
   const label = videoUrl ? '🎥 Video' : imageUrl ? (isGifUrl(imageUrl) ? '🎞️ GIF' : '📷 Photo') : null;

@@ -6,7 +6,7 @@ import { appAlert } from '@/lib/appAlert';
 import { CallEngine, type CallSnapshot, type CallType } from '@/lib/calls/callEngine';
 import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone';
 import { setAudioSession } from '@/lib/audioSession';
-import { chatTitle, isPrivateChat, missedCallContent } from '@/components/messages/chatUtils';
+import { answeredCallContent, chatTitle, isPrivateChat, missedCallContent } from '@/components/messages/chatUtils';
 import { GroupChatService } from '@/services/groupChatService';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
@@ -313,6 +313,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const finishCall = useCallback(async (eng: CallEngine, reason: 'hangup' | 'no-answer') => {
     const snap = eng.getSnapshot();
+    const answered = reason !== 'no-answer' && answeredCallsRef.current.has(snap.callId);
+    const talked = eng.talkSeconds();
     const others = reason === 'no-answer' ? (eng.end('no-answer'), 0) : await eng.hangup();
     playCue('end');
     if (others === 0) {
@@ -328,12 +330,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return next;
       });
       // Nobody answered (timed out, or the caller gave up): replace the ringing notification
-      if (snap.isInitiator && (reason === 'no-answer' || !answeredCallsRef.current.has(snap.callId))) {
-        sendPush({ type: 'call-missed', callId: snap.callId });
-        // Like WhatsApp, it stays in the chat: "Missed voice call" (the caller sees "No answer")
-        GroupChatService.addCallRecord(snap.chatId, missedCallContent(snap.callType))
-          .catch((error) => console.warn('[call] could not add the missed call to the chat', error));
-      }
+      if (snap.isInitiator && !answered) sendPush({ type: 'call-missed', callId: snap.callId });
+    }
+    // Like WhatsApp, the call stays in the chat (written once, by the caller): "Voice call · 2 min",
+    // or "Missed voice call" (the caller sees "No answer")
+    if (snap.isInitiator) {
+      GroupChatService.addCallRecord(snap.chatId, answered ? answeredCallContent(snap.callType, talked) : missedCallContent(snap.callType))
+        .catch((error) => console.warn('[call] could not add the call to the chat', error));
     }
     setEngine(null);
     setMinimized(false);
