@@ -18,12 +18,14 @@ interface Props {
   onChange: (people: PickablePerson[]) => void;
   /** People who are already members (shown as added, not selectable) */
   excludeIds?: string[];
+  /** The list grows with the page instead of scrolling in its own box (full-screen use) */
+  fill?: boolean;
 }
 
 const pickable = (p: Person): PickablePerson => ({ id: p.id, full_name: p.name, avatar_url: p.avatar });
 
 /** Choose people from friends or by searching everyone in the church app. */
-const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) => {
+const MemberPicker = ({ userId, selected, onChange, excludeIds = [], fill = false }: Props) => {
   const [friends, setFriends] = useState<PickablePerson[]>([]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PickablePerson[]>([]);
@@ -89,7 +91,7 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) =>
       )}
 
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -103,7 +105,7 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [] }: Props) =>
         {query.trim().length >= 2 ? 'Search results' : 'Your friends'}
       </p>
 
-      <div className="-mx-1 max-h-[42vh] min-h-[120px] overflow-y-auto px-1">
+      <div className={cn('-mx-1 min-h-[120px] px-1', !fill && 'max-h-[42vh] overflow-y-auto')}>
         {list.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {query.trim().length >= 2
