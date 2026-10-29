@@ -31,18 +31,6 @@ const useNow = (active: boolean) => {
 const hasLiveVideo = (stream: MediaStream | null) =>
   !!stream?.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
 
-/** Plays a participant's audio (kept separate so audio continues when video is hidden). */
-const RemoteAudio = ({ stream }: { stream: MediaStream | null }) => {
-  const ref = useRef<HTMLAudioElement>(null);
-  useEffect(() => {
-    if (ref.current && stream) {
-      ref.current.srcObject = stream;
-      ref.current.play().catch(() => undefined);
-    }
-  }, [stream]);
-  return <audio ref={ref} autoPlay playsInline />;
-};
-
 const VideoElement = ({ stream, mirror, className }: { stream: MediaStream; mirror?: boolean; className?: string }) => {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -138,19 +126,15 @@ const CallScreen = () => {
   const connected = call.participants.filter((p) => p.connection === 'connected').length;
   const statusText =
     call.status === 'starting' ? 'Starting…'
-      : call.status === 'waiting' ? (call.isInitiator ? 'Ringing…' : 'Waiting for others…')
+      : call.status === 'waiting' ? (call.isInitiator ? 'Ringing…' : call.isPrivate ? 'Connecting…' : 'Waiting for others…')
         : call.startedAt ? formatDuration(now - call.startedAt) : 'Connecting…';
   const canShare = isVideo && typeof (navigator.mediaDevices as any)?.getDisplayMedia === 'function' && !/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   const localHasVideo = isVideo && !call.videoOff && hasLiveVideo(call.localStream);
   const myName = (user?.user_metadata as any)?.full_name || 'You';
 
-  // Audio keeps playing whether the call is minimised or not
-  const audio = call.participants.map((p) => <RemoteAudio key={`a-${p.userId}`} stream={p.stream} />);
-
   if (minimized) {
     return createPortal(
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-4 z-[9000] md:bottom-6">
-        {audio}
         <div className="flex items-center gap-2 rounded-full bg-slate-900/95 p-1.5 pl-2 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur animate-in slide-in-from-bottom-4">
           <button onClick={() => setMinimized(false)} className="flex items-center gap-2 pr-1" aria-label="Open call">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500">
@@ -180,7 +164,6 @@ const CallScreen = () => {
 
   return createPortal(
     <div className="fixed inset-0 z-[9000] flex flex-col bg-slate-950 text-white animate-in fade-in duration-200">
-      {audio}
 
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
@@ -195,12 +178,16 @@ const CallScreen = () => {
           <p className="truncate text-base font-semibold">{call.chatName}</p>
           <p className="text-xs text-white/60">
             {statusText}
-            {connected > 0 && ` · ${connected + 1} in call`}
+            {!call.isPrivate && connected > 0 && ` · ${connected + 1} in call`}
           </p>
         </div>
-        <div className="flex h-10 min-w-10 items-center justify-center gap-1 rounded-full bg-white/10 px-3 text-sm">
-          <Users className="h-4 w-4" /> {others.length + 1}
-        </div>
+        {call.isPrivate ? (
+          <div className="h-10 w-10" />
+        ) : (
+          <div className="flex h-10 min-w-10 items-center justify-center gap-1 rounded-full bg-white/10 px-3 text-sm">
+            <Users className="h-4 w-4" /> {others.length + 1}
+          </div>
+        )}
       </div>
 
       {call.error && (
@@ -219,14 +206,21 @@ const CallScreen = () => {
             ) : null}
             <div className="relative">
               <span className="absolute inset-0 animate-ping rounded-full bg-blue-500/30" />
-              <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-blue-600 text-4xl font-semibold shadow-2xl">
-                {isVideo ? <Video className="h-12 w-12" /> : <Users className="h-12 w-12" />}
+              {call.isPrivate ? (
+                // One-to-one: their picture, with their name and "Ringing…" at the top
+                <UserAvatar name={call.chatName} className="relative h-32 w-32 text-4xl shadow-2xl" />
+              ) : (
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-blue-600 text-4xl font-semibold shadow-2xl">
+                  {isVideo ? <Video className="h-12 w-12" /> : <Users className="h-12 w-12" />}
+                </div>
+              )}
+            </div>
+            {!call.isPrivate && (
+              <div className="relative">
+                <p className="text-2xl font-semibold">{call.isInitiator ? `Calling ${call.chatName}` : 'Joining call…'}</p>
+                <p className="mt-1 text-white/60">{call.isInitiator ? 'Members will join as they pick up' : 'Connecting you to the others'}</p>
               </div>
-            </div>
-            <div className="relative">
-              <p className="text-2xl font-semibold">{call.isInitiator ? `Calling ${call.chatName}` : 'Joining call…'}</p>
-              <p className="mt-1 text-white/60">{call.isInitiator ? 'Members will join as they pick up' : 'Connecting you to the others'}</p>
-            </div>
+            )}
           </div>
         ) : (
           <div className={cn('grid h-full auto-rows-fr gap-3', gridCols)}>
