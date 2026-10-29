@@ -22,7 +22,15 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const channel = supabase.channel('app-online', { config: { presence: { key: user.id } } });
 
+    // When they were last here, for "Last seen …" in private chats: on opening and
+    // leaving the app, and every minute in between (leaving isn't always recorded)
+    const stamp = () => {
+      supabase.from('user_presence').upsert({ user_id: user.id, last_seen: new Date().toISOString() }).then(() => undefined);
+    };
+    const heartbeat = setInterval(() => document.visibilityState === 'visible' && stamp(), 60_000);
+
     const track = () => {
+      stamp();
       if (document.visibilityState === 'visible') channel.track({ at: Date.now() }).catch(() => undefined);
       else channel.untrack().catch(() => undefined);
     };
@@ -37,6 +45,7 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     document.addEventListener('visibilitychange', track);
     return () => {
+      clearInterval(heartbeat);
       document.removeEventListener('visibilitychange', track);
       supabase.removeChannel(channel);
     };

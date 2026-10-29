@@ -135,16 +135,18 @@ export class GroupChatService {
     }
 
     /**
-     * Chats I'm a member of, with last message and unread count, most recent first.
+     * Chats I'm a member of (or just these ones), with last message and unread count, most recent first.
      */
-    static async getMyChats(): Promise<ChatSummary[]> {
+    static async getMyChats(onlyChatIds?: string[]): Promise<ChatSummary[]> {
         const user = await currentUser();
-        if (!user) return [];
+        if (!user || onlyChatIds?.length === 0) return [];
 
-        const { data: memberships, error } = await supabase
+        let query = supabase
             .from('chat_participants')
             .select('chat_id, last_read_at, joined_at, chat:chat_id ( * )')
             .eq('user_id', user.id);
+        if (onlyChatIds) query = query.in('chat_id', onlyChatIds);
+        const { data: memberships, error } = await query;
         if (error) throw error;
 
         const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);

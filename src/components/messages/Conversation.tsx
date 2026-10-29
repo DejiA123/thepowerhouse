@@ -14,7 +14,7 @@ import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import {
-  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
+  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, formatLastSeen, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
 } from './chatUtils';
 import { track } from '@/lib/activity';
 
@@ -42,6 +42,8 @@ type Reaction = { emoji: string; user_id: string; id: string };
 
 const PAGE = 50;
 const GROUP_GAP_MS = 5 * 60 * 1000;
+
+const nearBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < 120;
 
 /** Keeps the chat above the on-screen keyboard on iOS (which doesn't resize the page). */
 function useKeyboardSafeHeight(ref: React.RefObject<HTMLElement>) {
@@ -84,9 +86,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
   const [unreadAnchor, setUnreadAnchor] = useState<string | null>(null);
+  // Private chat: the other person, and when they were last in the app
+  const [otherId, setOtherId] = useState<string | null>(null);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const topSentinel = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
   const restoreScroll = useRef<{ height: number; top: number } | null>(null);
@@ -142,6 +148,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     setHasMore(true);
     setTyping({});
     setUnreadAnchor(null);
+    setOtherId(null);
 
     (async () => {
       try {
@@ -155,6 +162,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setLoading(false);
         setHasMore(data.length === PAGE);
         setMemberCount(marks?.length ?? null);
+        if (isPrivateChat(chat)) setOtherId(marks?.find((m) => m.user_id !== me.id)?.user_id ?? null);
         setReadMarks(Object.fromEntries((marks || []).filter((m) => m.user_id !== me.id && m.last_read_at).map((m) => [m.user_id, m.last_read_at!])));
 
         const lastRead = membership?.last_read_at;
@@ -230,6 +238,28 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     return () => clearInterval(t);
   }, [typing]);
 
+  // Private chat: "Online", or when they were last in the app
+  const otherOnline = !!otherId && onlineIds.has(otherId);
+  useEffect(() => {
+    if (!otherId) return;
+    let cancelled = false;
+    setLastSeen(null);
+    supabase.from('user_presence').select('last_seen').eq('user_id', otherId).maybeSingle()
+      .then(({ data }) => !cancelled && setLastSeen(data?.last_seen ?? null));
+    return () => {
+      cancelled = true;
+    };
+  }, [otherId]);
+  // They've just left the app while this chat is open: that's their last seen
+  const sawOnline = useRef<string | null>(null);
+  useEffect(() => {
+    if (otherOnline) sawOnline.current = otherId;
+    else if (otherId && sawOnline.current === otherId) {
+      sawOnline.current = null;
+      setLastSeen(new Date().toISOString());
+    }
+  }, [otherOnline, otherId]);
+
   // Catch up after the phone was locked, the app was in the background or the
   // connection dropped: live updates don't replay what was missed, so fetch it.
   // Messages that failed to send while offline are sent again automatically.
@@ -299,16 +329,36 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       const anchor = unreadAnchor ? el.querySelector(`[data-unread-divider]`) : null;
       if (anchor) (anchor as HTMLElement).scrollIntoView({ block: 'center' });
       else el.scrollTop = el.scrollHeight;
+      atBottomRef.current = nearBottom(el);
       return;
     }
     const last = messages[messages.length - 1];
     if (last && (atBottomRef.current || last.user_id === me.id)) scrollToBottom(true);
   }, [messages, me.id, scrollToBottom, unreadAnchor, loading]);
 
+  // Photos and videos only get their height once they've loaded, after the chat
+  // has scrolled down, so they'd push the newest message out of view. Keep it in
+  // view while they load (and when the keyboard opens), unless the person has
+  // scrolled up. New messages scroll in on their own, above.
+  useEffect(() => {
+    const el = scrollRef.current;
+    const content = contentRef.current;
+    if (!el || !content) return;
+    let count = messagesRef.current.length;
+    const observer = new ResizeObserver(() => {
+      const newMessages = messagesRef.current.length !== count;
+      count = messagesRef.current.length;
+      if (!newMessages && atBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(content);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const bottom = nearBottom(el);
     atBottomRef.current = bottom;
     if (bottom !== atBottom) setAtBottom(bottom);
     if (bottom && newBelow > 0) {
@@ -357,6 +407,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         if (el) {
           initialScrollDone.current = true;
           el.scrollIntoView({ block: 'center' });
+          if (scrollRef.current) atBottomRef.current = nearBottom(scrollRef.current);
           el.animate?.(
             [{ backgroundColor: 'rgba(59, 130, 246, 0.22)' }, { backgroundColor: 'rgba(59, 130, 246, 0)' }],
             { duration: 2400, easing: 'ease-out' },
@@ -524,7 +575,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const subtitle = typingNames.length
     ? `${typingNames.slice(0, 2).join(', ')}${typingNames.length > 2 ? ' and others' : ''} ${typingNames.length === 1 ? 'is' : 'are'} typing…`
     : privateChat
-      ? 'Private chat'
+      ? otherOnline ? 'Online' : lastSeen ? formatLastSeen(lastSeen) : ''
       : memberCount != null
       ? `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`
       : 'Tap for group info';
@@ -586,9 +637,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-10 w-10" />
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight text-foreground">{title}</p>
-            <p className={cn('truncate text-xs', typingNames.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
-              {subtitle}
-            </p>
+            {subtitle && (
+              <p className={cn('truncate text-xs', typingNames.length || (privateChat && otherOnline) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                {subtitle}
+              </p>
+            )}
           </div>
         </button>
         <div className="flex items-center gap-0.5">
@@ -634,7 +687,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           onScroll={onScroll}
           className="absolute inset-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] [background-size:22px_22px]"
         >
-          <div className="mx-auto flex min-h-full max-w-3xl flex-col px-3 pb-3 pt-2 sm:px-5">
+          <div ref={contentRef} className="mx-auto flex min-h-full max-w-3xl flex-col px-3 pb-3 pt-2 sm:px-5">
             <div ref={topSentinel} className="h-1" />
             {loadingOlder && (
               <div className="flex justify-center py-3"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
