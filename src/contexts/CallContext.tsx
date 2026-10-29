@@ -49,6 +49,7 @@ interface CallContextType {
   toggleVideo: () => void;
   flipCamera: () => void;
   toggleScreenShare: () => void;
+  toggleSpeaker: () => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -470,6 +471,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleVideo: () => engineRef.current?.toggleVideo(),
     flipCamera: () => engineRef.current?.flipCamera(),
     toggleScreenShare: () => engineRef.current?.toggleScreenShare(),
+    toggleSpeaker: () => engineRef.current?.toggleSpeaker(),
   };
 
   return (

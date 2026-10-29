@@ -35,6 +35,10 @@ export interface CallSnapshot {
   muted: boolean;
   videoOff: boolean;
   screenSharing: boolean;
+  /** The call's sound is on the loudspeaker (rather than the earpiece) */
+  speaker: boolean;
+  /** This phone lets us switch between earpiece and loudspeaker */
+  canSwitchSpeaker: boolean;
   facingMode: 'user' | 'environment';
   startedAt: number | null;
   selfSpeaking: boolean;
@@ -70,6 +74,8 @@ type Listener = () => void;
 
 const MAX_PARTICIPANTS = 8;
 
+const AUDIO: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+
 /**
  * Mesh group call over WebRTC with Supabase Realtime for signalling.
  *  - Presence on `call-room:<callId>` tells everyone who is in the call.
@@ -86,6 +92,7 @@ export class CallEngine {
   private cameraTrack: MediaStreamTrack | null = null;
   private speakingTimer?: ReturnType<typeof setInterval>;
   private localAnalyser?: { ctx: AudioContext; node: AnalyserNode; data: Uint8Array };
+  private audioRoutes: { earpiece: string; speaker: string } | null = null;
   private destroyed = false;
 
   constructor(
@@ -104,6 +111,8 @@ export class CallEngine {
       muted: false,
       videoOff: opts.callType === 'audio',
       screenSharing: false,
+      speaker: true,
+      canSwitchSpeaker: false,
       facingMode: 'user',
       startedAt: null,
       selfSpeaking: false,
@@ -169,6 +178,8 @@ export class CallEngine {
       this.cameraTrack = stream?.getVideoTracks()[0] ?? null;
       this.set({ localStream: stream, videoOff: !this.cameraTrack });
       this.watchLocalSpeaking(stream);
+      await this.findAudioRoutes();
+      if (this.destroyed) return;
       await this.joinRoom();
       this.set({ status: this.snapshot.participants.some((p) => p.connection === 'connected') ? 'active' : 'waiting' });
       this.speakingTimer = setInterval(() => this.pollSpeaking(), 250);
@@ -180,11 +191,10 @@ export class CallEngine {
   }
 
   private async getMedia(): Promise<MediaStream> {
-    const audio: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
     if (this.snapshot.callType === 'video') {
       try {
         return await navigator.mediaDevices.getUserMedia({
-          audio,
+          audio: AUDIO,
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
         });
       } catch (error) {
@@ -193,7 +203,7 @@ export class CallEngine {
         this.set({ error: 'Camera unavailable — joined with audio only.' });
       }
     }
-    return navigator.mediaDevices.getUserMedia({ audio, video: false });
+    return navigator.mediaDevices.getUserMedia({ audio: AUDIO, video: false });
   }
 
   private describeMediaError(error: unknown) {
@@ -444,6 +454,64 @@ export class CallEngine {
       /* user cancelled the picker */
     }
   };
+
+  // ── Earpiece or loudspeaker ────────────────────────────────────────
+  // A web page can't choose where a call's sound plays, except in Chrome on
+  // Android: it lists the phone's earpiece and loudspeaker as microphones
+  // ("Headset earpiece", "Speakerphone") and plays the call through the one in
+  // use. There, like a phone call, voice calls start on the earpiece (video calls
+  // on the loudspeaker) and Speaker switches. On iPhone, Safari picks the route.
+  private async findAudioRoutes() {
+    const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+    const inputs = devices.filter((d) => d.kind === 'audioinput');
+    const earpiece = inputs.find((d) => /earpiece/i.test(d.label));
+    const speaker = inputs.find((d) => /speakerphone/i.test(d.label));
+    // Headphones or Bluetooth connected: the sound stays there
+    const headset = inputs.some((d) => d !== earpiece && /wired|bluetooth|usb/i.test(d.label));
+    if (!earpiece || !speaker || headset) return;
+    this.audioRoutes = { earpiece: earpiece.deviceId, speaker: speaker.deviceId };
+    this.set({ canSwitchSpeaker: true });
+    if (this.snapshot.callType === 'audio') await this.useAudioInput(this.audioRoutes.earpiece, false);
+  }
+
+  toggleSpeaker = async () => {
+    if (!this.audioRoutes) return;
+    const speaker = !this.snapshot.speaker;
+    await this.useAudioInput(speaker ? this.audioRoutes.speaker : this.audioRoutes.earpiece, speaker);
+  };
+
+  /** Switch to another microphone (on Android, that moves the call's sound too). */
+  private async useAudioInput(deviceId: string, speaker: boolean) {
+    let track: MediaStreamTrack;
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ audio: { ...AUDIO, deviceId: { exact: deviceId } } });
+      track = fresh.getAudioTracks()[0];
+    } catch (error) {
+      console.warn('[call] could not switch between earpiece and speaker', error);
+      return;
+    }
+    const stream = this.snapshot.localStream;
+    if (this.destroyed || !stream) {
+      track.stop();
+      return;
+    }
+    track.enabled = !this.snapshot.muted;
+    await Promise.all(
+      Array.from(this.peers.values()).map(async ({ pc }) => {
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+        if (sender) await sender.replaceTrack(track);
+      }),
+    );
+    stream.getAudioTracks().forEach((t) => {
+      stream.removeTrack(t);
+      t.stop();
+    });
+    stream.addTrack(track);
+    this.localAnalyser?.ctx.close().catch(() => undefined);
+    this.localAnalyser = undefined;
+    this.watchLocalSpeaking(stream);
+    this.set({ localStream: new MediaStream(stream.getTracks()), speaker });
+  }
 
   private async replaceVideoTrack(track: MediaStreamTrack) {
     const stream = this.snapshot.localStream;

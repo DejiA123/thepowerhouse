@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ChevronDown, Maximize2, Mic, MicOff, MonitorUp, PhoneOff, RefreshCcw, Users, Video, VideoOff, WifiOff,
+  ChevronDown, Maximize2, Mic, MicOff, MonitorUp, PhoneOff, RefreshCcw, Users, Video, VideoOff, Volume2, WifiOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCall } from '@/contexts/CallContext';
@@ -121,7 +121,7 @@ const ControlButton = ({
 const CallScreen = () => {
   const { user } = useAuth();
   const {
-    call, minimized, setMinimized, endCall, toggleMute, toggleVideo, flipCamera, toggleScreenShare,
+    call, minimized, setMinimized, endCall, toggleMute, toggleVideo, flipCamera, toggleScreenShare, toggleSpeaker,
   } = useCall();
   const [canFlip, setCanFlip] = useState(false);
   const now = useNow(!!call);
@@ -259,6 +259,11 @@ const CallScreen = () => {
 
       {/* Controls */}
       <div className="flex items-start justify-center gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 sm:gap-6">
+        {call.canSwitchSpeaker && (
+          <ControlButton onClick={toggleSpeaker} active={call.speaker} label="Speaker">
+            <Volume2 className="h-6 w-6" />
+          </ControlButton>
+        )}
         <ControlButton onClick={toggleMute} active={call.muted} label={call.muted ? 'Unmute' : 'Mute'}>
           {call.muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
         </ControlButton>
