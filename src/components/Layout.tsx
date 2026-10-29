@@ -263,7 +263,9 @@ const Layout = ({ children }: LayoutProps) => {
       {!isMobile && showChrome && <DesktopSidebar />}
 
       {/* Main column */}
-      <div id="app-main-wrapper" className="flex flex-col flex-1 min-w-0">
+      {/* Messages keeps the frame still (overflow-hidden above) and scrolls its own list, so the
+          column must stay the screen's height instead of growing to fit the list (min-h-0) */}
+      <div id="app-main-wrapper" className={cn("flex flex-col flex-1 min-w-0", isMessages && "min-h-0")}>
         {/* Background fill for status bar - mobile only */}
         {isMobile && location.pathname !== '/bible' && (location.pathname === '/follow-up' || !showChrome) && (
           <div className="shrink-0 bg-background z-20" style={{ height: 'max(env(safe-area-inset-top), var(--sat-fallback, 0px))' }} />
