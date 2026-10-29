@@ -386,7 +386,7 @@ export class GroupChatService {
         emitLocal(signalsTopic(chatId), 'signal', signal);
     }
 
-    static async deleteMessage(messageId: string): Promise<void> {
+    static async deleteMessage(messageId: string, chatId?: string): Promise<void> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to delete messages');
         const { error } = await supabase
@@ -395,6 +395,9 @@ export class GroupChatService {
             .eq('id', messageId)
             .eq('user_id', user.id);
         if (error) throw error;
+        // Deleted rows are hidden from everyone (is_deleted = false in the read rule), so the
+        // database feed never tells the others: say it on the chat's signals topic
+        if (chatId) broadcast(signalsTopic(chatId), 'signal', { type: 'message-deleted', from: user.id, payload: { messageId } }).catch(() => undefined);
     }
 
     static async joinChat(chatId: string): Promise<void> {
@@ -556,23 +559,28 @@ export class GroupChatService {
     }
 
     /**
-     * New messages in any of these chats, as soon as either path brings them:
-     * the sender's broadcast on the chat's signals topic (instant, and how this
-     * phone hears about its own call records) or the database feed. Each
-     * message is handed over once. Returns a function that stops listening.
+     * Live activity in my chats, as soon as either path brings it: the sender's
+     * broadcast on each chat's signals topic (instant, and how this phone hears
+     * about its own call records) or the database feed. Each new message is
+     * handed over once. The database only sends messages from chats I'm in, so
+     * one from a chat that isn't in `chatIds` means I've just been added to it.
+     * Returns a function that stops listening.
      */
-    static onNewMessages(chatIds: string[], handler: (message: ChatMessage) => void): () => void {
-        const ids = new Set(chatIds);
+    static watchChats(chatIds: string[], on: {
+        message: (message: ChatMessage) => void;
+        deleted?: (chatId: string, messageId: string) => void;
+    }): () => void {
         const seen = new Set<string>();
         const deliver = (message: ChatMessage) => {
-            if (!message?.id || !ids.has(message.chat_id) || seen.has(message.id)) return;
+            if (!message?.id || seen.has(message.id)) return;
             if (seen.size > 1000) seen.clear();
             seen.add(message.id);
-            handler(message);
+            on.message(message);
         };
         const offs = chatIds.map((chatId) =>
             this.onChatSignals(chatId, (signal) => {
                 if (signal?.type === 'new-message' && signal.payload?.id) deliver(signal.payload as ChatMessage);
+                else if (signal?.type === 'message-deleted' && signal.payload?.messageId) on.deleted?.(chatId, signal.payload.messageId);
             }),
         );
         const channel = this.subscribeToAllMessages(deliver);
