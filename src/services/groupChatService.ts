@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
-import { broadcast, onBroadcast, uniqueTopic } from "@/lib/realtime";
+import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
 
 export interface GroupChat {
     id: string;
@@ -379,7 +379,11 @@ export class GroupChatService {
             .select(MESSAGE_SELECT)
             .single();
         if (error) throw error;
-        if (data) broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: normalizeMessage(data) }).catch(() => undefined);
+        if (!data) return;
+        const signal = { type: 'new-message', from: user.id, payload: normalizeMessage(data) };
+        broadcast(signalsTopic(chatId), 'signal', signal).catch(() => undefined);
+        // This phone's open chat and lists see it straight away too
+        emitLocal(signalsTopic(chatId), 'signal', signal);
     }
 
     static async deleteMessage(messageId: string): Promise<void> {
@@ -413,14 +417,20 @@ export class GroupChatService {
     static async markAsRead(chatId: string, timestamp?: string): Promise<void> {
         const user = await currentUser();
         if (!user) return;
+        const at = timestamp || new Date().toISOString();
         const { error } = await supabase
             .from('chat_participants')
-            .update({ last_read_at: timestamp || new Date().toISOString() })
+            .update({ last_read_at: at })
             .eq('chat_id', chatId)
             .eq('user_id', user.id);
-        if (error) console.error('Error marking as read:', error);
+        if (error) {
+            console.error('Error marking as read:', error);
+            return;
+        }
         // Badges (Group Chats, the bell, the app icon) catch up
-        else window.dispatchEvent(new CustomEvent('chats:read', { detail: { chatId } }));
+        window.dispatchEvent(new CustomEvent('chats:read', { detail: { chatId } }));
+        // The others' ✓✓ turn to "seen" straight away
+        broadcast(signalsTopic(chatId), 'signal', { type: 'read', from: user.id, payload: { at } }).catch(() => undefined);
     }
 
     /** How many of my chats have messages I haven't read. */
@@ -543,6 +553,33 @@ export class GroupChatService {
                 callback(payload.new as ChatMessage);
             })
             .subscribe();
+    }
+
+    /**
+     * New messages in any of these chats, as soon as either path brings them:
+     * the sender's broadcast on the chat's signals topic (instant, and how this
+     * phone hears about its own call records) or the database feed. Each
+     * message is handed over once. Returns a function that stops listening.
+     */
+    static onNewMessages(chatIds: string[], handler: (message: ChatMessage) => void): () => void {
+        const ids = new Set(chatIds);
+        const seen = new Set<string>();
+        const deliver = (message: ChatMessage) => {
+            if (!message?.id || !ids.has(message.chat_id) || seen.has(message.id)) return;
+            if (seen.size > 1000) seen.clear();
+            seen.add(message.id);
+            handler(message);
+        };
+        const offs = chatIds.map((chatId) =>
+            this.onChatSignals(chatId, (signal) => {
+                if (signal?.type === 'new-message' && signal.payload?.id) deliver(signal.payload as ChatMessage);
+            }),
+        );
+        const channel = this.subscribeToAllMessages(deliver);
+        return () => {
+            offs.forEach((off) => off());
+            this.unsubscribe(channel);
+        };
     }
 
     static subscribeToReadStatus(callback: (payload: { chat_id: string; last_read_at: string; user_id: string }) => void): RealtimeChannel {
