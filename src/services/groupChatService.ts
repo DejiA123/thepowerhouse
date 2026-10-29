@@ -365,6 +365,19 @@ export class GroupChatService {
         return message;
     }
 
+    /** A call kept in the chat (e.g. "Missed voice call"). No push: the missed-call notification covers it. */
+    static async addCallRecord(chatId: string, content: string): Promise<void> {
+        const user = await currentUser();
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .insert({ chat_id: chatId, user_id: user.id, content })
+            .select(MESSAGE_SELECT)
+            .single();
+        if (error) throw error;
+        if (data) broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: normalizeMessage(data) }).catch(() => undefined);
+    }
+
     static async deleteMessage(messageId: string): Promise<void> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to delete messages');

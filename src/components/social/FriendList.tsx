@@ -24,7 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
 import { GroupChatService, type ChatSummary } from '@/services/groupChatService';
 import { SocialService, type CircleEntry, type PrivateChat } from '@/services/socialService';
-import { formatListTime, previewText } from '@/components/messages/chatUtils';
+import { formatListTime, parseCall, previewText } from '@/components/messages/chatUtils';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
 
 interface Props {
@@ -156,7 +156,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                             online={onlineIds.has(entry.person.id)}
                             subtitle={last ? (
                                 <span className={cn(unread > 0 && 'font-medium text-foreground')}>
-                                    {last.user_id === user?.id && 'You: '}{previewText(last.content)}
+                                    {last.user_id === user?.id && !parseCall(last.content) && 'You: '}{previewText(last.content, last.user_id === user?.id)}
                                 </span>
                             ) : `Friends since ${monthYear(entry.since)}`}
                             onOpen={() => opening !== entry.person.id && message(entry)}

@@ -16,6 +16,23 @@ export function chatTitle(chat: { name: string; description?: string | null }, m
 
 export const IMAGE_PREFIX = '::image::';
 export const VIDEO_PREFIX = '::video::';
+export const CALL_PREFIX = '::call::';
+
+/** A call nobody answered, kept in the chat like WhatsApp: "::call::missed:audio" */
+export const missedCallContent = (type: 'audio' | 'video') => `${CALL_PREFIX}missed:${type}`;
+
+export function parseCall(content: string): { type: 'audio' | 'video'; missed: boolean } | null {
+  if (!content.startsWith(CALL_PREFIX)) return null;
+  const [outcome, type] = content.slice(CALL_PREFIX.length).split(':');
+  return { type: type === 'video' ? 'video' : 'audio', missed: outcome === 'missed' };
+}
+
+/** What a call says from my side: the caller sees "Voice call · No answer", everyone else "Missed voice call". */
+export function describeCall(call: { type: 'audio' | 'video'; missed: boolean }, mine: boolean) {
+  const kind = call.type === 'video' ? 'video call' : 'voice call';
+  if (call.missed && !mine) return { title: `Missed ${kind}`, detail: 'Tap to call back' };
+  return { title: kind[0].toUpperCase() + kind.slice(1), detail: call.missed ? 'No answer' : '' };
+}
 
 export const isGifUrl = (url: string) => /\.gif(?:$|[?#])/i.test(url);
 
@@ -27,6 +44,7 @@ const GIF_LINK = /^https:\/\/\S+\.gif(?:\?\S*)?$/i;
  * then an optional caption on the following lines.
  */
 export function parseMessageContent(content: string): { imageUrl: string | null; videoUrl: string | null; text: string } {
+  if (content.startsWith(CALL_PREFIX)) return { imageUrl: null, videoUrl: null, text: '' };
   for (const [prefix, kind] of [[IMAGE_PREFIX, 'image'], [VIDEO_PREFIX, 'video']] as const) {
     if (content.startsWith(prefix)) {
       const [first, ...rest] = content.split('\n');
@@ -39,7 +57,13 @@ export function parseMessageContent(content: string): { imageUrl: string | null;
   return { imageUrl: null, videoUrl: null, text: content };
 }
 
-export const previewText = (content: string) => {
+/** One line for chat lists and notifications. `mine`: I sent it (a call reads differently for the caller). */
+export const previewText = (content: string, mine = false) => {
+  const call = parseCall(content || '');
+  if (call) {
+    const { title, detail } = describeCall(call, mine);
+    return `${call.type === 'video' ? '📹' : '📞'} ${title}${mine && detail ? ` · ${detail}` : ''}`;
+  }
   const { imageUrl, videoUrl, text } = parseMessageContent(content || '');
   const label = videoUrl ? '🎥 Video' : imageUrl ? (isGifUrl(imageUrl) ? '🎞️ GIF' : '📷 Photo') : null;
   if (label) return text ? `${label.split(' ')[0]} ${text}` : label;

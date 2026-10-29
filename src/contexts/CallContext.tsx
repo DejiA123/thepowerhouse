@@ -6,7 +6,8 @@ import { appAlert } from '@/lib/appAlert';
 import { CallEngine, type CallSnapshot, type CallType } from '@/lib/calls/callEngine';
 import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone';
 import { setAudioSession } from '@/lib/audioSession';
-import { chatTitle, isPrivateChat } from '@/components/messages/chatUtils';
+import { chatTitle, isPrivateChat, missedCallContent } from '@/components/messages/chatUtils';
+import { GroupChatService } from '@/services/groupChatService';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
 // Loaded when a call rings or starts, not at app start
@@ -329,6 +330,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Nobody answered (timed out, or the caller gave up): replace the ringing notification
       if (snap.isInitiator && (reason === 'no-answer' || !answeredCallsRef.current.has(snap.callId))) {
         sendPush({ type: 'call-missed', callId: snap.callId });
+        // Like WhatsApp, it stays in the chat: "Missed voice call" (the caller sees "No answer")
+        GroupChatService.addCallRecord(snap.chatId, missedCallContent(snap.callType))
+          .catch((error) => console.warn('[call] could not add the missed call to the chat', error));
       }
     }
     setEngine(null);
