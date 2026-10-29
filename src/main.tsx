@@ -12,9 +12,13 @@ import { church } from '@/config/church';
 // Catches Android's "this app can be installed" offer, which comes once, early
 import '@/lib/install';
 import { startActivity } from '@/lib/activity';
+import { keepRealtimeAwake } from '@/lib/realtime';
 
 // What people use in the app, for the church's admins (actions only, never content)
 startActivity();
+
+// Chats, calls and lists stay live after the phone was locked or the app was put away
+keepRealtimeAwake();
 
 recordLaunch();
 

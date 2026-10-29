@@ -20,6 +20,18 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 
+function dispatch(topic: string, entry: Entry, event: string, payload: unknown) {
+  entry.listeners.forEach((l) => {
+    if (l.event === '*' || l.event === event) {
+      try {
+        l.handler(payload, event);
+      } catch (err) {
+        console.error(`[realtime] handler for ${topic}/${event} failed`, err);
+      }
+    }
+  });
+}
+
 function ensure(topic: string): Entry {
   const existing = entries.get(topic);
   if (existing) return existing;
@@ -28,15 +40,8 @@ function ensure(topic: string): Entry {
   const listeners = new Set<{ event: string; handler: Handler }>();
 
   channel.on('broadcast', { event: '*' }, (message) => {
-    listeners.forEach((l) => {
-      if (l.event === '*' || l.event === message.event) {
-        try {
-          l.handler(message.payload, message.event);
-        } catch (err) {
-          console.error(`[realtime] handler for ${topic}/${message.event} failed`, err);
-        }
-      }
-    });
+    const entry = entries.get(topic);
+    if (entry) dispatch(topic, entry, message.event, message.payload);
   });
 
   const joined = new Promise<void>((resolve) => {
@@ -85,6 +90,43 @@ export async function broadcast(topic: string, event: string, payload: unknown):
   } finally {
     if (createdHere && !entries.has(topic)) supabase.removeChannel(temp);
   }
+}
+
+/**
+ * Give a broadcast to this device's own listeners too. The server never sends
+ * our own broadcasts back (self: false). That's right for a message the open
+ * chat already shows, but something made elsewhere in the app (a call kept in
+ * the chat) still has to reach the open chat and the lists on this phone.
+ */
+export function emitLocal(topic: string, event: string, payload: unknown) {
+  const entry = entries.get(topic);
+  if (entry) dispatch(topic, entry, event, payload);
+}
+
+/**
+ * After the phone was locked or the app was in the background, iOS has often
+ * frozen the live connection without closing it. It would only notice at the
+ * next missed heartbeat (up to ~50 s later), so chats looked stuck until they
+ * were reopened. On coming back, check straight away and reconnect if there's
+ * no answer; the channels then rejoin by themselves.
+ */
+export function keepRealtimeAwake() {
+  const rt = supabase.realtime;
+  let probe: ReturnType<typeof setTimeout> | undefined;
+  const wake = () => {
+    if (document.visibilityState !== 'visible' || rt.getChannels().length === 0) return;
+    if (!rt.isConnected()) {
+      rt.connect();
+      return;
+    }
+    rt.sendHeartbeat();
+    clearTimeout(probe);
+    // No reply by now: this second heartbeat finds the first unanswered and reconnects
+    probe = setTimeout(() => rt.sendHeartbeat(), 4000);
+  };
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('online', wake);
+  window.addEventListener('pageshow', wake);
 }
 
 /** Unique channel name for postgres_changes subscriptions (never shared). */

@@ -6,7 +6,6 @@ import { useAuth } from './AuthContext';
 import { pushNotificationService, ChatNotification } from '@/services/pushNotificationService';
 import { GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
-import { uniqueTopic } from '@/lib/realtime';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
 
@@ -181,51 +180,44 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [pushBanner, refreshNotifications]);
 
   // Chats I'm a member of (only these produce banners)
-  const myChats = useRef(new Set<string>());
+  const [myChatIds, setMyChatIds] = useState('');
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       const { data } = await supabase.from('chat_participants').select('chat_id').eq('user_id', user.id);
-      myChats.current = new Set((data || []).map((r) => r.chat_id));
+      setMyChatIds((data || []).map((r) => r.chat_id).sort().join(','));
     };
     load();
     window.addEventListener('chats:changed', load);
     return () => window.removeEventListener('chats:changed', load);
   }, [user]);
 
-  // Realtime: show a banner for new messages in my chats even without push set up
+  // Live: show a banner for new messages in my chats even without push set up
   useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel(uniqueTopic('inapp-messages'))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async ({ new: msg }: any) => {
-        if (!msg || msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
-        if (!myChats.current.has(msg.chat_id)) return;
-        GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
-        // An answered call just went into the chat: they were on it, no banner
-        if (document.visibilityState !== 'visible' || isAnsweredCall(String(msg.content || ''))) return;
+    if (!user || !myChatIds) return;
+    return GroupChatService.onNewMessages(myChatIds.split(','), async (msg) => {
+      if (msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
+      GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
+      // An answered call just went into the chat: they were on it, no banner
+      if (document.visibilityState !== 'visible' || isAnsweredCall(String(msg.content || ''))) return;
 
-        // A private chat ("A & B") shows just the person, like the phone's own notifications
-        if (!(msg.chat_id in chatNames.current)) {
-          const { data: chat } = await supabase.from('group_chats').select('name, description').eq('id', msg.chat_id).maybeSingle();
-          chatNames.current[msg.chat_id] = chat && isPrivateChat(chat) ? '' : chat?.name || 'Group chat';
-        }
-        const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', msg.user_id).maybeSingle();
-        const senderName = sender?.full_name || 'Someone';
-        const preview = previewText(String(msg.content || '')).slice(0, 120);
-        pushBanner({
-          kind: 'chat',
-          key: msg.id,
-          title: chatNames.current[msg.chat_id] || senderName,
-          message: chatNames.current[msg.chat_id] ? `${senderName}: ${preview}` : preview,
-          url: `/group-chats?chat=${msg.chat_id}`,
-        });
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, pushBanner]);
+      // A private chat ("A & B") shows just the person, like the phone's own notifications
+      if (!(msg.chat_id in chatNames.current)) {
+        const { data: chat } = await supabase.from('group_chats').select('name, description').eq('id', msg.chat_id).maybeSingle();
+        chatNames.current[msg.chat_id] = chat && isPrivateChat(chat) ? '' : chat?.name || 'Group chat';
+      }
+      const { data: sender } = await supabase.from('profiles').select('full_name').eq('id', msg.user_id).maybeSingle();
+      const senderName = sender?.full_name || 'Someone';
+      const preview = previewText(String(msg.content || '')).slice(0, 120);
+      pushBanner({
+        kind: 'chat',
+        key: msg.id,
+        title: chatNames.current[msg.chat_id] || senderName,
+        message: chatNames.current[msg.chat_id] ? `${senderName}: ${preview}` : preview,
+        url: `/group-chats?chat=${msg.chat_id}`,
+      });
+    });
+  }, [user, pushBanner, myChatIds]);
 
   // Opening a chat clears its OS notifications
   useEffect(() => {

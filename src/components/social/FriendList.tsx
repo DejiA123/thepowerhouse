@@ -67,7 +67,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
 
     useEffect(() => {
         if (!user || !chatIds) return;
-        const channel = GroupChatService.subscribeToAllMessages((message) => {
+        return GroupChatService.onNewMessages(chatIds.split(','), (message) => {
             setChats((prev) => {
                 const chat = prev[message.chat_id];
                 if (!chat) return prev;
@@ -81,7 +81,6 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                 };
             });
         });
-        return () => GroupChatService.unsubscribe(channel);
     }, [user, chatIds]);
 
     const lastAt = useCallback((entry: CircleEntry) => {

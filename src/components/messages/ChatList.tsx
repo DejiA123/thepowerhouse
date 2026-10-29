@@ -113,7 +113,8 @@ const ChatList = ({
             {visible.map((chat) => {
               const last = chat.last_message;
               const mine = last?.user_id === myId;
-              const who = last ? (mine ? 'You' : last.sender_name?.split(' ')[0]) : null;
+              // A one-to-one chat doesn't name the other person again (like WhatsApp)
+              const who = last ? (mine ? 'You' : isPrivateChat(chat) ? null : last.sender_name?.split(' ')[0]) : null;
               const hasCall = !!ongoingCalls[chat.id];
               return (
                 <button

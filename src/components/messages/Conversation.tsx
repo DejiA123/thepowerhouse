@@ -202,6 +202,10 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           else delete next[signal.from!];
           return next;
         });
+      } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
+        // Someone read up to here: my ✓✓ show it straight away
+        const at = String(signal.payload.at);
+        setReadMarks((prev) => (prev[signal.from!] >= at ? prev : { ...prev, [signal.from!]: at }));
       } else if (signal.type === 'reaction' && signal.payload?.messageId) {
         GroupChatService.getReactions([signal.payload.messageId]).then((r) =>
           setReactions((prev) => ({ ...prev, [signal.payload.messageId]: r[signal.payload.messageId] || [] })),

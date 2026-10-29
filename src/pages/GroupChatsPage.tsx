@@ -88,10 +88,12 @@ const GroupChatsPage = () => {
   }, [loadChats]);
 
   // Keep the list live: new messages in any of my chats move them to the top
+  const chatIdsKey = useMemo(() => chats.map((c) => c.id).sort().join(','), [chats]);
   useEffect(() => {
-    if (!user) return;
-    const channel = GroupChatService.subscribeToAllMessages(async (message) => {
-      // Realtime rows don't include the author's name; look it up once
+    if (!user || !chatIdsKey) return;
+    return GroupChatService.onNewMessages(chatIdsKey.split(','), async (message) => {
+      if (message.user?.full_name) names.current[message.user_id] ||= message.user.full_name;
+      // Database rows don't include the author's name; look it up once
       if (message.user_id !== user.id && !names.current[message.user_id]) {
         const { data } = await supabase.from('profiles').select('full_name').eq('id', message.user_id).maybeSingle();
         names.current[message.user_id] = data?.full_name || '';
@@ -114,8 +116,7 @@ const GroupChatsPage = () => {
         return [updated, ...prev.filter((_, i) => i !== index)];
       });
     });
-    return () => GroupChatService.unsubscribe(channel);
-  }, [user]);
+  }, [user, chatIdsKey]);
 
   const selectedChat: GroupChat | null =
     chats.find((c) => c.id === selectedId) ?? (openedChat?.id === selectedId ? openedChat : null);
