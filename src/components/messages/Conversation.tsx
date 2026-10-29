@@ -562,6 +562,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     sendContent(message.content, message.id);
   };
 
+  // Tapping "Missed voice call" in the chat calls back
+  const callBack = useCallback((type: 'audio' | 'video') => startCall(chat, type), [startCall, chat]);
+
   // Latest time any other member has read up to (for ✓✓)
   const othersReadUpTo = useMemo(() => Object.values(readMarks).sort().pop() ?? null, [readMarks]);
 
@@ -622,6 +625,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onToggleReaction={toggleReaction}
         onOpenImage={setViewImage}
         onRetry={retry}
+        onCall={callBack}
       />,
     );
   });

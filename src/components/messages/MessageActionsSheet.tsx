@@ -43,7 +43,7 @@ const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, on
         {message && (
           <div className="mx-auto w-full max-w-md px-3 pt-3">
             <p className="mb-3 line-clamp-2 px-2 text-center text-sm text-muted-foreground">
-              {previewText(message.content)}
+              {previewText(message.content, isOwn)}
             </p>
             {!message.pending && !message.failed && (
               <div className="mb-3 flex items-center justify-between rounded-2xl bg-muted/60 p-2">

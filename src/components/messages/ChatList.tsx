@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
 import type { OngoingCall } from '@/contexts/CallContext';
-import { chatTitle, formatListTime, isPrivateChat, previewText } from './chatUtils';
+import { chatTitle, formatListTime, isPrivateChat, parseCall, previewText } from './chatUtils';
 
 interface Props {
   chats: ChatSummary[];
@@ -141,7 +141,7 @@ const ChatList = ({
                             <PhoneCall className="h-3.5 w-3.5" /> Call in progress
                           </span>
                         ) : last ? (
-                          <>{who && <span className="font-medium">{who}: </span>}{previewText(last.content)}</>
+                          <>{who && !parseCall(last.content) && <span className="font-medium">{who}: </span>}{previewText(last.content, mine)}</>
                         ) : (
                           (isPrivateChat(chat) ? 'Say hello 👋' : chat.description) || 'No messages yet'
                         )}

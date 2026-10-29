@@ -1,9 +1,9 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, ImageOff, SmilePlus } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, ImageOff, Phone, PhoneMissed, PhoneOutgoing, SmilePlus, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
-import { formatClock, isEmojiOnly, linkify, parseMessageContent } from './chatUtils';
+import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseMessageContent } from './chatUtils';
 
 /**
  * A photo or GIF in a chat. If it doesn't load it tries again by itself, then
@@ -49,6 +49,37 @@ const ChatPhoto = ({ url, onOpen }: { url: string; onOpen: (url: string) => void
   );
 };
 
+/** A call in the chat, like WhatsApp: "Missed voice call · Tap to call back" or "Voice call · No answer". */
+const CallRow = ({ call, isOwn, meta, onCall }: {
+  call: { type: 'audio' | 'video'; missed: boolean };
+  isOwn: boolean;
+  meta: React.ReactNode;
+  onCall?: (type: 'audio' | 'video') => void;
+}) => {
+  const { title, detail } = describeCall(call, isOwn);
+  const missed = call.missed && !isOwn;
+  const Icon = call.type === 'video' ? Video : missed ? PhoneMissed : isOwn ? PhoneOutgoing : Phone;
+  return (
+    <button type="button" onClick={() => onCall?.(call.type)} className="flex items-center gap-3 py-0.5 text-left">
+      <span
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+          isOwn ? 'bg-white/20' : missed ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-muted',
+        )}
+      >
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold leading-tight">{title}</span>
+        <span className={cn('mt-0.5 flex items-center text-xs', isOwn ? 'text-white/75' : 'text-muted-foreground')}>
+          {detail}
+          {meta}
+        </span>
+      </span>
+    </button>
+  );
+};
+
 export interface ReactionGroup {
   emoji: string;
   count: number;
@@ -68,14 +99,17 @@ interface Props {
   onToggleReaction: (messageId: string, emoji: string) => void;
   onOpenImage: (url: string) => void;
   onRetry?: (message: ChatMessage) => void;
+  /** Tapping a call in the chat ("Missed voice call") calls back */
+  onCall?: (type: 'audio' | 'video') => void;
 }
 
 const LONG_PRESS_MS = 420;
 
 const MessageBubble = ({
-  message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry,
+  message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
+  const call = parseCall(message.content);
   const media = !!(imageUrl || videoUrl);
   const bigEmoji = !media && isEmojiOnly(text);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -129,7 +163,7 @@ const MessageBubble = ({
       )}
     >
       {formatClock(message.created_at)}
-      {isOwn && (
+      {isOwn && !call && (
         message.failed ? <AlertCircle className="h-3.5 w-3.5 text-red-300" />
           : message.pending ? <Clock className="h-3 w-3" />
             : seen ? <CheckCheck className="h-3.5 w-3.5" />
@@ -197,7 +231,8 @@ const MessageBubble = ({
                 className="block max-h-80 w-full min-w-[200px] max-w-[280px] rounded-2xl bg-black"
               />
             )}
-            {(text || !media) && (
+            {call && <CallRow call={call} isOwn={isOwn} meta={meta} onCall={onCall} />}
+            {!call && (text || !media) && (
               <div className={cn('whitespace-pre-wrap break-words', media && 'px-2.5 pb-1.5 pt-1.5')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
