@@ -127,6 +127,22 @@ export function keepRealtimeAwake() {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('online', wake);
   window.addEventListener('pageshow', wake);
+
+  // Reconnected after a drop: nothing missed meanwhile is replayed, so tell the
+  // screens to fetch it ('app:resync'), once the channels have rejoined
+  let dropped = false;
+  let resync: ReturnType<typeof setTimeout> | undefined;
+  const drop = () => {
+    dropped = true;
+  };
+  rt.stateChangeCallbacks.close.push(drop);
+  rt.stateChangeCallbacks.error.push(drop);
+  rt.stateChangeCallbacks.open.push(() => {
+    if (!dropped) return;
+    dropped = false;
+    clearTimeout(resync);
+    resync = setTimeout(() => window.dispatchEvent(new Event('app:resync')), 1500);
+  });
 }
 
 /** Unique channel name for postgres_changes subscriptions (never shared). */

@@ -32,6 +32,9 @@ export const FriendsHub = () => {
 
     useEffect(() => {
         load();
+        // A friend started our chat (their first message or call): pick it up
+        window.addEventListener('chats:changed', load);
+        return () => window.removeEventListener('chats:changed', load);
     }, [load]);
 
     const friends = circle?.friends ?? [];

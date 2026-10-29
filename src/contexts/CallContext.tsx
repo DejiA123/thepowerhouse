@@ -135,6 +135,33 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('chats:changed', onChanged);
     return () => window.removeEventListener('chats:changed', onChanged);
   }, [loadChats]);
+  const loadChatsRef = useRef(loadChats);
+  loadChatsRef.current = loadChats;
+
+  // Added to a chat (a friend's first message or call, a new group): every screen picks it up
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(uniqueTopic('my-chats'))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` }, () =>
+        window.dispatchEvent(new CustomEvent('chats:changed')),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  /** An incoming call from its database row. In a private chat the caller is the chat's name. */
+  const incomingFromRow = useCallback((row: { id: string; chat_id: string; call_type: string; initiated_by: string }): IncomingCall => ({
+    callId: row.id,
+    chatId: row.chat_id,
+    chatName: chatNamesRef.current[row.chat_id] || 'Group chat',
+    callType: row.call_type === 'video' ? 'video' : 'audio',
+    initiatorId: row.initiated_by,
+    initiatorName: (privateChatsRef.current.has(row.chat_id) && chatNamesRef.current[row.chat_id]) || 'A member',
+    receivedAt: Date.now(),
+  }), []);
 
   // ── Incoming call signals on each of my chats ─────────────────────
   useEffect(() => {
@@ -183,25 +210,47 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .channel(uniqueTopic('call-sessions'))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_sessions' }, async ({ new: row }: any) => {
         if (!row || row.initiated_by === user.id || row.status !== 'ringing') return;
-        if (!chatIdsRef.current.includes(row.chat_id)) return;
+        if (!chatIdsRef.current.includes(row.chat_id)) {
+          // A chat that's new to this phone (e.g. a friend's first call): am I in it?
+          await loadChatsRef.current();
+          if (!chatIdsRef.current.includes(row.chat_id)) return;
+          window.dispatchEvent(new CustomEvent('chats:changed'));
+        }
         if (declinedRef.current.has(row.id) || engineRef.current) return;
-        setIncomingCall((prev) =>
-          prev ?? {
-            callId: row.id,
-            chatId: row.chat_id,
-            chatName: chatNamesRef.current[row.chat_id] || 'Group chat',
-            callType: row.call_type === 'video' ? 'video' : 'audio',
-            initiatorId: row.initiated_by,
-            initiatorName: 'A member',
-            receivedAt: Date.now(),
-          },
-        );
+        setIncomingCall((prev) => prev ?? incomingFromRow(row));
       })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, incomingFromRow]);
+
+  // Back in the app, or back online, while someone is still calling me: show the call
+  // (the ring itself may have come and gone while the app was away)
+  useEffect(() => {
+    if (!user) return;
+    const check = async () => {
+      if (document.visibilityState !== 'visible' || engineRef.current || !chatIdsRef.current.length) return;
+      const { data: row } = await supabase
+        .from('call_sessions')
+        .select('id, chat_id, call_type, initiated_by')
+        .in('chat_id', chatIdsRef.current)
+        .eq('status', 'ringing')
+        .neq('initiated_by', user.id)
+        .gt('started_at', new Date(Date.now() - RING_TIMEOUT_MS).toISOString())
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!row || declinedRef.current.has(row.id) || engineRef.current) return;
+      setIncomingCall((prev) => prev ?? incomingFromRow(row));
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('app:resync', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('app:resync', check);
+    };
+  }, [user, incomingFromRow]);
 
   // Ring while an incoming call is showing; give up after the timeout
   useEffect(() => {
@@ -290,6 +339,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, me, launch]);
 
   const joinCall = useCallback(async (info: { callId: string; chatId: string; chatName: string; callType: CallType }) => {
+    declinedRef.current.add(info.callId); // joined: it never rings again
     setIncomingCall(null);
     if (engineRef.current?.getSnapshot().callId === info.callId && engineRef.current.getSnapshot().status !== 'ended') {
       setMinimized(false);

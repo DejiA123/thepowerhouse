@@ -62,26 +62,35 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
         loadChats();
         const onVisible = () => document.visibilityState === 'visible' && loadChats();
         document.addEventListener('visibilitychange', onVisible);
-        return () => document.removeEventListener('visibilitychange', onVisible);
+        // Back online after a drop: fetch what was missed
+        window.addEventListener('app:resync', loadChats);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('app:resync', loadChats);
+        };
     }, [loadChats]);
 
     useEffect(() => {
         if (!user || !chatIds) return;
-        return GroupChatService.onNewMessages(chatIds.split(','), (message) => {
-            setChats((prev) => {
-                const chat = prev[message.chat_id];
-                if (!chat) return prev;
-                return {
-                    ...prev,
-                    [chat.id]: {
-                        ...chat,
-                        last_message: { content: message.content, created_at: message.created_at, user_id: message.user_id },
-                        unread: message.user_id !== user.id && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
-                    },
-                };
-            });
+        return GroupChatService.watchChats(chatIds.split(','), {
+            message: (message) => {
+                setChats((prev) => {
+                    const chat = prev[message.chat_id];
+                    if (!chat) return prev;
+                    return {
+                        ...prev,
+                        [chat.id]: {
+                            ...chat,
+                            last_message: { content: message.content, created_at: message.created_at, user_id: message.user_id },
+                            unread: message.user_id !== user.id && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
+                        },
+                    };
+                });
+            },
+            // Someone deleted a message: the latest line may have changed
+            deleted: () => loadChats(),
         });
-    }, [user, chatIds]);
+    }, [user, chatIds, loadChats]);
 
     const lastAt = useCallback((entry: CircleEntry) => {
         const at = entry.chat ? chats[entry.chat.id]?.last_message?.created_at : null;

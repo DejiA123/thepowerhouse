@@ -202,6 +202,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           else delete next[signal.from!];
           return next;
         });
+      } else if (signal.type === 'message-deleted' && signal.payload?.messageId) {
+        setMessages((prev) => prev.filter((m) => m.id !== signal.payload.messageId));
       } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
         // Someone read up to here: my ✓✓ show it straight away
         const at = String(signal.payload.at);
@@ -299,10 +301,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onOnline);
     window.addEventListener('focus', onVisible);
+    // The live connection came back after a drop
+    window.addEventListener('app:resync', onVisible);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onOnline);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('app:resync', onVisible);
     };
   }, [chat.id, addMessage, loading]);
 
@@ -554,7 +559,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const snapshot = messages;
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
     try {
-      await GroupChatService.deleteMessage(message.id);
+      await GroupChatService.deleteMessage(message.id, chat.id);
     } catch {
       setMessages(snapshot);
       appAlert('Could not delete message', '', 'error');

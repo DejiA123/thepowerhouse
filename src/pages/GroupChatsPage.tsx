@@ -80,9 +80,12 @@ const GroupChatsPage = () => {
     const onChanged = () => loadChats();
     const onVisible = () => document.visibilityState === 'visible' && loadChats();
     window.addEventListener('chats:changed', onChanged);
+    // Back online after a drop: fetch what was missed
+    window.addEventListener('app:resync', onChanged);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('chats:changed', onChanged);
+      window.removeEventListener('app:resync', onChanged);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [loadChats]);
@@ -91,32 +94,36 @@ const GroupChatsPage = () => {
   const chatIdsKey = useMemo(() => chats.map((c) => c.id).sort().join(','), [chats]);
   useEffect(() => {
     if (!user || !chatIdsKey) return;
-    return GroupChatService.onNewMessages(chatIdsKey.split(','), async (message) => {
-      if (message.user?.full_name) names.current[message.user_id] ||= message.user.full_name;
-      // Database rows don't include the author's name; look it up once
-      if (message.user_id !== user.id && !names.current[message.user_id]) {
-        const { data } = await supabase.from('profiles').select('full_name').eq('id', message.user_id).maybeSingle();
-        names.current[message.user_id] = data?.full_name || '';
-      }
-      setChats((prev) => {
-        const index = prev.findIndex((c) => c.id === message.chat_id);
-        if (index < 0) return prev;
-        const chat = prev[index];
-        const isOpen = message.chat_id === selectedIdRef.current;
-        const updated: ChatSummary = {
-          ...chat,
-          last_message: {
-            content: message.content,
-            created_at: message.created_at,
-            user_id: message.user_id,
-            sender_name: names.current[message.user_id] || undefined,
-          },
-          unread: message.user_id !== user.id && !isOpen && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
-        };
-        return [updated, ...prev.filter((_, i) => i !== index)];
-      });
+    return GroupChatService.watchChats(chatIdsKey.split(','), {
+      message: async (message) => {
+        if (message.user?.full_name) names.current[message.user_id] ||= message.user.full_name;
+        // Database rows don't include the author's name; look it up once
+        if (message.user_id !== user.id && !names.current[message.user_id]) {
+          const { data } = await supabase.from('profiles').select('full_name').eq('id', message.user_id).maybeSingle();
+          names.current[message.user_id] = data?.full_name || '';
+        }
+        setChats((prev) => {
+          const index = prev.findIndex((c) => c.id === message.chat_id);
+          if (index < 0) return prev; // a chat I've just been added to: 'chats:changed' reloads the list
+          const chat = prev[index];
+          const isOpen = message.chat_id === selectedIdRef.current;
+          const updated: ChatSummary = {
+            ...chat,
+            last_message: {
+              content: message.content,
+              created_at: message.created_at,
+              user_id: message.user_id,
+              sender_name: names.current[message.user_id] || undefined,
+            },
+            unread: message.user_id !== user.id && !isOpen && !isAnsweredCall(message.content) ? chat.unread + 1 : chat.unread,
+          };
+          return [updated, ...prev.filter((_, i) => i !== index)];
+        });
+      },
+      // Someone deleted a message: the chat's latest line may have changed
+      deleted: () => loadChats(),
     });
-  }, [user, chatIdsKey]);
+  }, [user, chatIdsKey, loadChats]);
 
   const selectedChat: GroupChat | null =
     chats.find((c) => c.id === selectedId) ?? (openedChat?.id === selectedId ? openedChat : null);
