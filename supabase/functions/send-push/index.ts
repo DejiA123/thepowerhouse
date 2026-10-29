@@ -14,6 +14,10 @@ import { church } from '../_shared/church.ts';
 
 const FRESH_MS = 10 * 60 * 1000; // only notify about things created in the last 10 minutes
 
+// A chat between two friends (Social Circle) is stored as "A & B" with this description.
+// Its notifications show just the other person, like a text message or phone call.
+const PRIVATE_CHAT = 'Private chat';
+
 const isFresh = (iso?: string | null) => !!iso && Date.now() - new Date(iso).getTime() < FRESH_MS;
 
 const truncate = (text: string, max: number) =>
@@ -83,11 +87,12 @@ Deno.serve(async (req) => {
       }
 
       const [{ data: chat }, sender, recipients] = await Promise.all([
-        supabaseAdmin.from('group_chats').select('name').eq('id', message.chat_id).maybeSingle(),
+        supabaseAdmin.from('group_chats').select('name, description').eq('id', message.chat_id).maybeSingle(),
         displayName(user.id),
         chatRecipients(message.chat_id, user.id),
       ]);
-      const chatName = chat?.name ?? 'Group chat';
+      const isPrivate = chat?.description === PRIVATE_CHAT;
+      const chatName = isPrivate ? sender : chat?.name ?? 'Group chat';
       // Photos / GIFs are stored as "::image::<url>\n<caption>", videos as "::video::<url>\n<caption>"
       const isPhoto = message.content.startsWith('::image::');
       const isVideo = message.content.startsWith('::video::');
@@ -117,7 +122,7 @@ Deno.serve(async (req) => {
       const result = await sendToSubscriptions(await subscriptionsForUsers(recipients), {
         kind: 'chat',
         title: chatName,
-        body: `${sender}: ${preview}`,
+        body: isPrivate ? preview : `${sender}: ${preview}`,
         // Opens the chat at this message
         url: `/group-chats?chat=${message.chat_id}&message=${message.id}`,
         tag: `chat-${message.chat_id}`,
@@ -142,10 +147,11 @@ Deno.serve(async (req) => {
       }
 
       const [{ data: chat }, caller, recipients] = await Promise.all([
-        supabaseAdmin.from('group_chats').select('name').eq('id', call.chat_id).maybeSingle(),
+        supabaseAdmin.from('group_chats').select('name, description').eq('id', call.chat_id).maybeSingle(),
         displayName(user.id),
         chatRecipients(call.chat_id, user.id),
       ]);
+      const isPrivate = chat?.description === PRIVATE_CHAT;
       const chatName = chat?.name ?? 'Group chat';
       const isVideo = call.call_type === 'video';
       const subs: PushSubscriptionRow[] = await subscriptionsForUsers(recipients);
@@ -153,8 +159,8 @@ Deno.serve(async (req) => {
       if (type === 'call') {
         const result = await sendToSubscriptions(subs, {
           kind: 'call',
-          title: `${isVideo ? '📹 Video' : '📞 Voice'} call · ${chatName}`,
-          body: `${caller} is calling. Tap to join.`,
+          title: isPrivate ? caller : `${isVideo ? '📹 Video' : '📞 Voice'} call · ${chatName}`,
+          body: isPrivate ? (isVideo ? '📹 Incoming video call' : '📞 Incoming voice call') : `${caller} is calling. Tap to join.`,
           url: `/group-chats?chat=${call.chat_id}&call=${call.id}`,
           tag: `call-${call.id}`,
           renotify: true,
@@ -171,8 +177,8 @@ Deno.serve(async (req) => {
 
       const result = await sendToSubscriptions(subs, {
         kind: 'call-missed',
-        title: `Missed ${isVideo ? 'video' : 'voice'} call`,
-        body: `${caller} called ${chatName}`,
+        title: isPrivate ? caller : `Missed ${isVideo ? 'video' : 'voice'} call`,
+        body: isPrivate ? `Missed ${isVideo ? 'video' : 'voice'} call` : `${caller} called ${chatName}`,
         url: `/group-chats?chat=${call.chat_id}`,
         tag: `call-${call.id}`,
         renotify: false,
