@@ -7,17 +7,18 @@ import type { Person } from '@/services/socialService';
  * actions beside the name (or, with `below`, on their own line underneath).
  * With `onOpen`, tapping the photo or name does it (e.g. opens your chat).
  */
-export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel }: {
+export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel, online }: {
     person: Person;
     subtitle?: ReactNode;
     children?: ReactNode;
     below?: ReactNode;
     onOpen?: () => void;
     openLabel?: string;
+    online?: boolean;
 }) => {
     const who = (
         <>
-            <UserAvatar name={person.name} src={person.avatar} seed={person.id} className="h-12 w-12 text-base" />
+            <UserAvatar name={person.name} src={person.avatar} seed={person.id} online={online} className="h-12 w-12 text-base" />
             <span className="block min-w-0 flex-1">
                 <span className="block truncate text-[15.5px] font-semibold leading-tight text-foreground">{person.name}</span>
                 {subtitle && <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">{subtitle}</span>}

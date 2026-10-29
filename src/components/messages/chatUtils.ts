@@ -69,6 +69,12 @@ export function formatDayLabel(iso: string) {
   });
 }
 
+/** "Last seen today at 14:05", "Last seen Monday at 9:30", "Last seen 3 March at 18:10" */
+export function formatLastSeen(iso: string) {
+  const day = formatDayLabel(iso);
+  return `Last seen ${day === 'Today' || day === 'Yesterday' ? day.toLowerCase() : day} at ${formatClock(iso)}`;
+}
+
 /** Compact time for the chat list: 14:05 · Yesterday · Mon · 03/03/25 */
 export function formatListTime(iso?: string | null) {
   if (!iso) return '';
