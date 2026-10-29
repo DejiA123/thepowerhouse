@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getIceServers } from './iceServers';
+import { CallAudio } from './callAudio';
 
 export type CallType = 'audio' | 'video';
 
@@ -30,6 +31,8 @@ export interface CallSnapshot {
   chatName: string;
   callType: CallType;
   isInitiator: boolean;
+  /** A one-to-one call (a private chat) */
+  isPrivate: boolean;
   localStream: MediaStream | null;
   participants: CallParticipant[];
   muted: boolean;
@@ -72,6 +75,9 @@ interface PresenceMeta {
 
 type Listener = () => void;
 
+/** How to move a call's sound between earpiece and loudspeaker: by microphone (Android) or by output (iPhone) */
+type AudioRoute = { via: 'microphone' | 'output'; earpiece: string; speaker: string };
+
 const MAX_PARTICIPANTS = 8;
 
 const AUDIO: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
@@ -92,12 +98,13 @@ export class CallEngine {
   private cameraTrack: MediaStreamTrack | null = null;
   private speakingTimer?: ReturnType<typeof setInterval>;
   private localAnalyser?: { ctx: AudioContext; node: AnalyserNode; data: Uint8Array };
-  private audioRoutes: { earpiece: string; speaker: string } | null = null;
+  private audioOut: CallAudio | null = null;
+  private audioRoute: AudioRoute | null = null;
   private destroyed = false;
 
   constructor(
     private readonly me: CallMe,
-    opts: { callId: string; chatId: string; chatName: string; callType: CallType; isInitiator: boolean },
+    opts: { callId: string; chatId: string; chatName: string; callType: CallType; isInitiator: boolean; isPrivate?: boolean },
   ) {
     this.snapshot = {
       status: 'starting',
@@ -106,6 +113,7 @@ export class CallEngine {
       chatName: opts.chatName,
       callType: opts.callType,
       isInitiator: opts.isInitiator,
+      isPrivate: !!opts.isPrivate,
       localStream: null,
       participants: [],
       muted: false,
@@ -153,6 +161,7 @@ export class CallEngine {
             ...patch,
           },
         ];
+    if (patch.stream) this.audioOut?.play(userId, patch.stream);
     const anyConnected = participants.some((p) => p.connection === 'connected');
     this.set({
       participants,
@@ -163,22 +172,26 @@ export class CallEngine {
   }
 
   private removeParticipant(userId: string) {
+    this.audioOut?.remove(userId);
     this.set({ participants: this.snapshot.participants.filter((p) => p.userId !== userId) });
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────
   async start() {
     try {
-      const [stream, ice] = await Promise.all([this.getMedia(), getIceServers()]);
+      this.audioOut = new CallAudio(MAX_PARTICIPANTS - 1);
+      const ice = getIceServers();
+      const stream = await this.getMedia();
       if (this.destroyed) {
         stream?.getTracks().forEach((t) => t.stop());
         return;
       }
-      this.iceServers = ice;
       this.cameraTrack = stream?.getVideoTracks()[0] ?? null;
       this.set({ localStream: stream, videoOff: !this.cameraTrack });
       this.watchLocalSpeaking(stream);
+      // Straight after the microphone: on iPhone the earpiece can only be chosen within seconds of the tap
       await this.findAudioRoutes();
+      this.iceServers = await ice;
       if (this.destroyed) return;
       await this.joinRoom();
       this.set({ status: this.snapshot.participants.some((p) => p.connection === 'connected') ? 'active' : 'waiting' });
@@ -456,44 +469,50 @@ export class CallEngine {
   };
 
   // ── Earpiece or loudspeaker ────────────────────────────────────────
-  // A web page can't choose where a call's sound plays, except in Chrome on
-  // Android: it lists the phone's earpiece and loudspeaker as microphones
-  // ("Headset earpiece", "Speakerphone") and plays the call through the one in
-  // use. There, like a phone call, voice calls start on the earpiece (video calls
-  // on the loudspeaker) and Speaker switches. On iPhone, Safari picks the route.
+  // Like a phone call, voice calls start on the earpiece (video calls on the
+  // loudspeaker) and Speaker switches. Browsers allow this two ways:
+  //  • iPhone (Safari 18.4+) lists the earpiece ("Receiver") and loudspeaker as
+  //    outputs once the microphone is on. Playing the call on the receiver makes
+  //    iOS treat it as a phone call. Safari only allows choosing an output
+  //    within a few seconds of a tap, hence straight after Call / Answer.
+  //  • Chrome on Android lists them as microphones ("Headset earpiece",
+  //    "Speakerphone") and plays the call through the one in use.
+  // With headphones or Bluetooth connected the sound stays there (no button).
   private async findAudioRoutes() {
     const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
-    const inputs = devices.filter((d) => d.kind === 'audioinput');
-    const earpiece = inputs.find((d) => /earpiece/i.test(d.label));
-    const speaker = inputs.find((d) => /speakerphone/i.test(d.label));
-    // Headphones or Bluetooth connected: the sound stays there
-    const headset = inputs.some((d) => d !== earpiece && /wired|bluetooth|usb/i.test(d.label));
-    if (!earpiece || !speaker || headset) return;
-    this.audioRoutes = { earpiece: earpiece.deviceId, speaker: speaker.deviceId };
+    this.audioRoute = findAndroidRoute(devices) ?? findIPhoneRoute(devices);
+    if (!this.audioRoute) return;
     this.set({ canSwitchSpeaker: true });
-    if (this.snapshot.callType === 'audio') await this.useAudioInput(this.audioRoutes.earpiece, false);
+    if (this.snapshot.callType === 'audio') await this.routeAudio(false);
   }
 
-  toggleSpeaker = async () => {
-    if (!this.audioRoutes) return;
-    const speaker = !this.snapshot.speaker;
-    await this.useAudioInput(speaker ? this.audioRoutes.speaker : this.audioRoutes.earpiece, speaker);
-  };
+  /** Called straight from the Speaker tap (iPhone needs the tap). */
+  toggleSpeaker = () => this.routeAudio(!this.snapshot.speaker);
+
+  private async routeAudio(speaker: boolean) {
+    const route = this.audioRoute;
+    if (!route || this.destroyed) return;
+    const deviceId = speaker ? route.speaker : route.earpiece;
+    const done = route.via === 'output'
+      ? await this.audioOut?.setOutput(deviceId)
+      : await this.useAudioInput(deviceId);
+    if (done && !this.destroyed) this.set({ speaker });
+  }
 
   /** Switch to another microphone (on Android, that moves the call's sound too). */
-  private async useAudioInput(deviceId: string, speaker: boolean) {
+  private async useAudioInput(deviceId: string) {
     let track: MediaStreamTrack;
     try {
       const fresh = await navigator.mediaDevices.getUserMedia({ audio: { ...AUDIO, deviceId: { exact: deviceId } } });
       track = fresh.getAudioTracks()[0];
     } catch (error) {
       console.warn('[call] could not switch between earpiece and speaker', error);
-      return;
+      return false;
     }
     const stream = this.snapshot.localStream;
     if (this.destroyed || !stream) {
       track.stop();
-      return;
+      return false;
     }
     track.enabled = !this.snapshot.muted;
     await Promise.all(
@@ -510,7 +529,8 @@ export class CallEngine {
     this.localAnalyser?.ctx.close().catch(() => undefined);
     this.localAnalyser = undefined;
     this.watchLocalSpeaking(stream);
-    this.set({ localStream: new MediaStream(stream.getTracks()), speaker });
+    this.set({ localStream: new MediaStream(stream.getTracks()) });
+    return true;
   }
 
   private async replaceVideoTrack(track: MediaStreamTrack) {
@@ -547,6 +567,7 @@ export class CallEngine {
     });
     this.peers.clear();
     this.localAnalyser?.ctx.close().catch(() => undefined);
+    this.audioOut?.stop();
     this.snapshot.localStream?.getTracks().forEach((t) => t.stop());
     this.cameraTrack?.stop();
     if (this.channel) {
@@ -598,4 +619,35 @@ export class CallEngine {
     const selfSpeaking = !this.snapshot.muted && this.level(this.localAnalyser) > 18;
     if (changed || selfSpeaking !== this.snapshot.selfSpeaking) this.set({ participants, selfSpeaking });
   }
+}
+
+/** Chrome on Android: the earpiece and loudspeaker are listed as microphones. */
+function findAndroidRoute(devices: MediaDeviceInfo[]): AudioRoute | null {
+  const inputs = devices.filter((d) => d.kind === 'audioinput');
+  const earpiece = inputs.find((d) => /earpiece/i.test(d.label));
+  const speaker = inputs.find((d) => /speakerphone/i.test(d.label));
+  const headset = inputs.some((d) => d !== earpiece && /wired|bluetooth|usb/i.test(d.label));
+  if (!earpiece || !speaker || headset) return null;
+  return { via: 'microphone', earpiece: earpiece.deviceId, speaker: speaker.deviceId };
+}
+
+/** iPhone: the earpiece ("Receiver") and loudspeaker are listed as outputs. */
+function findIPhoneRoute(devices: MediaDeviceInfo[]): AudioRoute | null {
+  if (!/iPhone|iPod/.test(navigator.userAgent) || !('setSinkId' in HTMLMediaElement.prototype)) return null;
+  const all = devices.filter((d) => d.kind === 'audiooutput');
+  const outputs = all.filter((d) => d.deviceId && d.deviceId !== 'default');
+  // Anything more than the two built-in ones (headphones, Bluetooth): leave it
+  if (outputs.length !== 2) return null;
+  let speaker = outputs.find((d) => /speaker/i.test(d.label));
+  let earpiece = outputs.find((d) => d !== speaker && /receiver|earpiece|iphone/i.test(d.label));
+  if (!speaker && !earpiece) {
+    // Names in another language: during a call the system default ("… - <name>") is the loudspeaker
+    const current = all.find((d) => d.deviceId === 'default')?.label ?? '';
+    speaker = outputs.find((d) => d.label && current.endsWith(` - ${d.label}`));
+  }
+  if (!speaker && !earpiece) return null; // can't tell which is which: don't guess
+  earpiece ??= outputs.find((d) => d !== speaker);
+  speaker ??= outputs.find((d) => d !== earpiece);
+  if (!earpiece || !speaker) return null;
+  return { via: 'output', earpiece: earpiece.deviceId, speaker: speaker.deviceId };
 }

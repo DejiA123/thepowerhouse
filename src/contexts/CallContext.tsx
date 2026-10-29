@@ -6,7 +6,7 @@ import { appAlert } from '@/lib/appAlert';
 import { CallEngine, type CallSnapshot, type CallType } from '@/lib/calls/callEngine';
 import { installAudioUnlock, playCue, startRingtone } from '@/lib/calls/ringtone';
 import { setAudioSession } from '@/lib/audioSession';
-import { chatTitle } from '@/components/messages/chatUtils';
+import { chatTitle, isPrivateChat } from '@/components/messages/chatUtils';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
 // Loaded when a call rings or starts, not at app start
@@ -83,6 +83,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const declinedRef = useRef(new Set<string>());
   const chatIdsRef = useRef<string[]>([]);
   const chatNamesRef = useRef<Record<string, string>>({});
+  const privateChatsRef = useRef(new Set<string>());
 
   const call = useSyncExternalStore(
     engine ? engine.subscribe : noopSubscribe,
@@ -121,6 +122,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ids.push(row.chat_id);
       // What call screens show: for a private chat, the other person's name
       if (row.group_chats?.name) chatNamesRef.current[row.chat_id] = chatTitle(row.group_chats, me?.name);
+      if (row.group_chats && isPrivateChat(row.group_chats)) privateChatsRef.current.add(row.chat_id);
     });
     chatIdsRef.current = ids;
     setChatIds(ids);
@@ -230,7 +232,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!me) return null;
     engineRef.current?.end('hangup');
     setAudioSession('play-and-record');
-    const next = new CallEngine(me, opts);
+    const next = new CallEngine(me, { ...opts, isPrivate: privateChatsRef.current.has(opts.chatId) });
     setMinimized(false);
     setEngine(next);
     await next.start();
@@ -252,6 +254,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     // Get the microphone/camera first: if that fails, nobody gets rung for nothing
     const callId = crypto.randomUUID();
+    if (isPrivateChat(chat)) privateChatsRef.current.add(chat.id);
     const started = await launch({ callId, chatId: chat.id, chatName: chatTitle(chat, me.name), callType: type, isInitiator: true });
     if (!started) return;
 
@@ -419,6 +422,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       const chat = (row as any).group_chats;
+      if (chat && isPrivateChat(chat)) privateChatsRef.current.add(row.chat_id);
       const info = {
         callId: row.id,
         chatId: row.chat_id,
