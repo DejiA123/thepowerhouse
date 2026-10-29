@@ -142,7 +142,7 @@ export function keepRealtimeAwake() {
     dropped = false;
     clearTimeout(resync);
     resync = setTimeout(() => window.dispatchEvent(new Event('app:resync')), 1500);
-  });
+  }]);
 }
 
 /** Unique channel name for postgres_changes subscriptions (never shared). */
