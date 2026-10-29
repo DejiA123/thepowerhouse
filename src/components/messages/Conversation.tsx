@@ -17,6 +17,7 @@ import {
   IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
 } from './chatUtils';
 import { track } from '@/lib/activity';
+import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
 
 interface Me {
   id: string;
@@ -44,29 +45,6 @@ const PAGE = 50;
 const GROUP_GAP_MS = 5 * 60 * 1000;
 
 const nearBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-
-/** Keeps the chat above the on-screen keyboard on iOS (which doesn't resize the page). */
-function useKeyboardSafeHeight(ref: React.RefObject<HTMLElement>) {
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const el = ref.current;
-    if (!vv || !el) return;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (!isIOS) return;
-    const update = () => {
-      const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      el.style.paddingBottom = keyboard > 80 ? `${keyboard}px` : '';
-      if (keyboard > 80) window.scrollTo(0, 0);
-    };
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-      el.style.paddingBottom = '';
-    };
-  }, [ref]);
-}
 
 const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onRead, focusMessageId, onFocused }: Props) => {
   const { startCall, joinCall, ongoingCalls, refreshOngoingCall, call } = useCall();
