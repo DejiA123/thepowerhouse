@@ -1,4 +1,4 @@
-import webpush from 'npm:web-push@3.6.7';
+import webpush from 'https://esm.sh/web-push@3.6.7';
 import { supabaseAdmin } from './supabaseAdmin.ts';
 import { church } from './church.ts';
 

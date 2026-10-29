@@ -135,9 +135,9 @@ export function keepRealtimeAwake() {
   const drop = () => {
     dropped = true;
   };
-  rt.stateChangeCallbacks.close.push(drop);
-  rt.stateChangeCallbacks.error.push(drop);
-  rt.stateChangeCallbacks.open.push(() => {
+  rt.stateChangeCallbacks.close.push(['keep-awake-drop', drop]);
+  rt.stateChangeCallbacks.error.push(['keep-awake-drop', drop]);
+  rt.stateChangeCallbacks.open.push(['keep-awake-open', () => {
     if (!dropped) return;
     dropped = false;
     clearTimeout(resync);
