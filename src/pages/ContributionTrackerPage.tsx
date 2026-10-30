@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Wallet, Users, CheckCircle2, AlertCircle, Calendar, Lock, Unlock, ShieldCheck, X, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { lockChoir, unlockChoir } from "@/lib/choirKey";
 import { choirService } from "@/services/choirService";
 
 interface Contribution {
@@ -59,7 +60,6 @@ const INITIAL_DATA: Record<string, Contribution[]> = {
     ]
 };
 
-const ADMIN_PIN = "090312";
 
 const ContributionTrackerPage = () => {
     const navigate = useNavigate();
@@ -122,20 +122,26 @@ const ContributionTrackerPage = () => {
     const totalMembers = currentData.length;
     const activeContributors = currentData.filter(m => calculateTotal(m.months) > 0).length;
 
-    const handlePinSubmit = () => {
-        if (pinInput === ADMIN_PIN) {
-            setIsAdmin(true);
-            setIsPinDialogOpen(false);
-            setPinInput("");
-
-        } else {
-            toast.error("Incorrect PIN");
+    // The National choir's passcode, checked by the database (it isn't in the app)
+    const handlePinSubmit = async () => {
+        if (!pinInput) return;
+        try {
+            if (await unlockChoir('national', pinInput)) {
+                setIsAdmin(true);
+                setIsPinDialogOpen(false);
+                setPinInput("");
+            } else {
+                toast.error("Incorrect PIN");
+            }
+        } catch {
+            toast.error("Couldn't check the PIN", { description: "Check your connection and try again." });
         }
     };
 
     const toggleAdmin = () => {
         if (isAdmin) {
             setIsAdmin(false);
+            lockChoir();
 
         } else {
             setIsPinDialogOpen(true);

@@ -113,6 +113,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { church } from '@/config/church';
+import { useIsAdmin } from '@/lib/admin';
+import { choirUnlocked, lockChoir, unlockChoir } from '@/lib/choirKey';
 
 /** The choir's tabs by their new names and old ones (older links still work) */
 const CHOIR_TABS: Record<string, string> = {
@@ -1839,8 +1841,10 @@ const ChoirPage = () => {
 
     const [isAdmin, setIsAdmin] = useState<boolean>(() => {
         if (locationId && locationId !== 'national') return true;
-        return sessionStorage.getItem('choir_admin_auth') === 'true';
+        return choirUnlocked();
     });
+    // Church admins can always manage the National choir
+    const churchAdmin = useIsAdmin();
 
     const [isLocked, setIsLocked] = useState<boolean>(() => {
         const saved = sessionStorage.getItem('choir_portal_locked');
@@ -1853,23 +1857,30 @@ const ChoirPage = () => {
     }, [isLocked]);
     const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
     const [adminPasscode, setAdminPasscode] = useState("");
+    const [checkingPasscode, setCheckingPasscode] = useState(false);
 
-    const handleAdminLogin = () => {
-        // Simple passcode check - can be moved to env later
-        if (adminPasscode === "090312") {
-            setIsAdmin(true);
-            sessionStorage.setItem('choir_admin_auth', 'true');
-            setIsAdminLoginOpen(false);
-            setAdminPasscode("");
-
-        } else {
-            toast.error("Invalid passcode");
+    // The database checks the passcode (it isn't in the app), and from then on each change
+    const handleAdminLogin = async () => {
+        if (!adminPasscode || checkingPasscode) return;
+        setCheckingPasscode(true);
+        try {
+            if (await unlockChoir('national', adminPasscode)) {
+                setIsAdmin(true);
+                setIsAdminLoginOpen(false);
+                setAdminPasscode("");
+            } else {
+                toast.error("Invalid passcode");
+            }
+        } catch {
+            toast.error("Couldn't check the passcode", { description: "Check your connection and try again." });
+        } finally {
+            setCheckingPasscode(false);
         }
     };
 
     const handleAdminLogout = () => {
         setIsAdmin(false);
-        sessionStorage.removeItem('choir_admin_auth');
+        lockChoir();
         toast.info("Admin mode deactivated");
     };
 
@@ -1878,9 +1889,9 @@ const ChoirPage = () => {
         if (locationId && locationId !== 'national') {
             setIsAdmin(true);
         } else if (locationId === 'national') {
-            setIsAdmin(sessionStorage.getItem('choir_admin_auth') === 'true');
+            setIsAdmin(choirUnlocked() || churchAdmin === true);
         }
-    }, [locationId]);
+    }, [locationId, churchAdmin]);
 
     const [activeDragItem, setActiveDragItem] = useState<WeeklySetSong | null>(null);
 
@@ -4966,9 +4977,10 @@ const ChoirPage = () => {
                                 <div className="flex flex-col gap-3 pt-2">
                                     <Button
                                         onClick={handleAdminLogin}
+                                        disabled={!adminPasscode || checkingPasscode}
                                         className="h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-500/20 transition-all active:scale-[0.98]"
                                     >
-                                        Authorize Access
+                                        {checkingPasscode ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Authorize Access'}
                                     </Button>
                                     <Button
                                         variant="ghost"
