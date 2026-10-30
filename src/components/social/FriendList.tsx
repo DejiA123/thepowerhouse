@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, MoreHorizontal, ShieldAlert, UserMinus, Users } from 'lucide-react';
+import { Loader2, MoreHorizontal, Search, ShieldAlert, UserMinus, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,8 @@ const savedChats = (userId?: string): Record<string, ChatSummary> | null => {
     }
 };
 
+type Filter = 'all' | 'unread' | 'online';
+
 interface Props {
     friends: CircleEntry[];
     loading: boolean;
@@ -58,6 +60,8 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
     const [confirm, setConfirm] = useState<{ entry: CircleEntry; kind: 'remove' | 'block' } | null>(null);
     const [saved] = useState(() => savedChats(user?.id));
     const [chats, setChats] = useState<Record<string, ChatSummary>>(saved ?? {});
+    const [filter, setFilter] = useState<Filter>('all');
+    const [query, setQuery] = useState('');
     // Until we know who we last spoke to, the order isn't known: wait rather than reshuffle
     const [chatsKnown, setChatsKnown] = useState(!!saved);
 
@@ -123,6 +127,20 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
         return at ? new Date(at).getTime() : 0;
     }, [chats]);
     const sorted = useMemo(() => [...friends].sort((a, b) => lastAt(b) - lastAt(a)), [friends, lastAt]);
+    const unreadOf = (entry: CircleEntry) => (entry.chat ? chats[entry.chat.id]?.unread ?? 0 : 0);
+    const unreadCount = friends.filter((f) => unreadOf(f) > 0).length;
+    const onlineCount = friends.filter((f) => onlineIds.has(f.person.id)).length;
+    const q = query.trim().toLowerCase();
+    const shown = sorted.filter((entry) => {
+        if (filter === 'unread' && unreadOf(entry) === 0) return false;
+        if (filter === 'online' && !onlineIds.has(entry.person.id)) return false;
+        return !q || entry.person.name.toLowerCase().includes(q);
+    });
+    const filters: { id: Filter; label: string; count?: number }[] = [
+        { id: 'all', label: 'All' },
+        { id: 'unread', label: 'Unread', count: unreadCount },
+        { id: 'online', label: 'Online', count: onlineCount },
+    ];
 
     /** Our private chat (the one from the list, or made now the first time) */
     const chatFor = async (entry: CircleEntry): Promise<PrivateChat> => entry.chat ?? (await SocialService.chatWith(entry.person.id));
@@ -177,9 +195,52 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
 
     return (
         <>
-            <SectionLabel>{friends.length === 1 ? '1 friend' : `${friends.length} friends`}</SectionLabel>
+            <div className="relative mb-3">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search friends"
+                    aria-label="Search friends"
+                    className="h-11 w-full rounded-2xl bg-slate-100 pl-10 pr-10 text-[16px] text-foreground outline-none ring-indigo-500/30 placeholder:text-slate-500 focus:ring-2 dark:bg-slate-800/70 [&::-webkit-search-cancel-button]:hidden"
+                />
+                {query && (
+                    <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700" aria-label="Clear search">
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
+            </div>
+            <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
+                {filters.map((f) => (
+                    <button
+                        key={f.id}
+                        onClick={() => setFilter(f.id)}
+                        aria-pressed={filter === f.id}
+                        className={cn(
+                            'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition active:scale-95',
+                            filter === f.id
+                                ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/25 dark:text-indigo-100'
+                                : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300',
+                        )}
+                    >
+                        {f.label}
+                        {!!f.count && <span className={cn('text-xs', filter === f.id ? 'text-indigo-700 dark:text-indigo-200' : 'text-slate-500')}>{f.count}</span>}
+                    </button>
+                ))}
+            </div>
+            <SectionLabel>
+                {filter === 'all' && !q
+                    ? friends.length === 1 ? '1 friend' : `${friends.length} friends`
+                    : `${shown.length} of ${friends.length} friends`}
+            </SectionLabel>
+            {shown.length === 0 ? (
+                <p className="rounded-3xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-800">
+                    {q ? `No friends called “${query.trim()}”.` : filter === 'unread' ? 'No unread messages. You’re all caught up.' : 'None of your friends are online right now.'}
+                </p>
+            ) : (
             <PeopleCard>
-                {sorted.map((entry) => {
+                {shown.map((entry) => {
                     const summary = entry.chat ? chats[entry.chat.id] : undefined;
                     const last = summary?.last_message;
                     const unread = summary?.unread ?? 0;
@@ -236,6 +297,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                     );
                 })}
             </PeopleCard>
+            )}
 
             <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
                 <AlertDialogContent className="rounded-3xl">
