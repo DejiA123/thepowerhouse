@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Users, Phone, Calendar, User, ClipboardList, Search, MessageCircle, MoreVertical, PlusCircle, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Phone, Calendar, User, ClipboardList, Search, MessageCircle, MoreVertical, PlusCircle, Edit, Trash2, Loader2, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { followUpService, FollowUpAssignment } from "@/services/followUpService";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useIsAdmin } from "@/lib/admin";
+import { followUpUnlocked, lockFollowUp, unlockFollowUp } from "@/lib/followUpKey";
 
 export default function TeamFollowUpPage() {
     const topOfPageRef = useRef<HTMLDivElement>(null);
@@ -18,6 +20,37 @@ export default function TeamFollowUpPage() {
     const [selectedMember, setSelectedMember] = useState<string | null>(null);
     const [assignments, setAssignments] = useState<FollowUpAssignment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Visitors' names and numbers: the team's passcode (checked by the database), or a church admin
+    const churchAdmin = useIsAdmin();
+    const [unlocked, setUnlocked] = useState(followUpUnlocked);
+    const [passcode, setPasscode] = useState("");
+    const [checking, setChecking] = useState(false);
+    const canSee = unlocked || churchAdmin === true;
+
+    const unlock = async () => {
+        if (!passcode || checking) return;
+        setChecking(true);
+        try {
+            if (await unlockFollowUp(passcode)) {
+                setUnlocked(true);
+                setPasscode("");
+            } else {
+                toast.error("That's not the team passcode");
+            }
+        } catch {
+            toast.error("Couldn't check the passcode", { description: "Check your connection and try again." });
+        } finally {
+            setChecking(false);
+        }
+    };
+
+    const lock = () => {
+        lockFollowUp();
+        setUnlocked(false);
+        setSelectedMember(null);
+        setAssignments([]);
+    };
 
     // Edit Note State
     const [isEditNoteOpen, setIsEditNoteOpen] = useState(false);
@@ -152,6 +185,50 @@ export default function TeamFollowUpPage() {
         }
     };
 
+    if (!canSee) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20">
+                <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                    <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
+                            <ArrowLeft className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+                        </Button>
+                        <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <ClipboardList className="w-5 h-5 text-blue-600" />
+                            Follow Up Team
+                        </h1>
+                    </div>
+                </div>
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        unlock();
+                    }}
+                    className="max-w-sm mx-auto px-6 pt-16 text-center"
+                >
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto">
+                        <Lock className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h2 className="mt-5 text-2xl font-bold text-slate-900 dark:text-white">Team passcode</h2>
+                    <p className="mt-2 text-slate-500">Visitors' details are private. Enter the follow-up team's passcode to see your list.</p>
+                    <Input
+                        type="password"
+                        value={passcode}
+                        onChange={(e) => setPasscode(e.target.value)}
+                        placeholder="Passcode"
+                        aria-label="Team passcode"
+                        autoComplete="off"
+                        className="mt-6 h-12 rounded-xl text-center text-lg"
+                    />
+                    <Button type="submit" disabled={!passcode || checking} className="mt-3 h-12 w-full rounded-xl text-base font-semibold">
+                        {checking ? <Loader2 className="w-5 h-5 animate-spin" /> : "Unlock"}
+                    </Button>
+                    {churchAdmin === null && <p className="mt-4 text-xs text-slate-400">Checking…</p>}
+                </form>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 relative">
             <div ref={topOfPageRef} className="absolute top-0 left-0 h-0 w-0" aria-hidden="true" />
@@ -169,6 +246,11 @@ export default function TeamFollowUpPage() {
                             </h1>
                         </div>
                     </div>
+                    {unlocked && (
+                        <Button variant="ghost" onClick={lock} className="gap-2 rounded-full text-slate-600 dark:text-slate-300">
+                            <Lock className="w-4 h-4" /> Lock
+                        </Button>
+                    )}
                 </div>
             </div>
 
