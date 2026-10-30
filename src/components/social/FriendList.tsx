@@ -27,6 +27,18 @@ import { SocialService, type CircleEntry, type PrivateChat } from '@/services/so
 import { formatListTime, isAnsweredCall, parseCall, previewText } from '@/components/messages/chatUtils';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
 
+const chatsKey = (userId: string) => `friend_chats_v1_${userId}`;
+
+/** Our chats' latest messages as last seen on this device, so the list opens in its real order. */
+const savedChats = (userId?: string): Record<string, ChatSummary> | null => {
+    if (!userId) return null;
+    try {
+        return JSON.parse(localStorage.getItem(chatsKey(userId)) || 'null');
+    } catch {
+        return null;
+    }
+};
+
 interface Props {
     friends: CircleEntry[];
     loading: boolean;
@@ -44,7 +56,10 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
     const onlineIds = useOnlineUsers();
     const [opening, setOpening] = useState<string | null>(null);
     const [confirm, setConfirm] = useState<{ entry: CircleEntry; kind: 'remove' | 'block' } | null>(null);
-    const [chats, setChats] = useState<Record<string, ChatSummary>>({});
+    const [saved] = useState(() => savedChats(user?.id));
+    const [chats, setChats] = useState<Record<string, ChatSummary>>(saved ?? {});
+    // Until we know who we last spoke to, the order isn't known: wait rather than reshuffle
+    const [chatsKnown, setChatsKnown] = useState(!!saved);
 
     // Our private chats' latest message and unread count, kept live
     const chatIds = friends.flatMap((f) => (f.chat ? [f.chat.id] : [])).join(',');
@@ -55,8 +70,19 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
             setChats(Object.fromEntries(list.map((c) => [c.id, c])));
         } catch {
             /* keep what's on screen (e.g. offline) */
+        } finally {
+            setChatsKnown(true);
         }
     }, [chatIds]);
+
+    useEffect(() => {
+        if (!user || !chatsKnown) return;
+        try {
+            localStorage.setItem(chatsKey(user.id), JSON.stringify(chats));
+        } catch {
+            /* storage full */
+        }
+    }, [user, chats, chatsKnown]);
 
     useEffect(() => {
         loadChats();
@@ -126,7 +152,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
         }
     };
 
-    if (loading && friends.length === 0) {
+    if ((loading && friends.length === 0) || (chatIds && !chatsKnown)) {
         return (
             <div className="flex justify-center py-16">
                 <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
