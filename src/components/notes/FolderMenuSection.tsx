@@ -3,6 +3,7 @@ import { ChevronDown, Folder } from 'lucide-react';
 import { DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { BibleNoteFolder } from '@/services/bibleNotesService';
+import { folderColor } from './folderColors';
 
 /**
  * "Move to folder" for a note's menu. The folders open inside the same menu
@@ -37,9 +38,10 @@ const FolderMenuSection = ({
       {open && (
         <div className="mx-1 mb-1 max-h-56 overflow-y-auto overscroll-contain rounded-lg bg-muted/60 py-1">
           <DropdownMenuRadioGroup value={value ?? 'none'} onValueChange={(v) => onChange(v === 'none' ? null : v)}>
-            <DropdownMenuRadioItem value="none">No folder</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="none">Not in a folder</DropdownMenuRadioItem>
             {folders.map((f) => (
               <DropdownMenuRadioItem key={f.id} value={f.id} className="[overflow-wrap:anywhere]">
+                <span className={cn('mr-2 h-2.5 w-2.5 shrink-0 rounded-full', folderColor(f, folders).dot)} aria-hidden="true" />
                 {f.name}
               </DropdownMenuRadioItem>
             ))}

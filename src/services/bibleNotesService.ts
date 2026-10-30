@@ -7,6 +7,8 @@ export interface BibleNoteFolder {
     name: string;
     parent_id?: string | null;
     sort_order?: number | null;
+    /** blue, purple, teal, green, gold, red or grey (none: the app picks one, see folderColors) */
+    color?: string | null;
     created_at?: string;
     updated_at?: string;
     notes?: BibleNote[];
@@ -30,6 +32,10 @@ export interface BibleNote {
     created_at: string;
     updated_at: string;
 }
+
+/** The database update that adds folder colours hasn't been applied yet */
+const noColorColumn = (error: { code?: string; message?: string } | null) =>
+    !!error && (error.code === 'PGRST204' || error.code === '42703') && /color/.test(error.message ?? '');
 
 export const bibleNotesService = {
     // --- Folders ---
@@ -59,7 +65,7 @@ export const bibleNotesService = {
         }));
     },
 
-    async createFolder(userId: string, name: string, parent_id?: string | null): Promise<BibleNoteFolder> {
+    async createFolder(userId: string, name: string, parent_id?: string | null, color?: string | null): Promise<BibleNoteFolder> {
         // Get max sort order to append new folder at the end
         const { data: lastFolder } = await supabase
             .from('bible_note_folders' as any)
@@ -70,11 +76,14 @@ export const bibleNotesService = {
 
         const nextOrder = ((lastFolder as any)?.[0]?.sort_order ?? 0) + 1;
 
-        const { data, error } = await supabase
+        const insert = (row: Record<string, unknown>) => supabase
             .from('bible_note_folders' as any)
-            .insert([{ user_id: userId, name, parent_id, sort_order: nextOrder }])
+            .insert([row])
             .select()
             .single();
+        const row = { user_id: userId, name, parent_id, sort_order: nextOrder };
+        let { data, error } = await insert(color ? { ...row, color } : row);
+        if (noColorColumn(error)) ({ data, error } = await insert(row));
 
         if (error) throw error;
 
@@ -85,6 +94,7 @@ export const bibleNotesService = {
             name: folderData.name,
             parent_id: folderData.parent_id,
             sort_order: folderData.sort_order,
+            color: folderData.color ?? null,
             created_at: folderData.created_at,
             updated_at: folderData.updated_at,
             noteCount: 0,
@@ -93,12 +103,17 @@ export const bibleNotesService = {
     },
 
     async updateFolder(id: string, updates: Partial<BibleNoteFolder>): Promise<BibleNoteFolder> {
-        const { data, error } = await supabase
+        const update = (changes: Partial<BibleNoteFolder>) => supabase
             .from('bible_note_folders' as any)
-            .update({ ...updates, updated_at: new Date().toISOString() })
+            .update({ ...changes, updated_at: new Date().toISOString() })
             .eq('id', id)
             .select()
             .single();
+        let { data, error } = await update(updates);
+        if (noColorColumn(error)) {
+            const { color: _color, ...rest } = updates;
+            ({ data, error } = await update(rest));
+        }
 
         if (error) throw error;
         const folderData = data as any;
@@ -108,6 +123,7 @@ export const bibleNotesService = {
             name: folderData.name,
             parent_id: folderData.parent_id,
             sort_order: folderData.sort_order,
+            color: folderData.color ?? null,
             created_at: folderData.created_at,
             updated_at: folderData.updated_at
         };
