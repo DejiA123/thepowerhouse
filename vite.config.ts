@@ -192,6 +192,16 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
+            // The app's own study notes (public/study-notes): keep opened chapters for offline study
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/study-notes/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'study-notes-app',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Study notes (Tyndale Open Study Notes) rarely change: keep opened chapters for offline study
             urlPattern: ({ url }) => url.hostname === 'bible.helloao.org' && url.pathname.startsWith('/api/c/'),
             handler: 'StaleWhileRevalidate',

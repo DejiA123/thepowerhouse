@@ -1,9 +1,13 @@
 /**
- * Study notes for the chapter being read, from the free commentaries of the
- * Free Use Bible API (bible.helloao.org), picked in the Study notes sheet:
- * Tyndale Open Study Notes (modern, CC BY-SA 4.0, the default) and the
- * public-domain classics it offers (Adam Clarke and any others it lists; the
- * list is read from the API, so new ones show up by themselves).
+ * Christian study notes for the chapter being read, picked in the Study notes
+ * sheet ("Notes from"):
+ *  • Tyndale Open Study Notes (modern, CC BY-SA 4.0, the default), and the
+ *    classic Christian commentaries of the Free Use Bible API
+ *    (bible.helloao.org) that are named in KNOWN below; others it lists are
+ *    left out.
+ *  • Matthew Henry's Concise Commentary and the Geneva Bible notes (1599),
+ *    both public domain, served by the app itself from public/study-notes/
+ *    (made by scripts/make-study-notes.py).
  */
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 
@@ -23,6 +27,8 @@ export interface NotesSource {
   licenseUrl: string;
   /** Copyright holder, when there is one */
   holder?: string;
+  /** Served by the app itself (public/study-notes/{id}) */
+  local?: boolean;
 }
 
 export const TYNDALE: NotesSource = {
@@ -35,17 +41,47 @@ export const TYNDALE: NotesSource = {
   holder: 'Tyndale House Publishers',
 };
 
-/** Best first; what each is good for. Ones the API adds later still show, after these. */
+/** In the app itself: classic Christian study notes, public domain */
+const LOCAL: NotesSource[] = [
+  {
+    id: 'mhcc',
+    name: "Matthew Henry's Concise Commentary",
+    about: 'Practical notes on every passage: what it means for your life (Matthew Henry, abridged)',
+    website: 'https://www.crosswire.org/sword/modules/ModInfo.jsp?modName=MHCC',
+    license: 'Public domain',
+    licenseUrl: '',
+    local: true,
+  },
+  {
+    id: 'geneva',
+    name: 'Geneva Bible Notes (1599)',
+    about: "The first Protestant study Bible's notes, verse by verse",
+    website: 'https://en.wikipedia.org/wiki/Geneva_Bible',
+    license: 'Public domain',
+    licenseUrl: '',
+    local: true,
+  },
+];
+
+/**
+ * The Christian study notes and commentaries shown, best first, with what each
+ * is good for. Others the Free Use Bible API lists aren't shown.
+ */
 const KNOWN: Record<string, { about: string; rank: number }> = {
   tyndale: { about: TYNDALE.about, rank: 0 },
-  'matthew-henry': { about: 'Classic practical commentary: what each passage means for everyday life (1706)', rank: 1 },
-  'jamieson-fausset-brown': { about: 'Classic study commentary, concise and verse by verse (1871)', rank: 2 },
-  'adam-clarke': { about: 'Classic in-depth commentary: word meanings and background (1832)', rank: 3 },
-  'john-gill': { about: 'Classic detailed commentary, every verse (1763)', rank: 4 },
-  'keil-delitzsch': { about: 'Classic scholarly Old Testament commentary (1878)', rank: 5 },
+  mhcc: { about: LOCAL[0].about, rank: 1 },
+  geneva: { about: LOCAL[1].about, rank: 2 },
+  'jamieson-fausset-brown': { about: 'Classic Christian study commentary, concise and verse by verse (1871)', rank: 3 },
+  'matthew-henry': { about: "Matthew Henry's full commentary: longer practical exposition (1706)", rank: 4 },
+  'adam-clarke': { about: 'Classic Methodist commentary: word meanings and background (1832)', rank: 5 },
+  'john-gill': { about: 'Classic Baptist commentary, every verse (1763)', rank: 6 },
+  'keil-delitzsch': { about: 'Classic scholarly Old Testament commentary (1878)', rank: 7 },
 };
+const rank = (s: NotesSource) => KNOWN[s.id]?.rank ?? 99;
+const OFFLINE_LIST = [TYNDALE, ...LOCAL];
 
-const SOURCES_KEY = 'study_notes_sources_v1';
+// v2: v1 lists could include non-Christian commentaries
+const SOURCES_KEY = 'study_notes_sources_v2';
 const CHOICE_KEY = 'study_notes_source_v1';
 let sourcesPromise: Promise<NotesSource[]> | null = null;
 
@@ -66,14 +102,14 @@ const toSource = (c: ApiCommentary): NotesSource => {
   return {
     id: c.id,
     name: c.englishName || c.name || c.id,
-    about: KNOWN[c.id]?.about || 'Free classic Bible commentary',
+    about: KNOWN[c.id]?.about || '',
     website: c.website || '',
     license: /publicdomain/i.test(licenseUrl) ? 'Public domain' : 'Free to use',
     licenseUrl,
   };
 };
 
-/** All the English study notes and commentaries on offer, best first (kept on the phone for offline). */
+/** The Christian study notes on offer, best first (the online list is kept on the phone for offline). */
 function listSources(): Promise<NotesSource[]> {
   sourcesPromise ??= fetch(`${API}/available_commentaries.json`)
     .then((res) => {
@@ -81,9 +117,10 @@ function listSources(): Promise<NotesSource[]> {
       return res.json();
     })
     .then((data: { commentaries?: ApiCommentary[] }) => {
-      const list = (data.commentaries || []).filter((c) => c?.id && (!c.language || c.language === 'eng')).map(toSource);
-      if (!list.some((s) => s.id === TYNDALE.id)) list.unshift(TYNDALE);
-      const rank = (s: NotesSource) => KNOWN[s.id]?.rank ?? 99;
+      const online = (data.commentaries || [])
+        .filter((c) => c?.id && KNOWN[c.id] && !LOCAL.some((l) => l.id === c.id))
+        .map(toSource);
+      const list = [...OFFLINE_LIST.filter((s) => !online.some((o) => o.id === s.id)), ...online];
       list.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
       try {
         localStorage.setItem(SOURCES_KEY, JSON.stringify(list));
@@ -94,7 +131,7 @@ function listSources(): Promise<NotesSource[]> {
     })
     .catch(() => {
       sourcesPromise = null; // try again next time
-      return savedSources() || [TYNDALE];
+      return savedSources() || OFFLINE_LIST;
     });
   return sourcesPromise;
 }
@@ -274,8 +311,52 @@ async function loadCommentary(source: string, apiBook: string, chapter: number):
   };
 }
 
+// ── Notes in the app itself (public/study-notes) ──────────────────────────
+
+/** USFM book codes in Bible order, as the files are named */
+const USFM = (
+  'GEN EXO LEV NUM DEU JOS JDG RUT 1SA 2SA 1KI 2KI 1CH 2CH EZR NEH EST JOB PSA PRO ECC SNG ISA JER LAM EZK DAN HOS ' +
+  'JOL AMO OBA JON MIC NAM HAB ZEP HAG ZEC MAL MAT MRK LUK JHN ACT ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT ' +
+  'PHM HEB JAS 1PE 2PE 1JN 2JN 3JN JUD REV'
+).split(' ');
+
+/** A file in public/study-notes, or null if there isn't one (the host answers missing files with the app's page) */
+async function localJson<T>(path: string): Promise<T | null> {
+  const res = await fetch(`${import.meta.env.BASE_URL}study-notes/${path}`);
+  if (res.status === 404 || !(res.headers.get('content-type') || '').includes('json')) return null;
+  if (!res.ok) throw new Error(`Study notes unavailable (${res.status})`);
+  return res.json();
+}
+
+async function loadLocal(source: string, apiBook: string, chapter: number): Promise<StudyChapter | null> {
+  const book = USFM[BOOK_ORDER.indexOf(apiBook)];
+  if (!book) return null;
+  const [data, about] = await Promise.all([
+    localJson<{ notes: { v: number; to: number; p: string[]; label?: string }[] }>(`${source}/${book}/${chapter}.json`),
+    localJson<{ intro?: string }>(`${source}/${book}/book.json`).catch(() => null),
+  ]);
+  if (!data) return null;
+  return {
+    book: apiBook,
+    chapter,
+    bookName: '',
+    notes: data.notes.map((n) => ({
+      verse: n.v,
+      label: n.label ?? (n.to > n.v ? `${chapter}:${n.v}-${n.to}` : `${chapter}:${n.v}`),
+      paragraphs: n.p,
+    })),
+    summary: '',
+    introduction: about?.intro || '',
+  };
+}
+
+const loaderFor = (source: string) =>
+  source === TYNDALE.id ? load : LOCAL.some((l) => l.id === source) ? (b: string, c: number) => loadLocal(source, b, c) : (b: string, c: number) => loadCommentary(source, b, c);
+
 export const studyNotesService = {
   listSources,
+  /** The notes there always are, before the online list arrives */
+  builtInSources: OFFLINE_LIST,
   currentSource,
   setSource,
 
@@ -285,7 +366,7 @@ export const studyNotesService = {
     const key = `${source}:${apiBook}:${chapter}`;
     let pending = memory.get(key);
     if (!pending) {
-      pending = (source === TYNDALE.id ? load(apiBook, chapter) : loadCommentary(source, apiBook, chapter)).catch((error) => {
+      pending = loaderFor(source)(apiBook, chapter).catch((error) => {
         memory.delete(key);
         throw error;
       });

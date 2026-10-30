@@ -39,7 +39,7 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
   const scrollRef = useRef<HTMLDivElement>(null);
   // Which notes (remembered), and the ones on offer
   const [sourceId, setSourceId] = useState(studyNotesService.currentSource);
-  const [sources, setSources] = useState<NotesSource[]>([TYNDALE]);
+  const [sources, setSources] = useState<NotesSource[]>(studyNotesService.builtInSources);
   const [picking, setPicking] = useState(false);
   const source = sources.find((s) => s.id === sourceId) ?? (sourceId === TYNDALE.id ? TYNDALE : null);
 
@@ -289,7 +289,7 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
                   {source.licenseUrl ? (
                     <a href={source.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.license}</a>
                   ) : source.license}
-                  . Shared by the Free Use Bible API.
+                  {source.local ? '.' : '. Shared by the Free Use Bible API.'}
                 </p>
               )}
             </footer>
