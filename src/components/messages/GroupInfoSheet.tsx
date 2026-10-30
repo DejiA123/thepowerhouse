@@ -14,7 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import UserAvatar from '@/components/common/UserAvatar';
 import { GroupChatService, type GroupChat } from '@/services/groupChatService';
 import MemberPicker, { type PickablePerson } from './MemberPicker';
-import { uploadChatImage } from './chatUtils';
+import { isPrivateChat, uploadChatImage } from './chatUtils';
 
 interface Props {
   chat: GroupChat;
@@ -25,11 +25,15 @@ interface Props {
   onLeft: () => void;
   onCall: (type: 'audio' | 'video') => void;
   onlineIds: Set<string>;
+  /** A one-to-one chat: the other person's "Online" / "Last seen …" */
+  privateStatus?: string;
+  /** …and their name, as in the chat's header */
+  privateName?: string;
 }
 
 type Member = Awaited<ReturnType<typeof GroupChatService.getParticipants>>[number];
 
-const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onlineIds }: Props) => {
+const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onlineIds, privateStatus, privateName }: Props) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -142,6 +146,53 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   };
 
   const onlineCount = members.filter((m) => onlineIds.has(m.user_id) || m.user_id === userId).length;
+
+  // One-to-one: just the other person, like a phone contact. No members, admins or group controls.
+  if (isPrivateChat(chat)) {
+    const other = members.find((m) => m.user_id !== userId);
+    const otherName = other?.user?.full_name || privateName || other?.user?.email?.split('@')[0] || '';
+    const online = !!other && onlineIds.has(other.user_id);
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side={isMobile ? 'bottom' : 'right'}
+          className="flex w-full flex-col gap-0 rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none"
+        >
+          <SheetTitle className="sr-only">Contact info</SheetTitle>
+          <div className="flex flex-col items-center px-6 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-10 text-center">
+            {loading && !other && !privateName ? (
+              <Loader2 className="my-10 h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <UserAvatar name={otherName} src={other?.user?.avatar_url} seed={other?.user_id ?? chat.id} online={online} className="h-24 w-24 text-3xl" />
+                <h2 className="mt-4 text-xl font-semibold text-foreground">{otherName}</h2>
+                {(online || privateStatus) && (
+                  <p className={online ? 'mt-1 text-sm text-emerald-600 dark:text-emerald-400' : 'mt-1 text-sm text-muted-foreground'}>
+                    {online ? 'Online' : privateStatus}
+                  </p>
+                )}
+              </>
+            )}
+            <div className="mt-6 grid w-full max-w-[14rem] grid-cols-2 gap-2">
+              {[
+                { icon: Phone, label: 'Voice', onClick: () => onCall('audio') },
+                { icon: Video, label: 'Video', onClick: () => onCall('video') },
+              ].map((a) => (
+                <button
+                  key={a.label}
+                  onClick={a.onClick}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-muted/60 py-3 text-blue-600 transition hover:bg-muted dark:text-blue-400"
+                >
+                  <a.icon className="h-5 w-5" />
+                  <span className="text-xs font-medium text-foreground">{a.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <>
