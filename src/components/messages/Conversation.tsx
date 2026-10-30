@@ -757,6 +757,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onChatUpdated={onChatUpdated}
         onLeft={onLeft}
         onlineIds={onlineIds}
+        privateStatus={privateChat && !typingNames.length ? subtitle : undefined}
+        privateName={privateChat ? title : undefined}
         onCall={(type) => {
           setInfoOpen(false);
           startCall(chat, type);
