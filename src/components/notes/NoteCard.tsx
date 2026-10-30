@@ -6,12 +6,15 @@ import {
 import { cn } from '@/lib/utils';
 import type { BibleNoteFolder } from '@/services/bibleNotesService';
 import FolderMenuSection from './FolderMenuSection';
+import { folderColor } from './folderColors';
 import { notePreview, noteTitle, relativeDate, type NoteRecord } from './noteUtils';
 
 interface Props {
   note: NoteRecord;
   folders: BibleNoteFolder[];
   query: string;
+  /** Show which folder it's in (not when looking inside that folder) */
+  showFolder?: boolean;
   onOpen: (note: NoteRecord) => void;
   onToggleFavorite: (note: NoteRecord) => void;
   onTogglePin: (note: NoteRecord) => void;
@@ -34,10 +37,10 @@ const Highlighted = ({ text, query }: { text: string; query: string }) => {
   );
 };
 
-const NoteCard = ({ note, folders, query, onOpen, onToggleFavorite, onTogglePin, onMove, onDelete }: Props) => {
+const NoteCard = ({ note, folders, query, showFolder = true, onOpen, onToggleFavorite, onTogglePin, onMove, onDelete }: Props) => {
   const title = noteTitle(note);
   const preview = notePreview(note);
-  const folder = folders.find((f) => f.id === note.folder_id);
+  const folder = showFolder ? folders.find((f) => f.id === note.folder_id) : undefined;
 
   return (
     <div
@@ -99,8 +102,8 @@ const NoteCard = ({ note, folders, query, onOpen, onToggleFavorite, onTogglePin,
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
         <span>{relativeDate(note.updated_at || note.created_at)}</span>
         {folder && (
-          <span className="inline-flex items-center gap-1">
-            <Folder className="h-3.5 w-3.5" /> {folder.name}
+          <span className={cn('inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 font-medium', folderColor(folder, folders).chip)}>
+            <Folder className="h-3 w-3 shrink-0 fill-current" /> <span className="truncate">{folder.name}</span>
           </span>
         )}
       </div>
