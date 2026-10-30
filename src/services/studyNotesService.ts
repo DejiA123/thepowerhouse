@@ -462,6 +462,3 @@ export function splitLemma(paragraph: string): { lemma: string | null; rest: str
   return { lemma: m[1], rest: m[2] };
 }
 
-/** Tecarta's web reader, which opens the Tecarta app on phones that have it. */
-export const tecartaUrl = (bookName: string, chapter: number, verse?: number) =>
-  `https://tecartabible.com/bible/${encodeURIComponent(bookName).replace(/%20/g, '+')}+${chapter}${verse ? `:${verse}` : ''}`;

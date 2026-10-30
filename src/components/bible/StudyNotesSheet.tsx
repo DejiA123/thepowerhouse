@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Check, ChevronDown, ExternalLink, GraduationCap, RotateCcw, WifiOff } from 'lucide-react';
+import { Check, ChevronDown, GraduationCap, RotateCcw, WifiOff } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Segmented } from '@/components/page/PageKit';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
-  TYNDALE, linkReferences, splitLemma, studyNotesService, tecartaUrl, type NotesSource, type StudyChapter,
+  TYNDALE, linkReferences, splitLemma, studyNotesService, type NotesSource, type StudyChapter,
 } from '@/services/studyNotesService';
 import { formatBookDisplayName, normalizeBookApiName } from './bookUtils';
 
@@ -24,8 +24,7 @@ interface StudyNotesSheetProps {
 /**
  * Study Bible notes for the chapter being read: verse-by-verse notes and the
  * book introduction. "Notes from" picks which: Tyndale Open Study Notes (the
- * default) or one of the free classic commentaries; the Life Application
- * Study Bible someone owns opens in Tecarta.
+ * default) or one of the free classic commentaries.
  */
 const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavigate }: StudyNotesSheetProps) => {
   const isMobile = useIsMobile();
@@ -142,20 +141,6 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
                 {s.id === sourceId && <Check className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />}
               </button>
             ))}
-            <a
-              href={tecartaUrl(name, chapter)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setPicking(false)}
-              className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/60"
-            >
-              <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14.5px] font-semibold text-foreground">Life Application Study Bible</span>
-                <span className="block text-[12.5px] leading-snug text-muted-foreground">Your own copy: opens {name} {chapter} in Tecarta</span>
-              </span>
-              <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            </a>
           </div>
         )}
 
@@ -266,32 +251,18 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
             </div>
           )}
 
-          {state !== 'loading' && (
-            <footer className="mt-6 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-              <a
-                href={tecartaUrl(name, chapter)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 transition hover:bg-muted"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-foreground">Life Application Study Bible</span>
-                  <span className="block text-[12.5px] text-muted-foreground">Open {name} {chapter} in your Tecarta copy</span>
-                </span>
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </a>
-              {source && (
-                <p className="px-1 text-[11.5px] leading-relaxed text-muted-foreground">
-                  {source.website ? (
-                    <a href={source.website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.name}</a>
-                  ) : source.name}
-                  {source.holder ? ` © ${source.holder}, used under ` : ' · '}
-                  {source.licenseUrl ? (
-                    <a href={source.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.license}</a>
-                  ) : source.license}
-                  {source.local ? '.' : '. Shared by the Free Use Bible API.'}
-                </p>
-              )}
+          {state !== 'loading' && source && (
+            <footer className="mt-6 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <p className="px-1 text-[11.5px] leading-relaxed text-muted-foreground">
+                {source.website ? (
+                  <a href={source.website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.name}</a>
+                ) : source.name}
+                {source.holder ? ` © ${source.holder}, used under ` : ' · '}
+                {source.licenseUrl ? (
+                  <a href={source.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.license}</a>
+                ) : source.license}
+                {source.local ? '.' : '. Shared by the Free Use Bible API.'}
+              </p>
             </footer>
           )}
         </div>
