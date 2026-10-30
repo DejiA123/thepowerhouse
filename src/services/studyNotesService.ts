@@ -1,19 +1,121 @@
 /**
- * Tyndale Open Study Notes — verse-by-verse study notes and book
- * introductions from Tyndale House Publishers, released under CC BY-SA 4.0.
- * Served as JSON by the Free Use Bible API (bible.helloao.org).
+ * Study notes for the chapter being read, from the free commentaries of the
+ * Free Use Bible API (bible.helloao.org), picked in the Study notes sheet:
+ * Tyndale Open Study Notes (modern, CC BY-SA 4.0, the default) and the
+ * public-domain classics it offers (Adam Clarke and any others it lists; the
+ * list is read from the API, so new ones show up by themselves).
  */
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 
-const BASE = 'https://bible.helloao.org/api/c/tyndale';
+const API = 'https://bible.helloao.org/api';
+const BASE = `${API}/c/tyndale`;
 
-export const STUDY_NOTES_ATTRIBUTION = {
+// ── Which notes ────────────────────────────────────────────────────────
+
+export interface NotesSource {
+  id: string;
+  name: string;
+  /** One line on what it's good for */
+  about: string;
+  website: string;
+  /** "CC BY-SA 4.0", "Public domain"… */
+  license: string;
+  licenseUrl: string;
+  /** Copyright holder, when there is one */
+  holder?: string;
+}
+
+export const TYNDALE: NotesSource = {
+  id: 'tyndale',
   name: 'Tyndale Open Study Notes',
-  holder: 'Tyndale House Publishers',
+  about: 'Modern study Bible notes, short and clear, verse by verse (Tyndale House)',
   website: 'https://tyndaleopenresources.com/',
   license: 'CC BY-SA 4.0',
   licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+  holder: 'Tyndale House Publishers',
 };
+
+/** Best first; what each is good for. Ones the API adds later still show, after these. */
+const KNOWN: Record<string, { about: string; rank: number }> = {
+  tyndale: { about: TYNDALE.about, rank: 0 },
+  'matthew-henry': { about: 'Classic practical commentary: what each passage means for everyday life (1706)', rank: 1 },
+  'jamieson-fausset-brown': { about: 'Classic study commentary, concise and verse by verse (1871)', rank: 2 },
+  'adam-clarke': { about: 'Classic in-depth commentary: word meanings and background (1832)', rank: 3 },
+  'john-gill': { about: 'Classic detailed commentary, every verse (1763)', rank: 4 },
+  'keil-delitzsch': { about: 'Classic scholarly Old Testament commentary (1878)', rank: 5 },
+};
+
+const SOURCES_KEY = 'study_notes_sources_v1';
+const CHOICE_KEY = 'study_notes_source_v1';
+let sourcesPromise: Promise<NotesSource[]> | null = null;
+
+const savedSources = (): NotesSource[] | null => {
+  try {
+    const list = JSON.parse(localStorage.getItem(SOURCES_KEY) || 'null');
+    return Array.isArray(list) && list.length ? list : null;
+  } catch {
+    return null;
+  }
+};
+
+interface ApiCommentary { id: string; name?: string; englishName?: string; website?: string; licenseUrl?: string; language?: string }
+
+const toSource = (c: ApiCommentary): NotesSource => {
+  if (c.id === TYNDALE.id) return TYNDALE;
+  const licenseUrl = c.licenseUrl || '';
+  return {
+    id: c.id,
+    name: c.englishName || c.name || c.id,
+    about: KNOWN[c.id]?.about || 'Free classic Bible commentary',
+    website: c.website || '',
+    license: /publicdomain/i.test(licenseUrl) ? 'Public domain' : 'Free to use',
+    licenseUrl,
+  };
+};
+
+/** All the English study notes and commentaries on offer, best first (kept on the phone for offline). */
+function listSources(): Promise<NotesSource[]> {
+  sourcesPromise ??= fetch(`${API}/available_commentaries.json`)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Commentaries unavailable (${res.status})`);
+      return res.json();
+    })
+    .then((data: { commentaries?: ApiCommentary[] }) => {
+      const list = (data.commentaries || []).filter((c) => c?.id && (!c.language || c.language === 'eng')).map(toSource);
+      if (!list.some((s) => s.id === TYNDALE.id)) list.unshift(TYNDALE);
+      const rank = (s: NotesSource) => KNOWN[s.id]?.rank ?? 99;
+      list.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+      try {
+        localStorage.setItem(SOURCES_KEY, JSON.stringify(list));
+      } catch {
+        /* storage full */
+      }
+      return list;
+    })
+    .catch(() => {
+      sourcesPromise = null; // try again next time
+      return savedSources() || [TYNDALE];
+    });
+  return sourcesPromise;
+}
+
+/** The notes this person picked (Tyndale until they choose) */
+function currentSource(): string {
+  try {
+    return localStorage.getItem(CHOICE_KEY) || TYNDALE.id;
+  } catch {
+    return TYNDALE.id;
+  }
+}
+
+function setSource(id: string) {
+  try {
+    localStorage.setItem(CHOICE_KEY, id);
+  } catch {
+    /* private mode: just for now */
+  }
+  window.dispatchEvent(new CustomEvent('studynotes:source', { detail: { id } }));
+}
 
 /** App book id → Tyndale book id. Judges and Jude are checked by chapter count (see below). */
 const BOOK_IDS: Record<string, string[]> = {
@@ -110,14 +212,80 @@ async function load(apiBook: string, chapter: number): Promise<StudyChapter | nu
   return null;
 }
 
+// ── The classic commentaries (any id other than Tyndale) ──────────────────
+
+/** App book ids in Bible order (Genesis = 1), to match each commentary's own book ids */
+const BOOK_ORDER = Object.keys(BOOK_IDS);
+const commentaryBooks = new Map<string, Promise<Map<number, { id: string; introduction: string; name: string }>>>();
+
+function booksOf(source: string) {
+  let pending = commentaryBooks.get(source);
+  if (!pending) {
+    pending = fetch(`${API}/c/${encodeURIComponent(source)}/books.json`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Commentary unavailable (${res.status})`);
+        return res.json();
+      })
+      .then((data: { books?: { id: string; order: number; name?: string; commonName?: string; introduction?: string }[] }) =>
+        new Map((data.books || []).map((b) => [b.order, { id: b.id, name: b.commonName || b.name || '', introduction: b.introduction || '' }])),
+      )
+      .catch((error) => {
+        commentaryBooks.delete(source);
+        throw error;
+      });
+    commentaryBooks.set(source, pending);
+  }
+  return pending;
+}
+
+type VerseContent = string | { text?: string; lineBreak?: boolean; heading?: string };
+
+/** One verse's commentary: paragraphs are separated by line breaks */
+const verseParagraphs = (content: VerseContent[] = []) =>
+  content
+    .map((c) => (typeof c === 'string' ? c : c?.lineBreak ? '\n' : c?.text || c?.heading || ''))
+    .join('')
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+async function loadCommentary(source: string, apiBook: string, chapter: number): Promise<StudyChapter | null> {
+  const order = BOOK_ORDER.indexOf(apiBook) + 1;
+  if (!order) return null;
+  const book = (await booksOf(source)).get(order);
+  if (!book) return null;
+  const res = await fetch(`${API}/c/${encodeURIComponent(source)}/${book.id}/${chapter}.json`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Commentary unavailable (${res.status})`);
+  const raw: { book?: { name?: string; introduction?: string }; chapter?: { content?: { type: string; number?: number; content?: VerseContent[] }[] } } = await res.json();
+  const notes: StudyNote[] = [];
+  for (const item of raw.chapter?.content || []) {
+    if (item.type !== 'verse' || !item.number) continue;
+    const paragraphs = verseParagraphs(item.content);
+    if (paragraphs.length) notes.push({ verse: item.number, label: `${chapter}:${item.number}`, paragraphs });
+  }
+  return {
+    book: apiBook,
+    chapter,
+    bookName: raw.book?.name || book.name,
+    notes,
+    summary: '',
+    introduction: raw.book?.introduction || book.introduction,
+  };
+}
+
 export const studyNotesService = {
-  /** Notes for one chapter, or null when the dataset has none. Cached for the session. */
-  getChapter(book: string, chapter: number): Promise<StudyChapter | null> {
+  listSources,
+  currentSource,
+  setSource,
+
+  /** Notes for one chapter from the chosen notes, or null when they have none. Cached for the session. */
+  getChapter(book: string, chapter: number, source = currentSource()): Promise<StudyChapter | null> {
     const apiBook = normalizeBookApiName(book);
-    const key = `${apiBook}:${chapter}`;
+    const key = `${source}:${apiBook}:${chapter}`;
     let pending = memory.get(key);
     if (!pending) {
-      pending = load(apiBook, chapter).catch((error) => {
+      pending = (source === TYNDALE.id ? load(apiBook, chapter) : loadCommentary(source, apiBook, chapter)).catch((error) => {
         memory.delete(key);
         throw error;
       });
@@ -153,6 +321,12 @@ const ABBREVIATIONS: Record<string, string> = {
   '1 thess': '1-thessalonians', '2 thess': '2-thessalonians', '1 tim': '1-timothy', '2 tim': '2-timothy',
   titus: 'titus', phlm: 'philemon', heb: 'hebrews', jas: 'james', '1 pet': '1-peter', '2 pet': '2-peter',
   '1 jn': '1-john', '2 jn': '2-john', '3 jn': '3-john', jude: 'jude', rev: 'revelation',
+  // As the classic commentaries write them ("Psa 23:1", "Joh 3:16")
+  exo: 'exodus', deu: 'deuteronomy', jos: 'joshua', jdg: 'judges', rut: 'ruth', ezr: 'ezra', est: 'esther',
+  psa: 'psalms', pro: 'proverbs', ecc: 'ecclesiastes', sol: 'song-of-solomon', sng: 'song-of-solomon',
+  eze: 'ezekiel', joe: 'joel', amo: 'amos', oba: 'obadiah', jon: 'jonah', zep: 'zephaniah', zec: 'zechariah',
+  zac: 'zechariah', mat: 'matthew', mar: 'mark', luk: 'luke', joh: 'john', act: 'acts', phi: 'philippians',
+  jam: 'james', tit: 'titus', phm: 'philemon', jde: 'jude',
 };
 
 const bookFromWord = (word?: string): string | null => {
@@ -195,9 +369,12 @@ export function linkReferences(text: string, currentBook: string): NoteSegment[]
   return out;
 }
 
-/** "born again: Or born from above." → the quoted phrase the note explains */
+/**
+ * "born again: Or born from above." (Tyndale) or "In the beginning - Before the
+ * creative acts…" (the classic commentaries) → the phrase the note explains
+ */
 export function splitLemma(paragraph: string): { lemma: string | null; rest: string } {
-  const m = paragraph.match(/^([^:()\d]{1,60}):\s+(.*)$/s);
+  const m = paragraph.match(/^([^:()\d]{1,60}):\s+(.*)$/s) || paragraph.match(/^([^:()\d]{1,80}?) [-–—] (.+)$/s);
   // "message . . . vision:" keeps its ellipsis; any other full stop means it's a sentence
   if (!m || /[.;!?]/.test(m[1].replace(/(\s?\.){3}/g, ''))) return { lemma: null, rest: paragraph };
   return { lemma: m[1], rest: m[2] };

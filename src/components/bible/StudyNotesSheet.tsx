@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, GraduationCap, RotateCcw, WifiOff } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, ExternalLink, GraduationCap, RotateCcw, WifiOff } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Segmented } from '@/components/page/PageKit';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import {
-  STUDY_NOTES_ATTRIBUTION, linkReferences, splitLemma, studyNotesService, tecartaUrl, type StudyChapter,
+  TYNDALE, linkReferences, splitLemma, studyNotesService, tecartaUrl, type NotesSource, type StudyChapter,
 } from '@/services/studyNotesService';
 import { formatBookDisplayName, normalizeBookApiName } from './bookUtils';
 
@@ -22,7 +23,9 @@ interface StudyNotesSheetProps {
 
 /**
  * Study Bible notes for the chapter being read: verse-by-verse notes and the
- * book introduction (Tyndale Open Study Notes).
+ * book introduction. "Notes from" picks which: Tyndale Open Study Notes (the
+ * default) or one of the free classic commentaries; the Life Application
+ * Study Bible someone owns opens in Tecarta.
  */
 const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavigate }: StudyNotesSheetProps) => {
   const isMobile = useIsMobile();
@@ -34,6 +37,24 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
   const [attempt, setAttempt] = useState(0);
   const [showFullIntro, setShowFullIntro] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Which notes (remembered), and the ones on offer
+  const [sourceId, setSourceId] = useState(studyNotesService.currentSource);
+  const [sources, setSources] = useState<NotesSource[]>([TYNDALE]);
+  const [picking, setPicking] = useState(false);
+  const source = sources.find((s) => s.id === sourceId) ?? (sourceId === TYNDALE.id ? TYNDALE : null);
+
+  useEffect(() => {
+    if (!open) return;
+    setPicking(false);
+    studyNotesService.listSources().then(setSources);
+  }, [open]);
+
+  const choose = (id: string) => {
+    setPicking(false);
+    if (id === sourceId) return;
+    studyNotesService.setSource(id);
+    setSourceId(id);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -41,7 +62,7 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
     setState('loading');
     setShowFullIntro(false);
     studyNotesService
-      .getChapter(apiBook, chapter)
+      .getChapter(apiBook, chapter, sourceId)
       .then((result) => {
         if (cancelled) return;
         setData(result);
@@ -52,7 +73,7 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
     return () => {
       cancelled = true;
     };
-  }, [open, apiBook, chapter, attempt]);
+  }, [open, apiBook, chapter, attempt, sourceId]);
 
   // Bring the note for the tapped verse into view
   useEffect(() => {
@@ -91,7 +112,52 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
             {name} {chapter}
           </SheetTitle>
           <SheetDescription className="sr-only">Study notes and book introduction for {name} {chapter}</SheetDescription>
+          <button
+            type="button"
+            onClick={() => setPicking((p) => !p)}
+            aria-expanded={picking}
+            className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-amber-50 py-1.5 pl-3 pr-2.5 text-[13.5px] font-semibold text-amber-800 transition active:scale-[0.98] dark:bg-amber-950/50 dark:text-amber-200"
+          >
+            <span className="shrink-0 text-amber-700/70 dark:text-amber-300/70">Notes from</span>
+            <span className="truncate">{source?.name ?? 'Choose notes'}</span>
+            <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', picking && 'rotate-180')} />
+          </button>
         </div>
+
+        {picking && (
+          <div className="mx-4 mb-2 max-h-[55%] shrink-0 overflow-y-auto rounded-2xl border border-slate-200/70 bg-card shadow-sm dark:border-slate-800" role="listbox" aria-label="Study notes">
+            {sources.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="option"
+                aria-selected={s.id === sourceId}
+                onClick={() => choose(s.id)}
+                className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-muted/60 dark:border-slate-800"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14.5px] font-semibold text-foreground">{s.name}</span>
+                  <span className="block text-[12.5px] leading-snug text-muted-foreground">{s.about}</span>
+                </span>
+                {s.id === sourceId && <Check className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />}
+              </button>
+            ))}
+            <a
+              href={tecartaUrl(name, chapter)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setPicking(false)}
+              className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/60"
+            >
+              <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-semibold text-foreground">Life Application Study Bible</span>
+                <span className="block text-[12.5px] leading-snug text-muted-foreground">Your own copy: opens {name} {chapter} in Tecarta</span>
+              </span>
+              <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            </a>
+          </div>
+        )}
 
         {state === 'ready' && data && (
           <div className="shrink-0 px-4">
@@ -138,8 +204,8 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
           {state === 'none' && (
             <div className="flex flex-col items-center px-6 py-14 text-center">
               <GraduationCap className="h-8 w-8 text-muted-foreground/60" />
-              <p className="mt-3 font-semibold text-foreground">No study notes for {name} {chapter}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Try another chapter.</p>
+              <p className="mt-3 font-semibold text-foreground">No notes for {name} {chapter} in {source?.name ?? 'these notes'}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Try another chapter, or other notes above.</p>
             </div>
           )}
 
@@ -209,21 +275,23 @@ const StudyNotesSheet = ({ open, onOpenChange, book, chapter, focusVerse, onNavi
                 className="flex items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 transition hover:bg-muted"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-foreground">Open {name} {chapter} in Tecarta</span>
-                  <span className="block text-[12.5px] text-muted-foreground">For study Bibles you own there, like the Life Application Study Bible</span>
+                  <span className="block text-[14px] font-semibold text-foreground">Life Application Study Bible</span>
+                  <span className="block text-[12.5px] text-muted-foreground">Open {name} {chapter} in your Tecarta copy</span>
                 </span>
                 <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
               </a>
-              <p className="px-1 text-[11.5px] leading-relaxed text-muted-foreground">
-                <a href={STUDY_NOTES_ATTRIBUTION.website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                  {STUDY_NOTES_ATTRIBUTION.name}
-                </a>{' '}
-                © {STUDY_NOTES_ATTRIBUTION.holder}, used under{' '}
-                <a href={STUDY_NOTES_ATTRIBUTION.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                  {STUDY_NOTES_ATTRIBUTION.license}
-                </a>
-                .
-              </p>
+              {source && (
+                <p className="px-1 text-[11.5px] leading-relaxed text-muted-foreground">
+                  {source.website ? (
+                    <a href={source.website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.name}</a>
+                  ) : source.name}
+                  {source.holder ? ` © ${source.holder}, used under ` : ' · '}
+                  {source.licenseUrl ? (
+                    <a href={source.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.license}</a>
+                  ) : source.license}
+                  . Shared by the Free Use Bible API.
+                </p>
+              )}
             </footer>
           )}
         </div>

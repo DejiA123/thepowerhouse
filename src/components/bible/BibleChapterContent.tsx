@@ -393,7 +393,13 @@ export const BibleChapterContent = ({
     bibleNotesService.getFolders(user.id).then(setNoteFolders).catch(() => undefined);
   }, [user]);
 
-  // Which verses have a study note (for the markers and the "Study" action)
+  // Which verses have a study note (for the markers and the "Study" action), in the notes picked
+  const [notesSource, setNotesSource] = useState(studyNotesService.currentSource);
+  useEffect(() => {
+    const onSource = (e: Event) => setNotesSource((e as CustomEvent).detail?.id ?? studyNotesService.currentSource());
+    window.addEventListener('studynotes:source', onSource);
+    return () => window.removeEventListener('studynotes:source', onSource);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     setStudyVerses(new Set());
@@ -403,7 +409,7 @@ export const BibleChapterContent = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedBook, selectedChapter]);
+  }, [selectedBook, selectedChapter, notesSource]);
 
   useEffect(() => {
     const sync = () => {
