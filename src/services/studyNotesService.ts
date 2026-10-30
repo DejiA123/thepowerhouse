@@ -5,7 +5,7 @@
  *    classic Christian commentaries of the Free Use Bible API
  *    (bible.helloao.org) that are named in KNOWN below; others it lists are
  *    left out.
- *  • Matthew Henry's Concise Commentary and the Geneva Bible notes (1599),
+ *  • Matthew Henry's Concise Commentary and the Geneva Bible notes,
  *    both public domain, served by the app itself from public/study-notes/
  *    (made by scripts/make-study-notes.py).
  */
@@ -54,7 +54,7 @@ const LOCAL: NotesSource[] = [
   },
   {
     id: 'geneva',
-    name: 'Geneva Bible Notes (1599)',
+    name: 'Geneva Bible Notes',
     about: "The first Protestant study Bible's notes, verse by verse",
     website: 'https://en.wikipedia.org/wiki/Geneva_Bible',
     license: 'Public domain',
@@ -71,17 +71,17 @@ const KNOWN: Record<string, { about: string; rank: number }> = {
   tyndale: { about: TYNDALE.about, rank: 0 },
   mhcc: { about: LOCAL[0].about, rank: 1 },
   geneva: { about: LOCAL[1].about, rank: 2 },
-  'jamieson-fausset-brown': { about: 'Classic Christian study commentary, concise and verse by verse (1871)', rank: 3 },
-  'matthew-henry': { about: "Matthew Henry's full commentary: longer practical exposition (1706)", rank: 4 },
-  'adam-clarke': { about: 'Classic Methodist commentary: word meanings and background (1832)', rank: 5 },
-  'john-gill': { about: 'Classic Baptist commentary, every verse (1763)', rank: 6 },
-  'keil-delitzsch': { about: 'Classic scholarly Old Testament commentary (1878)', rank: 7 },
+  'jamieson-fausset-brown': { about: 'Classic Christian study commentary, concise and verse by verse', rank: 3 },
+  'matthew-henry': { about: "Matthew Henry's full commentary: longer practical exposition", rank: 4 },
+  'adam-clarke': { about: 'Classic Methodist commentary: word meanings and background', rank: 5 },
+  'john-gill': { about: 'Classic Baptist commentary, every verse', rank: 6 },
+  'keil-delitzsch': { about: 'Classic scholarly Old Testament commentary', rank: 7 },
 };
 const rank = (s: NotesSource) => KNOWN[s.id]?.rank ?? 99;
 const OFFLINE_LIST = [TYNDALE, ...LOCAL];
 
-// v2: v1 lists could include non-Christian commentaries
-const SOURCES_KEY = 'study_notes_sources_v2';
+// v3: v1 lists could include non-Christian commentaries, v2 names and notes had years in them
+const SOURCES_KEY = 'study_notes_sources_v3';
 const CHOICE_KEY = 'study_notes_source_v1';
 let sourcesPromise: Promise<NotesSource[]> | null = null;
 
@@ -101,7 +101,8 @@ const toSource = (c: ApiCommentary): NotesSource => {
   const licenseUrl = c.licenseUrl || '';
   return {
     id: c.id,
-    name: c.englishName || c.name || c.id,
+    // Just the name: no year it was written or published
+    name: (c.englishName || c.name || c.id).replace(/\s*\(?\b1[5-9]\d\d(?:[-–]\d{2,4})?\)?\s*$/, ''),
     about: KNOWN[c.id]?.about || '',
     website: c.website || '',
     license: /publicdomain/i.test(licenseUrl) ? 'Public domain' : 'Free to use',
