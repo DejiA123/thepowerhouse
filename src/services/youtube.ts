@@ -23,7 +23,8 @@ export interface LiveStatus {
   title: string | null;
 }
 
-const CACHE_KEY = 'yt_latest_v1';
+// v2: phones may still hold the old made-up placeholder videos under v1
+const CACHE_KEY = 'yt_latest_v2';
 const FRESH_MS = 30 * 60 * 1000;
 
 const readCache = (): { at: number; videos: YouTubeVideo[] } | null => {
@@ -37,13 +38,16 @@ const readCache = (): { at: number; videos: YouTubeVideo[] } | null => {
 /** The videos kept from last time (shown straight away) */
 export const cachedVideos = (): YouTubeVideo[] => readCache()?.videos ?? [];
 
-/** The latest videos on the channel, newest first. */
+/** The latest videos on the church's own channel, newest first (Shorts and upcoming streams left out). */
 export async function latestVideos(): Promise<YouTubeVideo[]> {
   const cached = readCache();
   if (cached && Date.now() - cached.at < FRESH_MS && cached.videos.length) return cached.videos;
   try {
     const { data, error } = await supabase.functions.invoke('fetch-youtube-videos', { body: {} });
     if (error) throw error;
+    // Only this channel's real videos: never placeholders (an older version of the
+    // function sent some), never another channel's
+    if (data?.isFallback || (data?.channelId && data.channelId !== CHANNEL_ID)) throw new Error('not the channel\'s own videos');
     const videos: YouTubeVideo[] = (data?.videos ?? [])
       .filter((v: { id?: string }) => typeof v.id === 'string')
       .map((v: { id: string; title?: string; thumbnail?: string; publishedAt?: string }) => ({
