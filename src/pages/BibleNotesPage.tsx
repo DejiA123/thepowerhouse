@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowUpDown, BookOpen, ChevronLeft, ChevronRight, FileText, Folder, FolderPlus, Inbox, MoreHorizontal,
@@ -71,7 +72,7 @@ const BibleNotesPage = () => {
   const returnTo = nav?.returnBook ? nav : null;
 
   // ── Data ──────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
+  const load = useCallback(async (quiet = false) => {
     if (!user) return;
     try {
       const [{ data, error }, folderList] = await Promise.all([
@@ -89,7 +90,7 @@ const BibleNotesPage = () => {
       }
     } catch (error) {
       console.error('Failed to load notes', error);
-      appAlert('Could not load your notes', 'Showing the copy saved on this device.', 'error');
+      if (!quiet) appAlert('Could not load your notes', 'Showing the copy saved on this device.', 'error');
     } finally {
       setLoading(false);
     }
@@ -98,6 +99,13 @@ const BibleNotesPage = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Notes and folders changed on your other phone or computer show here too (quietly)
+  useLiveRefresh(
+    user ? [{ table: 'bible_notes', filter: `user_id=eq.${user.id}` }, { table: 'bible_note_folders', filter: `user_id=eq.${user.id}` }] : [],
+    () => load(true),
+    { enabled: !!user },
+  );
 
   useEffect(() => {
     if (!user) return;

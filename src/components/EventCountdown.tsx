@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,6 @@ import { Calendar, Clock, MapPin, Users, Bell, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { serviceAttendanceService } from "@/services/serviceAttendanceService";
-import { supabase } from "@/integrations/supabase/client";
 import { church } from '@/config/church';
 
 const EventCountdown = () => {
@@ -63,40 +63,23 @@ const EventCountdown = () => {
   const serviceDate = getNextSunday().toISOString().split('T')[0]; // YYYY-MM-DD
   const serviceTime = "10:00:00"; // HH:MM:SS
 
+  // How many are coming, and whether I am (kept live as people tap "I'm coming")
+  const loadAttendance = async () => {
+    if (!user) return;
+    try {
+      setAttendees(await serviceAttendanceService.getAttendanceCount(serviceDate, serviceTime));
+      setReminderSet(await serviceAttendanceService.isUserAttending(user.id, serviceDate, serviceTime));
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+    }
+  };
+
   useEffect(() => {
-    // Load attendance data and set up real-time subscription
-    const loadAttendanceData = async () => {
-      if (!user) return;
-
-      try {
-        // Get current attendance count
-        const count = await serviceAttendanceService.getAttendanceCount(serviceDate, serviceTime);
-        setAttendees(count);
-
-        // Check if user is already attending
-        const isAttending = await serviceAttendanceService.isUserAttending(user.id, serviceDate, serviceTime);
-        setReminderSet(isAttending);
-
-        // Set up real-time subscription for attendance changes
-        const channel = serviceAttendanceService.subscribeToAttendanceChanges(
-          serviceDate,
-          serviceTime,
-          (newCount) => {
-            console.log('📊 Attendance count updated:', newCount);
-            setAttendees(newCount);
-          }
-        );
-
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      } catch (error) {
-        console.error('Error loading attendance data:', error);
-      }
-    };
-
-    loadAttendanceData();
+    loadAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, serviceDate, serviceTime]);
+
+  useLiveRefresh([{ table: 'service_attendance', filter: `service_date=eq.${serviceDate}` }], loadAttendance, { enabled: !!user });
 
   useEffect(() => {
     const calculateTimeLeft = () => {

@@ -97,31 +97,6 @@ class ServiceAttendanceService {
       return false;
     }
   }
-
-  /**
-   * Subscribe to attendance changes for real-time updates
-   */
-  subscribeToAttendanceChanges(serviceDate: string, serviceTime: string, callback: (count: number) => void) {
-    const channel = supabase
-      .channel(`service_attendance_${serviceDate}_${serviceTime}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'service_attendance',
-          filter: `service_date=eq.${serviceDate} AND service_time=eq.${serviceTime}`
-        },
-        async () => {
-          // Refresh the count when attendance changes
-          const count = await this.getAttendanceCount(serviceDate, serviceTime);
-          callback(count);
-        }
-      )
-      .subscribe();
-
-    return channel;
-  }
 }
 
 // Export singleton instance

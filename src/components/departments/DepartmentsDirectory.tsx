@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, ClipboardList, DoorOpen, HeartHandshake, Megaphone, Music, type LucideIcon } from "lucide-react";
 import { PictureTile, SectionLabel } from "@/components/page/PageKit";
@@ -60,7 +61,7 @@ const DepartmentsDirectory = () => {
   const [joined, setJoined] = useState<Set<string>>(new Set());
   const [recent] = useState<string[]>(readRecent);
 
-  useEffect(() => {
+  const loadMembers = () => {
     // @ts-ignore: group_members is not in the generated types
     supabase
       .from("group_members")
@@ -76,7 +77,14 @@ const DepartmentsDirectory = () => {
         setMemberCounts(counts);
         setJoined(mine);
       });
+  };
+
+  useEffect(() => {
+    loadMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+  // Team sizes change as people join or leave
+  useLiveRefresh(["group_members"], loadMembers);
 
   const open = (team: MinistryTeam) => {
     rememberTeam(team.id);

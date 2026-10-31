@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,19 +108,22 @@ export default function TeamFollowUpPage() {
         }
     }, [selectedMember]);
 
-    const loadAssignments = async (name: string) => {
-        setIsLoading(true);
+    const loadAssignments = async (name: string, quiet = false) => {
+        if (!quiet) setIsLoading(true);
         try {
             const data = await followUpService.getAssignmentsFor(name);
             setAssignments(data);
             // Extra delay to ensure DOM is fully rendered and browser scroll doesn't fight back
-            setTimeout(scrollToTop, 50);
+            if (!quiet) setTimeout(scrollToTop, 50);
         } catch (error) {
-            toast.error("Failed to load assignments");
+            if (!quiet) toast.error("Failed to load assignments");
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Visitors added or notes changed by the rest of the team show straight away (quietly)
+    useLiveRefresh(["team_follow_ups"], () => selectedMember && loadAssignments(selectedMember, true), { enabled: canSee && !!selectedMember });
 
     const handleSaveNote = async () => {
         if (!editingAssignment) return;

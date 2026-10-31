@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays, CalendarPlus, Church, Clock, MoreHorizontal, Pencil, Settings, Share2, Trash2 } from "lucide-react";
 import AnnouncementsHub from "@/components/AnnouncementsHub";
@@ -173,6 +174,9 @@ const NewsPage = () => {
       /* storage full */
     }
   };
+
+  // Events added, changed or removed show straight away
+  useLiveRefresh(["events"], fetchEvents);
 
   const deleteEvent = async (eventId: string) => {
     const { error } = await supabase.from("events").delete().eq("id", eventId);

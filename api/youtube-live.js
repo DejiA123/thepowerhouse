@@ -1,5 +1,6 @@
-// Is The Power House live on YouTube right now? Used by Home and Watch to show
-// the live service (and its live chat) inside the app.
+// Is the church live on YouTube right now? The app asks the youtube-live backend
+// function first (it can use the YouTube API); this is the backup while that
+// isn't deployed. ?channel=UC… picks the church's channel (Church Space).
 //
 // Reads the channel's public "/live" page, which points at the live broadcast
 // while there is one (no API key or quota needed). Vercel keeps each answer for
@@ -24,7 +25,10 @@ export async function liveStatus(channelId = CHANNEL_ID) {
     },
   });
   const html = await res.text();
-  const videoId = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/)?.[1] ?? null;
+  const videoId =
+    html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/)?.[1] ??
+    html.match(/"currentVideoEndpoint":\{[^}]*?"videoId":"([\w-]{11})"/)?.[1] ??
+    null;
   // A broadcast that's on now ("isLive" stays false on recordings of past streams)
   const live = !!videoId && /"(isLive|isLiveNow)":\s*true/.test(html);
   const upcoming = !!videoId && !live && /"isUpcoming":\s*true/.test(html);
@@ -34,7 +38,8 @@ export async function liveStatus(channelId = CHANNEL_ID) {
 
 export default async function handler(req, res) {
   try {
-    const status = await liveStatus();
+    const asked = String(req.query?.channel ?? '');
+    const status = await liveStatus(/^UC[\w-]{22}$/.test(asked) ? asked : CHANNEL_ID);
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
     res.status(200).json(status);
   } catch (error) {

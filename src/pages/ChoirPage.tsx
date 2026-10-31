@@ -115,6 +115,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { church } from '@/config/church';
 import { useIsAdmin } from '@/lib/admin';
 import { choirUnlocked, lockChoir, unlockChoir } from '@/lib/choirKey';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 
 /** The choir's tabs by their new names and old ones (older links still work) */
 const CHOIR_TABS: Record<string, string> = {
@@ -2072,7 +2073,22 @@ const ChoirPage = () => {
         locId === 'national' ? NATIONAL_PERMANENT_DATE : selectedWeekDate.toISOString().split('T')[0];
 
     // Initial Data Fetch
+    // Changes from other phones (songs, sets, rosters, events) reload quietly: no spinner
+    const [liveTick, setLiveTick] = useState(0);
+    const quietReload = useRef(false);
+    const choirTables = ['choir_songs', 'choir_folders', 'choir_weekly_set_songs', 'choir_setlist_info', 'choir_instrumental_resources', 'choir_calendar_events'];
+    useLiveRefresh(
+        choirTables.map((table) => ({ table, filter: `location=eq.${locationId}` })),
+        () => {
+            quietReload.current = true;
+            setLiveTick((t) => t + 1);
+        },
+        { enabled: !!locationId },
+    );
+
     useEffect(() => {
+        const quiet = quietReload.current;
+        quietReload.current = false;
         const fetchData = async () => {
             if (!locationId) return;
             const weekDateStr = getEffectiveWeekDate(locationId);
@@ -2107,7 +2123,7 @@ const ChoirPage = () => {
             }
 
             try {
-                setLoading(true);
+                if (!quiet) setLoading(true);
                 const pType = `praise${suffix}` as any;
                 const wType = `worship${suffix}` as any;
                 const sType = `special${suffix}` as any;
@@ -2277,13 +2293,13 @@ const ChoirPage = () => {
 
             } catch (error) {
                 console.error("Error fetching choir data:", error);
-                toast.error("Failed to load choir data");
+                if (!quiet) toast.error("Failed to load choir data");
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
-    }, [locationId, selectedWeekDate, selectedDay]);
+    }, [locationId, selectedWeekDate, selectedDay, liveTick]);
 
     // ── Choir home and its sections: every place in the choir has its own link
     // (?tab=songs|band|lessons|singing, &section=instruments|basics, &course=…, &voice=male|female),

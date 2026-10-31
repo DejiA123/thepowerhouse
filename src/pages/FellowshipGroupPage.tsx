@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +121,9 @@ const FellowshipGroupPage = () => {
       setIsMember(!!data);
     }
   };
+
+  // People joining or leaving show straight away
+  useLiveRefresh([{ table: "group_members", filter: `group_name=eq.${fellowship?.name ?? ""}` }], fetchMemberInfo, { enabled: !!fellowship });
 
   const handleJoin = async () => {
     if (!user || !fellowship) return;
