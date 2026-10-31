@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@tiptap/react';
 import {
-  AlertCircle, Check, ChevronLeft, Cloud, FileDown, FileText, Folder, Loader2, MoreHorizontal, Pin, PinOff, Star, Trash2,
+  AlertCircle, Check, ChevronLeft, Cloud, CloudOff, FileDown, FileText, Folder, Loader2, MoreHorizontal, Pin, PinOff, Star, Trash2,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -17,7 +17,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
 import FolderMenuSection from './FolderMenuSection';
-import { noteDraftKey, openDrafts, type NoteDraft } from '@/lib/offlineNotes';
+import {
+  draftAsNote, isOffline, newNoteId, noteDraftKey, openDrafts, pushDraft, readDraft, removeDraft, saveDraft, type NoteDraft,
+} from '@/lib/offlineNotes';
 import NoteRichEditor from './NoteRichEditor';
 import NoteToolbar from './NoteToolbar';
 import { exportNotePdf, exportNoteWord, isBlankHtml, relativeDate, type NoteRecord } from './noteUtils';
@@ -44,7 +46,8 @@ interface Props {
   onDeleted: (id: string) => void;
 }
 
-type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+/** offline: kept on this phone, sent when the connection is back */
+type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'offline' | 'error';
 
 const AUTOSAVE_MS = 700;
 const draftKey = noteDraftKey;
@@ -72,7 +75,7 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   const isMobile = useIsMobile();
   const [session, setSession] = useState(0);
   const [initialHtml, setInitialHtml] = useState('');
-  const [noteId, setNoteId] = useState<string | null>(null);
+  const [noteId, setNoteId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [folderId, setFolderId] = useState<string | null>(null);
   const [favorite, setFavorite] = useState(false);
@@ -85,7 +88,14 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   const html = useRef('');
   const latest = useRef({ title, folderId, favorite, pinned });
   latest.current = { title, folderId, favorite, pinned };
-  const noteIdRef = useRef<string | null>(null);
+  /** The note's id (a new note gets one straight away, made on this phone) */
+  const noteIdRef = useRef<string>('');
+  /** Not in the account yet */
+  const isNew = useRef(true);
+  /** The account's version being edited (its updated_at), to spot edits from another device */
+  const base = useRef<string | null>(null);
+  /** An older kind of unsaved new note being recovered: cleared once saved */
+  const legacyNewDraft = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const saving = useRef<Promise<void> | null>(null);
   const dirty = useRef(false);
@@ -102,21 +112,20 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
     if (!open) return;
     let body = note?.note_text ?? defaults?.body ?? '';
     let startTitle = note?.title ?? defaults?.title ?? '';
+    const id = note?.id ?? newNoteId();
+    // What's kept on this phone for this note (an edit made offline), or for a new
+    // note an older kind of unsaved draft
+    const legacy = !note ? readDraft(userId, null) : null;
+    const draft = note ? readDraft(userId, id) : legacy;
+    legacyNewDraft.current = !!legacy;
     let recovered = false;
-    try {
-      const saved = localStorage.getItem(draftKey(userId, note?.id ?? null));
-      if (saved) {
-        const draft = JSON.parse(saved);
-        const newer = !note || new Date(draft.at) > new Date(note.updated_at);
-        if (typeof draft.html === 'string' && newer && (draft.html !== body || draft.title !== startTitle)) {
-          body = draft.html;
-          if (typeof draft.title === 'string') startTitle = draft.title;
-          recovered = true;
-        }
-      }
-    } catch {
-      /* ignore bad drafts */
+    if (draft && (draft.html !== body || (draft.title ?? '') !== startTitle)) {
+      body = draft.html;
+      if (typeof draft.title === 'string') startTitle = draft.title;
+      recovered = true;
     }
+    isNew.current = !note || !!draft?.isNew;
+    base.current = draft?.base !== undefined ? draft.base : note && !note.pending ? note.updated_at : null;
 
     passage.current = {
       book: note?.book ?? defaults?.book ?? 'genesis',
@@ -124,13 +133,13 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
       verse: note?.verse ?? defaults?.verse ?? null,
     };
     html.current = body;
-    noteIdRef.current = note?.id ?? null;
-    setNoteId(note?.id ?? null);
+    noteIdRef.current = id;
+    setNoteId(id);
     setInitialHtml(body);
     setTitle(startTitle);
-    setFolderId(note?.folder_id ?? defaults?.folder_id ?? null);
-    setFavorite(!!note?.is_favorite);
-    setPinned(!!note?.is_pinned);
+    setFolderId(draft?.folder_id !== undefined ? draft.folder_id : note?.folder_id ?? defaults?.folder_id ?? null);
+    setFavorite(draft?.is_favorite ?? !!note?.is_favorite);
+    setPinned(draft?.is_pinned ?? !!note?.is_pinned);
     setUpdatedAt(note?.updated_at ?? null);
     setEditor(null);
     // A recovered offline draft counts as the user's edit and needs saving
@@ -153,74 +162,60 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
     const id = noteIdRef.current;
 
     // A brand-new note with nothing in it is simply not created
-    if (!id && isBlankHtml(snapshot.html) && !snapshot.title.trim()) {
+    if (isNew.current && isBlankHtml(snapshot.html) && !snapshot.title.trim()) {
       dirty.current = false;
+      removeDraft(userId, id);
       setSaveState('idle');
       return;
     }
 
     dirty.current = false;
     setSaveState('saving');
-    const now = new Date().toISOString();
-    const fields = {
-      title: snapshot.title.trim() || null,
-      note_text: snapshot.html,
+    const draft: NoteDraft = {
+      html: snapshot.html,
+      title: snapshot.title,
+      at: new Date().toISOString(),
+      isNew: isNew.current,
+      base: base.current,
+      created_at: note?.created_at,
+      book: passage.current.book,
+      chapter: passage.current.chapter,
+      verse: passage.current.verse,
       folder_id: snapshot.folderId,
       is_favorite: snapshot.favorite,
       is_pinned: snapshot.pinned,
-      updated_at: now,
     };
+    // Kept on the phone first, so nothing is lost whatever happens to the connection
+    saveDraft(userId, id, draft);
+    if (legacyNewDraft.current) {
+      removeDraft(userId, null);
+      legacyNewDraft.current = false;
+    }
 
     try {
-      const { data, error } = id
-        ? await supabase.from('bible_notes').update(fields).eq('id', id).eq('user_id', userId).select().single()
-        : await supabase
-          .from('bible_notes')
-          .insert({
-            ...fields,
-            user_id: userId,
-            book: passage.current.book,
-            chapter: passage.current.chapter,
-            verse: passage.current.verse,
-            category: 'insight',
-            is_private: false,
-          })
-          .select()
-          .single();
-      if (error) throw error;
-      const saved = data as unknown as NoteRecord;
-      if (!id) {
-        localStorage.removeItem(draftKey(userId, null));
+      const saved = await pushDraft(userId, id, draft);
+      removeDraft(userId, id, draft.at);
+      if (saved.id !== id) {
+        // Changed on another device meanwhile: this version went in as a copy, carry on in it
+        removeDraft(userId, id);
         noteIdRef.current = saved.id;
         setNoteId(saved.id);
+        appAlert('Saved as a copy', 'This note was changed on another device too, so both versions are kept.', 'info');
       }
-      localStorage.removeItem(draftKey(userId, saved.id));
+      isNew.current = false;
+      base.current = saved.updated_at;
       setUpdatedAt(saved.updated_at);
       setSaveState(dirty.current ? 'dirty' : 'saved');
       onSaved(saved);
     } catch (error) {
-      console.error('Note save failed', error);
-      dirty.current = true;
-      setSaveState('error');
-      try {
-        // Kept on the device and saved to the account once the connection is back
-        const draft: NoteDraft = {
-          html: snapshot.html,
-          title: snapshot.title,
-          at: now,
-          book: passage.current.book,
-          chapter: passage.current.chapter,
-          verse: passage.current.verse,
-          folder_id: snapshot.folderId,
-          is_favorite: snapshot.favorite,
-          is_pinned: snapshot.pinned,
-        };
-        localStorage.setItem(draftKey(userId, id), JSON.stringify(draft));
-      } catch {
-        /* storage full */
-      }
+      console.warn('Note kept on this phone; will save when back online', error);
+      dirty.current = true; // sent again when the connection is back
+      setSaveState(isOffline(error) ? 'offline' : 'error');
+      setUpdatedAt(draft.at);
+      // The lists show it straight away, marked "not synced yet"
+      onSaved(draftAsNote(userId, id, draft, note && note.id === id ? note : undefined));
     }
-  }, [userId, onSaved]);
+  }, [userId, onSaved, note]);
 
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
@@ -242,20 +237,26 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
 
   // This editor saves its own draft; the background sync leaves it alone while it's open
   useEffect(() => {
-    if (!open) return;
-    const keys = [draftKey(userId, null), ...(noteId ? [draftKey(userId, noteId)] : [])];
+    if (!open || !noteId) return;
+    const keys = [draftKey(userId, null), draftKey(userId, noteId)];
     keys.forEach((k) => openDrafts.add(k));
     return () => keys.forEach((k) => openDrafts.delete(k));
   }, [open, userId, noteId]);
 
-  // Connection back: save what couldn't be saved offline
+  // Connection back (or the app back on screen): save what couldn't be saved offline
   useEffect(() => {
     if (!open) return;
-    const onOnline = () => {
-      if (dirty.current) flush();
+    const retry = () => {
+      if (dirty.current && document.visibilityState === 'visible' && navigator.onLine !== false) flush();
     };
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    const t = setInterval(retry, 20_000);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+      clearInterval(t);
+    };
   }, [open, flush]);
 
   // Save when the app is backgrounded or closed
@@ -272,9 +273,10 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
     };
   }, [open, flush]);
 
+  // Done never waits on a weak signal: the note is already on the phone, and goes up by itself
   const close = useCallback(async () => {
     editor?.commands.blur();
-    await flush();
+    await Promise.race([flush(), new Promise((r) => setTimeout(r, 1500))]);
     onClose();
   }, [editor, flush, onClose]);
 
@@ -296,22 +298,28 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
     clearTimeout(timer.current);
     dirty.current = false;
     const id = noteIdRef.current;
-    if (id) {
+    if (!isNew.current) {
       const { error } = await supabase.from('bible_notes').delete().eq('id', id).eq('user_id', userId);
       if (error) {
-        appAlert('Could not delete the note', 'Please try again.', 'error');
+        dirty.current = true;
+        appAlert(
+          'Could not delete the note',
+          isOffline(error) ? "You're offline. Delete it again when you're back online." : 'Please try again.',
+          'error',
+        );
         return;
       }
-      localStorage.removeItem(draftKey(userId, id));
-      onDeleted(id);
       appAlert('Note deleted', '', 'success');
     }
-    localStorage.removeItem(draftKey(userId, null));
+    // Only ever on this phone: deleting it needs no connection
+    removeDraft(userId, id);
+    removeDraft(userId, null);
+    onDeleted(id);
     onClose();
   };
 
   const record = (): NoteRecord => ({
-    id: noteId ?? 'draft',
+    id: noteId || 'draft',
     user_id: userId,
     book: passage.current.book,
     chapter: passage.current.chapter,
@@ -331,7 +339,8 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   const status =
     saveState === 'saving' ? { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: 'Saving…' }
       : saveState === 'saved' ? { icon: <Check className="h-3.5 w-3.5" />, text: 'Saved' }
-        : saveState === 'error' ? { icon: <AlertCircle className="h-3.5 w-3.5" />, text: 'Not saved · tap to retry' }
+        : saveState === 'offline' ? { icon: <CloudOff className="h-3.5 w-3.5" />, text: 'Saved on this phone · syncs when online' }
+        : saveState === 'error' ? { icon: <AlertCircle className="h-3.5 w-3.5" />, text: 'Saved on this phone · tap to retry' }
           : saveState === 'dirty' ? { icon: <Cloud className="h-3.5 w-3.5" />, text: 'Editing…' }
             : updatedAt ? { icon: null, text: `Edited ${relativeDate(updatedAt)}` } : { icon: null, text: 'New note' };
 
@@ -340,7 +349,7 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
       className="fixed inset-x-0 top-0 z-[9990] flex flex-col bg-background animate-in fade-in duration-150"
       style={{ height: box ? `${box.height}px` : '100dvh', transform: box?.top ? `translateY(${box.top}px)` : undefined }}
       role="dialog"
-      aria-label={noteId ? 'Edit note' : 'New note'}
+      aria-label={note ? 'Edit note' : 'New note'}
       onPointerDownCapture={() => (interacted.current = true)}
       onKeyDownCapture={() => (interacted.current = true)}
       onPasteCapture={() => (interacted.current = true)}
@@ -352,10 +361,12 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
           <ChevronLeft className="h-6 w-6" /> Notes
         </button>
         <button
-          onClick={() => saveState === 'error' && flush()}
+          onClick={() => (saveState === 'error' || saveState === 'offline') && flush()}
           className={cn(
             'mx-auto flex min-w-0 items-center gap-1.5 truncate rounded-full px-2 py-1 text-xs',
-            saveState === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400' : 'text-muted-foreground',
+            saveState === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400'
+              : saveState === 'offline' ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                : 'text-muted-foreground',
           )}
         >
           {status.icon}

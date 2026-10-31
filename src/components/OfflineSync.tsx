@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { syncNoteDrafts } from '@/lib/offlineNotes';
+import { hasDrafts, syncNoteDrafts } from '@/lib/offlineNotes';
 import { bibleHighlightsService } from '@/services/bibleHighlightsService';
 import { readingPlanProgressService } from '@/services/readingPlanProgressService';
 
@@ -17,10 +17,21 @@ const OfflineSync = () => {
       readingPlanProgressService.load(user.id).catch(() => undefined);
     };
     const t = setTimeout(sync, 2500);
+    // Home Screen apps often miss "online": also when the app is back on screen,
+    // and every 30 s while notes written offline are waiting
+    const onVisible = () => document.visibilityState === 'visible' && sync();
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible' && hasDrafts(user.id)) syncNoteDrafts(user.id).catch(() => undefined);
+    }, 30_000);
     window.addEventListener('online', sync);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
     return () => {
       clearTimeout(t);
+      clearInterval(poll);
       window.removeEventListener('online', sync);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
     };
   }, [user]);
 

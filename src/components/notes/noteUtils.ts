@@ -17,6 +17,8 @@ export interface NoteRecord {
   folder_id?: string | null;
   created_at: string;
   updated_at: string;
+  /** Only on this phone so far (written offline): saved to the account when the connection is back */
+  pending?: boolean;
 }
 
 const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
