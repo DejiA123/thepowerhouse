@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Folder, MoreHorizontal, Pin, PinOff, Star, Trash2 } from 'lucide-react';
+import { CloudOff, Folder, MoreHorizontal, Pin, PinOff, Star, Trash2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -101,6 +101,11 @@ const NoteCard = ({ note, folders, query, showFolder = true, onOpen, onToggleFav
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
         <span>{relativeDate(note.updated_at || note.created_at)}</span>
+        {note.pending && (
+          <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400" title="Saved on this phone; it goes to your account when you're back online">
+            <CloudOff className="h-3.5 w-3.5" /> Not synced yet
+          </span>
+        )}
         {folder && (
           <span className={cn('inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 font-medium', folderColor(folder, folders).chip)}>
             <Folder className="h-3 w-3 shrink-0 fill-current" /> <span className="truncate">{folder.name}</span>

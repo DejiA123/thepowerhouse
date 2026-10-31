@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { NOTES_SYNCED, draftAsNote, isOffline, readDraft, removeDraft, saveDraft, syncNoteDrafts, withDrafts, type NoteDraft } from '@/lib/offlineNotes';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -56,7 +57,8 @@ const BibleNotesPage = () => {
   const location = useLocation();
   const [params, setParams] = useSearchParams();
 
-  const [notes, setNotes] = useState<NoteRecord[]>(() => (user ? readCache(cacheKey(user.id), []) : []));
+  // With anything written offline on this phone laid over it (lib/offlineNotes)
+  const [notes, setNotes] = useState<NoteRecord[]>(() => (user ? withDrafts(user.id, readCache(cacheKey(user.id), [])) : []));
   const [folders, setFolders] = useState<BibleNoteFolder[]>(() => (user ? readCache(foldersKey(user.id), []) : []));
   const [loading, setLoading] = useState(notes.length === 0);
   const [query, setQuery] = useState('');
@@ -81,7 +83,7 @@ const BibleNotesPage = () => {
       ]);
       if (error) throw error;
       const list = (data || []) as unknown as NoteRecord[];
-      setNotes(list);
+      setNotes(withDrafts(user.id, list));
       if (folderList) setFolders(folderList.map(({ notes: _notes, ...f }) => f));
       try {
         localStorage.setItem(cacheKey(user.id), JSON.stringify(list));
@@ -90,7 +92,7 @@ const BibleNotesPage = () => {
       }
     } catch (error) {
       console.error('Failed to load notes', error);
-      if (!quiet) appAlert('Could not load your notes', 'Showing the copy saved on this device.', 'error');
+      if (!quiet && !isOffline(error)) appAlert('Could not load your notes', 'Showing the copy saved on this device.', 'error');
     } finally {
       setLoading(false);
     }
@@ -98,6 +100,13 @@ const BibleNotesPage = () => {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Notes written offline just reached the account
+  useEffect(() => {
+    const onSynced = () => load(true);
+    window.addEventListener(NOTES_SYNCED, onSynced);
+    return () => window.removeEventListener(NOTES_SYNCED, onSynced);
   }, [load]);
 
   // Notes and folders changed on your other phone or computer show here too (quietly)
@@ -235,11 +244,40 @@ const BibleNotesPage = () => {
     });
   }, [user]);
 
+  /** Keep a change on this phone (offline, or a note not in the account yet) and send it later */
+  const keepOnPhone = (note: NoteRecord, patch: Partial<NoteRecord>) => {
+    if (!user) return;
+    const existing = readDraft(user.id, note.id);
+    const updated = { ...note, ...patch };
+    const draft: NoteDraft = {
+      ...(existing ?? {
+        html: note.note_text,
+        title: note.title ?? '',
+        base: note.updated_at,
+        book: note.book,
+        chapter: note.chapter,
+        verse: note.verse ?? null,
+      }),
+      folder_id: updated.folder_id ?? null,
+      is_favorite: !!updated.is_favorite,
+      is_pinned: !!updated.is_pinned,
+      at: new Date().toISOString(),
+    };
+    saveDraft(user.id, note.id, draft);
+    upsertLocal(draftAsNote(user.id, note.id, draft, note.pending ? undefined : note));
+  };
+
   const patchNote = async (note: NoteRecord, patch: Partial<NoteRecord>) => {
+    if (note.pending) {
+      keepOnPhone(note, patch);
+      if (user) syncNoteDrafts(user.id);
+      return;
+    }
     const updated = { ...note, ...patch };
     upsertLocal(updated);
     const { error } = await supabase.from('bible_notes').update(patch as any).eq('id', note.id);
-    if (error) {
+    if (error && isOffline(error)) keepOnPhone(note, patch);
+    else if (error) {
       upsertLocal(note);
       appAlert('Could not update the note', 'Please try again.', 'error');
     }
@@ -248,11 +286,22 @@ const BibleNotesPage = () => {
   const deleteNote = async (note: NoteRecord) => {
     setToDelete(null);
     setNotes((prev) => prev.filter((n) => n.id !== note.id));
+    // Only ever on this phone: no connection needed
+    if (user && readDraft(user.id, note.id)?.isNew) {
+      removeDraft(user.id, note.id);
+      appAlert('Note deleted', '', 'success');
+      return;
+    }
     const { error } = await supabase.from('bible_notes').delete().eq('id', note.id).eq('user_id', note.user_id);
     if (error) {
       upsertLocal(note);
-      appAlert('Could not delete the note', 'Please try again.', 'error');
+      appAlert(
+        'Could not delete the note',
+        isOffline(error) ? "You're offline. Delete it again when you're back online." : 'Please try again.',
+        'error',
+      );
     } else {
+      if (user) removeDraft(user.id, note.id);
       appAlert('Note deleted', '', 'success');
     }
   };
