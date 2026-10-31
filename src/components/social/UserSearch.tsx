@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2, Search, UserPlus, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appAlert } from '@/lib/appAlert';
-import { SocialService, type DiscoverPage, type Person, type Relation } from '@/services/socialService';
+import { SocialService, type Circle, type DiscoverPage, type Person, type Relation } from '@/services/socialService';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel } from './PersonRow';
 import { church } from '@/config/church';
 
@@ -10,9 +10,10 @@ type Found = DiscoverPage['people'][number];
 
 /**
  * Everyone in the app, A–Z, narrowed down as you type a name (no need to
- * press search). Add, accept or cancel right from the list.
+ * press search). Add, accept or cancel right from the list. The buttons follow
+ * the live circle, so a request accepted on the other phone shows "Friends" here.
  */
-export const UserSearch = ({ onChanged }: { onChanged: () => void }) => {
+export const UserSearch = ({ circle, onChanged }: { circle: Circle | null; onChanged: () => void }) => {
     const [query, setQuery] = useState('');
     const [people, setPeople] = useState<Found[]>([]);
     const [hasMore, setHasMore] = useState(false);
@@ -59,8 +60,25 @@ export const UserSearch = ({ onChanged }: { onChanged: () => void }) => {
         }
     };
 
+    // What the circle says about each person (it's kept live); a tap here shows at once
+    const inCircle = useMemo(() => {
+        if (!circle) return null;
+        const map = new Map<string, Relation>();
+        circle.friends.forEach((e) => map.set(e.person.id, { kind: 'friends', friendshipId: e.friendshipId }));
+        circle.incoming.forEach((e) => map.set(e.person.id, { kind: 'received', friendshipId: e.friendshipId }));
+        circle.outgoing.forEach((e) => map.set(e.person.id, { kind: 'sent', friendshipId: e.friendshipId }));
+        return map;
+    }, [circle]);
+    const [mine, setMine] = useState<Record<string, { relation: Relation; at: number }>>({});
+    // A newer circle decides, except for taps from the last few seconds it may not include yet
+    useEffect(() => {
+        setMine((prev) => Object.fromEntries(Object.entries(prev).filter(([, v]) => Date.now() - v.at < 3000)));
+    }, [circle]);
+    const relationOf = (found: Found): Relation =>
+        mine[found.person.id]?.relation ?? (inCircle ? inCircle.get(found.person.id) ?? { kind: 'none' } : found.relation);
+
     const setRelation = (personId: string, relation: Relation) =>
-        setPeople((list) => list.map((p) => (p.person.id === personId ? { ...p, relation } : p)));
+        setMine((prev) => ({ ...prev, [personId]: { relation, at: Date.now() } }));
 
     const act = async (person: Person, relation: Relation) => {
         setBusy(person.id);
@@ -153,11 +171,14 @@ export const UserSearch = ({ onChanged }: { onChanged: () => void }) => {
                 <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
                     <SectionLabel>{typed ? 'People' : `Everyone in ${church.name}`}</SectionLabel>
                     <PeopleCard>
-                        {people.map((found) => (
-                            <PersonRow key={found.person.id} person={found.person} subtitle={subtitle(found)}>
-                                {action(found)}
-                            </PersonRow>
-                        ))}
+                        {people.map((found) => {
+                            const live = { ...found, relation: relationOf(found) };
+                            return (
+                                <PersonRow key={found.person.id} person={found.person} subtitle={subtitle(live)}>
+                                    {action(live)}
+                                </PersonRow>
+                            );
+                        })}
                     </PeopleCard>
                     {hasMore && (
                         <Button variant="ghost" onClick={more} disabled={loadingMore} className="mt-3 h-11 w-full rounded-2xl font-semibold text-indigo-600 dark:text-indigo-300">
