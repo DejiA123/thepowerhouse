@@ -12,16 +12,19 @@ const OfflineSync = () => {
     if (!user) return;
     const sync = () => {
       if (navigator.onLine === false) return;
-      bibleHighlightsService.flush().catch(() => undefined);
+      // Send highlights made offline, then refresh the phone's copy of them
+      bibleHighlightsService.flush().then(() => bibleHighlightsService.refreshCopy(user.id)).catch(() => undefined);
       syncNoteDrafts(user.id).catch(() => undefined);
       readingPlanProgressService.load(user.id).catch(() => undefined);
     };
     const t = setTimeout(sync, 2500);
     // Home Screen apps often miss "online": also when the app is back on screen,
-    // and every 30 s while notes written offline are waiting
+    // and every 30 s while notes or highlights made offline are waiting
     const onVisible = () => document.visibilityState === 'visible' && sync();
     const poll = setInterval(() => {
-      if (document.visibilityState === 'visible' && hasDrafts(user.id)) syncNoteDrafts(user.id).catch(() => undefined);
+      if (document.visibilityState !== 'visible') return;
+      if (hasDrafts(user.id)) syncNoteDrafts(user.id).catch(() => undefined);
+      if (bibleHighlightsService.waiting()) bibleHighlightsService.flush().catch(() => undefined);
     }, 30_000);
     window.addEventListener('online', sync);
     document.addEventListener('visibilitychange', onVisible);

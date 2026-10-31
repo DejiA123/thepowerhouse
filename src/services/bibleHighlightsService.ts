@@ -18,9 +18,12 @@ const announce = () => window.dispatchEvent(new CustomEvent(HIGHLIGHTS_CHANGED))
 /** Book names as they may have been stored (older rows weren't always normalised). */
 const bookKeys = (book: string) => Array.from(new Set([normalizeBookApiName(book), book]));
 
-// ── Highlights made with no connection ────────────────────────────────
-// They show straight away, are kept on the device, and are saved to the
-// account (in order) as soon as the connection returns.
+// ── Offline ───────────────────────────────────────────────────────────
+// A copy of the account's highlights is kept on the phone (refreshed each time
+// they're read online, and when the app starts), so every chapter shows its
+// highlights with no connection. Highlights made or removed offline show
+// straight away, are queued on the phone, and are saved to the account (in
+// order) as soon as the connection returns.
 
 interface PendingChange {
   kind: 'set' | 'remove';
@@ -50,7 +53,50 @@ const writeQueue = (queue: PendingChange[]) => {
 };
 
 const isConnectionError = (error: unknown) =>
-  navigator.onLine === false || /fetch|network|load failed|timed? ?out/i.test(String((error as { message?: string })?.message ?? error));
+  navigator.onLine === false || /fetch|network|load failed|abort|timed? ?out/i.test(String((error as { message?: string })?.message ?? error));
+
+/** Give up after this long (a weak signal can hang for minutes): the change is queued instead */
+const TIMEOUT_MS = 15_000;
+const timeout = () => {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), TIMEOUT_MS);
+  return controller.signal;
+};
+
+// The account's highlights as last seen (not including queued changes)
+const cacheKey = (userId: string) => `bible_highlights_cache_v1_${userId}`;
+const readCache = (userId: string): HighlightRow[] | null => {
+  try {
+    return JSON.parse(localStorage.getItem(cacheKey(userId)) || 'null');
+  } catch {
+    return null;
+  }
+};
+const writeCache = (userId: string, rows: HighlightRow[]) => {
+  try {
+    localStorage.setItem(cacheKey(userId), JSON.stringify(rows));
+  } catch {
+    /* storage full */
+  }
+};
+const inChapter = (h: HighlightRow, book: string, chapter: number) =>
+  normalizeBookApiName(h.book) === normalizeBookApiName(book) && h.chapter === chapter;
+
+/** A change the account now has: the phone's copy follows */
+function cacheChange(userId: string, change: Omit<PendingChange, 'userId'>) {
+  const rows = readCache(userId);
+  if (!rows) return;
+  const apiBook = normalizeBookApiName(change.book);
+  const kept = rows.filter((h) => !(inChapter(h, apiBook, change.chapter) && change.verses.includes(h.verse ?? -1)));
+  const added = change.kind === 'set'
+    ? change.verses.map((verse) => ({
+      id: `local-${apiBook}-${change.chapter}-${verse}`,
+      user_id: userId, book: apiBook, chapter: change.chapter, verse,
+      highlight_color: change.color ?? 'yellow', created_at: change.at, updated_at: change.at,
+    }))
+    : [];
+  writeCache(userId, [...added, ...kept]);
+}
 
 /** Show queued changes on top of what the server returned. */
 function withPending(rows: HighlightRow[], userId: string, book?: string, chapter?: number): HighlightRow[] {
@@ -88,12 +134,15 @@ async function applySet(userId: string, book: string, chapter: number, verses: n
     .eq('user_id', userId)
     .in('book', bookKeys(book))
     .eq('chapter', chapter)
-    .in('verse', verses);
+    .in('verse', verses)
+    .abortSignal(timeout());
   if (clearError) throw clearError;
   const { error } = await supabase
     .from('bible_highlights')
-    .insert(verses.map((verse) => ({ user_id: userId, book: apiBook, chapter, verse, highlight_color: color })));
+    .insert(verses.map((verse) => ({ user_id: userId, book: apiBook, chapter, verse, highlight_color: color })))
+    .abortSignal(timeout());
   if (error) throw error;
+  cacheChange(userId, { kind: 'set', book: apiBook, chapter, verses, color, at: new Date().toISOString() });
 }
 
 async function applyRemove(userId: string, book: string, chapter: number, verses: number[]) {
@@ -103,23 +152,33 @@ async function applyRemove(userId: string, book: string, chapter: number, verses
     .eq('user_id', userId)
     .in('book', bookKeys(book))
     .eq('chapter', chapter)
-    .in('verse', verses);
+    .in('verse', verses)
+    .abortSignal(timeout());
   if (error) throw error;
+  cacheChange(userId, { kind: 'remove', book: normalizeBookApiName(book), chapter, verses, at: new Date().toISOString() });
 }
 
 let flushing = false;
 
 export const bibleHighlightsService = {
+  /** Every highlight (offline: the copy on this phone), with changes still waiting to be sent */
   async listAll(userId: string): Promise<HighlightRow[]> {
     const { data, error } = await supabase
       .from('bible_highlights')
       .select('*')
       .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-    if (error && !isConnectionError(error)) throw error;
+      .order('updated_at', { ascending: false })
+      .abortSignal(timeout())
+      .then((r) => r, (e) => ({ data: null, error: e }));
+    if (error) {
+      if (!isConnectionError(error)) throw error;
+      return withPending(readCache(userId) ?? [], userId);
+    }
+    writeCache(userId, (data || []) as HighlightRow[]);
     return withPending((data || []) as HighlightRow[], userId);
   },
 
+  /** One chapter's highlights (offline: the copy on this phone), with changes still waiting to be sent */
   async listChapter(userId: string, book: string, chapter: number): Promise<HighlightRow[]> {
     const { data, error } = await supabase
       .from('bible_highlights')
@@ -127,10 +186,29 @@ export const bibleHighlightsService = {
       .eq('user_id', userId)
       .in('book', bookKeys(book))
       .eq('chapter', chapter)
-      .order('updated_at', { ascending: false });
-    if (error && !isConnectionError(error)) throw error;
-    return withPending((data || []) as HighlightRow[], userId, book, chapter);
+      .order('updated_at', { ascending: false })
+      .abortSignal(timeout())
+      .then((r) => r, (e) => ({ data: null, error: e }));
+    if (error) {
+      if (!isConnectionError(error)) throw error;
+      const cached = (readCache(userId) ?? []).filter((h) => inChapter(h, book, chapter));
+      return withPending(cached, userId, book, chapter);
+    }
+    const rows = (data || []) as HighlightRow[];
+    // Keep the phone's copy of this chapter current
+    const cache = readCache(userId);
+    writeCache(userId, [...rows, ...(cache ?? []).filter((h) => !inChapter(h, book, chapter))]);
+    return withPending(rows, userId, book, chapter);
   },
+
+  /** Fill the phone's copy, so every chapter's highlights are there offline (on start and back online) */
+  async refreshCopy(userId: string) {
+    if (navigator.onLine === false) return;
+    await this.listAll(userId).catch(() => undefined);
+  },
+
+  /** Changes made offline still waiting to be sent */
+  waiting: () => readQueue().length,
 
   /**
    * Colour these verses. Any earlier highlight on the same verse is replaced,
