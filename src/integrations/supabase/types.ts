@@ -1062,6 +1062,24 @@ export type Database = {
           },
         ]
       }
+      follow_up_passcodes: {
+        Row: {
+          church_id: string
+          passcode_hash: string
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          passcode_hash: string
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          passcode_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           created_at: string
@@ -2589,6 +2607,8 @@ export type Database = {
         }[]
       }
       current_church_id: { Args: never; Returns: string }
+      follow_up_access: { Args: never; Returns: boolean }
+      follow_up_unlock: { Args: { _passcode: string }; Returns: boolean }
       get_resource_download_count: {
         Args: { _resource_category: string; _resource_name: string }
         Returns: number
