@@ -8,6 +8,7 @@ import { GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
+import { CIRCLE_CHANGED, refreshCircle, watchFriendships, type CircleChange } from '@/lib/socialLive';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -177,10 +178,49 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         url: p.url,
       });
       if (p.kind === 'chat') refreshNotifications();
+      // A friend request or an accept: every Social Circle screen picks it up too
+      if (String(p.tag || '').startsWith('friend-')) void refreshCircle();
     };
     window.addEventListener('app:push', handler);
     return () => window.removeEventListener('app:push', handler);
   }, [pushBanner, refreshNotifications]);
+
+  // Social Circle, live: a request to me, mine accepted, a friend removed
+  useEffect(() => {
+    if (!user) return;
+    return watchFriendships(user.id, () => void refreshCircle());
+  }, [user]);
+
+  // A banner for a new request, or one of mine accepted (the Social page shows it itself).
+  // Same key as the push, so the two never both show.
+  useEffect(() => {
+    const onCircle = (event: Event) => {
+      const { circle, before } = (event as CustomEvent<CircleChange>).detail;
+      if (!before || locationRef.current.pathname.startsWith('/social')) return;
+      const had = new Set([...before.friends, ...before.incoming, ...before.outgoing].map((e) => e.friendshipId));
+      circle.incoming
+        .filter((e) => !had.has(e.friendshipId))
+        .forEach((e) => pushBanner({
+          kind: 'general',
+          key: `friend-${e.friendshipId}`,
+          title: 'New friend request',
+          message: `${e.person.name} wants to add you to their Social Circle.`,
+          url: '/social?tab=requests',
+        }));
+      const sent = new Set(before.outgoing.map((e) => e.friendshipId));
+      circle.friends
+        .filter((e) => sent.has(e.friendshipId))
+        .forEach((e) => pushBanner({
+          kind: 'success',
+          key: `friend-${e.friendshipId}`,
+          title: 'Friend request accepted',
+          message: `${e.person.name} is now in your Social Circle.`,
+          url: '/social',
+        }));
+    };
+    window.addEventListener(CIRCLE_CHANGED, onCircle);
+    return () => window.removeEventListener(CIRCLE_CHANGED, onCircle);
+  }, [pushBanner]);
 
   // Chats I'm a member of (only these produce banners)
   const [myChatIds, setMyChatIds] = useState('');

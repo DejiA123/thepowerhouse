@@ -4,6 +4,7 @@ import { ArrowLeft, Heart, Search, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import { SocialService, type Circle } from '@/services/socialService';
+import { CIRCLE_CHANGED, refreshCircle, type CircleChange } from '@/lib/socialLive';
 import { UserSearch } from './UserSearch';
 import { FriendRequests } from './FriendRequests';
 import { FriendList } from './FriendList';
@@ -20,21 +21,40 @@ export const FriendsHub = () => {
     const [circle, setCircle] = useState<Circle | null>(() => SocialService.savedCircle());
     const [loading, setLoading] = useState(true);
 
+    // Every fetch reaches this page through CIRCLE_CHANGED (its own, and ones started elsewhere)
     const load = useCallback(async () => {
-        try {
-            setCircle(await SocialService.circle());
-        } catch {
-            /* keep what's on screen (e.g. offline) */
-        } finally {
-            setLoading(false);
-        }
+        const fresh = await refreshCircle();
+        if (!fresh) setLoading(false); // offline: keep what's on screen
     }, []);
 
     useEffect(() => {
+        const onCircle = (event: Event) => {
+            setCircle((event as CustomEvent<CircleChange>).detail.circle);
+            setLoading(false);
+        };
+        window.addEventListener(CIRCLE_CHANGED, onCircle);
         load();
+
+        // Live changes come from the database (lib/socialLive). In a Home Screen app the
+        // connection can sleep unnoticed, so also catch up whenever the app is back on
+        // screen or back online, and every 30 seconds while this page is open.
+        const onVisible = () => document.visibilityState === 'visible' && load();
+        const poll = setInterval(() => document.visibilityState === 'visible' && load(), 30_000);
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('pageshow', onVisible);
+        window.addEventListener('online', load);
+        window.addEventListener('app:resync', load);
         // A friend started our chat (their first message or call): pick it up
         window.addEventListener('chats:changed', load);
-        return () => window.removeEventListener('chats:changed', load);
+        return () => {
+            clearInterval(poll);
+            window.removeEventListener(CIRCLE_CHANGED, onCircle);
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('pageshow', onVisible);
+            window.removeEventListener('online', load);
+            window.removeEventListener('app:resync', load);
+            window.removeEventListener('chats:changed', load);
+        };
     }, [load]);
 
     const friends = circle?.friends ?? [];
@@ -134,7 +154,7 @@ export const FriendsHub = () => {
                 {tab === 'requests' && (
                     <FriendRequests incoming={incoming} outgoing={outgoing} loading={loading} onChanged={load} onFindPeople={() => show('discover')} />
                 )}
-                {tab === 'discover' && <UserSearch onChanged={load} />}
+                {tab === 'discover' && <UserSearch circle={circle} onChanged={load} />}
             </main>
         </div>
     );
