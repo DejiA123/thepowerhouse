@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
+import LiveControls from "@/components/LiveControls";
 import { track } from "@/lib/activity";
 import {
   CHANNEL_URL,
   cachedVideos,
   embedUrl,
+  isChannelId,
   latestVideos,
   relativeDate,
   useLiveStatus,
@@ -32,6 +34,16 @@ const ChurchVideos = () => {
       .finally(() => setIsLoading(false));
   }, []);
 
+  // A live service just ended: its recording joins the list (YouTube takes a moment)
+  const wasLive = useRef(live.live);
+  useEffect(() => {
+    const ended = wasLive.current && !live.live;
+    wasLive.current = live.live;
+    if (!ended) return;
+    const t = setTimeout(() => latestVideos(true).then((v) => v.length && setVideos(v)), 90_000);
+    return () => clearTimeout(t);
+  }, [live.live]);
+
   const liveVideo: Playable | null =
     live.live && live.videoId
       ? { id: live.videoId, title: live.title || "Live service", thumbnail: "", publishedAt: "", isLive: true }
@@ -48,7 +60,7 @@ const ChurchVideos = () => {
     if (playing && activeVideo) track('video_watched', { title: activeVideo.title, live: !!activeVideo.isLive });
   }, [playing, activeVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const poster = (video: Playable) => `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
+  const poster = (video: Playable) => (isChannelId(video.id) ? null : `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`);
 
   return (
     <section className="rounded-[26px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800 md:p-6">
@@ -73,6 +85,8 @@ const ChurchVideos = () => {
           All <ExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>
+
+      <LiveControls live={live} />
 
       {isLoading && !activeVideo ? (
         <div className="flex aspect-video items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/60">
@@ -110,7 +124,15 @@ const ChurchVideos = () => {
                   aria-label={`Play ${activeVideo.title}`}
                   className="group absolute inset-0 h-full w-full"
                 >
-                  <img src={poster(activeVideo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  {poster(activeVideo) ? (
+                    <img src={poster(activeVideo)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="flex h-full w-full items-end bg-gradient-to-br from-slate-800 to-slate-950 p-4 text-left">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">
+                        <Radio className="h-3 w-3" /> Live
+                      </span>
+                    </span>
+                  )}
                   <span className="absolute inset-0 flex items-center justify-center bg-black/15">
                     <span className="flex h-14 w-20 items-center justify-center rounded-2xl bg-red-600 text-white shadow-lg transition group-active:scale-95">
                       <Play className="h-7 w-7 fill-current" />
@@ -129,7 +151,7 @@ const ChurchVideos = () => {
               )}
               <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-foreground">{activeVideo.title}</h3>
             </div>
-            {activeVideo.isLive && <LiveChat videoId={activeVideo.id} />}
+            {activeVideo.isLive && !isChannelId(activeVideo.id) && <LiveChat videoId={activeVideo.id} />}
           </div>
 
           {(videos.length > 1 || (liveVideo && videos.length > 0) || (picked && liveVideo)) && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { Button } from "@/components/ui/button";
 import { PlusCircle, BookOpen, GraduationCap } from "lucide-react";
 import { AcademyModule, choirService } from "@/services/choirService";
@@ -6,7 +7,6 @@ import { AcademyModuleCard } from "./AcademyModuleCard";
 import { AcademyLessonViewer } from "./AcademyLessonViewer";
 import { AcademyQuizModal } from "./AcademyQuizModal";
 import { AddModuleDialog } from "./AddModuleDialog";
-import { supabase } from "@/integrations/supabase/client";
 
 interface AcademyDashboardProps {
     locationId: string;
@@ -25,44 +25,17 @@ export const AcademyDashboard = ({ locationId, isAdmin }: AcademyDashboardProps)
         loadModules();
     }, [locationId]);
 
-    // 🔄 Real-time subscriptions for Academy Modules
-    useEffect(() => {
-        if (!locationId) return;
+    // Modules added, changed or removed on other phones show straight away (quietly)
+    useLiveRefresh(
+        ['choir_academy_modules', 'choir_academy_quizzes', 'choir_academy_questions'].map((table) =>
+            table === 'choir_academy_modules' ? { table, filter: `location=eq.${locationId}` } : table),
+        () => loadModules(true),
+        { enabled: !!locationId },
+    );
 
-        const channel = supabase
-            .channel('choir_academy_modules_changes')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'choir_academy_modules',
-                filter: `location=eq.${locationId}`
-            }, (payload) => {
-                console.log('Academy module change:', payload);
-
-                if (payload.eventType === 'INSERT') {
-                    const newModule = payload.new as AcademyModule;
-                    setModules(prev => {
-                        if (prev.some(m => m.id === newModule.id)) return prev;
-                        return [...prev, newModule].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-                    });
-                } else if (payload.eventType === 'UPDATE') {
-                    const updated = payload.new as AcademyModule;
-                    setModules(prev => prev.map(m => m.id === updated.id ? updated : m));
-                } else if (payload.eventType === 'DELETE') {
-                    const deleted = payload.old as any;
-                    setModules(prev => prev.filter(m => m.id !== deleted.id));
-                }
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [locationId]);
-
-    const loadModules = async () => {
+    const loadModules = async (quiet = false) => {
         try {
-            setIsLoading(true);
+            if (!quiet) setIsLoading(true);
             const data = await choirService.getAcademyModules(locationId);
             setModules(data);
         } catch (error) {

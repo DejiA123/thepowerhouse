@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Search, UserRound } from 'lucide-react';
 import { ListGroup, Page, PageTitle, SectionLabel } from '@/components/page/PageKit';
@@ -23,17 +24,21 @@ const MemberList = () => {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [missing, setMissing] = useState(false);
 
+  const loadMembers = () =>
+    supabase.rpc('admin_activity_members' as never, { search: search.trim() || null } as never).then(({ data, error }) => {
+      if (notSetUp(error)) {
+        setMissing(true);
+        setMembers([]);
+      } else setMembers((data ?? []) as unknown as Member[]);
+    });
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      supabase.rpc('admin_activity_members' as never, { search: search.trim() || null } as never).then(({ data, error }) => {
-        if (notSetUp(error)) {
-          setMissing(true);
-          setMembers([]);
-        } else setMembers((data ?? []) as unknown as Member[]);
-      });
-    }, search ? 300 : 0);
+    const t = setTimeout(loadMembers, search ? 300 : 0);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+  // Who's been active, kept current while it's open
+  useLiveRefresh([], loadMembers, { pollMs: 30_000, enabled: !missing });
 
   return (
     <Page>

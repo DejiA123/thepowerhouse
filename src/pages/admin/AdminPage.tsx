@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useNavigate } from 'react-router-dom';
 import { Activity, MessageSquareHeart, ShieldCheck } from 'lucide-react';
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from '@/components/page/PageKit';
@@ -31,12 +32,18 @@ const AdminPage = () => {
   const [data, setData] = useState<Overview | null>(null);
   const [missing, setMissing] = useState(false);
 
-  useEffect(() => {
+  const load = () =>
     supabase.rpc('admin_activity_overview' as never).then(({ data, error }) => {
       if (notSetUp(error)) setMissing(true);
       else if (data) setData(data as unknown as Overview);
     });
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // The numbers keep up while it's open (new feedback at once)
+  useLiveRefresh(['app_feedback'], load, { pollMs: 30_000, enabled: !missing });
 
   const rated = (data?.thumbs_up ?? 0) + (data?.thumbs_down ?? 0);
 

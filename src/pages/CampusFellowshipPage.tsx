@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,6 +140,8 @@ const CampusFellowshipPage = () => {
   useEffect(() => {
     fetchAllMembers();
   }, []);
+  // People joining or leaving show straight away
+  useLiveRefresh(["group_members"], fetchAllMembers);
 
   const filteredFellowships = campusFellowships.filter(fellowship =>
     fellowship.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

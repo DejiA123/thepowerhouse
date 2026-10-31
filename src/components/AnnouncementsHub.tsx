@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { Megaphone, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,6 +119,9 @@ const AnnouncementsHub = () => {
       /* storage full */
     }
   };
+
+  // New, edited or removed posts show straight away
+  useLiveRefresh(["announcements"], fetchAnnouncements);
 
   const save = async () => {
     if (!user || !editor?.title.trim() || !editor.content.trim()) return;

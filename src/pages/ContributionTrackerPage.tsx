@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useEffect } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -73,11 +74,10 @@ const ContributionTrackerPage = () => {
     const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
     const [pinInput, setPinInput] = useState("");
 
-    // Fetch data on mount
-    useEffect(() => {
-        const fetchData = async () => {
+    // Fetch data on mount, and again (quietly) when it changes on another phone
+    const fetchData = async (quiet = false) => {
             try {
-                setIsLoading(true);
+                if (!quiet) setIsLoading(true);
                 const savedData = await choirService.getContributions("National");
                 if (savedData) {
                     setContributionData(prev => {
@@ -93,13 +93,16 @@ const ContributionTrackerPage = () => {
                 setIsDataLoaded(true);
             } catch (error) {
                 console.error("Failed to fetch contributions:", error);
-                toast.error("Failed to load contribution data. Using offline defaults.");
+                if (!quiet) toast.error("Failed to load contribution data. Using offline defaults.");
             } finally {
                 setIsLoading(false);
             }
-        };
+    };
+    useEffect(() => {
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+    useLiveRefresh([{ table: 'choir_setlist_info', filter: 'location=eq.National' }], () => fetchData(true));
 
     const saveToSupabase = async (newData: Record<string, Contribution[]>) => {
         if (!isDataLoaded) {

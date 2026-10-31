@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, HandHeart, MoreHorizontal, PartyPopper, Plus, Trash2 } from "lucide-react";
 import PrayerRequestForm from "@/components/PrayerRequestForm";
@@ -12,7 +13,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { appAlert } from "@/lib/appAlert";
 import { sendPush } from "@/lib/push";
-import { uniqueTopic } from "@/lib/realtime";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/activity";
 
@@ -179,7 +179,6 @@ const PrayerWallPage = () => {
   const [answering, setAnswering] = useState<PrayerRequest | null>(null);
   const [testimony, setTestimony] = useState("");
   const [deleting, setDeleting] = useState<PrayerRequest | null>(null);
-  const refreshTimer = useRef<number>();
 
   const answeredSupported = requests.some((r) => "answered_at" in r);
 
@@ -232,34 +231,10 @@ const PrayerWallPage = () => {
 
   useEffect(() => {
     fetchRequests();
-    const refresh = () => {
-      window.clearTimeout(refreshTimer.current);
-      refreshTimer.current = window.setTimeout(fetchRequests, 300);
-    };
-    const channel = supabase
-      .channel(uniqueTopic("prayer-wall"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "prayer_requests" }, refresh)
-      .subscribe();
-    return () => {
-      window.clearTimeout(refreshTimer.current);
-      supabase.removeChannel(channel);
-    };
   }, [fetchRequests]);
 
-  // Live "praying" counts, once the table exists (a missing table would break the channel)
-  useEffect(() => {
-    if (!prayingSupported) return;
-    const channel = supabase
-      .channel(uniqueTopic("prayer-wall-prayers"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "prayer_request_prayers" }, () => {
-        window.clearTimeout(refreshTimer.current);
-        refreshTimer.current = window.setTimeout(fetchRequests, 300);
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [prayingSupported, fetchRequests]);
+  // New prayers, answers and "praying" counts show straight away (praying: once its table exists)
+  useLiveRefresh(prayingSupported ? ["prayer_requests", "prayer_request_prayers"] : ["prayer_requests"], fetchRequests);
 
   useEffect(() => {
     if (!user) {

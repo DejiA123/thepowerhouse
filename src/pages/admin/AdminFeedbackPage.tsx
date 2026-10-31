@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Page, PageTitle } from '@/components/page/PageKit';
@@ -38,8 +39,7 @@ const AdminFeedbackPage = () => {
   const [filter, setFilter] = useState<Filter>('all');
   const [missing, setMissing] = useState(false);
 
-  useEffect(() => {
-    (async () => {
+  const load = async () => {
       const { data, error } = await supabase
         .from('app_feedback' as never)
         .select('*')
@@ -57,8 +57,14 @@ const AdminFeedbackPage = () => {
         const { data: people } = await supabase.from('profiles').select('id, full_name, email').in('id', ids);
         setNames(Object.fromEntries((people ?? []).map((p) => [p.id, { name: p.full_name, email: p.email }])));
       }
-    })();
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // New feedback shows as it's sent
+  useLiveRefresh(['app_feedback'], load, { enabled: !missing });
 
   const counts = useMemo(() => {
     const all = items ?? [];

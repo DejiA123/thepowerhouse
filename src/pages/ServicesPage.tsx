@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BookOpen, Church, Loader2, LocateFixed, Mail, MapPin, MessageCircle, Navigation, Phone, PlayCircle, Radio, Sparkles } from "lucide-react";
 import VideoModal from "@/components/VideoModal";
@@ -39,12 +40,17 @@ const ServicesPage = () => {
   const [params] = useSearchParams();
   const watching = params.get("watch") === "1";
 
-  useEffect(() => {
+  const loadServices = () =>
     supabase
       .from("live_services")
       .select("*")
       .order("scheduled_time", { ascending: false })
       .then(({ data }) => data && setLiveServices(data as LiveService[]));
+  // Past streams and the live one, as the team changes them
+  useLiveRefresh(["live_services"], loadServices);
+
+  useEffect(() => {
+    loadServices();
 
     const check = async () => {
       // Usual stream times: Sunday 10:00–13:00 and Wednesday 19:00–21:00
