@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import { offlineAudioService } from "@/services/offlineAudioService";
 import { appAlert } from "@/lib/appAlert";
+import { useLiveRefresh } from "@/hooks/useLiveRefresh";
 import { bibleHighlightsService, type HighlightRow } from "@/services/bibleHighlightsService";
 import { bibleNotesService, type BibleNoteFolder } from "@/services/bibleNotesService";
 import { studyNotesService } from "@/services/studyNotesService";
@@ -377,6 +378,16 @@ export const BibleChapterContent = ({
     fetchHighlights();
     fetchChapterNotes();
   }, [fetchHighlights, fetchChapterNotes]);
+
+  // Highlights and notes made on your other phone or computer show here too
+  useLiveRefresh(
+    user ? [{ table: 'bible_highlights', filter: `user_id=eq.${user.id}` }, { table: 'bible_notes', filter: `user_id=eq.${user.id}` }] : [],
+    () => {
+      fetchHighlights();
+      fetchChapterNotes();
+    },
+    { enabled: !!user, pollMs: 120_000 },
+  );
 
   // Changes made in "My Bible" (or another tab of the reader) show up here straight away
   useEffect(() => {
