@@ -700,6 +700,27 @@ export type Database = {
           },
         ]
       }
+      choir_passcodes: {
+        Row: {
+          church_id: string
+          location: string
+          passcode_hash: string
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          location: string
+          passcode_hash: string
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          location?: string
+          passcode_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       choir_setlist_info: {
         Row: {
           church_id: string
@@ -2508,6 +2529,14 @@ export type Database = {
       }
       can_view_sensitive_profile_data: {
         Args: { _profile_user_id: string }
+        Returns: boolean
+      }
+      choir_can_edit: { Args: { _location: string }; Returns: boolean }
+      choir_module_location: { Args: { _module_id: string }; Returns: string }
+      choir_passcode_hash: { Args: { _passcode: string }; Returns: string }
+      choir_quiz_location: { Args: { _quiz_id: string }; Returns: string }
+      choir_unlock: {
+        Args: { _location: string; _passcode: string }
         Returns: boolean
       }
       church_admin_info: {
