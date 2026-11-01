@@ -99,7 +99,7 @@ export const BibleNotesDialog = ({ open, onOpenChange, book, chapter, verse }: B
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1rem)]">
             {loading && notes.length === 0 ? (
               <div className="space-y-2 px-2">
                 {[0, 1].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted" />)}

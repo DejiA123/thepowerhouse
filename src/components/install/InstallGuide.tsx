@@ -245,7 +245,7 @@ const InstallGuide = ({ request }: { request: number }) => {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent
         side="bottom"
-        className="max-h-[88dvh] gap-0 overflow-y-auto rounded-t-[28px] p-0 pb-[max(env(safe-area-inset-bottom),12px)] sm:mx-auto sm:max-w-md [&>button]:right-5 [&>button]:top-5"
+        className="max-h-[88dvh] gap-0 overflow-y-auto rounded-t-[28px] p-0 pb-[max(var(--sheet-safe-bottom,env(safe-area-inset-bottom)),12px)] sm:mx-auto sm:max-w-md [&>button]:right-5 [&>button]:top-5"
       >
         <div className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
         <div className="px-5 pr-14 pt-3">

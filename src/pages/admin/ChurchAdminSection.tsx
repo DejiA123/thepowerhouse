@@ -95,7 +95,7 @@ const ChurchAdminSection = () => {
       </ListGroup>
 
       <Sheet open={sharing} onOpenChange={setSharing}>
-        <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-[28px] px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-3 sm:mx-auto sm:max-w-md">
+        <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-[28px] px-5 pb-[max(var(--sheet-safe-bottom,env(safe-area-inset-bottom)),20px)] pt-3 sm:mx-auto sm:max-w-md">
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300" />
           <SheetTitle className="text-center font-outfit text-[21px] font-bold">Invite people to {info.name}</SheetTitle>
           <SheetDescription className="mb-4 text-center text-[13.5px]">Show this on the screen on Sunday, or share the link.</SheetDescription>

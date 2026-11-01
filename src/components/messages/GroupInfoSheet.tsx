@@ -159,7 +159,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
           className="flex w-full flex-col gap-0 rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none"
         >
           <SheetTitle className="sr-only">Contact info</SheetTitle>
-          <div className="flex flex-col items-center px-6 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-10 text-center">
+          <div className="flex flex-col items-center px-6 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+2rem)] pt-10 text-center">
             {loading && !other && !privateName ? (
               <Loader2 className="my-10 h-6 w-6 animate-spin text-muted-foreground" />
             ) : (
@@ -345,7 +345,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
             </div>
 
             {/* Danger zone */}
-            <div className="space-y-1 border-t border-border px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            <div className="space-y-1 border-t border-border px-4 py-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1rem)]">
               <button
                 onClick={() => setConfirm('leave')}
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"

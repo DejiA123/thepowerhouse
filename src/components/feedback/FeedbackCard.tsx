@@ -110,7 +110,7 @@ const FeedbackCard = () => {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="max-h-[90dvh] gap-0 overflow-y-auto rounded-t-[28px] px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-3 sm:mx-auto sm:max-w-md [&>button]:right-5 [&>button]:top-5"
+          className="max-h-[90dvh] gap-0 overflow-y-auto rounded-t-[28px] px-5 pb-[max(var(--sheet-safe-bottom,env(safe-area-inset-bottom)),20px)] pt-3 sm:mx-auto sm:max-w-md [&>button]:right-5 [&>button]:top-5"
         >
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
           <SheetTitle className="pr-10 font-outfit text-[21px] font-bold">

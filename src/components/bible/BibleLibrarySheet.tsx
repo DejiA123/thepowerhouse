@@ -506,7 +506,7 @@ const BibleLibrarySheet = ({
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.5rem)] pt-2">
         {(tab === 'highlights' ? !highlightsReady : !notesReady) ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />)}
