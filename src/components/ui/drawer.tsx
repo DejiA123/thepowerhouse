@@ -26,7 +26,8 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-[200] bg-black/80", className)}
+    // Leaves the bottom bar (--bottom-nav-h: 0 when there isn't one) visible and tappable
+    className={cn("fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[200] bg-black/80", className)}
     {...props}
   />
 ))
@@ -35,15 +36,17 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, style, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[200] mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        // after:!hidden: vaul's filler below the drawer (for its overscroll) would cover the bottom bar
+        "fixed inset-x-0 bottom-[var(--bottom-nav-h,0px)] z-[200] mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background after:!hidden",
         className
       )}
+      style={{ maxHeight: "calc(92dvh - var(--bottom-nav-h, 0px))", ...style }}
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />

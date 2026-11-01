@@ -35,8 +35,9 @@ const sheetVariants = cva(
     variants: {
       side: {
         top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        // Above the bottom bar (--bottom-nav-h: 0 when there isn't one), which stays in view
         bottom:
-          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-[var(--bottom-nav-h,0px)] border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -58,7 +59,7 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", swipeToClose, className, children, ...props }, ref) => {
+>(({ side = "right", swipeToClose, className, children, style, ...props }, ref) => {
   const closeRef = React.useRef<HTMLButtonElement>(null)
   const swipeRef = useSwipeToDismiss(() => closeRef.current?.click(), swipeToClose ?? side === "bottom")
   const setRefs = React.useCallback(
@@ -71,10 +72,13 @@ const SheetContent = React.forwardRef<
   )
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {/* A bottom sheet leaves the bottom bar visible and tappable (a tab closes the sheet) */}
+      <SheetOverlay className={side === "bottom" ? "bottom-[var(--bottom-nav-h,0px)]" : undefined} />
       <SheetPrimitive.Content
         ref={setRefs}
         className={cn(sheetVariants({ side }), className)}
+        // However tall a bottom sheet asks to be, it keeps the same gap at the top above the bar
+        style={side === "bottom" ? { maxHeight: "calc(92dvh - var(--bottom-nav-h, 0px))", ...style } : style}
         {...props}
       >
         {side === "bottom" && (

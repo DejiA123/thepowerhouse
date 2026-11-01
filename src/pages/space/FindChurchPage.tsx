@@ -93,7 +93,7 @@ const FindChurchPage = () => {
       </div>
 
       <Sheet open={scanHelp} onOpenChange={setScanHelp}>
-        <SheetContent side="bottom" className="rounded-t-[28px] px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-3 sm:mx-auto sm:max-w-md">
+        <SheetContent side="bottom" className="rounded-t-[28px] px-5 pb-[max(var(--sheet-safe-bottom,env(safe-area-inset-bottom)),20px)] pt-3 sm:mx-auto sm:max-w-md">
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300" />
           <SheetTitle className="font-outfit text-[21px] font-bold">Scan with your camera</SheetTitle>
           <SheetDescription className="text-[14px] leading-relaxed">

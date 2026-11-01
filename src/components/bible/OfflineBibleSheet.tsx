@@ -118,7 +118,7 @@ const OfflineBibleSheet = ({ open, onOpenChange, version, versionLabel, versionN
           <SheetDescription className="text-[13.5px]">Download once, then read with no internet connection.</SheetDescription>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.5rem)] pt-1">
           {source ? (
             <div className="rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800">
               <div className="flex items-center gap-3">

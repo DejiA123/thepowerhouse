@@ -38,7 +38,7 @@ const BottomNavigation = () => {
       ref={navRef}
       id="nav-v12-force-lift"
       aria-label="Main"
-      className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl"
+      className="bottom-nav-bar pointer-events-auto w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl"
       style={{
         boxShadow: '0 -1px 6px rgba(0,0,0,0.06)',
         paddingBottom: isIPhone ? '5px' : '10px'
