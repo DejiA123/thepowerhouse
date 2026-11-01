@@ -11,6 +11,8 @@ interface Props {
   editor: Editor | null;
   placement: 'top' | 'bottom';
   keyboardOpen?: boolean;
+  /** The bottom bar is just below (it looks after the iPhone's home indicator space) */
+  aboveBar?: boolean;
 }
 
 /** Keep focus (and the iPhone keyboard) in the note when tapping toolbar buttons. */
@@ -40,7 +42,7 @@ const Btn = ({
 
 const Divider = () => <div className="mx-0.5 h-6 w-px shrink-0 bg-border" />;
 
-const NoteToolbar = ({ editor, placement, keyboardOpen }: Props) => {
+const NoteToolbar = ({ editor, placement, keyboardOpen, aboveBar }: Props) => {
   const [panel, setPanel] = useState<'none' | 'styles' | 'link'>('none');
   const [linkUrl, setLinkUrl] = useState('');
   const linkInput = useRef<HTMLInputElement>(null);
@@ -105,7 +107,7 @@ const NoteToolbar = ({ editor, placement, keyboardOpen }: Props) => {
       className={cn(
         'z-10 shrink-0 border-border/60 bg-background/95 backdrop-blur-xl',
         placement === 'top' ? 'border-b' : 'border-t',
-        placement === 'bottom' && !keyboardOpen && 'pb-[env(safe-area-inset-bottom)]',
+        placement === 'bottom' && !keyboardOpen && !aboveBar && 'pb-[env(safe-area-inset-bottom)]',
       )}
     >
       {/* Text styles panel */}

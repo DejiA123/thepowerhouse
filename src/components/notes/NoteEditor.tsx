@@ -14,6 +14,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import type { BibleNoteFolder } from '@/services/bibleNotesService';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useBottomNavHeight } from '@/lib/bottomNav';
 import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
 import FolderMenuSection from './FolderMenuSection';
@@ -106,6 +107,10 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const passage = useRef({ book: 'genesis', chapter: 1, verse: null as number | null });
   const box = useVisualViewport(open);
+  // The bottom bar stays in view below the note (the keyboard covers it while typing)
+  const navHeight = useBottomNavHeight();
+  const keyboardUp = !!box?.keyboard;
+  const reserved = keyboardUp ? 0 : navHeight;
 
   // Load the note (or a blank draft) each time the editor opens
   useEffect(() => {
@@ -259,6 +264,13 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
     };
   }, [open, flush]);
 
+  // Leaving for another part of the app (a tap on the bottom bar) while writing: save first
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => {
+    flushRef.current();
+  }, []);
+
   // Save when the app is backgrounded or closed
   useEffect(() => {
     if (!open) return;
@@ -347,7 +359,10 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
   return createPortal(
     <div
       className="fixed inset-x-0 top-0 z-[9990] flex flex-col bg-background animate-in fade-in duration-150"
-      style={{ height: box ? `${box.height}px` : '100dvh', transform: box?.top ? `translateY(${box.top}px)` : undefined }}
+      style={{
+        height: box ? `${box.height - reserved}px` : `calc(100dvh - ${reserved}px)`,
+        transform: box?.top ? `translateY(${box.top}px)` : undefined,
+      }}
       role="dialog"
       aria-label={note ? 'Edit note' : 'New note'}
       onPointerDownCapture={() => (interacted.current = true)}
@@ -483,7 +498,7 @@ const NoteEditor = ({ open, userId, note, defaults, folders, onClose, onSaved, o
         </div>
       </div>
 
-      {isMobile && <NoteToolbar editor={editor} placement="bottom" keyboardOpen={!!box?.keyboard} />}
+      {isMobile && <NoteToolbar editor={editor} placement="bottom" keyboardOpen={keyboardUp} aboveBar={reserved > 0} />}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent className="z-[10000] rounded-2xl">

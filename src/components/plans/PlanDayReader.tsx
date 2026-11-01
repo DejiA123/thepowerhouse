@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, BookOpen, Check, Flame, Headphones, Loader2, Moon, Pause, RotateCcw, Sun, Trophy, X } from 'lucide-react';
 import { useGlobalAudio } from '@/contexts/GlobalAudioContext';
 import { cn } from '@/lib/utils';
+import { useBottomNavHeight } from '@/lib/bottomNav';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
 import { getChapterVerses } from '@/components/bible/verseText';
 import { expandReading, type Passage, type ReadingPlan } from '@/services/readingPlanService';
@@ -55,6 +56,7 @@ const readerFontSize = () => {
 
 /** A day of a plan, one page at a time: devotional, then each passage, then a finish screen. */
 const PlanDayReader = ({ plan, day, version, isDone, streak, onComplete, onOpenDay, onClose }: PlanDayReaderProps) => {
+  const navHeight = useBottomNavHeight();
   const reading = plan.dailyReadings.find((r) => r.day === day);
   const steps = useMemo<Step[]>(() => {
     const list: Step[] = [];
@@ -117,7 +119,8 @@ const PlanDayReader = ({ plan, day, version, isDone, streak, onComplete, onOpenD
   const hasNextDay = day < plan.totalDays;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9990] flex flex-col bg-background animate-in fade-in slide-in-from-bottom-4 duration-300">
+    // Ends above the bottom bar, which stays in view
+    <div className="fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[9990] flex flex-col bg-background animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Top bar */}
       <div className="shrink-0 border-b border-border/60 bg-background/95 px-3 pb-2.5 pt-[calc(0.6rem+env(safe-area-inset-top,0px))] backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-2">
@@ -190,7 +193,7 @@ const PlanDayReader = ({ plan, day, version, isDone, streak, onComplete, onOpenD
 
       {/* Bottom bar */}
       {!finished && steps.length > 0 && (
-        <div className="shrink-0 border-t border-border/60 bg-background/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-xl">
+        <div className={cn("shrink-0 border-t border-border/60 bg-background/95 px-4 pt-3 backdrop-blur-xl", navHeight ? "pb-3" : "pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]")}>
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <button
               onClick={() => setIndex((i) => Math.max(0, i - 1))}

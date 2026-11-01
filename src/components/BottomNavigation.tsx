@@ -1,5 +1,7 @@
+import { useLayoutEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
+import { setBottomNavHeight } from "@/lib/bottomNav";
 
 /**
  * The five places everything lives (phones): Home, Bible, Church, Teams, Me.
@@ -8,12 +10,32 @@ import { SECTIONS, sectionForPath } from "@/data/appDirectory";
 const BottomNavigation = () => {
   const location = useLocation();
   const active = sectionForPath(location.pathname);
+  const navRef = useRef<HTMLElement>(null);
+
+  // How much of the screen the bar takes, for full-screen layers that stop above it
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const measure = () => setBottomNavHeight(window.innerHeight - nav.getBoundingClientRect().top);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+      setBottomNavHeight(0);
+    };
+  }, []);
 
   // Robust iPhone check
   const isIPhone = typeof window !== 'undefined' && /iPhone/.test(navigator.userAgent);
 
   return (
     <nav
+      ref={navRef}
       id="nav-v12-force-lift"
       aria-label="Main"
       className="bottom-nav-bar w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl"
