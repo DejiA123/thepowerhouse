@@ -472,7 +472,7 @@ const ResourcesPage = () => {
           <div className="flex-1 overflow-y-auto whitespace-pre-wrap p-5 text-lg leading-relaxed text-slate-700 dark:text-slate-300">
             {`Interactive Session: ${viewing}\n\nThis is a sample interactive session document from ${church.legalName}.\n\nHere you would find the full content of the session, including scripture references, prayer points, and discussion questions.`}
           </div>
-          <div className="border-t p-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
+          <div className="border-t p-4" style={{ paddingBottom: "calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom)) + 1rem)" }}>
             <Button onClick={() => setViewing(null)} className="h-11 w-full rounded-full">
               Done
             </Button>

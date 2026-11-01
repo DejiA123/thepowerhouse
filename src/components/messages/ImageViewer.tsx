@@ -15,7 +15,7 @@ const ImageViewer = ({ url, onClose }: { url: string | null; onClose: () => void
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 animate-in fade-in duration-150"
+      className="fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[80] flex items-center justify-center bg-black/95 animate-in fade-in duration-150"
       onClick={onClose}
       role="dialog"
       aria-label="Photo"

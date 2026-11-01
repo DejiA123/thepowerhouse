@@ -258,7 +258,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-md">
+      <DialogContent className="flex max-h-[calc(90dvh-var(--bottom-nav-h,0px))] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-md">
         <DialogHeader className="px-5 pb-2 pt-5 text-left">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <WifiOff className="h-5 w-5 text-blue-600" /> Listen offline

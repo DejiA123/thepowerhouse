@@ -29,7 +29,7 @@ const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoMo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[92dvh] w-full max-w-4xl overflow-y-auto bg-black p-0">
+      <DialogContent className="max-h-[calc(92dvh-var(--bottom-nav-h,0px))] w-full max-w-4xl overflow-y-auto bg-black p-0">
         <DialogHeader className="p-4 bg-background">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-foreground line-clamp-1">{title}</DialogTitle>

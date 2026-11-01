@@ -6562,7 +6562,7 @@ const ChoirPage = () => {
 
                 {/* Course Detail Modal */}
                 <Dialog open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
-                    <DialogContent className="!fixed !inset-x-0 !bottom-0 !top-[env(safe-area-inset-top,0px)] !w-screen !h-[calc(100dvh-env(safe-area-inset-top,0px))] !max-w-none !m-0 !p-0 !overflow-hidden bg-white dark:bg-gray-950 !border-none !rounded-none flex flex-col !pt-0 !transform-none !translate-y-0 [&>button]:!top-6 [&>button]:!right-10 data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500">
+                    <DialogContent className="!fixed !inset-x-0 !bottom-[var(--bottom-nav-h,0px)] !top-[env(safe-area-inset-top,0px)] !w-screen !h-[calc(100dvh-env(safe-area-inset-top,0px)-var(--bottom-nav-h,0px))] !max-w-none !m-0 !p-0 !overflow-hidden bg-white dark:bg-gray-950 !border-none !rounded-none flex flex-col !pt-0 !transform-none !translate-y-0 [&>button]:!top-6 [&>button]:!right-10 data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500">
                         {/* Custom Header for Full Screen Modal */}
                         <div className="flex items-center justify-between p-6 pt-6 border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 !rounded-none">
                             <div className="flex items-center gap-4">

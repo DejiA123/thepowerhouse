@@ -96,7 +96,7 @@ export const BibleMenuDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2">
+        <div className="flex-1 overflow-y-auto px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+2rem)] pt-2">
           <div className="mx-auto max-w-2xl space-y-3">
 
             <h3 className="px-1 pt-2 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Reading</h3>
