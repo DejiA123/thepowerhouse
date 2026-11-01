@@ -184,7 +184,7 @@ export const BiblePassagePicker = ({ initialBook, currentBook, currentChapter, o
   const roundButton = "grid h-10 w-10 place-items-center rounded-full bg-muted text-foreground transition active:scale-90";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overscroll-contain pb-[calc(env(safe-area-inset-bottom)+64px)] md:pb-0">
+    <div className="flex min-h-0 flex-1 flex-col overscroll-contain pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+64px)] md:pb-0">
       {/* Header */}
       <div className="grid shrink-0 grid-cols-[40px_1fr_40px] items-center px-4 pb-2 pt-3" style={{ touchAction: "none" }}>
         <button onClick={onCancel} className={roundButton} aria-label="Close">

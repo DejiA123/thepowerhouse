@@ -72,7 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
   const isMobile = useIsMobile();
   const showChrome = location.pathname !== "/intro";
   const isMessages = location.pathname === '/group-chats';
-  // Inside an open conversation the chat owns the whole screen (no tab bar)
+  // An open conversation (it sits above the bottom bar, which stays like on every page)
   const inConversation = isMessages && new URLSearchParams(location.search).has('chat');
 
   // Reset scroll on every route change — runs in Layout because it owns #main-content
@@ -288,7 +288,7 @@ const Layout = ({ children }: LayoutProps) => {
           id="main-content"
           className={cn(
             "flex-1 min-h-0 relative bg-background",
-            isMobile && isMessages && !inConversation && "pb-[90px]",
+            isMobile && isMessages && (inConversation ? "pb-[var(--bottom-nav-h,0px)]" : "pb-[90px]"),
             location.pathname === '/bible' || location.pathname === '/group-chats' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -299,7 +299,7 @@ const Layout = ({ children }: LayoutProps) => {
                 location.pathname === '/group-chats'
                   ? "h-full overflow-hidden"
                   : "min-h-full",
-                location.pathname !== '/group-chats' && showChrome && isMobile && location.pathname !== '/follow-up' && location.pathname !== '/bible'
+                location.pathname !== '/group-chats' && showChrome && isMobile && location.pathname !== '/bible'
                   ? "pb-[90px]"
                   : ""
               )}
@@ -309,7 +309,8 @@ const Layout = ({ children }: LayoutProps) => {
         </main>
 
         {/* Bottom Nav - mobile only */}
-        {isMobile && showChrome && location.pathname !== '/follow-up' && !inConversation && <BottomNavigation />}
+        {/* Every page keeps it (only the first-time intro has none) */}
+        {isMobile && showChrome && <BottomNavigation />}
 
         {/* Global Mini Player for Background Audio */}
         <MiniPlayerSlot />

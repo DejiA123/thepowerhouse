@@ -81,7 +81,7 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
   const canSend = (text.trim().length > 0 || !!photo) && !uploading && !disabled;
 
   return (
-    <div className="border-t border-border/60 bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl sm:px-4">
+    <div className="border-t border-border/60 bg-background/95 px-2 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.5rem)] pt-2 backdrop-blur-xl sm:px-4">
       {photo && (
         <div className="mx-1 mb-2 flex items-center gap-3 rounded-2xl bg-muted/60 p-2">
           {photo.kind === 'video' ? (

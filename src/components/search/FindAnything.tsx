@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, BookOpen, CalendarDays, ChevronRight, CircleHelp, Music, Search, Sparkles, X, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,6 +80,16 @@ const FindAnything = ({ request }: { request: { query: string; at: number } }) =
   const [found, setFound] = useState<Result[]>([]);
   const [recent, setRecent] = useState<string[]>(readRecent);
   const input = useRef<HTMLInputElement>(null);
+
+  // Going somewhere else (a tab on the bottom bar, which stays tappable) closes it.
+  // Before the effect below, so asking for the search on a new page still opens it.
+  const { pathname } = useLocation();
+  const shownOn = useRef(pathname);
+  useEffect(() => {
+    if (pathname === shownOn.current) return;
+    shownOn.current = pathname;
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     setQuery(request.query);
@@ -198,7 +208,7 @@ const FindAnything = ({ request }: { request: { query: string; at: number } }) =
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex justify-center bg-slate-900/40 backdrop-blur-sm md:items-start md:p-[8vh_16px]" onClick={close}>
+    <div className="fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[300] flex justify-center bg-slate-900/40 backdrop-blur-sm md:items-start md:p-[8vh_16px]" onClick={close}>
       <div
         role="dialog"
         aria-label="Search"

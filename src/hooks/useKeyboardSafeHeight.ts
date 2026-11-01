@@ -14,7 +14,9 @@ export function useKeyboardSafeHeight(ref: React.RefObject<HTMLElement>, active 
     if (!isIOS) return;
     const update = () => {
       const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      el.style.paddingBottom = keyboard > 80 ? `${keyboard}px` : '';
+      // A view that ends above the bottom bar: the keyboard covers the bar first
+      const below = Math.max(0, window.innerHeight - el.getBoundingClientRect().bottom);
+      el.style.paddingBottom = keyboard > 80 ? `${Math.max(0, keyboard - below)}px` : '';
       if (keyboard > 80) window.scrollTo(0, 0);
     };
     vv.addEventListener('resize', update);

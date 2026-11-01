@@ -38,9 +38,9 @@ const sheetVariants = cva(
         // Above the bottom bar (--bottom-nav-h: 0 when there isn't one), which stays in view
         bottom:
           "inset-x-0 bottom-[var(--bottom-nav-h,0px)] border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+        left: "top-0 bottom-[var(--bottom-nav-h,0px)] left-0 w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
-          "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+          "top-0 bottom-[var(--bottom-nav-h,0px)] right-0 w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
       },
     },
     defaultVariants: {
@@ -72,8 +72,8 @@ const SheetContent = React.forwardRef<
   )
   return (
     <SheetPortal>
-      {/* A bottom sheet leaves the bottom bar visible and tappable (a tab closes the sheet) */}
-      <SheetOverlay className={side === "bottom" ? "bottom-[var(--bottom-nav-h,0px)]" : undefined} />
+      {/* Every sheet leaves the bottom bar visible and tappable (a tab closes the sheet) */}
+      <SheetOverlay className="bottom-[var(--bottom-nav-h,0px)]" />
       <SheetPrimitive.Content
         ref={setRefs}
         className={cn(sheetVariants({ side }), className)}

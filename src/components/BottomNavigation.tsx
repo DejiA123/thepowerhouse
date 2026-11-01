@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
-import { setBottomNavHeight } from "@/lib/bottomNav";
+import { setBottomNavHeight, useKeyboardLiftsPage } from "@/lib/bottomNav";
 
 /**
  * The five places everything lives (phones): Home, Bible, Church, Teams, Me.
@@ -11,12 +11,16 @@ const BottomNavigation = () => {
   const location = useLocation();
   const active = sectionForPath(location.pathname);
   const navRef = useRef<HTMLElement>(null);
+  // On every page, except while Android's keyboard has pushed the page up (it'd sit on the keyboard)
+  const keyboardUp = useKeyboardLiftsPage();
+  const hiddenRef = useRef(keyboardUp);
+  hiddenRef.current = keyboardUp;
 
   // How much of the screen the bar takes, for full-screen layers that stop above it
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
-    const measure = () => setBottomNavHeight(window.innerHeight - nav.getBoundingClientRect().top);
+    const measure = () => setBottomNavHeight(hiddenRef.current ? 0 : window.innerHeight - nav.getBoundingClientRect().top);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(nav);
@@ -29,6 +33,10 @@ const BottomNavigation = () => {
       setBottomNavHeight(0);
     };
   }, []);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (nav) setBottomNavHeight(keyboardUp ? 0 : window.innerHeight - nav.getBoundingClientRect().top);
+  }, [keyboardUp]);
 
   // Robust iPhone check
   const isIPhone = typeof window !== 'undefined' && /iPhone/.test(navigator.userAgent);
@@ -38,7 +46,7 @@ const BottomNavigation = () => {
       ref={navRef}
       id="nav-v12-force-lift"
       aria-label="Main"
-      className="bottom-nav-bar pointer-events-auto w-full fixed bottom-0 left-0 right-0 z-[100] border-t border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl"
+      className={`bottom-nav-bar pointer-events-auto w-full fixed bottom-0 left-0 right-0 z-[100] border-t${keyboardUp ? " hidden" : ""} border-gray-200/60 dark:border-white/10 bg-white/95 dark:bg-black/95 backdrop-blur-xl`}
       style={{
         boxShadow: '0 -1px 6px rgba(0,0,0,0.06)',
         paddingBottom: isIPhone ? '5px' : '10px'

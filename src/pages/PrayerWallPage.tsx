@@ -399,7 +399,7 @@ const PrayerWallPage = () => {
 
       {/* New request */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto rounded-3xl">
+        <DialogContent className="max-h-[calc(90dvh-var(--bottom-nav-h,0px))] max-w-lg overflow-y-auto rounded-3xl">
           <DialogHeader>
             <DialogTitle>New prayer request</DialogTitle>
             <DialogDescription>The church family will see it on the wall and can pray with you.</DialogDescription>

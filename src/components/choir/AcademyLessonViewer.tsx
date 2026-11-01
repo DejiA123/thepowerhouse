@@ -25,7 +25,7 @@ export const AcademyLessonViewer = ({ isOpen, onClose, module, onTakeQuiz }: Aca
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="!fixed !inset-0 !top-[env(safe-area-inset-top,0px)] !w-full !h-[calc(100dvh-env(safe-area-inset-top,0px))] !max-w-none !m-0 !p-0 !rounded-none bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-4 [&>button]:!right-6 !transform-none !translate-y-0 !translate-x-0 data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500 flex flex-col border-none">
+            <DialogContent className="!fixed !inset-0 !top-[env(safe-area-inset-top,0px)] !w-full !h-[calc(100dvh-env(safe-area-inset-top,0px)-var(--bottom-nav-h,0px))] !max-w-none !m-0 !p-0 !rounded-none bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-4 [&>button]:!right-6 !transform-none !translate-y-0 !translate-x-0 data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full duration-500 flex flex-col border-none">
                 <DialogHeader className="p-8 pb-6 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md sticky top-0 z-50">
                     <div className="flex items-center gap-4">
                         <Button
@@ -85,7 +85,7 @@ export const AcademyLessonViewer = ({ isOpen, onClose, module, onTakeQuiz }: Aca
                         </div>
 
                         {/* Action Footer */}
-                        <div className="pt-8 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] border-t border-slate-100 dark:border-slate-800 flex flex-col items-center gap-6">
+                        <div className="pt-8 pb-[calc(6rem+var(--sheet-safe-bottom,env(safe-area-inset-bottom,0px)))] border-t border-slate-100 dark:border-slate-800 flex flex-col items-center gap-6">
                             <div className="text-center space-y-2">
                                 <h4 className="text-lg font-bold text-slate-900 dark:text-white">Ready for the challenge?</h4>
                                 <p className="text-sm text-slate-500">Complete the quiz to earn your module completion badge.</p>

@@ -93,7 +93,7 @@ const CreateGroupDialog = ({ open, userId, onOpenChange, onCreated }: Props) => 
         role="dialog"
         aria-modal="true"
         aria-label="New group"
-        className="fixed inset-0 z-[200] flex flex-col bg-background animate-in slide-in-from-bottom-6 fade-in duration-200"
+        className="fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[200] flex flex-col bg-background animate-in slide-in-from-bottom-6 fade-in duration-200"
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
           <button
@@ -113,7 +113,7 @@ const CreateGroupDialog = ({ open, userId, onOpenChange, onCreated }: Props) => 
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
           </Button>
         </header>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.5rem)] pt-4">
           <p className="text-sm text-muted-foreground">You can add more people later.</p>
           {fields}
         </div>
@@ -124,7 +124,7 @@ const CreateGroupDialog = ({ open, userId, onOpenChange, onCreated }: Props) => 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-md">
+      <DialogContent className="flex max-h-[calc(92dvh-var(--bottom-nav-h,0px))] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-md">
         <DialogHeader className="px-5 pb-3 pt-5 text-left">
           <DialogTitle className="text-xl">New group</DialogTitle>
           <DialogDescription>Give it a name and choose who to add. You can add more people later.</DialogDescription>

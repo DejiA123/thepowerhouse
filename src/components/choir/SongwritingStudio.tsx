@@ -534,7 +534,7 @@ export const SongwritingStudio = ({ locationId, isOpen, onClose }: SongwritingSt
                     </div>
 
                     {/* Main Content */}
-                    <div className="relative z-10 flex-1 overflow-y-auto px-4 md:px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] no-scrollbar">
+                    <div className="relative z-10 flex-1 overflow-y-auto px-4 md:px-6 pb-[calc(1rem+var(--sheet-safe-bottom,env(safe-area-inset-bottom)))] no-scrollbar">
 
                         {/* Theme Card */}
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">

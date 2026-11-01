@@ -341,7 +341,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
 
               </div>
             </div>
-            <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}>
+            <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom)) + 2rem)' }}>
               <div className="max-w-3xl mx-auto w-full flex flex-col sm:flex-row gap-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancel</Button>
                 <Button
@@ -551,7 +551,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
               </div>
             </div>
           )}
-          <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' }}>
+          <DialogFooter className="sticky bottom-0 z-10 p-8 sm:p-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800" style={{ paddingBottom: 'calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom)) + 2rem)' }}>
             <div className="max-w-3xl mx-auto w-full flex flex-col sm:flex-row gap-4">
               <Button variant="outline" onClick={() => setEditEvent(null)} className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs flex-1 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">Cancel</Button>
               <Button
@@ -568,7 +568,7 @@ const EventsManager = ({ initialEditEventId }: EventsManagerProps) => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <DialogContent className="border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-y-auto max-h-[90dvh] max-w-sm text-center">
+        <DialogContent className="border-none shadow-2xl rounded-[2rem] bg-white dark:bg-slate-900 p-0 overflow-y-auto max-h-[calc(90dvh-var(--bottom-nav-h,0px))] max-w-sm text-center">
           <div className="p-8">
             <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/20 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <Trash2 className="w-8 h-8" />
