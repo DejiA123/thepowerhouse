@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, Info, Loader2, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Copy, Forward, Info, Loader2, Phone, PhoneCall, Pin, Star, Trash2, Video, X } from 'lucide-react';
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { KEYS_ARRIVED, e2eReady } from '@/lib/chatCrypto';
 import WhatsAppImport from './WhatsAppImport';
 import { cn } from '@/lib/utils';
@@ -18,8 +19,10 @@ import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
-  parseCall, parseMessageContent, previewText, uploadChatImage, uploadChatVideo, withEditedText,
+  FILE_PREFIX, VOICE_PREFIX, encodePreview, parseCall, parseMessageContent, plainMentions, previewText, uploadChatFile, uploadChatImage, uploadChatVideo, withEditedText,
+  type LinkPreview,
 } from './chatUtils';
+import type { VoiceRecording } from '@/lib/voiceRecorder';
 import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
 
@@ -47,9 +50,12 @@ type Reaction = { emoji: string; user_id: string; id: string };
 
 const PAGE = 50;
 const GROUP_GAP_MS = 5 * 60 * 1000;
+/** "Delete for everyone" for 2 days after sending, like WhatsApp (the database checks too) */
+const DELETE_FOR_EVERYONE_MS = 2 * 24 * 3600_000;
 
 const nearBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < 120;
 
+const formatClockShort = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit' });
 /** My message? (imported from WhatsApp: only the lines that were mine there) */
 const isMine = (m: ChatMessage, myId: string) => m.user_id === myId && (!m.imported_from || m.imported_as === myId);
 /** Who a message is shown from, for grouping a run of messages */
@@ -72,7 +78,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [editing, setEditing] = useState<ChatMessage | null>(null);
   // Like WhatsApp: replying to a message (swipe it), forwarding, info, search, starred, pinned, deleted for me
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [forwardFor, setForwardFor] = useState<ChatMessage | null>(null);
+  const [forwardFor, setForwardFor] = useState<ChatMessage | ChatMessage[] | null>(null);
   const [infoFor, setInfoFor] = useState<ChatMessage | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
@@ -93,6 +99,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [canImport, setCanImport] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [encryptionInfo, setEncryptionInfo] = useState(false);
+  // Choosing several messages (null: not choosing)
+  const [picking, setPicking] = useState<Set<string> | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  // My mute / archive settings; a group's members (to @mention)
+  const [settings, setSettings] = useState<{ muted_until: string | null; archived_at: string | null } | null>(null);
+  const [mentionables, setMentionables] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
   const [reloadTick, setReloadTick] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
@@ -218,6 +230,17 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   useEffect(() => {
     e2eReady().then(setEncryptedChats).catch(() => undefined);
     GroupChatService.canImport().then(setCanImport).catch(() => undefined);
+    setPicking(null);
+    setSettings(null);
+    setMentionables([]);
+    GroupChatService.mySettings(chat.id).then(setSettings).catch(() => undefined);
+    if (!isPrivateChat(chat)) {
+      GroupChatService.getParticipants(chat.id)
+        .then((list) => setMentionables(list.filter((p) => p.user_id !== me.id && p.user?.full_name).map((p) => ({ id: p.user_id, name: p.user!.full_name!.trim(), avatar: p.user?.avatar_url ?? null }))))
+        .catch(() => undefined);
+    }
+    // Only when the chat changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id]);
 
   // Keys for this chat just reached this phone: open the messages that were waiting for them
@@ -579,6 +602,33 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     }
   }, [chat.id, me.id, sendContent]);
 
+  const sendVoice = useCallback(async (rec: VoiceRecording) => {
+    try {
+      const url = await uploadChatFile(me.id, rec.blob, { encrypt: await e2eReady(), ext: 'mp3' });
+      const replying = replyRef.current?.id ?? null;
+      setReplyTo(null);
+      await sendContent(`${VOICE_PREFIX}${rec.seconds.toFixed(1)}:${rec.bars}:${url}`, undefined, replying);
+    } catch (error) {
+      console.error('Voice message failed', error);
+      appAlert("Couldn't send the voice message", 'Check your connection and try again.', 'error');
+    }
+  }, [me.id, sendContent]);
+
+  const sendFile = useCallback(async (file: File, caption: string, onProgress: (pct: number) => void) => {
+    try {
+      const ext = file.name.includes('.') ? file.name.split('.').pop()! : 'bin';
+      const url = await uploadChatFile(me.id, file, { encrypt: await e2eReady(), ext, onProgress });
+      const replying = replyRef.current?.id ?? null;
+      setReplyTo(null);
+      const name = encodeURIComponent(file.name.slice(0, 120)).replace(/:/g, '%3A');
+      await sendContent(`${FILE_PREFIX}${file.size}:${name}:${url}${caption ? `\n${caption}` : ''}`, undefined, replying);
+    } catch (error) {
+      console.error('Document failed', error);
+      appAlert("Couldn't send the document", error instanceof Error && !/fetch|network/i.test(error.message) ? error.message : 'Check your connection and try again.', 'error');
+      throw error;
+    }
+  }, [me.id, sendContent]);
+
   const onTyping = useCallback((isTyping: boolean) => {
     GroupChatService.sendTyping(chat.id, me.id, me.name.split(' ')[0], isTyping).catch(() => undefined);
   }, [chat.id, me.id, me.name]);
@@ -632,11 +682,29 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
     try {
       await GroupChatService.deleteMessage(message.id, chat.id);
-    } catch {
+    } catch (error) {
       setMessages(snapshot);
-      appAlert('Could not delete message', '', 'error');
+      const reason = String((error as { message?: string })?.message ?? '');
+      appAlert('Could not delete message', /2 days/.test(reason) ? 'Messages can be deleted for everyone up to 2 days after sending. You can still delete it for yourself.' : '', 'error');
     }
   };
+
+  /** Like WhatsApp: my messages can be deleted for everyone for 2 days (imported history always) */
+  const canDeleteForEveryone = (m: ChatMessage) =>
+    m.user_id === me.id && (!!m.imported_from || Date.now() - new Date(m.created_at).getTime() < DELETE_FOR_EVERYONE_MS);
+
+  // ── Choosing several messages ──────────────────────────────────────
+  const togglePick = useCallback((m: ChatMessage) => {
+    setPicking((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(m.id)) next.delete(m.id);
+      else next.add(m.id);
+      return next;
+    });
+  }, []);
+  const picked = picking ? messages.filter((m) => picking.has(m.id)) : [];
+  const pickedAllDeletable = picked.length > 0 && picked.every(canDeleteForEveryone);
 
   const startEdit = (message: ChatMessage) => {
     setActionsFor(null);
@@ -890,14 +958,109 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onReply={startReply}
         starred={starred.has(m.id)}
         highlighted={highlightId === m.id}
+        myId={me.id}
+        selecting={!!picking}
+        selected={!!picking?.has(m.id)}
+        onToggleSelect={togglePick}
       />,
     );
   });
 
   return (
     <div ref={rootRef} className="relative flex h-full min-h-0 flex-col bg-background">
+      {/* Choosing several messages: what to do with them */}
+      {picking && (
+        <header className="z-30 flex items-center gap-1 border-b border-border/60 bg-background px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] md:px-4 md:pt-3" aria-label="Chosen messages">
+          <button onClick={() => setPicking(null)} className="flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-muted" aria-label="Stop choosing">
+            <X className="h-5 w-5" />
+          </button>
+          <p className="flex-1 text-[17px] font-semibold text-foreground">{picked.length} selected</p>
+          {[
+            {
+              icon: Star,
+              label: 'Star',
+              onClick: async () => {
+                const toStar = picked.filter((m) => !starred.has(m.id));
+                setPicking(null);
+                for (const m of toStar) await toggleStar(m);
+              },
+            },
+            {
+              icon: Copy,
+              label: 'Copy',
+              onClick: () => {
+                const text = picked
+                  .map((m) => `[${formatClockShort(m.created_at)}] ${isMine(m, me.id) ? me.name : senderName(m)}: ${plainMentions(parseMessageContent(m.content).text) || previewText(m.content)}`)
+                  .join('\n');
+                navigator.clipboard?.writeText(text).catch(() => undefined);
+                setPicking(null);
+                appAlert(picked.length === 1 ? 'Copied' : `${picked.length} messages copied`);
+              },
+            },
+            {
+              icon: Forward,
+              label: 'Forward',
+              onClick: () => {
+                setForwardFor(picked.filter((m) => !parseCall(m.content) && !m.locked));
+                setPicking(null);
+              },
+            },
+            { icon: Trash2, label: 'Delete', onClick: () => setConfirmDelete(true) },
+          ].map(({ icon: Icon, label, onClick }) => (
+            <button
+              key={label}
+              onClick={onClick}
+              disabled={!picked.length}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-muted disabled:opacity-40"
+              aria-label={label}
+            >
+              <Icon className="h-5 w-5" />
+            </button>
+          ))}
+        </header>
+      )}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent className="max-w-sm rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {picked.length} {picked.length === 1 ? 'message' : 'messages'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pickedAllDeletable ? 'Delete them for everyone in this chat, or just for you.' : 'They’ll be deleted just for you.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-2">
+            {pickedAllDeletable && (
+              <button
+                onClick={async () => {
+                  const list = picked;
+                  setConfirmDelete(false);
+                  setPicking(null);
+                  for (const m of list) await deleteMessage(m);
+                }}
+                className="h-11 rounded-full bg-red-600 text-[15px] font-semibold text-white"
+              >
+                Delete for everyone
+              </button>
+            )}
+            <button
+              onClick={async () => {
+                const list = picked;
+                setConfirmDelete(false);
+                setPicking(null);
+                for (const m of list) await deleteForMe(m);
+              }}
+              className="h-11 rounded-full border border-red-200 text-[15px] font-semibold text-red-600 dark:border-red-900"
+            >
+              Delete for me
+            </button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="w-full rounded-full">Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
-      <header className="z-20 flex items-center gap-2 border-b border-border/60 bg-background/90 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur-xl md:px-4 md:pt-3">
+      <header className={cn('z-20 flex items-center gap-2 border-b border-border/60 bg-background/90 px-2 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur-xl md:px-4 md:pt-3', picking && 'hidden')}>
         <button onClick={onBack} className="flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-muted md:hidden" aria-label="Back to chats">
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -1034,16 +1197,19 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       </div>
 
       <ChatComposer
-        onSend={(text) => {
+        onSend={(text, linkPreview?: LinkPreview | null) => {
           const replying = replyTo?.id ?? null;
           setReplyTo(null);
-          sendContent(text, undefined, replying);
+          sendContent(linkPreview ? `${encodePreview(linkPreview)}\n${text}` : text, undefined, replying);
         }}
         onSendMedia={sendMedia}
+        onSendVoice={sendVoice}
+        onSendFile={sendFile}
+        mentionables={mentionables}
         onTyping={onTyping}
         replyTo={replyTo ? { ...quoteOf(replyTo, replyTo.id), name: replyTo.user_id === me.id ? 'yourself' : senderName(replyTo) } : null}
         onCancelReply={() => setReplyTo(null)}
-        editing={editing ? { id: editing.id, text: editableText(editing.content), caption: editableText(editing.content) !== editing.content } : null}
+        editing={editing ? { id: editing.id, text: plainMentions(editableText(editing.content)), caption: editableText(editing.content) !== editing.content } : null}
         onSaveEdit={saveEdit}
         onCancelEdit={() => setEditing(null)}
       />
@@ -1055,9 +1221,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onClose={() => setActionsFor(null)}
         onReact={(emoji) => actionsFor && toggleReaction(actionsFor.id, emoji)}
         onCopy={() => {
-          if (actionsFor) navigator.clipboard?.writeText(parseMessageContent(actionsFor.content).text).catch(() => undefined);
+          if (actionsFor) navigator.clipboard?.writeText(plainMentions(parseMessageContent(actionsFor.content).text)).catch(() => undefined);
           setActionsFor(null);
           appAlert('Copied');
+        }}
+        canDeleteForEveryone={!!actionsFor && canDeleteForEveryone(actionsFor)}
+        onSelect={() => {
+          if (actionsFor) setPicking(new Set([actionsFor.id]));
+          setActionsFor(null);
         }}
         onDelete={() => actionsFor && deleteMessage(actionsFor)}
         onRetry={() => actionsFor && retry(actionsFor)}
@@ -1122,6 +1293,29 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           setImportOpen(true);
         } : undefined}
         encrypted={encryptedChats}
+        settings={settings}
+        onMute={async (until) => {
+          const before = settings;
+          setSettings((s) => (s ? { ...s, muted_until: until ? until.toISOString() : null } : s));
+          try {
+            await GroupChatService.setMuted(chat.id, until);
+            appAlert(until ? 'Notifications muted' : 'Notifications on');
+          } catch {
+            setSettings(before);
+            appAlert("Couldn't change notifications", 'Check your connection and try again.', 'error');
+          }
+        }}
+        onArchive={async (archived) => {
+          const before = settings;
+          setSettings((s) => (s ? { ...s, archived_at: archived ? new Date().toISOString() : null } : s));
+          try {
+            await GroupChatService.setArchived(chat.id, archived);
+            appAlert(archived ? 'Chat archived' : 'Chat unarchived');
+          } catch {
+            setSettings(before);
+            appAlert("Couldn't change that", 'Check your connection and try again.', 'error');
+          }
+        }}
       />
 
       <WhatsAppImport

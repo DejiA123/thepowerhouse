@@ -313,6 +313,7 @@ type PushEvent =
   | { type: 'chat-message'; messageId: string }
   | { type: 'call'; callId: string }
   | { type: 'call-missed'; callId: string }
+  | { type: 'call-invite'; callId: string; userId: string }
   | { type: 'choir-song'; table: 'weekly' | 'library'; ids: string[] }
   | { type: 'prayer-prayed'; prayerRequestId: string }
   | { type: 'test' };

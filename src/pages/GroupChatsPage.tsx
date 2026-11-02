@@ -80,11 +80,14 @@ const GroupChatsPage = () => {
     const onChanged = () => loadChats();
     const onVisible = () => document.visibilityState === 'visible' && loadChats();
     window.addEventListener('chats:changed', onChanged);
+    // Muted / archived on this phone
+    window.addEventListener('chat:settings', onChanged);
     // Back online after a drop: fetch what was missed
     window.addEventListener('app:resync', onChanged);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('chats:changed', onChanged);
+      window.removeEventListener('chat:settings', onChanged);
       window.removeEventListener('app:resync', onChanged);
       document.removeEventListener('visibilitychange', onVisible);
     };

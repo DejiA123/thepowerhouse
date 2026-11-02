@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -33,6 +33,10 @@ interface Props {
   onImport?: () => void;
   /** Messages here are end-to-end encrypted */
   encrypted?: boolean;
+  /** My mute / archive settings for this chat (null before that database update) */
+  settings?: { muted_until: string | null; archived_at: string | null } | null;
+  onMute?: (until: Date | null) => void;
+  onArchive?: (archived: boolean) => void;
   onlineIds: Set<string>;
   /** A one-to-one chat: the other person's "Online" / "Last seen …" */
   privateStatus?: string;
@@ -51,11 +55,60 @@ const StarredRow = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-/** Import a WhatsApp chat, and what end-to-end encryption means here */
-const MoreRows = ({ onImport, encrypted }: { onImport?: () => void; encrypted?: boolean }) => {
+const ALWAYS = new Date('2999-12-31T00:00:00Z');
+
+/** Mute, archive, import a WhatsApp chat, and what end-to-end encryption means here */
+const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive }: {
+  onImport?: () => void;
+  encrypted?: boolean;
+  settings?: { muted_until: string | null; archived_at: string | null } | null;
+  onMute?: (until: Date | null) => void;
+  onArchive?: (archived: boolean) => void;
+}) => {
   const [explain, setExplain] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const until = settings?.muted_until ? new Date(settings.muted_until) : null;
+  const muted = !!until && until.getTime() > Date.now();
+  const mutedText = !muted ? 'Off' : until!.getFullYear() > 2900 ? 'Always' : `Until ${until!.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`;
   return (
     <div className="mt-2 w-full max-w-sm space-y-2">
+      {settings && onMute && (
+        <div className="overflow-hidden rounded-2xl bg-muted/60">
+          <button onClick={() => (muted ? onMute(null) : setChoosing((v) => !v))} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-muted" aria-expanded={choosing}>
+            {muted ? <BellOff className="h-5 w-5 text-muted-foreground" /> : <Bell className="h-5 w-5 text-muted-foreground" />}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium text-foreground">{muted ? 'Unmute notifications' : 'Mute notifications'}</span>
+              <span className="block text-xs text-muted-foreground">{muted ? `Muted · ${mutedText}` : 'Calls still ring when muted'}</span>
+            </span>
+          </button>
+          {choosing && !muted && (
+            <div className="flex gap-2 px-4 pb-3">
+              {[
+                { label: '8 hours', at: () => new Date(Date.now() + 8 * 3600_000) },
+                { label: '1 week', at: () => new Date(Date.now() + 7 * 86400_000) },
+                { label: 'Always', at: () => ALWAYS },
+              ].map((o) => (
+                <button
+                  key={o.label}
+                  onClick={() => {
+                    setChoosing(false);
+                    onMute(o.at());
+                  }}
+                  className="flex-1 rounded-full bg-background py-2 text-sm font-medium text-foreground shadow-sm ring-1 ring-border"
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {settings && onArchive && (
+        <button onClick={() => onArchive(!settings.archived_at)} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+          {settings.archived_at ? <ArchiveRestore className="h-5 w-5 text-muted-foreground" /> : <Archive className="h-5 w-5 text-muted-foreground" />}
+          <span className="flex-1 text-[15px] font-medium text-foreground">{settings.archived_at ? 'Unarchive chat' : 'Archive chat'}</span>
+        </button>
+      )}
       {onImport && (
         <button onClick={onImport} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
           <FileUp className="h-5 w-5 text-emerald-600" />
@@ -86,7 +139,7 @@ const MoreRows = ({ onImport, encrypted }: { onImport?: () => void; encrypted?: 
   );
 };
 
-const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onImport, encrypted, onlineIds, privateStatus, privateName }: Props) => {
+const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onImport, encrypted, settings, onMute, onArchive, onlineIds, privateStatus, privateName }: Props) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -243,7 +296,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
               ))}
             </div>
             {onStarred && <StarredRow onClick={onStarred} />}
-            <MoreRows onImport={onImport} encrypted={encrypted} />
+            <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} />
           </div>
         </SheetContent>
       </Sheet>
@@ -343,7 +396,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 </div>
               )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
-              {!editing && <MoreRows onImport={onImport} encrypted={encrypted} />}
+              {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} />}
             </div>
 
             {/* Add members */}

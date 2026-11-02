@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ChevronDown, Maximize2, Mic, MicOff, MonitorUp, PhoneOff, RefreshCcw, Users, Video, VideoOff, Volume2, WifiOff,
+  ChevronDown, Maximize2, Mic, MicOff, MonitorUp, PhoneCall, PhoneOff, RefreshCcw, UserPlus, Users, Video, VideoOff, Volume2, WifiOff, X,
 } from 'lucide-react';
+import MemberPicker, { type PickablePerson } from '@/components/messages/MemberPicker';
 import { cn } from '@/lib/utils';
-import { useCall } from '@/contexts/CallContext';
+import { useCall, type CallInvite } from '@/contexts/CallContext';
 import { useAuth } from '@/contexts/AuthContext';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { CallParticipant } from '@/lib/calls/callEngine';
@@ -87,6 +88,66 @@ const Tile = ({ participant, compact }: { participant: CallParticipant; compact?
   );
 };
 
+/** Someone rung into the call: "Ringing…" until they join */
+const InviteTile = ({ invite, compact }: { invite: CallInvite; compact?: boolean }) => (
+  <div className="relative flex min-h-0 flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl bg-slate-800/60 p-4">
+    <div className="relative">
+      {invite.status === 'ringing' && <span className="absolute inset-0 animate-ping rounded-full bg-blue-500/30" />}
+      <UserAvatar name={invite.name} src={invite.avatar} seed={invite.userId} className={cn('relative', compact ? 'h-16 w-16' : 'h-24 w-24', invite.status !== 'ringing' && 'opacity-50')} />
+    </div>
+    <div className="text-center">
+      <p className="max-w-[12rem] truncate text-sm font-semibold">{invite.name}</p>
+      <p className={cn('mt-0.5 flex items-center justify-center gap-1 text-xs', invite.status === 'ringing' ? 'text-white/70' : 'text-red-300')}>
+        {invite.status === 'ringing' && <PhoneCall className="h-3 w-3" />}
+        {invite.status === 'ringing' ? 'Ringing…' : invite.status === 'declined' ? 'Declined' : 'No answer'}
+      </p>
+    </div>
+  </div>
+);
+
+/** Like WhatsApp's "Add participant": ring friends (or anyone in the app) into this call */
+const MAX_IN_CALL = 8;
+const AddToCall = ({ userId, inCall, onAdd, onClose }: { userId: string; inCall: string[]; onAdd: (people: PickablePerson[]) => void; onClose: () => void }) => {
+  const [picked, setPicked] = useState<PickablePerson[]>([]);
+  const room = Math.max(0, MAX_IN_CALL - inCall.length - 1);
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col justify-end bg-black/60 animate-in fade-in" onClick={onClose}>
+      <div
+        className="flex max-h-[80%] flex-col rounded-t-3xl bg-background pb-[calc(env(safe-area-inset-bottom)+1rem)] text-foreground animate-in slide-in-from-bottom-8"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Add people to the call"
+      >
+        <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
+          <p className="flex-1 text-[17px] font-semibold">Add to call</p>
+          <button onClick={onClose} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-3">
+          {room === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">This call is full ({MAX_IN_CALL} people).</p>
+          ) : (
+            <MemberPicker userId={userId} selected={picked} onChange={(next) => setPicked(next.slice(0, room))} excludeIds={[userId, ...inCall]} fill />
+          )}
+        </div>
+        <div className="flex items-center gap-3 px-4 pt-3">
+          <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {picked.length ? picked.map((p) => p.full_name || 'Member').join(', ') : room ? `Up to ${room} more ${room === 1 ? 'person' : 'people'}` : ''}
+          </p>
+          <button
+            onClick={() => onAdd(picked)}
+            disabled={!picked.length}
+            className={cn('flex h-11 items-center gap-2 rounded-full px-5 text-[15px] font-semibold transition active:scale-95', picked.length ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground')}
+          >
+            <PhoneCall className="h-4 w-4" /> Ring {picked.length || ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ControlButton = ({
   onClick, active, danger, label, children, className,
 }: { onClick: () => void; active?: boolean; danger?: boolean; label: string; children: React.ReactNode; className?: string }) => (
@@ -109,8 +170,9 @@ const ControlButton = ({
 const CallScreen = () => {
   const { user } = useAuth();
   const {
-    call, minimized, setMinimized, endCall, toggleMute, toggleVideo, flipCamera, toggleScreenShare, toggleSpeaker,
+    call, minimized, setMinimized, endCall, toggleMute, toggleVideo, flipCamera, toggleScreenShare, toggleSpeaker, invites, inviteToCall,
   } = useCall();
+  const [adding, setAdding] = useState(false);
   const [canFlip, setCanFlip] = useState(false);
   const now = useNow(!!call);
 
@@ -160,7 +222,19 @@ const CallScreen = () => {
   }
 
   const others = call.participants;
-  const gridCols = others.length <= 1 ? 'grid-cols-1' : others.length <= 4 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 lg:grid-cols-3';
+  // People being rung in (not yet here). The person I called one-to-one, still ringing, is one of them too.
+  const added = invites.filter((i) => !others.some((p) => p.userId === i.userId));
+  const firstStillRinging = call.isPrivate && call.isInitiator && call.status === 'waiting' && others.length === 0 && added.length > 0;
+  const ringing: CallInvite[] = firstStillRinging
+    ? [{ userId: `chat-${call.chatId}`, name: call.chatName, status: 'ringing', at: call.startedAt ?? Date.now() }, ...added]
+    : added;
+  // A one-to-one call becomes a group call once someone else is added
+  const solo = call.isPrivate && others.length <= 1 && ringing.length === 0;
+  const tiles = others.length + ringing.length;
+  const gridCols = tiles <= 1 ? 'grid-cols-1' : tiles <= 4 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 lg:grid-cols-3';
+  const title = call.isPrivate && !solo
+    ? [...others.map((p) => p.name.split(' ')[0]), ...ringing.map((i) => i.name.split(' ')[0])].join(', ') || call.chatName
+    : call.chatName;
 
   return createPortal(
     <div className="fixed inset-0 z-[9000] flex flex-col bg-slate-950 text-white animate-in fade-in duration-200">
@@ -175,13 +249,13 @@ const CallScreen = () => {
           <ChevronDown className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1 text-center">
-          <p className="truncate text-base font-semibold">{call.chatName}</p>
+          <p className="truncate text-base font-semibold">{title}</p>
           <p className="text-xs text-white/60">
             {statusText}
-            {!call.isPrivate && connected > 0 && ` · ${connected + 1} in call`}
+            {!solo && connected > 0 && ` · ${connected + 1} in call`}
           </p>
         </div>
-        {call.isPrivate ? (
+        {solo ? (
           <div className="h-10 w-10" />
         ) : (
           <div className="flex h-10 min-w-10 items-center justify-center gap-1 rounded-full bg-white/10 px-3 text-sm">
@@ -196,7 +270,7 @@ const CallScreen = () => {
 
       {/* Stage */}
       <div className="relative min-h-0 flex-1 px-3 pb-3">
-        {others.length === 0 ? (
+        {tiles === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
             {localHasVideo && call.localStream ? (
               <div className="absolute inset-3 overflow-hidden rounded-3xl">
@@ -224,12 +298,13 @@ const CallScreen = () => {
           </div>
         ) : (
           <div className={cn('grid h-full auto-rows-fr gap-3', gridCols)}>
-            {others.map((p) => <Tile key={p.userId} participant={p} compact={others.length > 2} />)}
+            {others.map((p) => <Tile key={p.userId} participant={p} compact={tiles > 2} />)}
+            {ringing.map((i) => <InviteTile key={`invite-${i.userId}`} invite={i} compact={tiles > 2} />)}
           </div>
         )}
 
         {/* Self view */}
-        {others.length > 0 && (
+        {tiles > 0 && (
           <div
             className={cn(
               'absolute bottom-6 right-6 overflow-hidden rounded-2xl bg-slate-800 shadow-2xl ring-2 transition-all',
@@ -276,10 +351,25 @@ const CallScreen = () => {
             <MonitorUp className="h-6 w-6" />
           </ControlButton>
         )}
+        <ControlButton onClick={() => setAdding(true)} label="Add">
+          <UserPlus className="h-6 w-6" />
+        </ControlButton>
         <ControlButton onClick={endCall} danger label="Leave" className="w-16">
           <PhoneOff className="h-6 w-6" />
         </ControlButton>
       </div>
+
+      {adding && user && (
+        <AddToCall
+          userId={user.id}
+          inCall={[...others.map((p) => p.userId), ...ringing.filter((i) => i.status === 'ringing').map((i) => i.userId)]}
+          onClose={() => setAdding(false)}
+          onAdd={(people) => {
+            setAdding(false);
+            inviteToCall(people.map((p) => ({ id: p.id, name: p.full_name || 'Member', avatar: p.avatar_url ?? null })));
+          }}
+        />
+      )}
     </div>,
     document.body,
   );
