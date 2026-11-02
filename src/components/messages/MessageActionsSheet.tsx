@@ -1,4 +1,4 @@
-import { Copy, Download, RotateCcw, Trash2 } from 'lucide-react';
+import { Copy, Download, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/services/groupChatService';
@@ -15,6 +15,8 @@ interface Props {
   onCopy: () => void;
   onDelete: () => void;
   onRetry: () => void;
+  /** Given while the message can still be edited (the sender, 15 minutes) */
+  onEdit?: () => void;
 }
 
 const Action = ({ icon: Icon, label, onClick, danger }: { icon: typeof Copy; label: string; onClick: () => void; danger?: boolean }) => (
@@ -30,8 +32,8 @@ const Action = ({ icon: Icon, label, onClick, danger }: { icon: typeof Copy; lab
   </button>
 );
 
-/** Long-press menu for a message: react, copy, save photo, delete. */
-const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, onCopy, onDelete, onRetry }: Props) => {
+/** Long-press menu for a message: react, edit, copy, save photo, delete. */
+const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, onCopy, onDelete, onRetry, onEdit }: Props) => {
   const parsed = message ? parseMessageContent(message.content) : null;
   const image = parsed?.imageUrl ?? parsed?.videoUrl ?? null;
   const isVideo = !!parsed?.videoUrl;
@@ -64,6 +66,7 @@ const MessageActionsSheet = ({ message, isOwn, myReactions, onClose, onReact, on
             )}
             <div className="rounded-2xl bg-muted/40 p-1">
               {message.failed && <Action icon={RotateCcw} label="Try sending again" onClick={onRetry} />}
+              {onEdit && <Action icon={Pencil} label={parsed?.imageUrl || parsed?.videoUrl ? 'Edit caption' : 'Edit'} onClick={onEdit} />}
               {parseMessageContent(message.content).text && <Action icon={Copy} label="Copy text" onClick={onCopy} />}
               {image && (
                 <Action

@@ -162,6 +162,7 @@ const MessageBubble = ({
         bigEmoji ? 'text-muted-foreground' : isOwn ? 'text-white/75' : 'text-muted-foreground',
       )}
     >
+      {message.edited_at && !call && <span>Edited</span>}
       {formatClock(message.created_at)}
       {isOwn && !call && (
         message.failed ? <AlertCircle className="h-3.5 w-3.5 text-red-300" />

@@ -117,8 +117,9 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                     };
                 });
             },
-            // Someone deleted a message: the latest line may have changed
+            // Someone deleted or edited a message: the latest line may have changed
             deleted: () => loadChats(),
+            edited: () => loadChats(),
         });
     }, [user, chatIds, loadChats]);
 

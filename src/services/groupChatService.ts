@@ -42,6 +42,8 @@ export interface ChatMessage {
     created_at: string;
     updated_at: string;
     is_deleted: boolean;
+    /** When the sender last changed what it says (they can for 15 minutes): shows "Edited" */
+    edited_at?: string | null;
     user?: ChatUser;
     /** Client-only: message is still being sent / failed to send */
     pending?: boolean;
@@ -342,6 +344,20 @@ export class GroupChatService {
         return (data || []).map(normalizeMessage);
     }
 
+    /** Messages edited in the last few minutes (only those can still change): an asleep phone catches up */
+    static async getRecentEdits(chatId: string): Promise<{ id: string; content: string; edited_at: string }[]> {
+        const since = new Date(Date.now() - 16 * 60_000).toISOString();
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('chat_id', chatId)
+            .eq('is_deleted', false)
+            .gt('created_at', since)
+            .not('edited_at', 'is', null);
+        if (error) return []; // before the editing migration there's nothing to catch up on
+        return (data || []) as unknown as { id: string; content: string; edited_at: string }[];
+    }
+
     static async sendMessage(chatId: string, content: string, retried = false): Promise<ChatMessage | null> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to send messages');
@@ -398,6 +414,29 @@ export class GroupChatService {
         // Deleted rows are hidden from everyone (is_deleted = false in the read rule), so the
         // database feed never tells the others: say it on the chat's signals topic
         if (chatId) broadcast(signalsTopic(chatId), 'signal', { type: 'message-deleted', from: user.id, payload: { messageId } }).catch(() => undefined);
+    }
+
+    /**
+     * Change what a message says (the sender, for 15 minutes after sending: the
+     * database checks). Everyone with the chat open sees it straight away.
+     */
+    static async editMessage(messageId: string, chatId: string, content: string): Promise<ChatMessage> {
+        const user = await currentUser();
+        if (!user) throw new Error('User must be authenticated to edit messages');
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .update({ content })
+            .eq('id', messageId)
+            .eq('user_id', user.id)
+            .select(MESSAGE_SELECT)
+            .single();
+        if (error) throw error;
+        const message = normalizeMessage(data);
+        const signal = { type: 'message-edited', from: user.id, payload: { messageId, content: message.content, edited_at: message.edited_at ?? new Date().toISOString() } };
+        broadcast(signalsTopic(chatId), 'signal', signal).catch(() => undefined);
+        // This phone's chat lists see it too
+        emitLocal(signalsTopic(chatId), 'signal', signal);
+        return message;
     }
 
     static async joinChat(chatId: string): Promise<void> {
@@ -523,7 +562,7 @@ export class GroupChatService {
     // ── Realtime ───────────────────────────────────────────────────────
 
     /** New rows in one chat (database path; reliable but slightly slower). */
-    static subscribeToMessages(chatId: string, callback: (message: ChatMessage) => void): RealtimeChannel {
+    static subscribeToMessages(chatId: string, callback: (message: ChatMessage) => void, onEdited?: (message: ChatMessage) => void): RealtimeChannel {
         return supabase
             .channel(uniqueTopic(`chat-messages:${chatId}`))
             .on(
@@ -542,8 +581,9 @@ export class GroupChatService {
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `chat_id=eq.${chatId}` },
                 (payload) => {
-                    // Soft deletes arrive as updates
+                    // Soft deletes arrive as updates, and so do edits
                     if ((payload.new as any).is_deleted) callback({ ...(payload.new as any), is_deleted: true });
+                    else if ((payload.new as any).edited_at) onEdited?.(payload.new as ChatMessage);
                 },
             )
             .subscribe();
@@ -569,6 +609,7 @@ export class GroupChatService {
     static watchChats(chatIds: string[], on: {
         message: (message: ChatMessage) => void;
         deleted?: (chatId: string, messageId: string) => void;
+        edited?: (chatId: string, messageId: string) => void;
     }): () => void {
         const seen = new Set<string>();
         const deliver = (message: ChatMessage) => {
@@ -581,6 +622,7 @@ export class GroupChatService {
             this.onChatSignals(chatId, (signal) => {
                 if (signal?.type === 'new-message' && signal.payload?.id) deliver(signal.payload as ChatMessage);
                 else if (signal?.type === 'message-deleted' && signal.payload?.messageId) on.deleted?.(chatId, signal.payload.messageId);
+                else if (signal?.type === 'message-edited' && signal.payload?.messageId) on.edited?.(chatId, signal.payload.messageId);
             }),
         );
         const channel = this.subscribeToAllMessages(deliver);
