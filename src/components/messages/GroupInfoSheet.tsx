@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, LogOut, MoreVertical, Pencil, Phone, Trash2, UserPlus, Video } from 'lucide-react';
+import { Camera, ChevronRight, Loader2, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -24,6 +24,10 @@ interface Props {
   onChatUpdated: (patch: Partial<GroupChat>) => void;
   onLeft: () => void;
   onCall: (type: 'audio' | 'video') => void;
+  /** Search this chat's messages */
+  onSearch?: () => void;
+  /** My starred messages in this chat */
+  onStarred?: () => void;
   onlineIds: Set<string>;
   /** A one-to-one chat: the other person's "Online" / "Last seen …" */
   privateStatus?: string;
@@ -33,7 +37,16 @@ interface Props {
 
 type Member = Awaited<ReturnType<typeof GroupChatService.getParticipants>>[number];
 
-const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onlineIds, privateStatus, privateName }: Props) => {
+/** "Starred messages ›" (WhatsApp keeps it in the chat's info) */
+const StarredRow = ({ onClick }: { onClick: () => void }) => (
+  <button onClick={onClick} className="mt-4 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+    <Star className="h-5 w-5 text-amber-500" />
+    <span className="flex-1 text-[15px] font-medium text-foreground">Starred messages</span>
+    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+  </button>
+);
+
+const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onlineIds, privateStatus, privateName }: Props) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -173,10 +186,11 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 )}
               </>
             )}
-            <div className="mt-6 grid w-full max-w-[14rem] grid-cols-2 gap-2">
+            <div className="mt-6 grid w-full max-w-[20rem] grid-cols-3 gap-2">
               {[
                 { icon: Phone, label: 'Voice', onClick: () => onCall('audio') },
                 { icon: Video, label: 'Video', onClick: () => onCall('video') },
+                { icon: Search, label: 'Search', onClick: () => onSearch?.() },
               ].map((a) => (
                 <button
                   key={a.label}
@@ -188,6 +202,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 </button>
               ))}
             </div>
+            {onStarred && <StarredRow onClick={onStarred} />}
           </div>
         </SheetContent>
       </Sheet>
@@ -268,10 +283,11 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
               )}
 
               {!editing && (
-                <div className="mt-5 grid w-full max-w-xs grid-cols-3 gap-2">
+                <div className={`mt-5 grid w-full gap-2 ${canManage ? 'max-w-sm grid-cols-4' : 'max-w-xs grid-cols-3'}`}>
                   {[
                     { icon: Phone, label: 'Voice', onClick: () => onCall('audio') },
                     { icon: Video, label: 'Video', onClick: () => onCall('video') },
+                    { icon: Search, label: 'Search', onClick: () => onSearch?.() },
                     { icon: UserPlus, label: 'Add', onClick: () => setAdding(true), hidden: !canManage },
                   ].filter((a) => !a.hidden).map((a) => (
                     <button
@@ -285,6 +301,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   ))}
                 </div>
               )}
+              {!editing && onStarred && <StarredRow onClick={onStarred} />}
             </div>
 
             {/* Add members */}

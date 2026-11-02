@@ -44,6 +44,10 @@ export interface ChatMessage {
     is_deleted: boolean;
     /** When the sender last changed what it says (they can for 15 minutes): shows "Edited" */
     edited_at?: string | null;
+    /** The message this one answers (swipe to reply): shown quoted above it */
+    reply_to_id?: string | null;
+    /** Forwarded from another chat */
+    forwarded?: boolean;
     user?: ChatUser;
     /** Client-only: message is still being sent / failed to send */
     pending?: boolean;
@@ -87,6 +91,25 @@ export interface CallSession {
 const ANSWERED_CALLS = '::call::ended:%';
 
 const MESSAGE_SELECT = `*, user:user_id ( id, email, full_name, avatar_url, user_metadata )`;
+
+export interface SendExtras {
+    /** Answering this message (swipe to reply) */
+    replyTo?: string | null;
+    /** Forwarded from another chat */
+    forwarded?: boolean;
+}
+
+export interface ChatPin {
+    chat_id: string;
+    message_id: string;
+    pinned_by: string;
+    pinned_at: string;
+}
+
+/** The database doesn't have reply_to_id / forwarded yet (its migration isn't applied) */
+let noReplyColumns = false;
+const isMissingColumn = (error: { code?: string; message?: string }) =>
+    error.code === 'PGRST204' || error.code === '42703' || /column .* (does not exist|of 'chat_messages')/i.test(error.message || '');
 
 const normalizeMessage = (msg: any): ChatMessage => ({
     ...msg,
@@ -358,21 +381,33 @@ export class GroupChatService {
         return (data || []) as unknown as { id: string; content: string; edited_at: string }[];
     }
 
-    static async sendMessage(chatId: string, content: string, retried = false): Promise<ChatMessage | null> {
+    static async sendMessage(chatId: string, content: string, retried = false, extra: SendExtras = {}): Promise<ChatMessage | null> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to send messages');
 
+        const row = {
+            chat_id: chatId,
+            user_id: user.id,
+            content: content.trim(),
+            ...(extra.replyTo && !noReplyColumns && { reply_to_id: extra.replyTo }),
+            ...(extra.forwarded && !noReplyColumns && { forwarded: true }),
+        };
         const { data, error } = await supabase
             .from('chat_messages')
-            .insert({ chat_id: chatId, user_id: user.id, content: content.trim() })
+            .insert(row as never)
             .select(MESSAGE_SELECT)
             .single();
 
         if (error) {
+            // Before the reply/forward migration: send it as a plain message
+            if (isMissingColumn(error) && ('reply_to_id' in row || 'forwarded' in row)) {
+                noReplyColumns = true;
+                return this.sendMessage(chatId, content, retried);
+            }
             // Not a member yet (e.g. first message in a community group): join and retry once
             if (error.code === '42501' && !retried) {
                 await this.joinChat(chatId);
-                return this.sendMessage(chatId, content, true);
+                return this.sendMessage(chatId, content, true, extra);
             }
             throw error;
         }
@@ -381,6 +416,8 @@ export class GroupChatService {
         const message = normalizeMessage(data);
         // Instant delivery to people with the chat open, then push to everyone else
         broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: message }).catch(() => undefined);
+        // Forwarded from another chat: this phone's lists show it there too
+        if (extra.forwarded) emitLocal(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: message });
         sendPush({ type: 'chat-message', messageId: message.id });
         return message;
     }
@@ -414,6 +451,132 @@ export class GroupChatService {
         // Deleted rows are hidden from everyone (is_deleted = false in the read rule), so the
         // database feed never tells the others: say it on the chat's signals topic
         if (chatId) broadcast(signalsTopic(chatId), 'signal', { type: 'message-deleted', from: user.id, payload: { messageId } }).catch(() => undefined);
+    }
+
+    /** Messages by id (a quoted message that isn't loaded). Deleted ones don't come back. */
+    static async getMessagesByIds(ids: string[]): Promise<ChatMessage[]> {
+        if (!ids.length) return [];
+        const { data, error } = await supabase.from('chat_messages').select(MESSAGE_SELECT).in('id', ids).eq('is_deleted', false);
+        if (error) throw error;
+        return (data || []).map(normalizeMessage);
+    }
+
+    /** Everything from one message up to (not including) `before`, oldest first: jumping back to a quoted message */
+    static async getMessagesBetween(chatId: string, from: string, before: string, limit = 500): Promise<ChatMessage[]> {
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select(MESSAGE_SELECT)
+            .eq('chat_id', chatId)
+            .eq('is_deleted', false)
+            .gte('created_at', from)
+            .lt('created_at', before)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+        if (error) throw error;
+        return (data || []).map(normalizeMessage);
+    }
+
+    /** Search one chat's messages (text and captions), newest first */
+    static async searchMessages(chatId: string, query: string, limit = 60): Promise<ChatMessage[]> {
+        const words = query.trim().replace(/[%_\\,()]/g, ' ').trim();
+        if (!words) return [];
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select(MESSAGE_SELECT)
+            .eq('chat_id', chatId)
+            .eq('is_deleted', false)
+            .not('content', 'like', '::call::%')
+            .ilike('content', `%${words}%`)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        return (data || []).map(normalizeMessage);
+    }
+
+    // ── Star, pin, delete for me ───────────────────────────────────────
+
+    /** My starred messages in a chat (ids) */
+    static async starredIds(chatId: string): Promise<Set<string>> {
+        const user = await currentUser();
+        if (!user) return new Set();
+        const { data, error } = await supabase.from('chat_starred_messages' as never).select('message_id').eq('user_id', user.id).eq('chat_id', chatId);
+        if (error) return new Set(); // before the migration
+        return new Set(((data || []) as { message_id: string }[]).map((r) => r.message_id));
+    }
+
+    /** My starred messages in a chat, newest starred first */
+    static async starredMessages(chatId: string): Promise<ChatMessage[]> {
+        const user = await currentUser();
+        if (!user) return [];
+        const { data, error } = await supabase
+            .from('chat_starred_messages' as never)
+            .select(`created_at, message:message_id ( ${MESSAGE_SELECT} )`)
+            .eq('user_id', user.id)
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return ((data || []) as { message: unknown }[])
+            .map((r) => r.message)
+            .filter((m): m is Record<string, unknown> => !!m && !(m as { is_deleted?: boolean }).is_deleted)
+            .map(normalizeMessage);
+    }
+
+    static async setStarred(messageId: string, chatId: string, starred: boolean): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const table = supabase.from('chat_starred_messages' as never);
+        const { error } = starred
+            ? await table.upsert({ user_id: user.id, message_id: messageId, chat_id: chatId } as never, { onConflict: 'user_id,message_id', ignoreDuplicates: true })
+            : await table.delete().eq('user_id', user.id).eq('message_id', messageId);
+        if (error) throw error;
+    }
+
+    /** Messages I deleted just for me in a chat (ids) */
+    static async hiddenIds(chatId: string): Promise<Set<string>> {
+        const user = await currentUser();
+        if (!user) return new Set();
+        const { data, error } = await supabase.from('chat_hidden_messages' as never).select('message_id').eq('user_id', user.id).eq('chat_id', chatId);
+        if (error) return new Set();
+        return new Set(((data || []) as { message_id: string }[]).map((r) => r.message_id));
+    }
+
+    static async deleteForMe(messageId: string, chatId: string): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const { error } = await supabase
+            .from('chat_hidden_messages' as never)
+            .upsert({ user_id: user.id, message_id: messageId, chat_id: chatId } as never, { onConflict: 'user_id,message_id', ignoreDuplicates: true });
+        if (error) throw error;
+    }
+
+    /** The chat's pinned message, if any */
+    static async getPin(chatId: string): Promise<ChatPin | null> {
+        const { data, error } = await supabase.from('chat_pins' as never).select('chat_id, message_id, pinned_by, pinned_at').eq('chat_id', chatId).maybeSingle();
+        if (error) return null;
+        return (data as ChatPin | null) ?? null;
+    }
+
+    /** Pin a message for everyone in the chat (null unpins) */
+    static async setPin(chatId: string, messageId: string | null): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const table = supabase.from('chat_pins' as never);
+        const { error } = messageId
+            ? await table.upsert({ chat_id: chatId, message_id: messageId, pinned_by: user.id, pinned_at: new Date().toISOString() } as never, { onConflict: 'chat_id' })
+            : await table.delete().eq('chat_id', chatId);
+        if (error) throw error;
+        broadcast(signalsTopic(chatId), 'signal', { type: 'pin', from: user.id, payload: { messageId } }).catch(() => undefined);
+    }
+
+    /** Pins changing in a chat (any member) */
+    static watchPin(chatId: string, onChange: () => void): () => void {
+        const channel = supabase
+            .channel(uniqueTopic(`chat-pins:${chatId}`))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_pins', filter: `chat_id=eq.${chatId}` }, onChange)
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }
 
     /**

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ImagePlus, Loader2, Pencil, SendHorizontal, X } from 'lucide-react';
+import { Check, ImagePlus, Loader2, Pencil, Reply, SendHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { nameColor } from '@/components/common/UserAvatar';
 import { isGifFile, isVideoFile } from './chatUtils';
 
 interface Props {
@@ -14,11 +15,14 @@ interface Props {
   editing?: { id: string; text: string; caption: boolean } | null;
   onSaveEdit?: (text: string) => void;
   onCancelEdit?: () => void;
+  /** Replying to a message (swipe or the menu): shown above the box until sent or cancelled */
+  replyTo?: { id: string; name: string; text: string; image?: string | null; userId: string } | null;
+  onCancelReply?: () => void;
 }
 
 const isTouchDevice = () => window.matchMedia?.('(pointer: coarse)').matches;
 
-const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = 'Message', editing, onSaveEdit, onCancelEdit }: Props) => {
+const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = 'Message', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply }: Props) => {
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -49,6 +53,12 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
     // Only when an edit starts or ends
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId]);
+
+  // Replying: straight into the box (the keyboard comes up)
+  const replyId = replyTo?.id ?? null;
+  useEffect(() => {
+    if (replyId) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [replyId]);
 
   // Auto-grow up to ~6 lines
   useLayoutEffect(() => {
@@ -118,7 +128,8 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
       {editing && (
         <div className="mx-auto mb-2 flex max-w-4xl items-center gap-3 rounded-2xl bg-blue-50 px-3 py-2 dark:bg-blue-950/40">
           <Pencil className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div className="min-w-0 flex-1">
+          {/* w-0: the one-line text never widens the page */}
+          <div className="w-0 min-w-0 flex-1">
             <p className="text-[13px] font-semibold text-blue-700 dark:text-blue-300">{editing.caption ? 'Edit caption' : 'Edit message'}</p>
             <p className="truncate text-[13px] text-muted-foreground">{editing.text || 'No caption'}</p>
           </div>
@@ -128,6 +139,26 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
             onClick={() => onCancelEdit?.()}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
             aria-label="Cancel editing"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {replyTo && !editing && (
+        <div className="mx-auto mb-2 flex max-w-4xl items-stretch gap-2 overflow-hidden rounded-2xl bg-muted/70">
+          <span className={cn('w-1 shrink-0 bg-current', nameColor(replyTo.userId))} />
+          <Reply className="mt-2.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="w-0 min-w-0 flex-1 py-2">
+            <p className={cn('truncate text-[13px] font-semibold', nameColor(replyTo.userId))}>Replying to {replyTo.name}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{replyTo.text || 'Message'}</p>
+          </div>
+          {replyTo.image && <img src={replyTo.image} alt="" className="h-14 w-14 shrink-0 object-cover" />}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onCancelReply?.()}
+            className="m-1.5 self-center rounded-full p-2 text-muted-foreground hover:bg-muted"
+            aria-label="Cancel reply"
           >
             <X className="h-4 w-4" />
           </button>
@@ -204,6 +235,11 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
               if (e.key === 'Escape' && editing) {
                 e.preventDefault();
                 onCancelEdit?.();
+                return;
+              }
+              if (e.key === 'Escape' && replyTo) {
+                e.preventDefault();
+                onCancelReply?.();
                 return;
               }
               if (e.key === 'Enter' && !e.shiftKey && !isTouchDevice() && !e.nativeEvent.isComposing) {

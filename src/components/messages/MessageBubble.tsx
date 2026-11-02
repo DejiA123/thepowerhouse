@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, ImageOff, PhoneIncoming, PhoneMissed, PhoneOutgoing, SmilePlus, Video } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, Forward, ImageOff, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
@@ -86,9 +86,29 @@ export interface ReactionGroup {
   mine: boolean;
 }
 
+/** The message a reply answers, shown quoted at the top of the reply */
+export interface Quote {
+  id: string;
+  userId: string;
+  /** "You" for my own */
+  name: string;
+  text: string;
+  image?: string | null;
+  /** Deleted, or not reachable any more */
+  missing?: boolean;
+}
+
 interface Props {
   message: ChatMessage;
   isOwn: boolean;
+  quote?: Quote | null;
+  /** Tapping the quote goes to the original */
+  onQuoteTap?: (messageId: string) => void;
+  /** Swipe right (or the menu) to reply */
+  onReply?: (message: ChatMessage) => void;
+  starred?: boolean;
+  /** Just jumped to: flashes */
+  highlighted?: boolean;
   /** first message of a run from the same person */
   isFirst: boolean;
   /** last message of a run from the same person */
@@ -104,22 +124,54 @@ interface Props {
 }
 
 const LONG_PRESS_MS = 420;
+/** How far to swipe a message to reply, and the most it moves */
+const SWIPE_REPLY_PX = 56;
+const SWIPE_MAX_PX = 84;
 
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
+  quote, onQuoteTap, onReply, starred, highlighted,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
   const call = parseCall(message.content);
   const media = !!(imageUrl || videoUrl);
-  const bigEmoji = !media && isEmojiOnly(text);
+  // A reply or a forward keeps its bubble (the quote and label sit in it)
+  const bigEmoji = !media && !message.reply_to_id && !message.forwarded && isEmojiOnly(text);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const start = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
   const name = senderName(message);
+  // Swipe right to reply, like WhatsApp: the message follows the finger and a reply arrow appears
+  const slideRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{ x: number; y: number; dx: number; active: boolean; armed: boolean } | null>(null);
+  const canSwipe = !!onReply && !message.pending && !message.failed;
 
   const cancelPress = () => {
     clearTimeout(timer.current);
     start.current = null;
+  };
+
+  const place = (dx: number, animate: boolean) => {
+    const slide = slideRef.current;
+    const arrow = arrowRef.current;
+    if (slide) {
+      slide.style.transition = animate ? 'transform 200ms ease-out' : 'none';
+      slide.style.transform = dx ? `translateX(${dx}px)` : '';
+    }
+    if (arrow) {
+      arrow.style.opacity = String(Math.min(1, dx / SWIPE_REPLY_PX));
+      arrow.style.transform = `scale(${0.6 + 0.4 * Math.min(1, dx / SWIPE_REPLY_PX)})`;
+    }
+  };
+
+  const endSwipe = (reply: boolean) => {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s?.active) return;
+    fired.current = true; // not a tap
+    place(0, true);
+    if (reply && s.dx >= SWIPE_REPLY_PX) onReply?.(message);
   };
 
   const pressHandlers = {
@@ -127,8 +179,10 @@ const MessageBubble = ({
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       start.current = { x: e.clientX, y: e.clientY };
       fired.current = false;
+      swipe.current = canSwipe && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY, dx: 0, active: false, armed: false } : null;
       timer.current = setTimeout(() => {
         fired.current = true;
+        swipe.current = null;
         if ('vibrate' in navigator) navigator.vibrate?.(12);
         onOpenActions(message);
         start.current = null;
@@ -136,10 +190,39 @@ const MessageBubble = ({
     },
     onPointerMove: (e: React.PointerEvent) => {
       if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 8) cancelPress();
+      const s = swipe.current;
+      if (!s) return;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (!s.active) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+          swipe.current = null; // scrolling the chat
+          return;
+        }
+        if (dx > 10 && dx > Math.abs(dy) * 1.5) {
+          s.active = true;
+          (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+        } else return;
+      }
+      s.dx = Math.max(0, Math.min(dx - 10, SWIPE_MAX_PX));
+      if (s.dx >= SWIPE_REPLY_PX && !s.armed) {
+        s.armed = true;
+        if ('vibrate' in navigator) navigator.vibrate?.(10);
+      } else if (s.dx < SWIPE_REPLY_PX) s.armed = false;
+      place(s.dx, false);
     },
-    onPointerUp: cancelPress,
-    onPointerLeave: cancelPress,
-    onPointerCancel: cancelPress,
+    onPointerUp: () => {
+      cancelPress();
+      endSwipe(true);
+    },
+    onPointerLeave: () => {
+      cancelPress();
+      if (!swipe.current?.active) swipe.current = null;
+    },
+    onPointerCancel: () => {
+      cancelPress();
+      endSwipe(false);
+    },
     // A long press should not also count as a tap (e.g. opening a photo)
     onClickCapture: (e: React.MouseEvent) => {
       if (fired.current) {
@@ -162,6 +245,7 @@ const MessageBubble = ({
         bigEmoji ? 'text-muted-foreground' : isOwn ? 'text-white/75' : 'text-muted-foreground',
       )}
     >
+      {starred && <Star className="h-3 w-3 fill-current" aria-label="Starred" />}
       {message.edited_at && !call && <span>Edited</span>}
       {formatClock(message.created_at)}
       {isOwn && !call && (
@@ -176,15 +260,25 @@ const MessageBubble = ({
   return (
     <div
       data-message-id={message.id}
-      className={cn('group/msg flex w-full items-end gap-2 rounded-xl', isOwn ? 'justify-end' : 'justify-start', isLast ? 'mb-2' : 'mb-0.5')}
+      className={cn(
+        'group/msg relative flex w-full items-end gap-2 rounded-xl transition-colors duration-700',
+        isOwn ? 'justify-end' : 'justify-start',
+        isLast ? 'mb-2' : 'mb-0.5',
+        highlighted && 'bg-amber-300/30 dark:bg-amber-400/20',
+      )}
     >
+      {canSwipe && (
+        <div ref={arrowRef} aria-hidden className="pointer-events-none absolute left-1 top-1/2 -mt-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0">
+          <Reply className="h-4 w-4" />
+        </div>
+      )}
       {!isOwn && (
         <div className="w-8 shrink-0">
           {isLast && <UserAvatar name={name} src={senderAvatar(message)} seed={message.user_id} className="h-8 w-8" />}
         </div>
       )}
 
-      <div className={cn('flex max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
+      <div ref={slideRef} className={cn('flex max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
         {!isOwn && isFirst && (
           <span className={cn('mb-1 ml-3 text-xs font-semibold', nameColor(message.user_id))}>{name}</span>
         )}
@@ -204,7 +298,7 @@ const MessageBubble = ({
           <div
             {...pressHandlers}
             className={cn(
-              'select-none [-webkit-touch-callout:none] transition-transform active:scale-[0.985]',
+              'select-none touch-pan-y [-webkit-touch-callout:none] transition-transform active:scale-[0.985]',
               bigEmoji
                 ? 'px-1 text-5xl leading-tight'
                 : cn(
@@ -220,6 +314,35 @@ const MessageBubble = ({
                 ),
             )}
           >
+            {message.forwarded && (
+              <p className={cn('mb-0.5 flex items-center gap-1 text-[12px] italic', media && 'px-2 pt-1', bigEmoji ? 'text-muted-foreground' : isOwn ? 'text-white/75' : 'text-muted-foreground')}>
+                <Forward className="h-3 w-3" /> Forwarded
+              </p>
+            )}
+            {quote && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuoteTap?.(quote.id);
+                }}
+                className={cn(
+                  'mb-1 flex w-full min-w-[180px] items-stretch overflow-hidden rounded-xl text-left text-[13px] leading-snug',
+                  isOwn ? 'bg-white/15' : 'bg-muted/80',
+                  bigEmoji && 'text-base',
+                )}
+                aria-label={`Go to the message from ${quote.name}`}
+              >
+                <span className={cn('w-1 shrink-0 bg-current', isOwn ? 'text-white/70' : nameColor(quote.userId))} />
+                <span className="min-w-0 flex-1 px-2 py-1.5">
+                  <span className={cn('block truncate font-semibold', isOwn ? 'text-white' : nameColor(quote.userId))}>{quote.name}</span>
+                  <span className={cn('line-clamp-2 break-words', isOwn ? 'text-white/80' : 'text-muted-foreground')}>
+                    {quote.missing ? 'This message isn’t available' : quote.text || 'Message'}
+                  </span>
+                </span>
+                {quote.image && !quote.missing && <img src={quote.image} alt="" className="h-14 w-14 shrink-0 object-cover" />}
+              </button>
+            )}
             {imageUrl && <ChatPhoto url={imageUrl} onOpen={onOpenImage} />}
             {videoUrl && (
               // Plays right in the chat (full screen from its controls)
