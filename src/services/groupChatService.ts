@@ -22,7 +22,17 @@ export interface ChatSummary extends GroupChat {
     last_message: { content: string; created_at: string; user_id: string; sender_name?: string } | null;
     unread: number;
     last_read_at: string | null;
+    /** Muted by me until then (far in the future = always) */
+    muted_until?: string | null;
+    /** Archived by me */
+    archived_at?: string | null;
 }
+
+/** My muted chats (chat id → until), kept up to date by the chat list and the mute switch */
+const mutedUntil = new Map<string, number>();
+export const isChatMuted = (chatId: string) => (mutedUntil.get(chatId) ?? 0) > Date.now();
+/** Window event: a chat was muted, unmuted, archived or unarchived on this phone */
+export const CHAT_SETTINGS_CHANGED = 'chat:settings';
 
 export interface ChatUser {
     id: string;
@@ -237,7 +247,7 @@ export class GroupChatService {
 
         let query = supabase
             .from('chat_participants')
-            .select('chat_id, last_read_at, joined_at, chat:chat_id ( * )')
+            .select('*, chat:chat_id ( * )')
             .eq('user_id', user.id);
         if (onlyChatIds) query = query.in('chat_id', onlyChatIds);
         const { data: memberships, error } = await query;
@@ -272,9 +282,13 @@ export class GroupChatService {
                 ? { ...(lastRow as any), content: (await openMessage({ ...(lastRow as any), chat_id: m.chat_id } as ChatMessage, user.id)).content }
                 : null;
 
+            if (m.muted_until) mutedUntil.set(m.chat_id, new Date(m.muted_until).getTime());
+            else mutedUntil.delete(m.chat_id);
             return {
                 ...(m.chat as GroupChat),
                 last_read_at: m.last_read_at,
+                muted_until: m.muted_until ?? null,
+                archived_at: m.archived_at ?? null,
                 unread: count || 0,
                 last_message: last
                     ? {
@@ -400,6 +414,44 @@ export class GroupChatService {
         if (error) throw error;
         // The next message uses a new key the person who left doesn't get
         membersChanged(chatId);
+    }
+
+    /** My own settings for a chat (mute, archive) */
+    static async mySettings(chatId: string): Promise<{ muted_until: string | null; archived_at: string | null } | null> {
+        const user = await currentUser();
+        if (!user) return null;
+        const { data, error } = await supabase.from('chat_participants').select('*').eq('chat_id', chatId).eq('user_id', user.id).maybeSingle();
+        if (error || !data || !('muted_until' in (data as object))) return null; // before the mute/archive update
+        const row = data as unknown as { muted_until: string | null; archived_at: string | null };
+        if (row.muted_until) mutedUntil.set(chatId, new Date(row.muted_until).getTime());
+        return { muted_until: row.muted_until ?? null, archived_at: row.archived_at ?? null };
+    }
+
+    /** Mute a chat's notifications until then (null unmutes) */
+    static async setMuted(chatId: string, until: Date | null): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const { error } = await supabase
+            .from('chat_participants')
+            .update({ muted_until: until ? until.toISOString() : null } as never)
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
+        if (error) throw error;
+        if (until) mutedUntil.set(chatId, until.getTime());
+        else mutedUntil.delete(chatId);
+        window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+    }
+
+    static async setArchived(chatId: string, archived: boolean): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const { error } = await supabase
+            .from('chat_participants')
+            .update({ archived_at: archived ? new Date().toISOString() : null } as never)
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
+        if (error) throw error;
+        window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
     }
 
     static async isAdmin(chatId: string): Promise<boolean> {

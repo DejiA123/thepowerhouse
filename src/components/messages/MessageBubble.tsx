@@ -5,7 +5,8 @@ import { isEncryptedFile } from '@/lib/chatCrypto';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
-import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseMessageContent } from './chatUtils';
+import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseFile, parseMessageContent, parsePreview, parseVoice } from './chatUtils';
+import { FileCard, PreviewCard, VoicePlayer, withMentionSpans } from './MessageExtras';
 
 /**
  * A photo or GIF in a chat. If it doesn't load it tries again by itself, then
@@ -115,6 +116,12 @@ interface Props {
   message: ChatMessage;
   isOwn: boolean;
   quote?: Quote | null;
+  /** My id: @mentions of me are highlighted */
+  myId?: string;
+  /** Choosing several messages: tap to pick */
+  selecting?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (message: ChatMessage) => void;
   /** Tapping the quote goes to the original */
   onQuoteTap?: (messageId: string) => void;
   /** Swipe right (or the menu) to reply */
@@ -143,10 +150,13 @@ const SWIPE_MAX_PX = 84;
 
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
-  quote, onQuoteTap, onReply, starred, highlighted,
+  quote, onQuoteTap, onReply, starred, highlighted, myId, selecting, selected, onToggleSelect,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
   const call = parseCall(message.content);
+  const voice = parseVoice(message.content);
+  const file = parseFile(message.content);
+  const linkPreview = parsePreview(message.content);
   const media = !!(imageUrl || videoUrl);
   // A reply or a forward keeps its bubble (the quote and label sit in it)
   const bigEmoji = !media && !message.reply_to_id && !message.forwarded && isEmojiOnly(text);
@@ -191,7 +201,7 @@ const MessageBubble = ({
 
   const pressHandlers = {
     onPointerDown: (e: React.PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (selecting || (e.pointerType === 'mouse' && e.button !== 0)) return;
       start.current = { x: e.clientX, y: e.clientY };
       fired.current = false;
       swipe.current = canSwipe && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY, dx: 0, active: false, armed: false } : null;
@@ -249,7 +259,7 @@ const MessageBubble = ({
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();
       cancelPress();
-      onOpenActions(message);
+      if (!selecting) onOpenActions(message);
     },
   };
 
@@ -276,13 +286,33 @@ const MessageBubble = ({
   return (
     <div
       data-message-id={message.id}
+      onClickCapture={selecting ? (e) => {
+        // Choosing several: a tap picks it (and doesn't open photos or links)
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleSelect?.(message);
+      } : undefined}
+      aria-selected={selecting ? !!selected : undefined}
       className={cn(
         'group/msg relative flex w-full items-end gap-2 rounded-xl transition-colors duration-700',
         isOwn ? 'justify-end' : 'justify-start',
         isLast ? 'mb-2' : 'mb-0.5',
         highlighted && 'bg-amber-300/30 dark:bg-amber-400/20',
+        selecting && 'cursor-pointer pl-9 duration-150',
+        selected && 'bg-blue-500/15',
       )}
     >
+      {selecting && (
+        <span
+          className={cn(
+            'absolute left-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border-2',
+            selected ? 'border-blue-600 bg-blue-600 text-white' : 'border-muted-foreground/50 bg-background',
+          )}
+          aria-hidden
+        >
+          {selected && <Check className="h-4 w-4" />}
+        </span>
+      )}
       {canSwipe && (
         <div ref={arrowRef} aria-hidden className="pointer-events-none absolute left-1 top-1/2 -mt-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0">
           <Reply className="h-4 w-4" />
@@ -372,8 +402,17 @@ const MessageBubble = ({
               />
             )}
             {call && <CallRow call={call} isOwn={isOwn} meta={meta} onCall={onCall} />}
-            {!call && (text || !media) && (
-              <div className={cn('whitespace-pre-wrap break-words', media && 'px-2.5 pb-1.5 pt-1.5', message.locked && 'italic opacity-80')}>
+            {voice && (
+              <div className="flex items-end gap-1">
+                <VoicePlayer id={message.id} voice={voice} isOwn={isOwn} />
+                <span className="-mr-1 pb-0.5">{meta}</span>
+              </div>
+            )}
+            {file && <FileCard file={file} isOwn={isOwn} />}
+            {linkPreview && <PreviewCard preview={linkPreview} isOwn={isOwn} />}
+            {file && !text && <div className="flex justify-end pt-1">{meta}</div>}
+            {!call && !voice && (text || (!media && !file)) && (
+              <div className={cn('whitespace-pre-wrap break-words', (media || file) && 'px-2.5 pb-1.5 pt-1.5', file && 'px-1', message.locked && 'italic opacity-80')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
                     <a
@@ -387,7 +426,7 @@ const MessageBubble = ({
                       {part.value}
                     </a>
                   ) : (
-                    <span key={i}>{part.value}</span>
+                    <span key={i}>{withMentionSpans(part.value, myId, isOwn, i)}</span>
                   ),
                 )}
                 {meta}

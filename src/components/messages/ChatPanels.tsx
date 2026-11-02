@@ -52,7 +52,8 @@ const SearchBox = ({ value, onChange, placeholder, autoFocus }: { value: string;
 
 /** Pick up to 5 chats and send them a copy of the message, marked "Forwarded" */
 export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
-  message: ChatMessage | null;
+  /** One message, or several chosen together (sent in order) */
+  message: ChatMessage | ChatMessage[] | null;
   myName: string;
   onClose: () => void;
   /** The copies that were sent (one per chat) */
@@ -79,15 +80,18 @@ export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
   const toggle = (id: string) =>
     setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : prev.length >= FORWARD_LIMIT ? prev : [...prev, id]));
 
+  const list = !message ? [] : Array.isArray(message) ? message : [message];
   const send = async () => {
-    if (!message || !picked.length) return;
+    if (!list.length || !picked.length) return;
     setSending(true);
     const sent: ChatMessage[] = [];
     let failed = 0;
     for (const chatId of picked) {
       try {
-        const copy = await GroupChatService.sendMessage(chatId, message.content, false, { forwarded: true });
-        if (copy) sent.push(copy);
+        for (const m of list) {
+          const copy = await GroupChatService.sendMessage(chatId, m.content, false, { forwarded: true });
+          if (copy) sent.push(copy);
+        }
       } catch {
         failed += 1;
       }
@@ -96,17 +100,17 @@ export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
     onForwarded(sent);
     onClose();
     if (failed) appAlert(`Couldn't forward to ${failed} ${failed === 1 ? 'chat' : 'chats'}`, 'Check your connection and try again.', 'error');
-    else appAlert(sent.length === 1 ? 'Forwarded' : `Forwarded to ${sent.length} chats`);
+    else appAlert(picked.length === 1 ? (list.length === 1 ? 'Forwarded' : `${list.length} messages forwarded`) : `Forwarded to ${picked.length} chats`);
   };
 
   const names = picked.map((id) => chats?.find((c) => c.id === id)).filter(Boolean).map((c) => chatTitle(c as GroupChat, myName));
 
   return (
     <Panel open={open} onOpenChange={(o) => !o && onClose()} title="Forward to…">
-      {message && (
+      {list.length > 0 && (
         <p className="mx-4 mt-3 flex items-center gap-2 truncate rounded-xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
           <Forward className="h-4 w-4 shrink-0" />
-          <span className="truncate">{previewText(message.content)}</span>
+          <span className="truncate">{list.length === 1 ? previewText(list[0].content) : `${list.length} messages`}</span>
         </p>
       )}
       <SearchBox value={query} onChange={setQuery} placeholder="Search chats" />

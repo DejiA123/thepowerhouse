@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Loader2, MessageCirclePlus, PhoneCall, Search, Users } from 'lucide-react';
+import { Archive, ArrowLeft, BellOff, ChevronRight, Loader2, MessageCirclePlus, PhoneCall, Search, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
@@ -29,15 +29,21 @@ const ChatList = ({
 }: Props) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  // Archived chats sit in their own list (like WhatsApp's "Archived")
+  const [showArchived, setShowArchived] = useState(false);
 
   const q = query.trim().toLowerCase();
+  const archived = useMemo(() => chats.filter((c) => !!c.archived_at), [chats]);
   const visible = useMemo(
     () => chats.filter((c) =>
+      // Searching looks everywhere; otherwise archived chats only in their list
+      (q ? true : showArchived ? !!c.archived_at : !c.archived_at) &&
       (!q || chatTitle(c, myName).toLowerCase().includes(q) || (c.last_message?.content || '').toLowerCase().includes(q)) &&
       (filter === 'all' || c.unread > 0),
     ),
-    [chats, q, filter],
+    [chats, q, filter, showArchived, myName],
   );
+  const isMuted = (c: ChatSummary) => !!c.muted_until && new Date(c.muted_until).getTime() > Date.now();
   const visibleDiscover = useMemo(
     () => discover.filter((c) => !q || c.name.toLowerCase().includes(q)),
     [discover, q],
@@ -110,6 +116,18 @@ const ChatList = ({
           </div>
         ) : (
           <>
+            {!q && (showArchived ? (
+              <button onClick={() => setShowArchived(false)} className="mb-1 flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left text-[15px] font-semibold text-foreground hover:bg-muted/70">
+                <ArrowLeft className="h-5 w-5 text-muted-foreground" /> Archived
+              </button>
+            ) : archived.length > 0 && filter === 'all' && (
+              <button onClick={() => setShowArchived(true)} className="flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left hover:bg-muted/70" aria-label={`Archived chats (${archived.length})`}>
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><Archive className="h-5 w-5" /></span>
+                <span className="flex-1 text-[15px] font-semibold text-foreground">Archived</span>
+                <span className="text-sm text-muted-foreground">{archived.length}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ))}
             {visible.map((chat) => {
               const last = chat.last_message;
               const mine = last?.user_id === myId;
@@ -131,7 +149,8 @@ const ChatList = ({
                       <p className={cn('flex-1 truncate text-[15px] text-foreground', chat.unread ? 'font-bold' : 'font-semibold')}>
                         {chatTitle(chat, myName)}
                       </p>
-                      <span className={cn('shrink-0 text-xs', chat.unread ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>
+                      {isMuted(chat) && <BellOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Muted" />}
+                      <span className={cn('shrink-0 text-xs', chat.unread && !isMuted(chat) ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>
                         {formatListTime(last?.created_at || chat.created_at)}
                       </span>
                     </div>
@@ -148,7 +167,7 @@ const ChatList = ({
                         )}
                       </p>
                       {chat.unread > 0 && (
-                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white">
+                        <span className={cn('flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white', isMuted(chat) ? 'bg-muted-foreground/60' : 'bg-blue-600')}>
                           {chat.unread > 99 ? '99+' : chat.unread}
                         </span>
                       )}

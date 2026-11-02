@@ -37,8 +37,10 @@ const IncomingCallScreen = ({ call, onAccept, onDecline }: Props) => {
               {isVideo ? 'Incoming video call' : 'Incoming voice call'}
             </p>
             <h2 className="mt-2 truncate text-3xl font-semibold sm:mt-0.5 sm:text-lg">{call.initiatorName}</h2>
-            {/* The group's name; a private call already shows who's calling */}
-            {call.chatName.trim().toLowerCase() !== call.initiatorName.trim().toLowerCase() && (
+            {/* Rung into a call others are in; or the group's name (a private call already shows who's calling) */}
+            {call.invited ? (
+              <p className="mt-1 truncate text-base text-white/60 sm:text-sm">is adding you to a {isVideo ? 'video' : 'voice'} call</p>
+            ) : call.chatName.trim().toLowerCase() !== call.initiatorName.trim().toLowerCase() && (
               <p className="mt-1 truncate text-base text-white/60 sm:text-sm">{call.chatName}</p>
             )}
           </div>

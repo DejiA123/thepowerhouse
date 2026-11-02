@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Info, MessageCircle, Music2, PhoneMissed, X 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { pushNotificationService, ChatNotification } from '@/services/pushNotificationService';
-import { GroupChatService } from '@/services/groupChatService';
+import { isChatMuted, GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
@@ -251,6 +251,11 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
           window.dispatchEvent(new CustomEvent('chats:changed'));
         }
         if (msg.user_id === user.id || isViewingChat(msg.chat_id)) return;
+        // A chat I muted stays quiet (its unread count still goes up)
+        if (isChatMuted(msg.chat_id)) {
+          GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
+          return;
+        }
         GroupChatService.getUnreadChatCount().then(setUnreadChats).catch(() => undefined);
         // An answered call just went into the chat: they were on it, no banner
         if (document.visibilityState !== 'visible' || isAnsweredCall(String(msg.content || ''))) return;

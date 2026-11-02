@@ -23,6 +23,23 @@ export interface IncomingCall {
   initiatorName: string;
   initiatorAvatar?: string | null;
   receivedAt: number;
+  /** Rung into a call someone else is already in (a line under the caller's name) */
+  invited?: boolean;
+}
+
+/** Someone rung into the call I'm in (from any of us), until they join */
+export interface CallInvite {
+  userId: string;
+  name: string;
+  avatar?: string | null;
+  status: 'ringing' | 'declined' | 'no-answer';
+  at: number;
+}
+
+export interface InvitablePerson {
+  id: string;
+  name: string;
+  avatar?: string | null;
 }
 
 export interface OngoingCall {
@@ -46,6 +63,10 @@ interface CallContextType {
   declineCall: () => void;
   endCall: () => void;
   refreshOngoingCall: (chatId: string) => Promise<void>;
+  /** People being rung into this call (WhatsApp's "Add participant"), until they join */
+  invites: CallInvite[];
+  /** Ring people into the call I'm in */
+  inviteToCall: (people: InvitablePerson[]) => Promise<void>;
   // controls
   toggleMute: () => void;
   toggleVideo: () => void;
@@ -78,6 +99,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [ongoingCalls, setOngoingCalls] = useState<Record<string, OngoingCall>>({});
   const [minimized, setMinimized] = useState(false);
   const [chatIds, setChatIds] = useState<string[]>([]);
+  const [invites, setInvites] = useState<CallInvite[]>([]);
 
   const engineRef = useRef<CallEngine | null>(null);
   engineRef.current = engine;
@@ -252,6 +274,58 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user, incomingFromRow]);
 
+  // ── Rung into someone else's call (WhatsApp's "Add participant") ──
+  const ringInvite = useCallback(async (row: { call_id: string; invited_by: string; status: string; created_at: string }) => {
+    if (row.status !== 'ringing' || declinedRef.current.has(row.call_id)) return;
+    if (Date.now() - new Date(row.created_at).getTime() > RING_TIMEOUT_MS) return;
+    if (engineRef.current && engineRef.current.getSnapshot().status !== 'ended') return; // busy
+    const [{ data: callRow }, { data: inviter }] = await Promise.all([
+      supabase.from('call_sessions').select('id, chat_id, call_type, status, group_chats(name, description)').eq('id', row.call_id).maybeSingle(),
+      supabase.from('profiles').select('full_name, avatar_url').eq('id', row.invited_by).maybeSingle(),
+    ]);
+    if (!callRow || (callRow.status !== 'ringing' && callRow.status !== 'active')) return;
+    const chat = (callRow as any).group_chats;
+    setIncomingCall((prev) => prev ?? {
+      callId: callRow.id,
+      chatId: callRow.chat_id,
+      chatName: chat?.name ? chatTitle(chat, me?.name) : 'Group call',
+      callType: callRow.call_type === 'video' ? 'video' : 'audio',
+      initiatorId: row.invited_by,
+      initiatorName: inviter?.full_name?.trim() || 'Someone',
+      initiatorAvatar: inviter?.avatar_url ?? null,
+      receivedAt: new Date(row.created_at).getTime(),
+      invited: true,
+    });
+  }, [me]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(uniqueTopic('my-call-invites'))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_invites', filter: `user_id=eq.${user.id}` }, ({ new: row }: any) => ringInvite(row))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_invites', filter: `user_id=eq.${user.id}` }, ({ new: row }: any) => ringInvite(row))
+      .subscribe();
+    // Back in the app while still being rung
+    const check = async () => {
+      if (document.visibilityState !== 'visible' || engineRef.current) return;
+      const { data } = await supabase
+        .from('call_invites' as never)
+        .select('call_id, invited_by, status, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'ringing')
+        .gt('created_at', new Date(Date.now() - RING_TIMEOUT_MS).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const row = (data as any[] | null)?.[0];
+      if (row) ringInvite(row);
+    };
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [user, ringInvite]);
+
   // Ring while an incoming call is showing; give up after the timeout
   useEffect(() => {
     if (!incomingCall) return;
@@ -270,12 +344,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const onDeclined = (e: Event) => {
       const callId = (e as CustomEvent).detail?.callId;
-      if (callId) declinedRef.current.add(callId);
+      if (callId) {
+        declinedRef.current.add(callId);
+        // Rung into a call: the people in it see "Declined" (harmless if it wasn't an invite)
+        if (user) supabase.from('call_invites' as never).update({ status: 'declined' } as never).eq('call_id', callId).eq('user_id', user.id).then(() => undefined);
+      }
       setIncomingCall((prev) => (prev?.callId === callId ? null : prev));
     };
     window.addEventListener('app:call-declined', onDeclined);
     return () => window.removeEventListener('app:call-declined', onDeclined);
-  }, []);
+  }, [user]);
 
   // ── Engine lifecycle ───────────────────────────────────────────────
   const launch = useCallback(async (opts: { callId: string; chatId: string; chatName: string; callType: CallType; isInitiator: boolean }) => {
@@ -348,15 +426,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await launch({ ...info, isInitiator: false });
   }, [launch]);
 
+  /** Tell the people in a call I was rung into whether I'm coming */
+  const answerInvite = useCallback((callId: string, status: 'joined' | 'declined') => {
+    if (!user) return;
+    supabase.from('call_invites' as never).update({ status } as never).eq('call_id', callId).eq('user_id', user.id).then(() => undefined);
+  }, [user]);
+
   const acceptCall = useCallback(() => {
     if (!incomingCall) return;
+    if (incomingCall.invited) answerInvite(incomingCall.callId, 'joined');
     joinCall(incomingCall);
-  }, [incomingCall, joinCall]);
+  }, [incomingCall, joinCall, answerInvite]);
 
   const declineCall = useCallback(() => {
-    if (incomingCall) declinedRef.current.add(incomingCall.callId);
+    if (incomingCall) {
+      declinedRef.current.add(incomingCall.callId);
+      if (incomingCall.invited) answerInvite(incomingCall.callId, 'declined');
+    }
     setIncomingCall(null);
-  }, [incomingCall]);
+  }, [incomingCall, answerInvite]);
 
   // Calls where someone other than me connected at some point
   const answeredCallsRef = useRef(new Set<string>());
@@ -487,6 +575,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         callType: (row.call_type === 'video' ? 'video' : 'audio') as CallType,
       };
       if (autoAnswer) {
+        answerInvite(row.id, 'joined');
         joinCall(info);
       } else {
         const { data: caller } = await supabase.from('profiles').select('full_name').eq('id', row.initiated_by).maybeSingle();
@@ -498,7 +587,90 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     })();
-  }, [location.search, location.pathname, user, me, navigate, joinCall]);
+  }, [location.search, location.pathname, user, me, navigate, joinCall, answerInvite]);
+
+  // ── People rung into the call I'm in (anyone in the call can add someone) ──
+  const callId = call?.callId ?? null;
+  useEffect(() => {
+    setInvites([]);
+    if (!callId) return;
+    let alive = true;
+    const names = new Map<string, { name: string; avatar: string | null }>();
+    const apply = async (rows: { user_id: string; status: string; created_at: string }[]) => {
+      const unknown = rows.map((r) => r.user_id).filter((id) => !names.has(id));
+      if (unknown.length) {
+        const { data } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', unknown);
+        (data || []).forEach((p: any) => names.set(p.id, { name: p.full_name?.trim() || 'Member', avatar: p.avatar_url ?? null }));
+      }
+      if (!alive) return;
+      setInvites((prev) => {
+        const byId = new Map(prev.map((i) => [i.userId, i]));
+        rows.forEach((r) => {
+          if (r.status === 'joined') byId.delete(r.user_id);
+          else byId.set(r.user_id, {
+            userId: r.user_id,
+            // The name already shown (from whoever rang them) wins over a lookup that may come back empty
+            name: byId.get(r.user_id)?.name ?? names.get(r.user_id)?.name ?? 'Member',
+            avatar: byId.get(r.user_id)?.avatar ?? names.get(r.user_id)?.avatar ?? null,
+            status: r.status === 'declined' ? 'declined' : 'ringing',
+            at: new Date(r.created_at).getTime(),
+          });
+        });
+        return [...byId.values()];
+      });
+    };
+    supabase.from('call_invites' as never).select('user_id, status, created_at').eq('call_id', callId)
+      .then(({ data }) => apply(((data || []) as any[]).filter((r) => Date.now() - new Date(r.created_at).getTime() < RING_TIMEOUT_MS || r.status === 'ringing')));
+    const channel = supabase
+      .channel(uniqueTopic(`call-invites:${callId}`))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'call_invites', filter: `call_id=eq.${callId}` }, ({ new: row }: any) => row?.user_id && apply([row]))
+      .subscribe();
+    return () => {
+      alive = false;
+      supabase.removeChannel(channel);
+    };
+  }, [callId]);
+
+  // Someone rung in shows as "Ringing…" until they join, "Declined", or "No answer" after the ring time
+  useEffect(() => {
+    if (!invites.length) return;
+    const joined = new Set(call?.participants.map((p) => p.userId) ?? []);
+    if (invites.some((i) => joined.has(i.userId))) {
+      setInvites((prev) => prev.filter((i) => !joined.has(i.userId)));
+      return;
+    }
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setInvites((prev) => {
+        let changed = false;
+        const next = prev
+          .map((i) => (i.status === 'ringing' && now - i.at > RING_TIMEOUT_MS ? ((changed = true), { ...i, status: 'no-answer' as const, at: now }) : i))
+          .filter((i) => (i.status === 'ringing' || now - i.at < 4000 ? true : ((changed = true), false)));
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [invites, call?.participants]);
+
+  const inviteToCall = useCallback(async (people: InvitablePerson[]) => {
+    const snap = engineRef.current?.getSnapshot();
+    if (!user || !snap || snap.status === 'ended' || !people.length) return;
+    const now = new Date().toISOString();
+    setInvites((prev) => [
+      ...prev.filter((i) => !people.some((p) => p.id === i.userId)),
+      ...people.map((p) => ({ userId: p.id, name: p.name, avatar: p.avatar ?? null, status: 'ringing' as const, at: Date.now() })),
+    ]);
+    const { error } = await supabase
+      .from('call_invites' as never)
+      .upsert(people.map((p) => ({ call_id: snap.callId, user_id: p.id, invited_by: user.id, status: 'ringing', created_at: now })) as never, { onConflict: 'call_id,user_id' });
+    if (error) {
+      setInvites((prev) => prev.filter((i) => !people.some((p) => p.id === i.userId)));
+      appAlert("Couldn't add them to the call", /call_invites/.test(error.message) ? 'Adding people to calls needs the latest app update on the server.' : 'Check your connection and try again.', 'error');
+      return;
+    }
+    // A call that only rang before is a call now (so the others' phones show it going)
+    people.forEach((p) => sendPush({ type: 'call-invite', callId: snap.callId, userId: p.id }));
+  }, [user]);
 
   const refreshOngoingCall = useCallback(async (chatId: string) => {
     const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
@@ -531,6 +703,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     declineCall,
     endCall,
     refreshOngoingCall,
+    invites,
+    inviteToCall,
     toggleMute: () => engineRef.current?.toggleMute(),
     toggleVideo: () => engineRef.current?.toggleVideo(),
     flipCamera: () => engineRef.current?.flipCamera(),

@@ -1,4 +1,4 @@
-import { Copy, Download, Forward, Info, Pencil, Pin, PinOff, Reply, RotateCcw, Star, StarOff, Trash2 } from 'lucide-react';
+import { CheckSquare, Copy, Download, Forward, Info, Pencil, Pin, PinOff, Reply, RotateCcw, Star, StarOff, Trash2 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/services/groupChatService';
@@ -26,6 +26,10 @@ interface Props {
   /** Who has read it (my messages) */
   onInfo?: () => void;
   onDeleteForMe?: () => void;
+  /** "Delete for everyone" is offered (mine, and within 2 days, like WhatsApp) */
+  canDeleteForEveryone?: boolean;
+  /** Choose several messages */
+  onSelect?: () => void;
 }
 
 const Action = ({ icon: Icon, label, onClick, danger }: { icon: typeof Copy; label: string; onClick: () => void; danger?: boolean }) => (
@@ -54,6 +58,7 @@ const Quick = ({ icon: Icon, label, onClick, active }: { icon: typeof Copy; labe
 /** Long-press menu for a message, like WhatsApp: react, reply, forward, copy, star, pin, edit, info, delete. */
 const MessageActionsSheet = ({
   message, isOwn, myReactions, onClose, onReact, onCopy, onDelete, onRetry, onEdit, onReply, onForward, starred, onToggleStar, pinned, onTogglePin, onInfo, onDeleteForMe,
+  canDeleteForEveryone = isOwn, onSelect,
 }: Props) => {
   const parsed = message ? parseMessageContent(message.content) : null;
   const image = parsed?.imageUrl ?? parsed?.videoUrl ?? null;
@@ -119,8 +124,9 @@ const MessageActionsSheet = ({
                 />
               )}
               {sent && onInfo && !locked && <Action icon={Info} label="Info" onClick={onInfo} />}
+              {sent && onSelect && <Action icon={CheckSquare} label="Select" onClick={onSelect} />}
               {sent && onDeleteForMe && <Action icon={Trash2} label="Delete for me" onClick={onDeleteForMe} danger />}
-              {isOwn && <Action icon={Trash2} label={sent ? 'Delete for everyone' : 'Delete'} onClick={onDelete} danger />}
+              {isOwn && (!sent || canDeleteForEveryone) && <Action icon={Trash2} label={sent ? 'Delete for everyone' : 'Delete'} onClick={onDelete} danger />}
             </div>
           </div>
         )}

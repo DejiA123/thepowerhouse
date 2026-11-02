@@ -18,6 +18,80 @@ export function chatTitle(chat: { name: string; description?: string | null }, m
 export const IMAGE_PREFIX = '::image::';
 export const VIDEO_PREFIX = '::video::';
 export const CALL_PREFIX = '::call::';
+/** A voice message: "::voice::<seconds>:<waveform digits>:<url>" */
+export const VOICE_PREFIX = '::voice::';
+/** A document: "::file::<bytes>:<encoded name>:<url>", then an optional caption */
+export const FILE_PREFIX = '::file::';
+
+export interface VoiceNote {
+  seconds: number;
+  /** 0–9 for each bar of the waveform */
+  bars: number[];
+  url: string;
+}
+
+export function parseVoice(content: string): VoiceNote | null {
+  const m = content.match(/^::voice::(\d+(?:\.\d+)?):([0-9]*):(\S+)$/);
+  return m ? { seconds: +m[1], bars: m[2].split('').map(Number), url: m[3] } : null;
+}
+
+export interface ChatFile {
+  size: number;
+  name: string;
+  url: string;
+  caption: string;
+}
+
+export function parseFile(content: string): ChatFile | null {
+  if (!content.startsWith(FILE_PREFIX)) return null;
+  const [first, ...rest] = content.split('\n');
+  const m = first.match(/^::file::(\d+):([^:]*):(\S+)$/);
+  if (!m) return null;
+  let name = m[2];
+  try {
+    name = decodeURIComponent(m[2]);
+  } catch {
+    /* keep it as it is */
+  }
+  return { size: +m[1], name: name || 'Document', url: m[3], caption: rest.join('\n').trim() };
+}
+
+export const formatBytes = (bytes: number) =>
+  bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+
+export const formatSeconds = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/** A link's preview, made on the sender's phone: "::preview::<base64 JSON>", then the message */
+export const PREVIEW_PREFIX = '::preview::';
+
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description?: string;
+  image?: string;
+  site?: string;
+}
+
+export function encodePreview(p: LinkPreview) {
+  const json = JSON.stringify({ u: p.url, t: p.title.slice(0, 200), d: p.description?.slice(0, 300), i: p.image, s: p.site?.slice(0, 80) });
+  return `${PREVIEW_PREFIX}${btoa(unescape(encodeURIComponent(json)))}`;
+}
+
+export function parsePreview(content: string): LinkPreview | null {
+  if (!content.startsWith(PREVIEW_PREFIX)) return null;
+  try {
+    const raw = JSON.parse(decodeURIComponent(escape(atob(content.split('\n')[0].slice(PREVIEW_PREFIX.length)))));
+    if (!raw?.u || !raw?.t || !/^https?:\/\//.test(raw.u)) return null;
+    return { url: raw.u, title: raw.t, description: raw.d, image: typeof raw.i === 'string' && /^https:\/\//.test(raw.i) ? raw.i : undefined, site: raw.s };
+  } catch {
+    return null;
+  }
+}
+
+/** "@[Name](user id)": someone mentioned in a group */
+export const MENTION = /@\[([^\]\n]{1,80})\]\(([0-9a-f-]{36})\)/g;
+/** The text with mentions as plain "@Name" (lists, notifications, editing) */
+export const plainMentions = (text: string) => text.replace(MENTION, '@$1');
 
 // Calls are kept in the chat like WhatsApp: "::call::missed:audio" (nobody answered)
 // or "::call::ended:video:125" (answered, lasted 125 seconds)
@@ -67,7 +141,9 @@ const GIF_LINK = /^https:\/\/\S+\.gif(?:\?\S*)?$/i;
  * then an optional caption on the following lines.
  */
 export function parseMessageContent(content: string): { imageUrl: string | null; videoUrl: string | null; text: string } {
-  if (content.startsWith(CALL_PREFIX)) return { imageUrl: null, videoUrl: null, text: '' };
+  if (content.startsWith(CALL_PREFIX) || content.startsWith(VOICE_PREFIX)) return { imageUrl: null, videoUrl: null, text: '' };
+  if (content.startsWith(FILE_PREFIX)) return { imageUrl: null, videoUrl: null, text: parseFile(content)?.caption ?? '' };
+  if (content.startsWith(PREVIEW_PREFIX)) return { imageUrl: null, videoUrl: null, text: content.split('\n').slice(1).join('\n') };
   for (const [prefix, kind] of [[IMAGE_PREFIX, 'image'], [VIDEO_PREFIX, 'video']] as const) {
     if (content.startsWith(prefix)) {
       const [first, ...rest] = content.split('\n');
@@ -87,10 +163,14 @@ export const previewText = (content: string, mine = false) => {
     const { title, detail } = describeCall(call, mine);
     return `${call.type === 'video' ? '📹' : '📞'} ${title}${mine || !call.missed ? ` · ${detail}` : ''}`;
   }
+  const voice = parseVoice(content || '');
+  if (voice) return `🎤 Voice message (${formatSeconds(voice.seconds)})`;
+  const file = parseFile(content || '');
+  if (file) return file.caption ? `📄 ${plainMentions(file.caption)}` : `📄 ${file.name}`;
   const { imageUrl, videoUrl, text } = parseMessageContent(content || '');
   const label = videoUrl ? '🎥 Video' : imageUrl ? (isGifUrl(imageUrl) ? '🎞️ GIF' : '📷 Photo') : null;
-  if (label) return text ? `${label.split(' ')[0]} ${text}` : label;
-  return text.replace(/\s+/g, ' ').trim();
+  if (label) return text ? `${label.split(' ')[0]} ${plainMentions(text)}` : label;
+  return plainMentions(text).replace(/\s+/g, ' ').trim();
 };
 
 /** A database time in ms (it writes microseconds, which not every Safari reads) */
@@ -104,17 +184,19 @@ const isMediaContent = (content: string) => content.startsWith(IMAGE_PREFIX) || 
 /** Text and captions can be edited; calls and GIF links can't */
 export function canEditMessage(message: { user_id: string; content: string; created_at: string; pending?: boolean; failed?: boolean; is_deleted?: boolean; locked?: boolean; imported_from?: string | null }, myId: string, now = Date.now()) {
   if (message.user_id !== myId || message.pending || message.failed || message.is_deleted || message.locked || message.imported_from) return false;
-  if (parseCall(message.content)) return false;
+  if (parseCall(message.content) || message.content.startsWith(VOICE_PREFIX) || message.content.startsWith(FILE_PREFIX)) return false;
   const { imageUrl, videoUrl } = parseMessageContent(message.content);
   if ((imageUrl || videoUrl) && !isMediaContent(message.content)) return false;
   return now - timeMs(message.created_at) < EDIT_WINDOW_MS;
 }
 
-/** What's edited: the text, or a photo's or video's caption */
-export const editableText = (content: string) => (isMediaContent(content) ? parseMessageContent(content).text : content);
+/** What's edited: the text, or a photo's or video's caption (a link preview stays as it is) */
+export const editableText = (content: string) =>
+  isMediaContent(content) || content.startsWith(PREVIEW_PREFIX) ? parseMessageContent(content).text : content;
 
 /** The message after an edit (a photo or video keeps its file) */
 export function withEditedText(content: string, text: string) {
+  if (content.startsWith(PREVIEW_PREFIX)) return `${content.split('\n')[0]}\n${text}`;
   if (!isMediaContent(content)) return text;
   const first = content.split('\n')[0];
   return text ? `${first}\n${text}` : first;
@@ -265,6 +347,38 @@ export async function uploadChatImage(userId: string, file: File, folder: 'chat'
   });
   if (error) throw error;
   return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * A voice message or document: end-to-end encrypted when encryption is on
+ * (its key travels inside the encrypted message). Small files go to app
+ * storage; bigger ones to the media store.
+ */
+export async function uploadChatFile(userId: string, file: Blob, opts: { encrypt: boolean; ext: string; onProgress?: (pct: number) => void }): Promise<string> {
+  let body: Blob = file;
+  let type = file.type || 'application/octet-stream';
+  let fragment = '';
+  if (opts.encrypt) {
+    const sealed = await encryptFile(file);
+    body = sealed.data;
+    type = 'application/octet-stream';
+    fragment = `#${sealed.fragment}`;
+  }
+  const ext = opts.encrypt ? 'bin' : opts.ext.replace(/[^a-z0-9]/gi, '').slice(0, 6) || 'bin';
+  const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  if (body.size <= 8 * 1024 * 1024) {
+    const path = `${userId}/chat-files/${name}`;
+    const { error } = await supabase.storage.from('avatars').upload(path, body, { contentType: type, cacheControl: '31536000', upsert: false });
+    if (!error) {
+      opts.onProgress?.(100);
+      return `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}${fragment}`;
+    }
+    if (body.size <= 2 * 1024 * 1024) throw error;
+  }
+  const { data, error } = await supabase.functions.invoke('get-r2-upload-url', { body: { fileName: `chat-${userId.slice(0, 8)}-${name}`, fileType: type } });
+  if (error || !data?.uploadUrl || !data?.publicUrl) throw new Error("Couldn't upload the file. Check your connection and try again.");
+  await putWithProgress(data.uploadUrl, body, type, opts.onProgress);
+  return `${data.publicUrl}${fragment}`;
 }
 
 /** Straight to the media store (Cloudflare R2), with progress. */

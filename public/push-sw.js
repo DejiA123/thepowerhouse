@@ -56,6 +56,20 @@ async function openEncrypted(chatId, content) {
 
 /** One line, like the app's previewText */
 function chatPreview(text) {
+  // @[Name](id) → @Name
+  text = text.replace(/@\[([^\]\n]{1,80})\]\([0-9a-f-]{36}\)/g, '@$1');
+  if (text.startsWith('::voice::')) {
+    const secs = Math.round(parseFloat(text.slice(9)) || 0);
+    return '🎤 Voice message (' + Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') + ')';
+  }
+  if (text.startsWith('::file::')) {
+    const lines = text.split('\n');
+    const caption = lines.slice(1).join(' ').trim();
+    let name = 'Document';
+    try { name = decodeURIComponent((lines[0].match(/^::file::\d+:([^:]*):/) || [])[1] || name); } catch (e) { /* keep */ }
+    return '📄 ' + (caption || name);
+  }
+  if (text.startsWith('::preview::')) text = text.split('\n').slice(1).join('\n');
   if (text.startsWith('::image::') || text.startsWith('::video::')) {
     const lines = text.split('\n');
     const caption = lines.slice(1).join(' ').trim();

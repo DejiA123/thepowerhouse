@@ -32,12 +32,17 @@ async function displayName(userId: string, fallback = 'Someone') {
   return data?.full_name?.trim() || data?.email?.split('@')[0] || fallback;
 }
 
-async function chatRecipients(chatId: string, excludeUserId: string) {
+async function chatRecipients(chatId: string, excludeUserId: string, opts: { skipMuted?: boolean } = {}) {
   const { data: participants } = await supabaseAdmin
     .from('chat_participants')
-    .select('user_id')
+    .select('*')
     .eq('chat_id', chatId);
-  const ids = (participants ?? []).map((p) => p.user_id).filter((id) => id !== excludeUserId);
+  const now = Date.now();
+  const ids = (participants ?? [])
+    .filter((p: any) => p.user_id !== excludeUserId)
+    // A chat someone muted stays quiet for messages (calls still ring, like WhatsApp)
+    .filter((p: any) => !opts.skipMuted || !p.muted_until || new Date(p.muted_until).getTime() <= now)
+    .map((p: any) => p.user_id as string);
   if (ids.length === 0) return [];
 
   // Respect "group chat notifications" switched off in settings
@@ -89,7 +94,7 @@ Deno.serve(async (req) => {
       const [{ data: chat }, sender, recipients] = await Promise.all([
         supabaseAdmin.from('group_chats').select('name, description').eq('id', message.chat_id).maybeSingle(),
         displayName(user.id),
-        chatRecipients(message.chat_id, user.id),
+        chatRecipients(message.chat_id, user.id, { skipMuted: true }),
       ]);
       const isPrivate = chat?.description === PRIVATE_CHAT;
       const chatName = isPrivate ? sender : chat?.name ?? 'Group chat';
@@ -103,8 +108,14 @@ Deno.serve(async (req) => {
       const isGif = !!photoUrl && /\.gif(?:$|[?#])/i.test(photoUrl);
       const caption = isPhoto || isVideo ? lines.slice(1).join(' ').trim() : message.content;
       const [icon, label] = isVideo ? ['🎥', 'Video'] : isGif ? ['🎞️', 'GIF'] : ['📷', 'Photo'];
+      const isVoice = !encrypted && message.content.startsWith('::voice::');
+      const isFile = !encrypted && message.content.startsWith('::file::');
       const preview = encrypted
         ? '🔒 New message'
+        : isVoice
+        ? '🎤 Voice message'
+        : isFile
+        ? `📄 ${decodeURIComponent(message.content.match(/^::file::\d+:([^:\n]*):/)?.[1] || 'Document')}`
         : isPhoto || isVideo
         ? (caption ? `${icon} ${truncate(caption, 150)}` : `${icon} ${label}`)
         : truncate(caption.replace(/\s+/g, ' ').trim(), 160);
@@ -139,6 +150,44 @@ Deno.serve(async (req) => {
           ...(encrypted && { e2e: message.content, e2ePrefix: isPrivate ? '' : `${sender}: ` }),
         },
       }, { ttl: 60 * 60 * 24, urgency: 'high', topic: `chat-${message.chat_id}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) });
+      return json({ ok: true, ...result });
+    }
+
+    // ── Someone in a call rang me into it ───────────────────────────
+    if (type === 'call-invite') {
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { data: invite } = await supabaseAdmin
+        .from('call_invites')
+        .select('call_id, user_id, invited_by, status, created_at')
+        .eq('call_id', body.callId)
+        .eq('user_id', body.userId)
+        .maybeSingle();
+      if (!invite || invite.invited_by !== user.id || invite.status !== 'ringing' || !isFresh(invite.created_at)) {
+        return json({ error: 'Invite not found' }, 404);
+      }
+      const { data: call } = await supabaseAdmin
+        .from('call_sessions')
+        .select('id, chat_id, call_type, status')
+        .eq('id', invite.call_id)
+        .maybeSingle();
+      if (!call || (call.status !== 'ringing' && call.status !== 'active')) return json({ ok: true, skipped: 'call-over' });
+      const caller = await displayName(user.id);
+      const isVideo = call.call_type === 'video';
+      const result = await sendToSubscriptions(await subscriptionsForUsers([invite.user_id]), {
+        kind: 'call',
+        title: caller,
+        body: isVideo ? '📹 Inviting you to a video call' : '📞 Inviting you to a voice call',
+        url: `/group-chats?call=${call.id}`,
+        tag: `call-${call.id}`,
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [400, 200, 400, 200, 400, 200, 400],
+        actions: [
+          { action: 'answer', title: 'Join' },
+          { action: 'decline', title: 'Decline' },
+        ],
+        data: { callId: call.id, chatId: call.chat_id, callType: call.call_type, invited: true },
+      }, { ttl: 45, urgency: 'high' });
       return json({ ok: true, ...result });
     }
 
