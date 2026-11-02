@@ -348,10 +348,8 @@ export type Database = {
           content: string
           created_at: string | null
           edited_at: string | null
-          forwarded: boolean
           id: string
           is_deleted: boolean | null
-          reply_to_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -360,10 +358,8 @@ export type Database = {
           content: string
           created_at?: string | null
           edited_at?: string | null
-          forwarded?: boolean
           id?: string
           is_deleted?: boolean | null
-          reply_to_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -372,10 +368,8 @@ export type Database = {
           content?: string
           created_at?: string | null
           edited_at?: string | null
-          forwarded?: boolean
           id?: string
           is_deleted?: boolean | null
-          reply_to_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
