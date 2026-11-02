@@ -1,9 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { prepareSave, saveToPhone } from '@/lib/saveMedia';
+import { appAlert } from '@/lib/appAlert';
 import { createPortal } from 'react-dom';
 import { Download, X } from 'lucide-react';
 
 /** Full-screen photo viewer; tap anywhere or press Escape to close. */
 const ImageViewer = ({ url, onClose }: { url: string | null; onClose: () => void }) => {
+  const [ready, setReady] = useState(false);
+  // Got ready to save as it opens (iPhone shares only straight from a tap)
+  useEffect(() => {
+    setReady(false);
+    if (!url) return;
+    let stale = false;
+    prepareSave(url, 'photo').then(() => !stale && setReady(true)).catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [url]);
+
   useEffect(() => {
     if (!url) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -21,16 +36,19 @@ const ImageViewer = ({ url, onClose }: { url: string | null; onClose: () => void
       aria-label="Photo"
     >
       <div className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] flex gap-2">
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          aria-label="Open original"
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            const result = await saveToPhone(url, 'photo').catch(() => 'error' as const);
+            if (result === 'not-ready') appAlert('Getting it ready…', 'Tap Save again in a moment.');
+            else if (result === 'error') appAlert("Couldn't save the photo", 'Check your connection and try again.', 'error');
+            else if (result === 'downloaded') appAlert('Saved to your phone');
+          }}
+          className="flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/20"
+          aria-label="Save photo"
         >
-          <Download className="h-5 w-5" />
-        </a>
+          {ready ? <Download className="h-5 w-5" /> : <Loader2 className="h-5 w-5 animate-spin" />} Save
+        </button>
         <button
           onClick={onClose}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
