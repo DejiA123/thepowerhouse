@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Heart, Search, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import UserAvatar from '@/components/common/UserAvatar';
 import { SocialService, type Circle } from '@/services/socialService';
 import { CIRCLE_CHANGED, refreshCircle, type CircleChange } from '@/lib/socialLive';
 import { UserSearch } from './UserSearch';
@@ -94,13 +93,6 @@ export const FriendsHub = () => {
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </button>
-                        {friends.length > 0 && (
-                            <div className="flex -space-x-2.5">
-                                {friends.slice(0, 4).map((f) => (
-                                    <UserAvatar key={f.person.id} name={f.person.name} src={f.person.avatar} seed={f.person.id} className="h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-950" />
-                                ))}
-                            </div>
-                        )}
                     </div>
 
                     <div className="flex items-end justify-between gap-3">
