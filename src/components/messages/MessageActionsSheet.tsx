@@ -1,8 +1,11 @@
-import { CheckSquare, Copy, Download, Forward, Info, Pencil, Pin, PinOff, Reply, RotateCcw, Star, StarOff, Trash2 } from 'lucide-react';
+import { CheckSquare, Copy, Download, Loader2, Forward, Info, Pencil, Pin, PinOff, Reply, RotateCcw, Star, StarOff, Trash2 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/services/groupChatService';
-import { parseCall, parseMessageContent, previewText } from './chatUtils';
+import { useEffect, useState } from 'react';
+import { parseCall, parseFile, parseMessageContent, parseVoice, previewText } from './chatUtils';
+import { prepareSave, saveToPhone } from '@/lib/saveMedia';
+import { appAlert } from '@/lib/appAlert';
 
 export const QUICK_REACTIONS = ['❤️', '👍', '🙏', '😂', '🔥', '😮', '🙌'];
 
@@ -61,8 +64,33 @@ const MessageActionsSheet = ({
   canDeleteForEveryone = isOwn, onSelect,
 }: Props) => {
   const parsed = message ? parseMessageContent(message.content) : null;
-  const image = parsed?.imageUrl ?? parsed?.videoUrl ?? null;
-  const isVideo = !!parsed?.videoUrl;
+  // Something to save to the phone (photo, video, voice message, document)
+  const voice = message ? parseVoice(message.content) : null;
+  const file = message ? parseFile(message.content) : null;
+  const media = parsed?.imageUrl
+    ? { url: parsed.imageUrl, kind: 'photo' as const, label: 'Save photo' }
+    : parsed?.videoUrl
+    ? { url: parsed.videoUrl, kind: 'video' as const, label: 'Save video' }
+    : voice
+    ? { url: voice.url, kind: 'voice' as const, label: 'Save voice message' }
+    : file
+    ? { url: file.url, kind: 'document' as const, label: 'Save document', name: file.name }
+    : null;
+  const [saving, setSaving] = useState<'preparing' | 'ready' | 'error'>('preparing');
+  const mediaUrl = media?.url ?? null;
+  // Get it ready as the menu opens: iPhone only shows the share sheet straight from a tap
+  useEffect(() => {
+    if (!mediaUrl || !media) return;
+    let stale = false;
+    setSaving('preparing');
+    prepareSave(mediaUrl, media.kind, media.kind === 'document' ? media.name : undefined)
+      .then(() => !stale && setSaving('ready'))
+      .catch(() => !stale && setSaving('error'));
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaUrl]);
   const sent = !!message && !message.pending && !message.failed;
   // Encrypted and not opened on this phone yet: nothing to reply to, copy or forward
   const locked = !!message?.locked;
@@ -113,12 +141,22 @@ const MessageActionsSheet = ({
               {message.failed && <Action icon={RotateCcw} label="Try sending again" onClick={onRetry} />}
               {!sent && parsed?.text && <Action icon={Copy} label="Copy text" onClick={onCopy} />}
               {onEdit && !locked && <Action icon={Pencil} label={parsed?.imageUrl || parsed?.videoUrl ? 'Edit caption' : 'Edit'} onClick={onEdit} />}
-              {image && (
+              {media && sent && !locked && (
                 <Action
-                  icon={Download}
-                  label={isVideo ? 'Open video' : 'Open photo'}
-                  onClick={() => {
-                    window.open(image, '_blank', 'noopener');
+                  icon={saving === 'preparing' ? Loader2 : Download}
+                  label={saving === 'error' ? `${media.label} (try again)` : media.label}
+                  onClick={async () => {
+                    const result = await saveToPhone(media.url, media.kind, media.kind === 'document' ? media.name : undefined).catch(() => 'error' as const);
+                    if (result === 'not-ready') {
+                      appAlert('Getting it ready…', 'Tap Save again in a moment.');
+                      return;
+                    }
+                    if (result === 'error') {
+                      setSaving('error');
+                      appAlert("Couldn't save it", 'Check your connection and try again.', 'error');
+                      return;
+                    }
+                    if (result === 'downloaded') appAlert('Saved to your phone');
                     onClose();
                   }}
                 />
