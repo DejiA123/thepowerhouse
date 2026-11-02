@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ChevronRight, Loader2, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
+import { Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
+import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -28,6 +29,10 @@ interface Props {
   onSearch?: () => void;
   /** My starred messages in this chat */
   onStarred?: () => void;
+  /** Bring a WhatsApp chat in */
+  onImport?: () => void;
+  /** Messages here are end-to-end encrypted */
+  encrypted?: boolean;
   onlineIds: Set<string>;
   /** A one-to-one chat: the other person's "Online" / "Last seen …" */
   privateStatus?: string;
@@ -46,7 +51,42 @@ const StarredRow = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onlineIds, privateStatus, privateName }: Props) => {
+/** Import a WhatsApp chat, and what end-to-end encryption means here */
+const MoreRows = ({ onImport, encrypted }: { onImport?: () => void; encrypted?: boolean }) => {
+  const [explain, setExplain] = useState(false);
+  return (
+    <div className="mt-2 w-full max-w-sm space-y-2">
+      {onImport && (
+        <button onClick={onImport} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+          <FileUp className="h-5 w-5 text-emerald-600" />
+          <span className="flex-1 text-[15px] font-medium text-foreground">Import WhatsApp chat</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+      )}
+      {encrypted && (
+        <button onClick={() => setExplain((v) => !v)} aria-expanded={explain} className="flex w-full items-start gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium text-foreground">Encryption</span>
+            <span className="block text-sm text-muted-foreground">
+              Messages and calls are end-to-end encrypted. Tap to learn more.
+            </span>
+            {explain && (
+              <span className="mt-2 block text-sm text-muted-foreground">
+                Messages, captions and photos are locked on your phone before they're sent, and only the phones of the people in this
+                chat have the key. No one else, not even {church.name}, can read them. Calls go straight between phones and are encrypted too.
+                A new phone gets the key from another member's phone when they next open the app. Messages sent before encryption
+                started, and videos, are protected but not end-to-end encrypted.
+              </span>
+            )}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onImport, encrypted, onlineIds, privateStatus, privateName }: Props) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -203,6 +243,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
               ))}
             </div>
             {onStarred && <StarredRow onClick={onStarred} />}
+            <MoreRows onImport={onImport} encrypted={encrypted} />
           </div>
         </SheetContent>
       </Sheet>
@@ -302,6 +343,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 </div>
               )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
+              {!editing && <MoreRows onImport={onImport} encrypted={encrypted} />}
             </div>
 
             {/* Add members */}

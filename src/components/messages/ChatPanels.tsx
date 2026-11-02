@@ -155,21 +155,24 @@ export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
 
 // ── A list of messages (search results, starred) ────────────────────
 
-const MessageRow = ({ message, myId, onOpen, starred }: { message: ChatMessage; myId: string; onOpen: (m: ChatMessage) => void; starred?: boolean }) => (
+const MessageRow = ({ message, myId, onOpen, starred }: { message: ChatMessage; myId: string; onOpen: (m: ChatMessage) => void; starred?: boolean }) => {
+  const mine = message.user_id === myId && (!message.imported_from || message.imported_as === myId);
+  return (
   <button onClick={() => onOpen(message)} className="flex w-full items-start gap-3 rounded-2xl px-3 py-2.5 text-left transition active:bg-muted">
     <UserAvatar name={senderName(message)} src={message.user?.avatar_url ?? null} seed={message.user_id} className="h-9 w-9" />
     <span className="min-w-0 flex-1">
       <span className="flex items-baseline gap-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{message.user_id === myId ? 'You' : senderName(message)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{mine ? 'You' : senderName(message)}</span>
         <span className="shrink-0 text-xs text-muted-foreground">{formatDayLabel(message.created_at)} {formatClock(message.created_at)}</span>
       </span>
       <span className="mt-0.5 flex items-start gap-1 text-sm text-muted-foreground">
         {starred && <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
-        <span className="line-clamp-2 break-words">{previewText(message.content, message.user_id === myId)}</span>
+        <span className="line-clamp-2 break-words">{previewText(message.content, mine)}</span>
       </span>
     </span>
   </button>
-);
+  );
+};
 
 /** Search this chat's messages; tap one to go to it */
 export const ChatSearchSheet = ({ open, chatId, myId, onOpenChange, onOpenMessage }: {

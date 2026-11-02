@@ -93,15 +93,19 @@ Deno.serve(async (req) => {
       ]);
       const isPrivate = chat?.description === PRIVATE_CHAT;
       const chatName = isPrivate ? sender : chat?.name ?? 'Group chat';
+      // End-to-end encrypted: this server can't read it. The phone opens it (push-sw.js) with its own key.
+      const encrypted = message.content.startsWith('::e2e::');
       // Photos / GIFs are stored as "::image::<url>\n<caption>", videos as "::video::<url>\n<caption>"
-      const isPhoto = message.content.startsWith('::image::');
-      const isVideo = message.content.startsWith('::video::');
+      const isPhoto = !encrypted && message.content.startsWith('::image::');
+      const isVideo = !encrypted && message.content.startsWith('::video::');
       const lines = message.content.split('\n');
       const photoUrl = isPhoto ? lines[0].slice('::image::'.length).trim() : undefined;
       const isGif = !!photoUrl && /\.gif(?:$|[?#])/i.test(photoUrl);
       const caption = isPhoto || isVideo ? lines.slice(1).join(' ').trim() : message.content;
       const [icon, label] = isVideo ? ['🎥', 'Video'] : isGif ? ['🎞️', 'GIF'] : ['📷', 'Photo'];
-      const preview = isPhoto || isVideo
+      const preview = encrypted
+        ? '🔒 New message'
+        : isPhoto || isVideo
         ? (caption ? `${icon} ${truncate(caption, 150)}` : `${icon} ${label}`)
         : truncate(caption.replace(/\s+/g, ' ').trim(), 160);
 
@@ -128,7 +132,12 @@ Deno.serve(async (req) => {
         tag: `chat-${message.chat_id}`,
         renotify: true,
         image: isPhoto ? photoUrl : undefined,
-        data: { chatId: message.chat_id, messageId: message.id },
+        data: {
+          chatId: message.chat_id,
+          messageId: message.id,
+          // Still scrambled: only the phone can open it
+          ...(encrypted && { e2e: message.content, e2ePrefix: isPrivate ? '' : `${sender}: ` }),
+        },
       }, { ttl: 60 * 60 * 24, urgency: 'high', topic: `chat-${message.chat_id}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) });
       return json({ ok: true, ...result });
     }
