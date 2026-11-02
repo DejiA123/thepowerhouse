@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, Info, Loader2, Lock, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Info, Loader2, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
 import { KEYS_ARRIVED, e2eReady } from '@/lib/chatCrypto';
 import WhatsAppImport from './WhatsAppImport';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GroupChatService, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
-import { ChatSearchSheet, ForwardSheet, MessageInfoSheet, StarredSheet } from './ChatPanels';
+import { ChatSearchSheet, EncryptionInfo, ForwardSheet, MessageInfoSheet, SolidLock, StarredSheet } from './ChatPanels';
 import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
@@ -92,6 +92,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [encryptedChats, setEncryptedChats] = useState(false);
   const [canImport, setCanImport] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [encryptionInfo, setEncryptionInfo] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
@@ -980,11 +981,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
             )}
             {encryptedChats && !loading && (
               <button
-                onClick={() => setInfoOpen(true)}
-                className="mx-auto my-2 flex max-w-sm items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-left text-xs leading-snug text-amber-900 shadow-sm ring-1 ring-amber-200/70 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800/40"
+                onClick={() => setEncryptionInfo(true)}
+                className="mx-auto my-3 block max-w-[20rem] rounded-xl bg-[#FCF1D6] px-4 py-2.5 text-center text-[13px] leading-[1.45] text-neutral-800 shadow-[0_1px_0.5px_rgba(0,0,0,0.08)] dark:bg-[#1F2C33] dark:text-[#F7D58E]"
               >
-                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>Messages and calls are end-to-end encrypted. Only the people in this chat can read them. Tap to learn more.</span>
+                <SolidLock className="-mt-[3px] mr-1 inline h-[15px] w-[15px]" />
+                Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.{' '}
+                <span className="font-semibold">Learn more</span>
               </button>
             )}
             <div className="flex-1" />
@@ -1085,6 +1087,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           onActivity(m);
         })}
       />
+      <EncryptionInfo open={encryptionInfo} onOpenChange={setEncryptionInfo} />
       <ChatSearchSheet open={searchOpen} chatId={chat.id} myId={me.id} onOpenChange={setSearchOpen} onOpenMessage={openFound} />
       <StarredSheet open={starredOpen} chatId={chat.id} myId={me.id} onOpenChange={setStarredOpen} onOpenMessage={openFound} version={starVersion} />
       <MessageInfoSheet message={infoFor} chatId={chat.id} myId={me.id} readMarks={readMarks} onClose={() => setInfoFor(null)}

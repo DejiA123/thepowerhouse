@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, CheckCheck, Forward, Loader2, Search, Send, Star, X } from 'lucide-react';
+import { Check, CheckCheck, Forward, Loader2, Lock, Phone, Search, Send, Smartphone, Star, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
@@ -339,3 +341,49 @@ export const MessageInfoSheet = ({ message, chatId, myId, readMarks, onClose }: 
     </Panel>
   );
 };
+
+// ── What end-to-end encryption means here ("Learn more") ──────────────
+
+/** A padlock with a solid body and an open shackle (like the one beside WhatsApp's encryption notice) */
+export const SolidLock = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden>
+    <path d="M7.75 10.5V7.9a4.25 4.25 0 0 1 8.5 0v2.6" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+    <rect x="4.75" y="10" width="14.5" height="11.25" rx="2.6" fill="currentColor" />
+  </svg>
+);
+
+export const EncryptionInfo = ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-[22rem] gap-0 rounded-3xl p-0">
+      <div className="flex flex-col items-center px-6 pb-2 pt-7 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FCF1D6] text-neutral-800 dark:bg-[#1F2C33] dark:text-[#F7D58E]">
+          <SolidLock className="h-8 w-8" />
+        </span>
+        <DialogTitle className="mt-4 text-lg font-semibold">Your chats are end-to-end encrypted</DialogTitle>
+        <DialogDescription className="mt-1.5 text-sm text-muted-foreground">
+          Only people in this chat can read, listen to, or share what's sent in it. No one else can, not even {church.name}.
+        </DialogDescription>
+      </div>
+      <ul className="space-y-3.5 px-6 py-4 text-sm text-foreground">
+        {[
+          { icon: Lock, text: 'Messages, captions and photos are locked on your phone before they leave it. Only the phones of the people in this chat have the key.' },
+          { icon: Phone, text: 'Voice and video calls go straight between phones and are encrypted too.' },
+          { icon: Smartphone, text: 'On a new phone, your chats open once another member opens the app and their phone shares the key.' },
+        ].map(({ icon: Icon, text }) => (
+          <li key={text} className="flex gap-3">
+            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="px-6 pb-2 text-xs text-muted-foreground">
+        Messages sent before encryption started, and video files, are protected but not end-to-end encrypted.
+      </p>
+      <div className="p-4">
+        <button onClick={() => onOpenChange(false)} className="h-11 w-full rounded-full bg-blue-600 text-[15px] font-semibold text-white transition active:scale-[0.98]">
+          OK
+        </button>
+      </div>
+    </DialogContent>
+  </Dialog>
+);
