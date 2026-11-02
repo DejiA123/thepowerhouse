@@ -347,7 +347,6 @@ export type Database = {
           chat_id: string
           content: string
           created_at: string | null
-          edited_at: string | null
           id: string
           is_deleted: boolean | null
           updated_at: string | null
@@ -357,7 +356,6 @@ export type Database = {
           chat_id: string
           content: string
           created_at?: string | null
-          edited_at?: string | null
           id?: string
           is_deleted?: boolean | null
           updated_at?: string | null
@@ -367,7 +365,6 @@ export type Database = {
           chat_id?: string
           content?: string
           created_at?: string | null
-          edited_at?: string | null
           id?: string
           is_deleted?: boolean | null
           updated_at?: string | null
