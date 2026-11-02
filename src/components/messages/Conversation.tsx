@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, Info, Loader2, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Info, Loader2, Lock, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
+import { KEYS_ARRIVED, e2eReady } from '@/lib/chatCrypto';
+import WhatsAppImport from './WhatsAppImport';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { useCall } from '@/contexts/CallContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
 import UserAvatar from '@/components/common/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
-import { GroupChatService, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
+import { GroupChatService, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
 import { ChatSearchSheet, ForwardSheet, MessageInfoSheet, StarredSheet } from './ChatPanels';
@@ -48,6 +50,11 @@ const GROUP_GAP_MS = 5 * 60 * 1000;
 
 const nearBottom = (el: HTMLElement) => el.scrollHeight - el.scrollTop - el.clientHeight < 120;
 
+/** My message? (imported from WhatsApp: only the lines that were mine there) */
+const isMine = (m: ChatMessage, myId: string) => m.user_id === myId && (!m.imported_from || m.imported_as === myId);
+/** Who a message is shown from, for grouping a run of messages */
+const author = (m: ChatMessage) => (m.imported_from ? `wa:${m.imported_from}` : m.user_id);
+
 const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onRead, focusMessageId, onFocused }: Props) => {
   const { startCall, joinCall, ongoingCalls, refreshOngoingCall, call } = useCall();
   const onlineIds = useOnlineUsers();
@@ -81,6 +88,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   replyRef.current = replyTo;
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  // End-to-end encryption is on; a WhatsApp chat can be imported; reload after an import
+  const [encryptedChats, setEncryptedChats] = useState(false);
+  const [canImport, setCanImport] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
   const [unreadAnchor, setUnreadAnchor] = useState<string | null>(null);
@@ -200,7 +212,33 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chat.id, me.id]);
+  }, [chat.id, me.id, reloadTick]);
+
+  useEffect(() => {
+    e2eReady().then(setEncryptedChats).catch(() => undefined);
+    GroupChatService.canImport().then(setCanImport).catch(() => undefined);
+  }, [chat.id]);
+
+  // Keys for this chat just reached this phone: open the messages that were waiting for them
+  useEffect(() => {
+    const onKeys = (e: Event) => {
+      if ((e as CustomEvent).detail?.chatId !== chat.id) return;
+      const waiting = messagesRef.current.filter((m) => m.locked);
+      if (waiting.length) {
+        readable(waiting).then((opened) => {
+          const byIdOpened = new Map(opened.map((m) => [m.id, m]));
+          setMessages((prev) => prev.map((m) => byIdOpened.get(m.id) ?? m));
+        }).catch(() => undefined);
+      }
+      setExtraMessages((prev) => {
+        const next = { ...prev };
+        Object.entries(prev).forEach(([id, m]) => m?.locked && delete next[id]);
+        return next;
+      });
+    };
+    window.addEventListener(KEYS_ARRIVED, onKeys);
+    return () => window.removeEventListener(KEYS_ARRIVED, onKeys);
+  }, [chat.id]);
 
   // ── Realtime ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -221,6 +259,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setMessages((prev) => prev.filter((m) => m.id !== signal.payload.messageId));
       } else if (signal.type === 'message-edited' && signal.payload?.messageId && typeof signal.payload.content === 'string') {
         applyEdit(signal.payload.messageId, signal.payload.content, signal.payload.edited_at);
+      } else if (signal.type === 'imported') {
+        // A WhatsApp chat was imported into this chat: load it again (the history is in place by date)
+        setReloadTick((t) => t + 1);
       } else if (signal.type === 'pin') {
         GroupChatService.getPin(chat.id).then(setPin).catch(() => undefined);
       } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
@@ -525,7 +566,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const sendMedia = useCallback(async (file: File, caption: string, onProgress: (pct: number) => void) => {
     const video = isVideoFile(file);
     try {
-      const url = video ? await uploadChatVideo(chat.id, me.id, file, onProgress) : await uploadChatImage(me.id, file);
+      const url = video ? await uploadChatVideo(chat.id, me.id, file, onProgress) : await uploadChatImage(me.id, file, 'chat', await e2eReady());
       const replying = replyRef.current?.id ?? null;
       await sendContent(`${video ? VIDEO_PREFIX : IMAGE_PREFIX}${url}${caption ? `\n${caption}` : ''}`, undefined, replying);
       setReplyTo(null);
@@ -663,7 +704,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const quoteOf = useCallback((original: ChatMessage | null | undefined, id: string): Quote => {
     if (original === undefined) return { id, userId: '', name: '…', text: '' };
     if (original === null) return { id, userId: '', name: 'Message', text: '', missing: true };
-    const own = original.user_id === me.id;
+    const own = isMine(original, me.id);
     return {
       id,
       userId: original.user_id,
@@ -825,9 +866,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     }
     const gapBefore = prev ? new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() : Infinity;
     const gapAfter = next ? new Date(next.created_at).getTime() - new Date(m.created_at).getTime() : Infinity;
-    const isFirst = newDay || !prev || prev.user_id !== m.user_id || gapBefore > GROUP_GAP_MS || m.id === unreadAnchor;
-    const isLast = !next || next.user_id !== m.user_id || gapAfter > GROUP_GAP_MS || dayKey(next.created_at) !== dayKey(m.created_at) || next.id === unreadAnchor;
-    const isOwn = m.user_id === me.id;
+    const isFirst = newDay || !prev || author(prev) !== author(m) || gapBefore > GROUP_GAP_MS || m.id === unreadAnchor;
+    const isLast = !next || author(next) !== author(m) || gapAfter > GROUP_GAP_MS || dayKey(next.created_at) !== dayKey(m.created_at) || next.id === unreadAnchor;
+    const isOwn = isMine(m, me.id);
 
     rendered.push(
       <MessageBubble
@@ -837,7 +878,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         isFirst={isFirst}
         isLast={isLast}
         reactions={reactionGroups[m.id] || EMPTY}
-        seen={isOwn && !!othersReadUpTo && othersReadUpTo >= m.created_at}
+        seen={isOwn && !m.imported_from && !!othersReadUpTo && othersReadUpTo >= m.created_at}
         onOpenActions={setActionsFor}
         onToggleReaction={toggleReaction}
         onOpenImage={setViewImage}
@@ -937,6 +978,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
             {!hasMore && messages.length > 0 && (
               <p className="py-4 text-center text-xs text-muted-foreground">{privateChat ? `This is the start of your chat with ${title}` : `This is the start of ${title}`}</p>
             )}
+            {encryptedChats && !loading && (
+              <button
+                onClick={() => setInfoOpen(true)}
+                className="mx-auto my-2 flex max-w-sm items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-left text-xs leading-snug text-amber-900 shadow-sm ring-1 ring-amber-200/70 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800/40"
+              >
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Messages and calls are end-to-end encrypted. Only the people in this chat can read them. Tap to learn more.</span>
+              </button>
+            )}
             <div className="flex-1" />
             {loading ? (
               <div className="space-y-3 py-6">
@@ -1019,7 +1069,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onToggleStar={() => actionsFor && toggleStar(actionsFor)}
         pinned={!!actionsFor && pin?.message_id === actionsFor.id}
         onTogglePin={() => actionsFor && togglePin(actionsFor)}
-        onInfo={actionsFor?.user_id === me.id ? () => {
+        onInfo={actionsFor && isMine(actionsFor, me.id) && !actionsFor.imported_from ? () => {
           setInfoFor(actionsFor);
           setActionsFor(null);
         } : undefined}
@@ -1064,6 +1114,20 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           setInfoOpen(false);
           setStarredOpen(true);
         }}
+        onImport={canImport ? () => {
+          setInfoOpen(false);
+          setImportOpen(true);
+        } : undefined}
+        encrypted={encryptedChats}
+      />
+
+      <WhatsAppImport
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        chat={chat}
+        me={{ id: me.id, name: me.name }}
+        otherId={otherId}
+        onImported={() => setReloadTick((t) => t + 1)}
       />
     </div>
   );

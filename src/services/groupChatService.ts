@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
 import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
+import { WAITING_TEXT, decryptMessage, e2eReady, encryptMany, encryptMessage, isEncrypted, membersChanged, shareKeys } from "@/lib/chatCrypto";
 
 export interface GroupChat {
     id: string;
@@ -48,6 +49,16 @@ export interface ChatMessage {
     reply_to_id?: string | null;
     /** Forwarded from another chat */
     forwarded?: boolean;
+    /** Imported from WhatsApp: the sender's name there (the row is saved by whoever imported it) */
+    imported_from?: string | null;
+    /** The member that WhatsApp sender is, when matched */
+    imported_as?: string | null;
+    /** Client-only: sent end-to-end encrypted (this phone opened it) */
+    encrypted?: boolean;
+    /** Client-only: encrypted, and this phone doesn't have its key yet ("Waiting for this message") */
+    locked?: boolean;
+    /** Client-only: the scrambled original of a locked message, to open once its key arrives */
+    cipher?: string;
     user?: ChatUser;
     /** Client-only: message is still being sent / failed to send */
     pending?: boolean;
@@ -113,7 +124,10 @@ const isMissingColumn = (error: { code?: string; message?: string }) =>
 
 const normalizeMessage = (msg: any): ChatMessage => ({
     ...msg,
-    user: msg.user
+    // Imported from WhatsApp: shown under the name it had there
+    user: msg.imported_from
+        ? { id: msg.imported_as || `wa:${msg.imported_from}`, full_name: msg.imported_from, avatar_url: null }
+        : msg.user
         ? {
             id: msg.user.id,
             email: msg.user.email,
@@ -123,6 +137,34 @@ const normalizeMessage = (msg: any): ChatMessage => ({
         }
         : undefined,
 });
+
+/** Open one encrypted message on this phone (or mark it "waiting" until its key arrives) */
+async function openMessage(message: ChatMessage, userId?: string | null): Promise<ChatMessage> {
+    const content = message.locked && message.cipher ? message.cipher : message.content;
+    if (!isEncrypted(content)) return message;
+    const text = userId ? await decryptMessage(userId, message.chat_id, content).catch(() => null) : null;
+    return text === null
+        ? { ...message, content: WAITING_TEXT, cipher: content, locked: true, encrypted: true }
+        : { ...message, content: text, cipher: undefined, locked: false, encrypted: true };
+}
+
+/** Messages as they arrive from the server, readable on this phone */
+export async function readable(messages: ChatMessage[]): Promise<ChatMessage[]> {
+    if (!messages.some((m) => isEncrypted(m.content) || (m.locked && m.cipher))) return messages;
+    const user = await currentUser();
+    return Promise.all(messages.map((m) => openMessage(m, user?.id)));
+}
+
+/** Is the imported_from column there? (unread counts leave imported history out) */
+let importColumns: Promise<boolean> | null = null;
+const hasImportColumns = () => {
+    if (!importColumns) {
+        importColumns = Promise.resolve(supabase.from('chat_messages').select('imported_from' as never).limit(1))
+            .then(({ error }) => !error)
+            .catch(() => false);
+    }
+    return importColumns;
+};
 
 /** Display name for a message author. */
 export const senderName = (message: Pick<ChatMessage, 'user'>) =>
@@ -143,6 +185,30 @@ const currentUser = async () => {
 
 /** Tell other parts of the app (calls, banners) that my chat list changed. */
 const chatsChanged = () => window.dispatchEvent(new CustomEvent('chats:changed'));
+
+/** The latest messages of a chat, opened on the phone, for searching (kept a minute) */
+const searchCache = new Map<string, { at: number; list: Promise<ChatMessage[]> }>();
+function recentForSearch(chatId: string): Promise<ChatMessage[]> {
+    const hit = searchCache.get(chatId);
+    if (hit && Date.now() - hit.at < 60_000) return hit.list;
+    const list = (async () => {
+        const out: ChatMessage[] = [];
+        let before: string | undefined;
+        for (let page = 0; page < 2; page++) {
+            let q = supabase.from('chat_messages').select(MESSAGE_SELECT).eq('chat_id', chatId).eq('is_deleted', false).order('created_at', { ascending: false }).limit(1000);
+            if (before) q = q.lt('created_at', before);
+            const { data, error } = await q;
+            if (error || !data?.length) break;
+            out.push(...(await readable(data.map(normalizeMessage))));
+            if (data.length < 1000) break;
+            before = (data[data.length - 1] as { created_at: string }).created_at;
+        }
+        return out;
+    })();
+    list.catch(() => searchCache.delete(chatId));
+    searchCache.set(chatId, { at: Date.now(), list });
+    return list;
+}
 
 export class GroupChatService {
     // ── Chat lists ─────────────────────────────────────────────────────
@@ -179,8 +245,18 @@ export class GroupChatService {
 
         const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);
 
+        const leaveOutImported = await hasImportColumns();
         const summaries = await Promise.all(rows.map(async (m: any) => {
-            const [{ data: last }, { count }] = await Promise.all([
+            let unreadQuery = supabase
+                .from('chat_messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('chat_id', m.chat_id)
+                .eq('is_deleted', false)
+                .neq('user_id', user.id)
+                .not('content', 'like', ANSWERED_CALLS)
+                .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
+            if (leaveOutImported) unreadQuery = unreadQuery.is('imported_from' as never, null);
+            const [{ data: lastRow }, { count }] = await Promise.all([
                 supabase
                     .from('chat_messages')
                     .select('content, created_at, user_id, user:user_id ( full_name )')
@@ -189,15 +265,12 @@ export class GroupChatService {
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle(),
-                supabase
-                    .from('chat_messages')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('chat_id', m.chat_id)
-                    .eq('is_deleted', false)
-                    .neq('user_id', user.id)
-                    .not('content', 'like', ANSWERED_CALLS)
-                    .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01'),
+                unreadQuery,
             ]);
+            // An encrypted last message is opened on the phone for the list
+            const last = lastRow
+                ? { ...(lastRow as any), content: (await openMessage({ ...(lastRow as any), chat_id: m.chat_id } as ChatMessage, user.id)).content }
+                : null;
 
             return {
                 ...(m.chat as GroupChat),
@@ -312,6 +385,10 @@ export class GroupChatService {
         if (rows.length === 0) return;
         const { error } = await supabase.from('chat_participants').insert(rows);
         if (error) throw error;
+        // New members get the chat's keys from this phone straight away (their devices, if they have any yet)
+        membersChanged(chatId);
+        const user = await currentUser();
+        if (user) shareKeys(user.id, chatId).catch(() => undefined);
     }
 
     static async removeMember(chatId: string, userId: string): Promise<void> {
@@ -321,6 +398,8 @@ export class GroupChatService {
             .eq('chat_id', chatId)
             .eq('user_id', userId);
         if (error) throw error;
+        // The next message uses a new key the person who left doesn't get
+        membersChanged(chatId);
     }
 
     static async isAdmin(chatId: string): Promise<boolean> {
@@ -350,7 +429,7 @@ export class GroupChatService {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data || []).map(normalizeMessage).reverse();
+        return readable((data || []).map(normalizeMessage).reverse());
     }
 
     /** Messages newer than `after` (oldest first): fills the gap after the phone was asleep or offline. */
@@ -364,7 +443,7 @@ export class GroupChatService {
             .order('created_at', { ascending: true })
             .limit(limit);
         if (error) throw error;
-        return (data || []).map(normalizeMessage);
+        return readable((data || []).map(normalizeMessage));
     }
 
     /** Messages edited in the last few minutes (only those can still change): an asleep phone catches up */
@@ -378,17 +457,35 @@ export class GroupChatService {
             .gt('created_at', since)
             .not('edited_at', 'is', null);
         if (error) return []; // before the editing migration there's nothing to catch up on
-        return (data || []) as unknown as { id: string; content: string; edited_at: string }[];
+        return (await readable((data || []).map(normalizeMessage))) as unknown as { id: string; content: string; edited_at: string }[];
     }
 
     static async sendMessage(chatId: string, content: string, retried = false, extra: SendExtras = {}): Promise<ChatMessage | null> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to send messages');
 
+        // End-to-end encrypted (calls stay as they are: they're not messages anyone writes)
+        const text = content.trim();
+        let stored = text;
+        let encrypted = false;
+        if (!text.startsWith('::call::') && (await e2eReady())) {
+            try {
+                stored = await encryptMessage(user.id, chatId, text);
+                encrypted = true;
+            } catch (e) {
+                // Not a member yet (first message in a community group): join, then encrypt
+                if ((e as { code?: string })?.code === '42501' && !retried) {
+                    await this.joinChat(chatId);
+                    membersChanged(chatId);
+                    return this.sendMessage(chatId, content, true, extra);
+                }
+                throw e;
+            }
+        }
         const row = {
             chat_id: chatId,
             user_id: user.id,
-            content: content.trim(),
+            content: stored,
             ...(extra.replyTo && !noReplyColumns && { reply_to_id: extra.replyTo }),
             ...(extra.forwarded && !noReplyColumns && { forwarded: true }),
         };
@@ -413,13 +510,64 @@ export class GroupChatService {
         }
         if (!data) return null;
 
-        const message = normalizeMessage(data);
-        // Instant delivery to people with the chat open, then push to everyone else
-        broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: message }).catch(() => undefined);
+        const saved = normalizeMessage(data);
+        // Instant delivery to people with the chat open (still scrambled: they open it), then push to everyone else
+        broadcast(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: saved }).catch(() => undefined);
         // Forwarded from another chat: this phone's lists show it there too
-        if (extra.forwarded) emitLocal(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: message });
+        if (extra.forwarded) emitLocal(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: saved });
+        // This phone knows what it says
+        const message: ChatMessage = { ...saved, content: text, encrypted };
         sendPush({ type: 'chat-message', messageId: message.id });
         return message;
+    }
+
+    /** Can a WhatsApp chat be imported? (the database has the import columns) */
+    static canImport(): Promise<boolean> {
+        return hasImportColumns();
+    }
+
+    /**
+     * Bring a WhatsApp chat's history in: saved by me, with each message's
+     * WhatsApp sender and original time, end-to-end encrypted like any other
+     * message. No notifications; everyone's chat reloads once at the end.
+     */
+    static async importMessages(
+        chatId: string,
+        rows: { at: string; sender: string; content: string; as: string | null }[],
+        onProgress?: (done: number) => void,
+        cancelled?: () => boolean,
+    ): Promise<number> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        const encrypt = await e2eReady();
+        let done = 0;
+        try {
+            for (let i = 0; i < rows.length; i += 200) {
+                if (cancelled?.()) break;
+                const batch = rows.slice(i, i + 200);
+                const contents = encrypt ? await encryptMany(user.id, chatId, batch.map((r) => r.content)) : batch.map((r) => r.content);
+                const { error } = await supabase.from('chat_messages').insert(
+                    batch.map((r, j) => ({
+                        chat_id: chatId,
+                        user_id: user.id,
+                        content: contents[j],
+                        created_at: r.at,
+                        imported_from: r.sender,
+                        imported_as: r.as,
+                    })) as never,
+                );
+                if (error) throw error;
+                done += batch.length;
+                onProgress?.(done);
+            }
+        } finally {
+            if (done) {
+                const signal = { type: 'imported', from: user.id, payload: { count: done } };
+                broadcast(signalsTopic(chatId), 'signal', signal).catch(() => undefined);
+                emitLocal(signalsTopic(chatId), 'signal', signal);
+            }
+        }
+        return done;
     }
 
     /** A call kept in the chat (e.g. "Missed voice call"). No push: the missed-call notification covers it. */
@@ -458,7 +606,7 @@ export class GroupChatService {
         if (!ids.length) return [];
         const { data, error } = await supabase.from('chat_messages').select(MESSAGE_SELECT).in('id', ids).eq('is_deleted', false);
         if (error) throw error;
-        return (data || []).map(normalizeMessage);
+        return readable((data || []).map(normalizeMessage));
     }
 
     /** Everything from one message up to (not including) `before`, oldest first: jumping back to a quoted message */
@@ -473,24 +621,37 @@ export class GroupChatService {
             .order('created_at', { ascending: true })
             .limit(limit);
         if (error) throw error;
-        return (data || []).map(normalizeMessage);
+        return readable((data || []).map(normalizeMessage));
     }
 
-    /** Search one chat's messages (text and captions), newest first */
+    /**
+     * Search one chat's messages (text and captions), newest first. Encrypted
+     * messages can only be searched on the phone: the latest 2,000 are opened
+     * here; older, unencrypted ones are searched on the server.
+     */
     static async searchMessages(chatId: string, query: string, limit = 60): Promise<ChatMessage[]> {
         const words = query.trim().replace(/[%_\\,()]/g, ' ').trim();
         if (!words) return [];
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .select(MESSAGE_SELECT)
-            .eq('chat_id', chatId)
-            .eq('is_deleted', false)
-            .not('content', 'like', '::call::%')
-            .ilike('content', `%${words}%`)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-        if (error) throw error;
-        return (data || []).map(normalizeMessage);
+        const [server, recent] = await Promise.all([
+            supabase
+                .from('chat_messages')
+                .select(MESSAGE_SELECT)
+                .eq('chat_id', chatId)
+                .eq('is_deleted', false)
+                .not('content', 'like', '::call::%')
+                .ilike('content', `%${words}%`)
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            recentForSearch(chatId),
+        ]);
+        if (server.error) throw server.error;
+        const needle = words.toLowerCase();
+        const found = new Map<string, ChatMessage>();
+        for (const m of recent) {
+            if (!m.locked && !m.content.startsWith('::call::') && m.content.toLowerCase().includes(needle)) found.set(m.id, m);
+        }
+        for (const m of (server.data || []).map(normalizeMessage)) if (!isEncrypted(m.content)) found.set(m.id, m);
+        return [...found.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit);
     }
 
     // ── Star, pin, delete for me ───────────────────────────────────────
@@ -515,10 +676,10 @@ export class GroupChatService {
             .eq('chat_id', chatId)
             .order('created_at', { ascending: false });
         if (error) throw error;
-        return ((data || []) as { message: unknown }[])
+        return readable(((data || []) as { message: unknown }[])
             .map((r) => r.message)
             .filter((m): m is Record<string, unknown> => !!m && !(m as { is_deleted?: boolean }).is_deleted)
-            .map(normalizeMessage);
+            .map(normalizeMessage));
     }
 
     static async setStarred(messageId: string, chatId: string, starred: boolean): Promise<void> {
@@ -586,16 +747,20 @@ export class GroupChatService {
     static async editMessage(messageId: string, chatId: string, content: string): Promise<ChatMessage> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to edit messages');
+        const encrypted = await e2eReady();
+        const stored = encrypted ? await encryptMessage(user.id, chatId, content) : content;
         const { data, error } = await supabase
             .from('chat_messages')
-            .update({ content })
+            .update({ content: stored })
             .eq('id', messageId)
             .eq('user_id', user.id)
             .select(MESSAGE_SELECT)
             .single();
         if (error) throw error;
-        const message = normalizeMessage(data);
-        const signal = { type: 'message-edited', from: user.id, payload: { messageId, content: message.content, edited_at: message.edited_at ?? new Date().toISOString() } };
+        const saved = normalizeMessage(data);
+        const message: ChatMessage = { ...saved, content, encrypted };
+        // Others (and this phone's lists) get it scrambled and open it themselves
+        const signal = { type: 'message-edited', from: user.id, payload: { messageId, chatId, content: saved.content, edited_at: saved.edited_at ?? new Date().toISOString() } };
         broadcast(signalsTopic(chatId), 'signal', signal).catch(() => undefined);
         // This phone's chat lists see it too
         emitLocal(signalsTopic(chatId), 'signal', signal);
@@ -616,6 +781,7 @@ export class GroupChatService {
 
         const { error } = await supabase.from('chat_participants').insert({ chat_id: chatId, user_id: user.id });
         if (error) throw error;
+        membersChanged(chatId);
         chatsChanged();
     }
 
@@ -647,8 +813,9 @@ export class GroupChatService {
             .select('chat_id, last_read_at, joined_at, chat:chat_id ( is_active )')
             .eq('user_id', user.id);
         const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);
+        const leaveOutImported = await hasImportColumns();
         const counts = await Promise.all(rows.map(async (m: any) => {
-            const { count } = await supabase
+            let q = supabase
                 .from('chat_messages')
                 .select('id', { count: 'exact', head: true })
                 .eq('chat_id', m.chat_id)
@@ -656,6 +823,8 @@ export class GroupChatService {
                 .neq('user_id', user.id)
                 .not('content', 'like', ANSWERED_CALLS)
                 .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
+            if (leaveOutImported) q = q.is('imported_from' as never, null);
+            const { count } = await q;
             return count || 0;
         }));
         return counts.filter((c) => c > 0).length;
@@ -671,7 +840,7 @@ export class GroupChatService {
             .eq('user_id', user.id)
             .maybeSingle();
         if (!participant) return 0;
-        const { count } = await supabase
+        let q = supabase
             .from('chat_messages')
             .select('id', { count: 'exact', head: true })
             .eq('chat_id', chatId)
@@ -679,6 +848,8 @@ export class GroupChatService {
             .gt('created_at', participant.last_read_at || '1970-01-01')
             .neq('user_id', user.id)
             .not('content', 'like', ANSWERED_CALLS);
+        if (await hasImportColumns()) q = q.is('imported_from' as never, null);
+        const { count } = await q;
         return count || 0;
     }
 
@@ -732,12 +903,15 @@ export class GroupChatService {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `chat_id=eq.${chatId}` },
                 async (payload) => {
+                    // Imported history arrives all at once: the chat reloads when the import is done
+                    if ((payload.new as any).imported_from) return;
                     const { data } = await supabase
                         .from('profiles')
                         .select('id, email, full_name, avatar_url, user_metadata')
                         .eq('id', (payload.new as any).user_id)
                         .maybeSingle();
-                    callback(normalizeMessage({ ...(payload.new as any), user: data }));
+                    const [message] = await readable([normalizeMessage({ ...(payload.new as any), user: data })]);
+                    callback(message);
                 },
             )
             .on(
@@ -746,7 +920,9 @@ export class GroupChatService {
                 (payload) => {
                     // Soft deletes arrive as updates, and so do edits
                     if ((payload.new as any).is_deleted) callback({ ...(payload.new as any), is_deleted: true });
-                    else if ((payload.new as any).edited_at) onEdited?.(payload.new as ChatMessage);
+                    else if ((payload.new as any).edited_at) {
+                        readable([payload.new as ChatMessage]).then(([message]) => onEdited?.(message)).catch(() => undefined);
+                    }
                 },
             )
             .subscribe();
@@ -756,7 +932,8 @@ export class GroupChatService {
         return supabase
             .channel(uniqueTopic('global-chat-messages'))
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
-                callback(payload.new as ChatMessage);
+                if ((payload.new as any).imported_from) return;
+                readable([payload.new as ChatMessage]).then(([message]) => callback(message)).catch(() => undefined);
             })
             .subscribe();
     }
@@ -783,9 +960,11 @@ export class GroupChatService {
         };
         const offs = chatIds.map((chatId) =>
             this.onChatSignals(chatId, (signal) => {
-                if (signal?.type === 'new-message' && signal.payload?.id) deliver(signal.payload as ChatMessage);
+                if (signal?.type === 'new-message' && signal.payload?.id && !signal.payload.imported_from) deliver(signal.payload as ChatMessage);
                 else if (signal?.type === 'message-deleted' && signal.payload?.messageId) on.deleted?.(chatId, signal.payload.messageId);
                 else if (signal?.type === 'message-edited' && signal.payload?.messageId) on.edited?.(chatId, signal.payload.messageId);
+                // A WhatsApp chat was imported: the latest line may have changed
+                else if (signal?.type === 'imported') on.edited?.(chatId, '');
             }),
         );
         const channel = this.subscribeToAllMessages(deliver);
@@ -813,7 +992,16 @@ export class GroupChatService {
      * Returns an unsubscribe function.
      */
     static onChatSignals(chatId: string, handler: (signal: { type: string; from?: string; payload: any }) => void): () => void {
-        return onBroadcast(signalsTopic(chatId), 'signal', handler);
+        return onBroadcast(signalsTopic(chatId), 'signal', (signal: { type: string; from?: string; payload: any }) => {
+            // New and edited messages travel scrambled: open them on this phone first
+            if (signal?.type === 'new-message' && signal.payload?.id && isEncrypted(signal.payload.content)) {
+                readable([signal.payload as ChatMessage]).then(([payload]) => handler({ ...signal, payload })).catch(() => undefined);
+            } else if (signal?.type === 'message-edited' && isEncrypted(signal.payload?.content)) {
+                readable([{ id: signal.payload.messageId, chat_id: chatId, content: signal.payload.content } as ChatMessage])
+                    .then(([m]) => !m.locked && handler({ ...signal, payload: { ...signal.payload, content: m.content } }))
+                    .catch(() => undefined);
+            } else handler(signal);
+        });
     }
 
     static sendTyping(chatId: string, userId: string, name: string, isTyping: boolean) {

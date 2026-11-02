@@ -1,5 +1,7 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, Forward, ImageOff, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, Forward, ImageOff, Loader2, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
+import SecureImg, { useOpenedImage } from './SecureImg';
+import { isEncryptedFile } from '@/lib/chatCrypto';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
@@ -11,13 +13,24 @@ import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseMessag
  */
 const ChatPhoto = ({ url, onOpen }: { url: string; onOpen: (url: string) => void }) => {
   const [attempt, setAttempt] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [loadFailed, setFailed] = useState(false);
+  // End-to-end encrypted photos are opened on the phone first
+  const encrypted = isEncryptedFile(url);
+  const opened = useOpenedImage(url, attempt);
   // A fresh address skips any failed copy kept by the phone or the network
-  const src = attempt ? `${url}${url.includes('?') ? '&' : '?'}r=${attempt}` : url;
+  const src = encrypted ? opened.src : attempt ? `${url}${url.includes('?') ? '&' : '?'}r=${attempt}` : url;
   // App storage allows cross-site reads, so the phone only keeps copies that loaded properly
-  const fromStorage = /\.supabase\.co\/storage\//.test(url);
+  const fromStorage = !encrypted && /\.supabase\.co\/storage\//.test(url);
+  const failed = loadFailed || opened.failed;
 
-  if (failed) {
+  if (encrypted && !src && !failed) {
+    return (
+      <div className="flex h-40 w-[240px] max-w-full items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+  if (failed || !src) {
     return (
       <button
         type="button"
@@ -42,7 +55,7 @@ const ChatPhoto = ({ url, onOpen }: { url: string; onOpen: (url: string) => void
         loading="lazy"
         decoding="async"
         crossOrigin={fromStorage ? 'anonymous' : undefined}
-        onError={() => (attempt === 0 ? setAttempt(1) : setFailed(true))}
+        onError={() => (encrypted ? setFailed(true) : attempt === 0 ? setAttempt(1) : setFailed(true))}
         className="max-h-80 w-full min-w-[160px] max-w-[280px] bg-muted object-cover"
       />
     </button>
@@ -141,6 +154,8 @@ const MessageBubble = ({
   const start = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
   const name = senderName(message);
+  // Who to show it from (an imported message: the WhatsApp sender)
+  const who = message.user?.id || message.user_id;
   // Swipe right to reply, like WhatsApp: the message follows the finger and a reply arrow appears
   const slideRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
@@ -246,9 +261,10 @@ const MessageBubble = ({
       )}
     >
       {starred && <Star className="h-3 w-3 fill-current" aria-label="Starred" />}
+      {message.imported_from && <span>Imported</span>}
       {message.edited_at && !call && <span>Edited</span>}
       {formatClock(message.created_at)}
-      {isOwn && !call && (
+      {isOwn && !call && !message.imported_from && (
         message.failed ? <AlertCircle className="h-3.5 w-3.5 text-red-300" />
           : message.pending ? <Clock className="h-3 w-3" />
             : seen ? <CheckCheck className="h-3.5 w-3.5" />
@@ -274,13 +290,13 @@ const MessageBubble = ({
       )}
       {!isOwn && (
         <div className="w-8 shrink-0">
-          {isLast && <UserAvatar name={name} src={senderAvatar(message)} seed={message.user_id} className="h-8 w-8" />}
+          {isLast && <UserAvatar name={name} src={senderAvatar(message)} seed={who} className="h-8 w-8" />}
         </div>
       )}
 
       <div ref={slideRef} className={cn('flex max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
         {!isOwn && isFirst && (
-          <span className={cn('mb-1 ml-3 text-xs font-semibold', nameColor(message.user_id))}>{name}</span>
+          <span className={cn('mb-1 ml-3 text-xs font-semibold', nameColor(who))}>{name}</span>
         )}
 
         <div className="relative flex items-center gap-1">
@@ -340,7 +356,7 @@ const MessageBubble = ({
                     {quote.missing ? 'This message isn’t available' : quote.text || 'Message'}
                   </span>
                 </span>
-                {quote.image && !quote.missing && <img src={quote.image} alt="" className="h-14 w-14 shrink-0 object-cover" />}
+                {quote.image && !quote.missing && <SecureImg url={quote.image} className="h-14 w-14 shrink-0 object-cover" />}
               </button>
             )}
             {imageUrl && <ChatPhoto url={imageUrl} onOpen={onOpenImage} />}
@@ -357,7 +373,7 @@ const MessageBubble = ({
             )}
             {call && <CallRow call={call} isOwn={isOwn} meta={meta} onCall={onCall} />}
             {!call && (text || !media) && (
-              <div className={cn('whitespace-pre-wrap break-words', media && 'px-2.5 pb-1.5 pt-1.5')}>
+              <div className={cn('whitespace-pre-wrap break-words', media && 'px-2.5 pb-1.5 pt-1.5', message.locked && 'italic opacity-80')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
                     <a

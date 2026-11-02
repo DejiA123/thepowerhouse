@@ -6,6 +6,69 @@ const BADGE_ICON = '/icons/badge-96.png';
 
 const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(self.navigator.userAgent || '');
 
+/*
+ * End-to-end encrypted chat messages arrive still scrambled (the server can't
+ * read them). Open them here with this phone's own chat key, kept by the app
+ * in IndexedDB (src/lib/chatCrypto.ts), so the notification can say what the
+ * message says. Without the key it stays "🔒 New message".
+ */
+const E2E_PREFIX = '::e2e::1:';
+
+function openKeyStore() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ph-chat-keys', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function readChatKey(chatId, keyId) {
+  return openKeyStore().then((db) => new Promise((resolve) => {
+    const req = db.transaction('kv').objectStore('kv').get('chatkey:' + chatId + ':' + keyId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => resolve(null);
+  }));
+}
+
+function fromBase64(text) {
+  const bin = atob(text);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function openEncrypted(chatId, content) {
+  try {
+    const parts = content.slice(E2E_PREFIX.length).split(':');
+    const key = await readChatKey(chatId, parts[0]);
+    if (!key) return null;
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(parts[1]), additionalData: new TextEncoder().encode(chatId) },
+      key,
+      fromBase64(parts[2]),
+    );
+    return new TextDecoder().decode(plain);
+  } catch (e) {
+    return null;
+  }
+}
+
+/** One line, like the app's previewText */
+function chatPreview(text) {
+  if (text.startsWith('::image::') || text.startsWith('::video::')) {
+    const lines = text.split('\n');
+    const caption = lines.slice(1).join(' ').trim();
+    const video = text.startsWith('::video::');
+    const gif = /image%2Fgif|image\/gif|\.gif(?:$|[?#])/i.test(lines[0]);
+    const icon = video ? '🎥' : gif ? '🎞️' : '📷';
+    const label = video ? 'Video' : gif ? 'GIF' : 'Photo';
+    return caption ? icon + ' ' + caption.slice(0, 150) : icon + ' ' + label;
+  }
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length > 160 ? t.slice(0, 159) + '…' : t;
+}
+
 async function updateBadge() {
   try {
     const open = await self.registration.getNotifications();
@@ -35,6 +98,12 @@ self.addEventListener('push', (event) => {
   });
 
   event.waitUntil((async () => {
+    // An encrypted chat message: open it on this phone (the scrambled text never shows)
+    if (data.e2e) {
+      const text = await openEncrypted(data.chatId, data.e2e);
+      if (text !== null) payload = Object.assign({}, payload, { body: (data.e2ePrefix || '') + chatPreview(text) });
+      delete data.e2e;
+    }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const visible = windows.find((c) => c.visibilityState === 'visible' && c.focused);
 

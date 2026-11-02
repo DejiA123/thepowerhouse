@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ScrollToTop from "@/components/ScrollToTop";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import OfflineSync from "@/components/OfflineSync";
+import ChatKeySync from "@/components/messages/ChatKeySync";
 
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -481,6 +482,7 @@ const App = () => {
                         <AppEvents />
                         <OfflineIndicator />
                         <OfflineSync />
+                        <ChatKeySync />
                         <AppRoutes />
                       </CallProvider>
                     </PresenceProvider>

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ImagePlus, Loader2, Pencil, Reply, SendHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { nameColor } from '@/components/common/UserAvatar';
+import SecureImg from './SecureImg';
 import { isGifFile, isVideoFile } from './chatUtils';
 
 interface Props {
@@ -152,7 +153,7 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
             <p className={cn('truncate text-[13px] font-semibold', nameColor(replyTo.userId))}>Replying to {replyTo.name}</p>
             <p className="truncate text-[13px] text-muted-foreground">{replyTo.text || 'Message'}</p>
           </div>
-          {replyTo.image && <img src={replyTo.image} alt="" className="h-14 w-14 shrink-0 object-cover" />}
+          {replyTo.image && <SecureImg url={replyTo.image} className="h-14 w-14 shrink-0 object-cover" />}
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}

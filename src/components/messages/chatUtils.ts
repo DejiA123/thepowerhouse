@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { encryptFile, encryptedFileType, isEncryptedFile } from '@/lib/chatCrypto';
 
 /** A chat between two friends (made from Social Circle), named "A & B". */
 export const isPrivateChat = (chat: { description?: string | null }) => chat.description === 'Private chat';
@@ -56,7 +57,7 @@ export function describeCall(call: CallRecord, mine: boolean) {
   return mine ? { title: Kind, detail: 'No answer' } : { title: `Missed ${kind}`, detail: 'Tap to call back' };
 }
 
-export const isGifUrl = (url: string) => /\.gif(?:$|[?#])/i.test(url);
+export const isGifUrl = (url: string) => /\.gif(?:$|[?#])/i.test(url) || (isEncryptedFile(url) && encryptedFileType(url) === 'image/gif');
 
 /** A message that is just a link to a GIF (e.g. copied from Giphy or Tenor) shows the GIF itself. */
 const GIF_LINK = /^https:\/\/\S+\.gif(?:\?\S*)?$/i;
@@ -101,8 +102,8 @@ export const EDIT_WINDOW_MS = 15 * 60_000;
 const isMediaContent = (content: string) => content.startsWith(IMAGE_PREFIX) || content.startsWith(VIDEO_PREFIX);
 
 /** Text and captions can be edited; calls and GIF links can't */
-export function canEditMessage(message: { user_id: string; content: string; created_at: string; pending?: boolean; failed?: boolean; is_deleted?: boolean }, myId: string, now = Date.now()) {
-  if (message.user_id !== myId || message.pending || message.failed || message.is_deleted) return false;
+export function canEditMessage(message: { user_id: string; content: string; created_at: string; pending?: boolean; failed?: boolean; is_deleted?: boolean; locked?: boolean; imported_from?: string | null }, myId: string, now = Date.now()) {
+  if (message.user_id !== myId || message.pending || message.failed || message.is_deleted || message.locked || message.imported_from) return false;
   if (parseCall(message.content)) return false;
   const { imageUrl, videoUrl } = parseMessageContent(message.content);
   if ((imageUrl || videoUrl) && !isMediaContent(message.content)) return false;
@@ -241,9 +242,21 @@ const storageExt = (type: string) =>
   type === 'image/png' ? 'png' : type === 'image/gif' ? 'gif' : type === 'image/webp' ? 'webp' : 'jpg';
 
 /** Uploads to the public avatars bucket under the user's own folder (allowed by storage policy). */
-export async function uploadChatImage(userId: string, file: File, folder: 'chat' | 'groups' = 'chat'): Promise<string> {
+export async function uploadChatImage(userId: string, file: File, folder: 'chat' | 'groups' = 'chat', encrypt = false): Promise<string> {
   const blob = await compressImage(file);
   const type = isGifFile(file) ? 'image/gif' : ['image/png', 'image/gif', 'image/webp', 'image/jpeg'].includes(blob.type) ? blob.type : 'image/jpeg';
+  if (encrypt) {
+    // End-to-end encrypted: the file is stored scrambled; its key travels inside the encrypted message
+    const sealed = await encryptFile(new Blob([blob], { type }));
+    const path = `${userId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.bin`;
+    const { error } = await supabase.storage.from('avatars').upload(path, sealed.data, {
+      contentType: 'application/octet-stream',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+    if (error) throw error;
+    return `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}#${sealed.fragment}`;
+  }
   const path = `${userId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${storageExt(type)}`;
   const { error } = await supabase.storage.from('avatars').upload(path, blob, {
     contentType: type,

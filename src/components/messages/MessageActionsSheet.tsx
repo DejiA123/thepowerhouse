@@ -59,9 +59,11 @@ const MessageActionsSheet = ({
   const image = parsed?.imageUrl ?? parsed?.videoUrl ?? null;
   const isVideo = !!parsed?.videoUrl;
   const sent = !!message && !message.pending && !message.failed;
+  // Encrypted and not opened on this phone yet: nothing to reply to, copy or forward
+  const locked = !!message?.locked;
   const isCall = !!message && !!parseCall(message.content);
 
-  const quick = sent
+  const quick = sent && !locked
     ? [
         onReply && { icon: Reply, label: 'Reply', onClick: onReply },
         onForward && !isCall && { icon: Forward, label: 'Forward', onClick: onForward },
@@ -80,7 +82,7 @@ const MessageActionsSheet = ({
             <p className="mb-3 line-clamp-2 px-2 text-center text-sm text-muted-foreground">
               {previewText(message.content, isOwn)}
             </p>
-            {sent && (
+            {sent && !locked && (
               <div className="mb-2 flex items-center justify-between rounded-2xl bg-muted/60 p-2">
                 {QUICK_REACTIONS.map((emoji) => (
                   <button
@@ -105,7 +107,7 @@ const MessageActionsSheet = ({
             <div className="rounded-2xl bg-muted/40 p-1">
               {message.failed && <Action icon={RotateCcw} label="Try sending again" onClick={onRetry} />}
               {!sent && parsed?.text && <Action icon={Copy} label="Copy text" onClick={onCopy} />}
-              {onEdit && <Action icon={Pencil} label={parsed?.imageUrl || parsed?.videoUrl ? 'Edit caption' : 'Edit'} onClick={onEdit} />}
+              {onEdit && !locked && <Action icon={Pencil} label={parsed?.imageUrl || parsed?.videoUrl ? 'Edit caption' : 'Edit'} onClick={onEdit} />}
               {image && (
                 <Action
                   icon={Download}
@@ -116,7 +118,7 @@ const MessageActionsSheet = ({
                   }}
                 />
               )}
-              {sent && onInfo && <Action icon={Info} label="Info" onClick={onInfo} />}
+              {sent && onInfo && !locked && <Action icon={Info} label="Info" onClick={onInfo} />}
               {sent && onDeleteForMe && <Action icon={Trash2} label="Delete for me" onClick={onDeleteForMe} danger />}
               {isOwn && <Action icon={Trash2} label={sent ? 'Delete for everyone' : 'Delete'} onClick={onDelete} danger />}
             </div>
