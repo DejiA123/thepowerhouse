@@ -14,7 +14,8 @@ import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import {
-  IMAGE_PREFIX, VIDEO_PREFIX, chatTitle, dayKey, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile, parseMessageContent, uploadChatImage, uploadChatVideo,
+  IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
+  parseMessageContent, uploadChatImage, uploadChatVideo, withEditedText,
 } from './chatUtils';
 import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
@@ -59,6 +60,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [typing, setTyping] = useState<Record<string, { name: string; at: number }>>({});
   const [actionsFor, setActionsFor] = useState<ChatMessage | null>(null);
+  // One of my messages being edited in the message box
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
@@ -116,10 +119,18 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     }
   }, [chat.id, me.id, onActivity]);
 
+  /** An edit, from this phone or anyone's (the signal is instant, the database feed backs it up) */
+  const applyEdit = useCallback((id: string, content: string, editedAt?: string | null) => {
+    setMessages((prev) => prev.map((m) => (
+      m.id === id && (m.content !== content || !m.edited_at) ? { ...m, content, edited_at: editedAt || m.edited_at || new Date().toISOString() } : m
+    )));
+  }, []);
+
   // ── Initial load ──────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     initialScrollDone.current = false;
+    setEditing(null);
     setLoading(true);
     setMessages([]);
     setReactions({});
@@ -168,7 +179,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   // ── Realtime ──────────────────────────────────────────────────────
   useEffect(() => {
-    const dbChannel = GroupChatService.subscribeToMessages(chat.id, addMessage);
+    const dbChannel = GroupChatService.subscribeToMessages(chat.id, addMessage, (row) => applyEdit(row.id, row.content, row.edited_at));
 
     const offSignals = GroupChatService.onChatSignals(chat.id, (signal) => {
       if (signal.type === 'new-message' && signal.payload?.id) {
@@ -182,6 +193,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         });
       } else if (signal.type === 'message-deleted' && signal.payload?.messageId) {
         setMessages((prev) => prev.filter((m) => m.id !== signal.payload.messageId));
+      } else if (signal.type === 'message-edited' && signal.payload?.messageId && typeof signal.payload.content === 'string') {
+        applyEdit(signal.payload.messageId, signal.payload.content, signal.payload.edited_at);
       } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
         // Someone read up to here: my ✓✓ show it straight away
         const at = String(signal.payload.at);
@@ -207,7 +220,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       offSignals();
       supabase.removeChannel(readChannel);
     };
-  }, [chat.id, me.id, addMessage]);
+  }, [chat.id, me.id, addMessage, applyEdit]);
 
   // Typing indicators expire if the "stopped typing" signal is lost
   useEffect(() => {
@@ -260,6 +273,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         if (last) {
           const missed = await GroupChatService.getMessagesAfter(chat.id, last.created_at);
           missed.forEach(addMessage);
+          // Edits made while this phone was away (messages can only change for 15 minutes)
+          (await GroupChatService.getRecentEdits(chat.id)).forEach((m) => applyEdit(m.id, m.content, m.edited_at));
           if (missed.length) {
             const r = await GroupChatService.getReactions(missed.map((m) => m.id));
             setReactions((prev) => ({ ...prev, ...r }));
@@ -287,7 +302,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('app:resync', onVisible);
     };
-  }, [chat.id, addMessage, loading]);
+  }, [chat.id, addMessage, applyEdit, loading]);
 
   // Mark read when returning to the app
   useEffect(() => {
@@ -544,6 +559,32 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     }
   };
 
+  const startEdit = (message: ChatMessage) => {
+    setActionsFor(null);
+    setEditing(message);
+  };
+
+  const saveEdit = async (text: string) => {
+    const message = editing;
+    setEditing(null);
+    if (!message) return;
+    const content = withEditedText(message.content, text);
+    if (content === message.content) return;
+    // Shown straight away; put back if the edit can't be saved
+    applyEdit(message.id, content, new Date().toISOString());
+    try {
+      const saved = await GroupChatService.editMessage(message.id, chat.id, content);
+      applyEdit(saved.id, saved.content, saved.edited_at);
+      onActivity(saved);
+    } catch (error) {
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, content: message.content, edited_at: message.edited_at ?? null } : m)));
+      const reason = String((error as { message?: string })?.message ?? '');
+      if (/15 minutes/.test(reason)) appAlert("This message can't be edited any more", 'You can edit a message for 15 minutes after sending it.', 'error');
+      else if (/deleted/i.test(reason)) appAlert("Couldn't edit the message", 'It was deleted.', 'error');
+      else appAlert("Couldn't edit the message", 'Check your connection and try again.', 'error');
+    }
+  };
+
   const retry = (message: ChatMessage) => {
     setActionsFor(null);
     sendContent(message.content, message.id);
@@ -730,7 +771,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         )}
       </div>
 
-      <ChatComposer onSend={(text) => sendContent(text)} onSendMedia={sendMedia} onTyping={onTyping} />
+      <ChatComposer
+        onSend={(text) => sendContent(text)}
+        onSendMedia={sendMedia}
+        onTyping={onTyping}
+        editing={editing ? { id: editing.id, text: editableText(editing.content), caption: editableText(editing.content) !== editing.content } : null}
+        onSaveEdit={saveEdit}
+        onCancelEdit={() => setEditing(null)}
+      />
 
       <MessageActionsSheet
         message={actionsFor}
@@ -745,6 +793,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         }}
         onDelete={() => actionsFor && deleteMessage(actionsFor)}
         onRetry={() => actionsFor && retry(actionsFor)}
+        onEdit={actionsFor && canEditMessage(actionsFor, me.id) ? () => startEdit(actionsFor) : undefined}
       />
 
       <ImageViewer url={viewImage} onClose={() => setViewImage(null)} />

@@ -122,6 +122,8 @@ const GroupChatsPage = () => {
       },
       // Someone deleted a message: the chat's latest line may have changed
       deleted: () => loadChats(),
+      // An edit may change the chat's latest line too
+      edited: () => loadChats(),
     });
   }, [user, chatIdsKey, loadChats]);
 

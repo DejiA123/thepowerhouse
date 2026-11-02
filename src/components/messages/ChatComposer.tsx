@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, SendHorizontal, X } from 'lucide-react';
+import { Check, ImagePlus, Loader2, Pencil, SendHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isGifFile, isVideoFile } from './chatUtils';
 
@@ -10,11 +10,15 @@ interface Props {
   onTyping: (typing: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
+  /** Editing one of my messages: its text (or caption) is in the box, and Send saves it */
+  editing?: { id: string; text: string; caption: boolean } | null;
+  onSaveEdit?: (text: string) => void;
+  onCancelEdit?: () => void;
 }
 
 const isTouchDevice = () => window.matchMedia?.('(pointer: coarse)').matches;
 
-const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = 'Message' }: Props) => {
+const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = 'Message', editing, onSaveEdit, onCancelEdit }: Props) => {
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -23,6 +27,28 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
   const fileRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout>>();
   const lastTypingSent = useRef(0);
+  // What was being typed before an edit began: back in the box when it ends
+  const draft = useRef<string | null>(null);
+  const editingId = editing?.id ?? null;
+  const editingText = editing?.text ?? '';
+
+  useEffect(() => {
+    if (editingId) {
+      if (draft.current === null) draft.current = text;
+      setText(editingText);
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      });
+    } else if (draft.current !== null) {
+      setText(draft.current);
+      draft.current = null;
+    }
+    // Only when an edit starts or ends
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
 
   // Auto-grow up to ~6 lines
   useLayoutEffect(() => {
@@ -52,6 +78,11 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
 
   const submit = async () => {
     const value = text.trim();
+    if (editing) {
+      if (value === editing.text.trim()) onCancelEdit?.(); // nothing changed
+      else onSaveEdit?.(value);
+      return;
+    }
     if (photo) {
       setUploading(true);
       setProgress(photo.kind === 'video' ? 0 : null);
@@ -78,11 +109,31 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
-  const canSend = (text.trim().length > 0 || !!photo) && !uploading && !disabled;
+  const canSend = editing
+    ? (text.trim().length > 0 || editing.caption) && !disabled
+    : (text.trim().length > 0 || !!photo) && !uploading && !disabled;
 
   return (
     <div className="border-t border-border/60 bg-background/95 px-2 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.5rem)] pt-2 backdrop-blur-xl sm:px-4">
-      {photo && (
+      {editing && (
+        <div className="mx-auto mb-2 flex max-w-4xl items-center gap-3 rounded-2xl bg-blue-50 px-3 py-2 dark:bg-blue-950/40">
+          <Pencil className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-blue-700 dark:text-blue-300">{editing.caption ? 'Edit caption' : 'Edit message'}</p>
+            <p className="truncate text-[13px] text-muted-foreground">{editing.text || 'No caption'}</p>
+          </div>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onCancelEdit?.()}
+            className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+            aria-label="Cancel editing"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {photo && !editing && (
         <div className="mx-1 mb-2 flex items-center gap-3 rounded-2xl bg-muted/60 p-2">
           {photo.kind === 'video' ? (
             <video src={`${photo.url}#t=0.1`} muted playsInline preload="metadata" className="h-16 w-16 rounded-xl bg-black object-cover" />
@@ -113,8 +164,11 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={disabled || uploading}
-          className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-90"
+          disabled={disabled || uploading || !!editing}
+          className={cn(
+            'mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-90',
+            editing && 'hidden',
+          )}
           aria-label="Send a photo, GIF or video"
         >
           <ImagePlus className="h-6 w-6" />
@@ -140,12 +194,18 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
             value={text}
             rows={1}
             enterKeyHint={isTouchDevice() ? 'enter' : 'send'}
-            placeholder={photo ? 'Add a caption…' : placeholder}
+            placeholder={editing ? (editing.caption ? 'Caption' : 'Message') : photo ? 'Add a caption…' : placeholder}
+            aria-label={editing ? (editing.caption ? 'Edit caption' : 'Edit message') : undefined}
             onChange={(e) => {
               setText(e.target.value);
-              if (e.target.value) signalTyping();
+              if (e.target.value && !editing) signalTyping();
             }}
             onKeyDown={(e) => {
+              if (e.key === 'Escape' && editing) {
+                e.preventDefault();
+                onCancelEdit?.();
+                return;
+              }
               if (e.key === 'Enter' && !e.shiftKey && !isTouchDevice() && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 if (canSend) submit();
@@ -163,9 +223,9 @@ const ChatComposer = ({ onSend, onSendMedia, onTyping, disabled, placeholder = '
             'mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-90',
             canSend ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 hover:bg-blue-700' : 'bg-muted text-muted-foreground',
           )}
-          aria-label="Send"
+          aria-label={editing ? 'Save edit' : 'Send'}
         >
-          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <SendHorizontal className="h-5 w-5" />}
+          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : editing ? <Check className="h-5 w-5" /> : <SendHorizontal className="h-5 w-5" />}
         </button>
       </div>
     </div>

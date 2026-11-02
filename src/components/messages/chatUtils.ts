@@ -92,6 +92,33 @@ export const previewText = (content: string, mine = false) => {
   return text.replace(/\s+/g, ' ').trim();
 };
 
+/** A database time in ms (it writes microseconds, which not every Safari reads) */
+export const timeMs = (iso?: string | null) => (iso ? Date.parse(iso.replace(/(\.\d{3})\d+/, '$1')) || 0 : 0);
+
+/** Like WhatsApp: the sender can edit a message for 15 minutes (the database enforces it) */
+export const EDIT_WINDOW_MS = 15 * 60_000;
+
+const isMediaContent = (content: string) => content.startsWith(IMAGE_PREFIX) || content.startsWith(VIDEO_PREFIX);
+
+/** Text and captions can be edited; calls and GIF links can't */
+export function canEditMessage(message: { user_id: string; content: string; created_at: string; pending?: boolean; failed?: boolean; is_deleted?: boolean }, myId: string, now = Date.now()) {
+  if (message.user_id !== myId || message.pending || message.failed || message.is_deleted) return false;
+  if (parseCall(message.content)) return false;
+  const { imageUrl, videoUrl } = parseMessageContent(message.content);
+  if ((imageUrl || videoUrl) && !isMediaContent(message.content)) return false;
+  return now - timeMs(message.created_at) < EDIT_WINDOW_MS;
+}
+
+/** What's edited: the text, or a photo's or video's caption */
+export const editableText = (content: string) => (isMediaContent(content) ? parseMessageContent(content).text : content);
+
+/** The message after an edit (a photo or video keeps its file) */
+export function withEditedText(content: string, text: string) {
+  if (!isMediaContent(content)) return text;
+  const first = content.split('\n')[0];
+  return text ? `${first}\n${text}` : first;
+}
+
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
