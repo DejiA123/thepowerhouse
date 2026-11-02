@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GroupChatService, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
-import { ChatSearchSheet, EncryptionInfo, ForwardSheet, MessageInfoSheet, SolidLock, StarredSheet } from './ChatPanels';
+import { ChatSearchSheet, ClearChatDialog, EncryptionInfo, ForwardSheet, MessageInfoSheet, SolidLock, StarredSheet } from './ChatPanels';
 import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
@@ -102,6 +102,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   // Choosing several messages (null: not choosing)
   const [picking, setPicking] = useState<Set<string> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [clearing, setClearing] = useState(false);
   // My mute / archive settings; a group's members (to @mention)
   const [settings, setSettings] = useState<{ muted_until: string | null; archived_at: string | null } | null>(null);
   const [mentionables, setMentionables] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
@@ -1259,6 +1260,22 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         })}
       />
       <EncryptionInfo open={encryptionInfo} onOpenChange={setEncryptionInfo} />
+      <ClearChatDialog
+        open={clearing}
+        name={privateChat ? title : undefined}
+        onOpenChange={setClearing}
+        onConfirm={async (keepStarred) => {
+          try {
+            await GroupChatService.clearChat(chat.id, keepStarred);
+            if (!keepStarred) setStarred(new Set());
+            setReloadTick((n) => n + 1);
+            appAlert('Chat cleared');
+          } catch {
+            appAlert("Couldn't clear the chat", 'Check your connection and try again.', 'error');
+            throw new Error('not cleared');
+          }
+        }}
+      />
       <ChatSearchSheet open={searchOpen} chatId={chat.id} myId={me.id} onOpenChange={setSearchOpen} onOpenMessage={openFound} />
       <StarredSheet open={starredOpen} chatId={chat.id} myId={me.id} onOpenChange={setStarredOpen} onOpenMessage={openFound} version={starVersion} />
       <MessageInfoSheet message={infoFor} chatId={chat.id} myId={me.id} readMarks={readMarks} onClose={() => setInfoFor(null)}
@@ -1304,6 +1321,10 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
             setSettings(before);
             appAlert("Couldn't change notifications", 'Check your connection and try again.', 'error');
           }
+        }}
+        onClear={() => {
+          setInfoOpen(false);
+          setClearing(true);
         }}
         onArchive={async (archived) => {
           const before = settings;

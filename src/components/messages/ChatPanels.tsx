@@ -391,3 +391,60 @@ export const EncryptionInfo = ({ open, onOpenChange }: { open: boolean; onOpenCh
     </DialogContent>
   </Dialog>
 );
+
+// ── Clear chat(s) ────────────────────────────────────────────────────
+
+/** "Clear this chat?" (or several), like WhatsApp: only for me, with "Keep starred messages" */
+export const ClearChatDialog = ({ open, count = 1, name, onOpenChange, onConfirm }: {
+  open: boolean;
+  /** How many chats (1 = this chat) */
+  count?: number;
+  name?: string;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (keepStarred: boolean) => Promise<void> | void;
+}) => {
+  const [keepStarred, setKeepStarred] = useState(true);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) setKeepStarred(true);
+  }, [open]);
+  const many = count > 1;
+  return (
+    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
+      <DialogContent className="max-w-[22rem] gap-0 rounded-3xl p-0">
+        <div className="px-6 pb-2 pt-6">
+          <DialogTitle className="text-lg font-semibold">{many ? `Clear ${count} chats?` : name ? `Clear chat with ${name}?` : 'Clear this chat?'}</DialogTitle>
+          <DialogDescription className="mt-1.5 text-sm text-muted-foreground">
+            {many ? 'Their messages' : 'Its messages'} will be removed from your phone and account. Everyone else in {many ? 'those chats' : 'the chat'} keeps theirs.
+          </DialogDescription>
+        </div>
+        <label className="mx-6 mt-3 flex items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-[15px] text-foreground">
+          <input type="checkbox" checked={keepStarred} onChange={(e) => setKeepStarred(e.target.checked)} className="h-5 w-5 accent-blue-600" />
+          Keep starred messages
+        </label>
+        <div className="flex flex-col gap-2 p-6">
+          <button
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onConfirm(keepStarred);
+                onOpenChange(false);
+              } catch {
+                /* stays open; the caller said what went wrong */
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={busy}
+            className="flex h-11 items-center justify-center gap-2 rounded-full bg-red-600 text-[15px] font-semibold text-white disabled:opacity-60"
+          >
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {many ? 'Clear chats' : 'Clear chat'}
+          </button>
+          <button onClick={() => onOpenChange(false)} disabled={busy} className="h-11 rounded-full text-[15px] font-medium text-foreground hover:bg-muted">
+            Cancel
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
