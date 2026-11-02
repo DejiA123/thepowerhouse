@@ -12,6 +12,10 @@ create table if not exists public.call_invites (
 );
 create index if not exists call_invites_user_idx on public.call_invites (user_id, created_at desc);
 alter table public.call_invites enable row level security;
+-- Who may touch the table at all (the rules below then decide which rows); the server
+-- (send-push, ringing someone into a call) reads invites as service_role
+grant select, insert, update on public.call_invites to authenticated;
+grant select, insert, update, delete on public.call_invites to service_role;
 
 -- Checked as the database (no recursion through the rules below)
 create or replace function public.in_call(_call_id uuid)
@@ -51,7 +55,6 @@ drop policy if exists "Invites are answered or rung again" on public.call_invite
 create policy "Invites are answered or rung again" on public.call_invites
   for update to authenticated using (user_id = auth.uid() or public.in_call(call_id))
   with check (user_id = auth.uid() or public.in_call(call_id));
-grant select, insert, update on public.call_invites to authenticated;
 
 -- Someone invited can see the call (to answer it from a notification)
 drop policy if exists "Invited people can view the call" on public.call_sessions;
