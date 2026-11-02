@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, Info, Loader2, Phone, PhoneCall, Video } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Info, Loader2, Phone, PhoneCall, Pin, Video, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { useCall } from '@/contexts/CallContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
 import UserAvatar from '@/components/common/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
-import { GroupChatService, signalsTopic, type ChatMessage, type GroupChat } from '@/services/groupChatService';
+import { GroupChatService, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
-import MessageBubble, { type ReactionGroup } from './MessageBubble';
+import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
+import { ChatSearchSheet, ForwardSheet, MessageInfoSheet, StarredSheet } from './ChatPanels';
 import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
-  parseMessageContent, uploadChatImage, uploadChatVideo, withEditedText,
+  parseCall, parseMessageContent, previewText, uploadChatImage, uploadChatVideo, withEditedText,
 } from './chatUtils';
 import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
@@ -62,6 +63,22 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [actionsFor, setActionsFor] = useState<ChatMessage | null>(null);
   // One of my messages being edited in the message box
   const [editing, setEditing] = useState<ChatMessage | null>(null);
+  // Like WhatsApp: replying to a message (swipe it), forwarding, info, search, starred, pinned, deleted for me
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [forwardFor, setForwardFor] = useState<ChatMessage | null>(null);
+  const [infoFor, setInfoFor] = useState<ChatMessage | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [starredOpen, setStarredOpen] = useState(false);
+  const [starred, setStarred] = useState<Set<string>>(() => new Set());
+  const [starVersion, setStarVersion] = useState(0);
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  const [pin, setPin] = useState<ChatPin | null>(null);
+  // Quoted or pinned messages that aren't loaded (null: deleted or not reachable)
+  const [extraMessages, setExtraMessages] = useState<Record<string, ChatMessage | null>>({});
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>();
+  const replyRef = useRef<ChatMessage | null>(null);
+  replyRef.current = replyTo;
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
@@ -131,6 +148,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     let cancelled = false;
     initialScrollDone.current = false;
     setEditing(null);
+    setReplyTo(null);
+    setStarred(new Set());
+    setHidden(new Set());
+    setPin(null);
+    setExtraMessages({});
+    GroupChatService.starredIds(chat.id).then((ids) => !cancelled && setStarred(ids)).catch(() => undefined);
+    GroupChatService.hiddenIds(chat.id).then((ids) => !cancelled && setHidden(ids)).catch(() => undefined);
+    GroupChatService.getPin(chat.id).then((p) => !cancelled && setPin(p)).catch(() => undefined);
     setLoading(true);
     setMessages([]);
     setReactions({});
@@ -180,6 +205,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   // ── Realtime ──────────────────────────────────────────────────────
   useEffect(() => {
     const dbChannel = GroupChatService.subscribeToMessages(chat.id, addMessage, (row) => applyEdit(row.id, row.content, row.edited_at));
+    const offPins = GroupChatService.watchPin(chat.id, () => GroupChatService.getPin(chat.id).then(setPin).catch(() => undefined));
 
     const offSignals = GroupChatService.onChatSignals(chat.id, (signal) => {
       if (signal.type === 'new-message' && signal.payload?.id) {
@@ -195,6 +221,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setMessages((prev) => prev.filter((m) => m.id !== signal.payload.messageId));
       } else if (signal.type === 'message-edited' && signal.payload?.messageId && typeof signal.payload.content === 'string') {
         applyEdit(signal.payload.messageId, signal.payload.content, signal.payload.edited_at);
+      } else if (signal.type === 'pin') {
+        GroupChatService.getPin(chat.id).then(setPin).catch(() => undefined);
       } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
         // Someone read up to here: my ✓✓ show it straight away
         const at = String(signal.payload.at);
@@ -218,6 +246,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     return () => {
       GroupChatService.unsubscribe(dbChannel);
       offSignals();
+      offPins();
       supabase.removeChannel(readChannel);
     };
   }, [chat.id, me.id, addMessage, applyEdit]);
@@ -317,9 +346,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   }, [chat.id, messages]);
 
   // ── Scrolling ─────────────────────────────────────────────────────
+  const lastMessageId = useRef<string | null>(null);
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // Only a new latest message scrolls down (not an edit, or older messages loading)
+    const latest = messages[messages.length - 1]?.id ?? null;
+    const newLatest = latest !== lastMessageId.current;
+    lastMessageId.current = latest;
     if (restoreScroll.current) {
       // Keep the view steady after older messages are prepended
       el.scrollTop = el.scrollHeight - restoreScroll.current.height + restoreScroll.current.top;
@@ -335,7 +369,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       return;
     }
     const last = messages[messages.length - 1];
-    if (last && (atBottomRef.current || last.user_id === me.id)) scrollToBottom(true);
+    if (last && newLatest && (atBottomRef.current || last.user_id === me.id)) scrollToBottom(true);
   }, [messages, me.id, scrollToBottom, unreadAnchor, loading]);
 
   // Photos and videos only get their height once they've loaded, after the chat
@@ -446,7 +480,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   }, [loadOlder, loading]);
 
   // ── Sending ───────────────────────────────────────────────────────
-  const sendContent = useCallback(async (content: string, existingTempId?: string) => {
+  const sendContent = useCallback(async (content: string, existingTempId?: string, replyToId?: string | null) => {
     if (!existingTempId) track('message_sent', { chat: chat.name, chatId: chat.id });
     const tempId = existingTempId ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic: ChatMessage = {
@@ -458,6 +492,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_deleted: false,
+      reply_to_id: replyToId ?? null,
       pending: true,
       user: { id: me.id, email: me.email, full_name: me.name, avatar_url: me.avatar },
     };
@@ -469,7 +504,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     atBottomRef.current = true;
 
     try {
-      const saved = await GroupChatService.sendMessage(chat.id, content);
+      const saved = await GroupChatService.sendMessage(chat.id, content, false, { replyTo: replyToId });
       if (saved) {
         setMessages((prev) => {
           const withoutTemp = prev.filter((m) => m.id !== tempId);
@@ -491,7 +526,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const video = isVideoFile(file);
     try {
       const url = video ? await uploadChatVideo(chat.id, me.id, file, onProgress) : await uploadChatImage(me.id, file);
-      await sendContent(`${video ? VIDEO_PREFIX : IMAGE_PREFIX}${url}${caption ? `\n${caption}` : ''}`);
+      const replying = replyRef.current?.id ?? null;
+      await sendContent(`${video ? VIDEO_PREFIX : IMAGE_PREFIX}${url}${caption ? `\n${caption}` : ''}`, undefined, replying);
+      setReplyTo(null);
     } catch (error) {
       console.error('Upload failed', error);
       const message = error instanceof Error && !/fetch|network|load failed/i.test(error.message) ? error.message : 'Please check your connection and try again.';
@@ -587,8 +624,158 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   const retry = (message: ChatMessage) => {
     setActionsFor(null);
-    sendContent(message.content, message.id);
+    sendContent(message.content, message.id, message.reply_to_id);
   };
+
+  // ── Reply, forward, star, pin, delete for me, go to a message ───────
+  const startReply = useCallback((message: ChatMessage) => {
+    setActionsFor(null);
+    setEditing(null);
+    setReplyTo(message);
+  }, []);
+
+  const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const known = useCallback((id: string) => byId.get(id) ?? extraMessages[id] ?? undefined, [byId, extraMessages]);
+
+  // Quoted (and pinned) messages that aren't loaded: fetch them once
+  useEffect(() => {
+    const wanted = new Set<string>();
+    messages.forEach((m) => m.reply_to_id && wanted.add(m.reply_to_id));
+    if (pin) wanted.add(pin.message_id);
+    const missing = [...wanted].filter((id) => !byId.has(id) && !(id in extraMessages));
+    if (!missing.length) return;
+    let stale = false;
+    GroupChatService.getMessagesByIds(missing)
+      .then((found) => {
+        if (stale) return;
+        setExtraMessages((prev) => {
+          const next = { ...prev };
+          missing.forEach((id) => (next[id] = found.find((f) => f.id === id) ?? null));
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [messages, byId, extraMessages, pin]);
+
+  const quoteOf = useCallback((original: ChatMessage | null | undefined, id: string): Quote => {
+    if (original === undefined) return { id, userId: '', name: '…', text: '' };
+    if (original === null) return { id, userId: '', name: 'Message', text: '', missing: true };
+    const own = original.user_id === me.id;
+    return {
+      id,
+      userId: original.user_id,
+      name: own ? 'You' : senderName(original),
+      text: previewText(original.content, own),
+      image: parseMessageContent(original.content).imageUrl,
+    };
+  }, [me.id]);
+
+  const quotes = useMemo(() => {
+    const out: Record<string, Quote> = {};
+    messages.forEach((m) => {
+      if (m.reply_to_id) out[m.id] = quoteOf(known(m.reply_to_id), m.reply_to_id);
+    });
+    return out;
+  }, [messages, known, quoteOf]);
+
+  /** Scroll to a message and flash it (loading older messages first if needed) */
+  const jumpTo = useCallback(async (id: string) => {
+    const show = () => {
+      const el = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${id.replace(/["\\]/g, '')}"]`);
+      if (!el) return false;
+      atBottomRef.current = false;
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setHighlightId(id);
+      clearTimeout(highlightTimer.current);
+      highlightTimer.current = setTimeout(() => setHighlightId(null), 1800);
+      return true;
+    };
+    if (hidden.has(id)) {
+      appAlert('You deleted this message for you');
+      return;
+    }
+    if (show()) return;
+    try {
+      const target = byId.get(id) ?? extraMessages[id] ?? (await GroupChatService.getMessagesByIds([id]))[0];
+      const oldest = messagesRef.current.find((m) => !m.pending && !m.failed && !String(m.id).startsWith('temp-'));
+      if (!target || target.chat_id !== chat.id || !oldest) {
+        appAlert("This message isn't available");
+        return;
+      }
+      const older = await GroupChatService.getMessagesBetween(chat.id, target.created_at, oldest.created_at);
+      const el = scrollRef.current;
+      if (el) restoreScroll.current = { height: el.scrollHeight, top: el.scrollTop };
+      setMessages((prev) => [...older.filter((o) => !prev.some((p) => p.id === o.id)), ...prev]);
+      if (older.length) {
+        const r = await GroupChatService.getReactions(older.map((m) => m.id));
+        setReactions((prev) => ({ ...r, ...prev }));
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!show()) appAlert("This message isn't available");
+      }));
+    } catch {
+      appAlert("Couldn't find that message", 'Check your connection and try again.', 'error');
+    }
+  }, [hidden, byId, extraMessages, chat.id]);
+
+  const openFound = (m: ChatMessage) => {
+    setSearchOpen(false);
+    setStarredOpen(false);
+    setTimeout(() => jumpTo(m.id), 250); // once the panel has gone
+  };
+
+  const toggleStar = async (message: ChatMessage) => {
+    setActionsFor(null);
+    const on = !starred.has(message.id);
+    const flip = (add: boolean) => setStarred((prev) => {
+      const next = new Set(prev);
+      if (add) next.add(message.id);
+      else next.delete(message.id);
+      return next;
+    });
+    flip(on);
+    try {
+      await GroupChatService.setStarred(message.id, chat.id, on);
+      setStarVersion((v) => v + 1);
+    } catch {
+      flip(!on);
+      appAlert(on ? "Couldn't star the message" : "Couldn't unstar the message", 'Check your connection and try again.', 'error');
+    }
+  };
+
+  const togglePin = async (message: ChatMessage) => {
+    setActionsFor(null);
+    const before = pin;
+    const unpin = pin?.message_id === message.id;
+    setPin(unpin ? null : { chat_id: chat.id, message_id: message.id, pinned_by: me.id, pinned_at: new Date().toISOString() });
+    try {
+      await GroupChatService.setPin(chat.id, unpin ? null : message.id);
+    } catch {
+      setPin(before);
+      appAlert(unpin ? "Couldn't unpin the message" : "Couldn't pin the message", 'Check your connection and try again.', 'error');
+    }
+  };
+
+  const deleteForMe = async (message: ChatMessage) => {
+    setActionsFor(null);
+    if (replyTo?.id === message.id) setReplyTo(null);
+    setHidden((prev) => new Set(prev).add(message.id));
+    try {
+      await GroupChatService.deleteForMe(message.id, chat.id);
+    } catch {
+      setHidden((prev) => {
+        const next = new Set(prev);
+        next.delete(message.id);
+        return next;
+      });
+      appAlert("Couldn't delete the message", 'Check your connection and try again.', 'error');
+    }
+  };
+
+  const pinned = pin ? known(pin.message_id) : null;
 
   // Tapping "Missed voice call" in the chat calls back
   const callBack = useCallback((type: 'audio' | 'video') => startCall(chat, type), [startCall, chat]);
@@ -611,10 +798,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       ? `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`
       : 'Tap for group info';
 
+  // Messages I deleted just for me aren't shown
+  const visible = hidden.size ? messages.filter((m) => !hidden.has(m.id)) : messages;
   const rendered: React.ReactNode[] = [];
-  messages.forEach((m, i) => {
-    const prev = messages[i - 1];
-    const next = messages[i + 1];
+  visible.forEach((m, i) => {
+    const prev = visible[i - 1];
+    const next = visible[i + 1];
     const newDay = !prev || dayKey(prev.created_at) !== dayKey(m.created_at);
     if (newDay) {
       rendered.push(
@@ -654,6 +843,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onOpenImage={setViewImage}
         onRetry={retry}
         onCall={callBack}
+        quote={quotes[m.id] ?? null}
+        onQuoteTap={jumpTo}
+        onReply={startReply}
+        starred={starred.has(m.id)}
+        highlighted={highlightId === m.id}
       />,
     );
   });
@@ -710,6 +904,22 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           </span>
           <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-emerald-700">Join</span>
         </button>
+      )}
+
+      {/* Pinned message (any member can pin one): tap to go to it */}
+      {pin && pinned && (
+        <div className="z-10 flex items-center gap-2 border-b border-border/60 bg-background/95 py-1.5 pl-3 pr-1 backdrop-blur-xl">
+          <button onClick={() => jumpTo(pin.message_id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left" aria-label="Go to the pinned message">
+            <Pin className="h-4 w-4 shrink-0 rotate-45 text-blue-600 dark:text-blue-400" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-blue-600 dark:text-blue-400">Pinned message</span>
+              <span className="block truncate text-sm text-foreground">{previewText(pinned.content, pinned.user_id === me.id)}</span>
+            </span>
+          </button>
+          <button onClick={() => togglePin(pinned)} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="Unpin">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
       {/* Messages */}
@@ -772,9 +982,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       </div>
 
       <ChatComposer
-        onSend={(text) => sendContent(text)}
+        onSend={(text) => {
+          const replying = replyTo?.id ?? null;
+          setReplyTo(null);
+          sendContent(text, undefined, replying);
+        }}
         onSendMedia={sendMedia}
         onTyping={onTyping}
+        replyTo={replyTo ? { ...quoteOf(replyTo, replyTo.id), name: replyTo.user_id === me.id ? 'yourself' : senderName(replyTo) } : null}
+        onCancelReply={() => setReplyTo(null)}
         editing={editing ? { id: editing.id, text: editableText(editing.content), caption: editableText(editing.content) !== editing.content } : null}
         onSaveEdit={saveEdit}
         onCancelEdit={() => setEditing(null)}
@@ -794,6 +1010,34 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onDelete={() => actionsFor && deleteMessage(actionsFor)}
         onRetry={() => actionsFor && retry(actionsFor)}
         onEdit={actionsFor && canEditMessage(actionsFor, me.id) ? () => startEdit(actionsFor) : undefined}
+        onReply={() => actionsFor && startReply(actionsFor)}
+        onForward={() => {
+          setForwardFor(actionsFor);
+          setActionsFor(null);
+        }}
+        starred={!!actionsFor && starred.has(actionsFor.id)}
+        onToggleStar={() => actionsFor && toggleStar(actionsFor)}
+        pinned={!!actionsFor && pin?.message_id === actionsFor.id}
+        onTogglePin={() => actionsFor && togglePin(actionsFor)}
+        onInfo={actionsFor?.user_id === me.id ? () => {
+          setInfoFor(actionsFor);
+          setActionsFor(null);
+        } : undefined}
+        onDeleteForMe={() => actionsFor && deleteForMe(actionsFor)}
+      />
+
+      <ForwardSheet
+        message={forwardFor}
+        myName={me.name}
+        onClose={() => setForwardFor(null)}
+        onForwarded={(sent) => sent.filter((m) => m.chat_id === chat.id).forEach((m) => {
+          addMessage(m);
+          onActivity(m);
+        })}
+      />
+      <ChatSearchSheet open={searchOpen} chatId={chat.id} myId={me.id} onOpenChange={setSearchOpen} onOpenMessage={openFound} />
+      <StarredSheet open={starredOpen} chatId={chat.id} myId={me.id} onOpenChange={setStarredOpen} onOpenMessage={openFound} version={starVersion} />
+      <MessageInfoSheet message={infoFor} chatId={chat.id} myId={me.id} readMarks={readMarks} onClose={() => setInfoFor(null)}
       />
 
       <ImageViewer url={viewImage} onClose={() => setViewImage(null)} />
@@ -811,6 +1055,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onCall={(type) => {
           setInfoOpen(false);
           startCall(chat, type);
+        }}
+        onSearch={() => {
+          setInfoOpen(false);
+          setSearchOpen(true);
+        }}
+        onStarred={() => {
+          setInfoOpen(false);
+          setStarredOpen(true);
         }}
       />
     </div>

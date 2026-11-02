@@ -221,7 +221,8 @@ const GroupChatsPage = () => {
       </aside>
 
       {/* Conversation */}
-      <section className={cn('h-full min-h-0 flex-1', selectedId ? 'block' : 'hidden md:block')}>
+      {/* min-w-0: a long line (a quoted message) can't widen the chat past the screen */}
+      <section className={cn('h-full min-h-0 min-w-0 flex-1', selectedId ? 'block' : 'hidden md:block')}>
         {selectedChat ? (
           <Conversation
             key={selectedChat.id}
