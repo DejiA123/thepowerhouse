@@ -297,6 +297,38 @@ export type Database = {
           },
         ]
       }
+      call_invites: {
+        Row: {
+          call_id: string
+          created_at: string
+          invited_by: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          call_id: string
+          created_at?: string
+          invited_by?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          call_id?: string
+          created_at?: string
+          invited_by?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_invites_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_sessions: {
         Row: {
           call_type: string
@@ -425,24 +457,30 @@ export type Database = {
       }
       chat_participants: {
         Row: {
+          archived_at: string | null
           chat_id: string
           id: string
           joined_at: string | null
           last_read_at: string | null
+          muted_until: string | null
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           chat_id: string
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
+          muted_until?: string | null
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           chat_id?: string
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
+          muted_until?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2639,6 +2677,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      in_call: { Args: { _call_id: string }; Returns: boolean }
       in_current_church: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_chat_member: { Args: { _chat_id: string }; Returns: boolean }
