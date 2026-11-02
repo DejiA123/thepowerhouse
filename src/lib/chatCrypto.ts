@@ -39,7 +39,7 @@ export function toB64(data: ArrayBuffer | Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(out);
 }
-export function fromB64(text: string): Uint8Array {
+export function fromB64(text: string) {
   const bin = atob(text);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
