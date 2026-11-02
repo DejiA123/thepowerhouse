@@ -31,8 +31,32 @@ export interface ChatSummary extends GroupChat {
 /** My muted chats (chat id → until), kept up to date by the chat list and the mute switch */
 const mutedUntil = new Map<string, number>();
 export const isChatMuted = (chatId: string) => (mutedUntil.get(chatId) ?? 0) > Date.now();
-/** Window event: a chat was muted, unmuted, archived or unarchived on this phone */
+/** Window event: a chat was muted, unmuted, archived, unarchived or cleared on this phone */
 export const CHAT_SETTINGS_CHANGED = 'chat:settings';
+
+/**
+ * "Clear chat" (each member's own): messages up to then are hidden from me,
+ * except starred ones I kept. Saved on my chat_participants row (cleared_at),
+ * and on this phone too so it works before that database update.
+ */
+const clearedTimes = new Map<string, number>();
+const clearedKey = (userId: string, chatId: string) => `chat_cleared_${userId}_${chatId}`;
+function localCleared(userId: string, chatId: string) {
+    try {
+        return Number(localStorage.getItem(clearedKey(userId, chatId))) || 0;
+    } catch {
+        return 0;
+    }
+}
+/** A database time in ms (it writes microseconds, which not every Safari reads) */
+const msOf = (iso?: string | null) => (iso ? Date.parse(iso.replace(/(\.\d{3})\d+/, '$1')) || 0 : 0);
+function noteCleared(userId: string, chatId: string, serverIso?: string | null) {
+    const at = Math.max(msOf(serverIso), localCleared(userId, chatId));
+    clearedTimes.set(chatId, at);
+    return at;
+}
+/** "After the clear" as a time to compare with: a millisecond on, so the last cleared message (microseconds) stays hidden */
+const afterClear = (ms: number) => new Date(ms + 1).toISOString();
 
 export interface ChatUser {
     id: string;
@@ -257,6 +281,8 @@ export class GroupChatService {
 
         const leaveOutImported = await hasImportColumns();
         const summaries = await Promise.all(rows.map(async (m: any) => {
+            // Cleared by me: the list shows nothing from before
+            const clearedMs = noteCleared(user.id, m.chat_id, m.cleared_at);
             let unreadQuery = supabase
                 .from('chat_messages')
                 .select('id', { count: 'exact', head: true })
@@ -266,12 +292,15 @@ export class GroupChatService {
                 .not('content', 'like', ANSWERED_CALLS)
                 .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
             if (leaveOutImported) unreadQuery = unreadQuery.is('imported_from' as never, null);
+            // Cleared messages aren't unread any more
+            if (clearedMs) unreadQuery = unreadQuery.gt('created_at', afterClear(clearedMs));
             const [{ data: lastRow }, { count }] = await Promise.all([
                 supabase
                     .from('chat_messages')
                     .select('content, created_at, user_id, user:user_id ( full_name )')
                     .eq('chat_id', m.chat_id)
                     .eq('is_deleted', false)
+                    .gt('created_at', clearedMs ? afterClear(clearedMs) : '1970-01-01T00:00:00Z')
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle(),
@@ -416,6 +445,48 @@ export class GroupChatService {
         membersChanged(chatId);
     }
 
+    /** When I cleared this chat (null if never) */
+    static async clearedAt(chatId: string): Promise<string | null> {
+        let at = clearedTimes.get(chatId);
+        if (at === undefined) {
+            const user = await currentUser();
+            if (!user) return null;
+            const { data } = await supabase.from('chat_participants').select('*').eq('chat_id', chatId).eq('user_id', user.id).maybeSingle();
+            at = noteCleared(user.id, chatId, (data as { cleared_at?: string | null } | null)?.cleared_at);
+        }
+        return at ? afterClear(at) : null;
+    }
+
+    /**
+     * Clear a chat for me, like WhatsApp: everything up to its latest message is
+     * hidden from me (nobody else). Starred messages stay unless `keepStarred` is off.
+     */
+    static async clearChat(chatId: string, keepStarred: boolean): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        // The latest message's own time (the server's clock, not this phone's)
+        const { data: latest } = await supabase
+            .from('chat_messages')
+            .select('created_at')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        const at = (latest as { created_at?: string } | null)?.created_at ?? new Date().toISOString();
+        if (!keepStarred) {
+            await supabase.from('chat_starred_messages' as never).delete().eq('user_id', user.id).eq('chat_id', chatId);
+        }
+        try {
+            localStorage.setItem(clearedKey(user.id, chatId), String(msOf(at)));
+        } catch {
+            /* private mode: the database copy still works */
+        }
+        const { error } = await supabase.from('chat_participants').update({ cleared_at: at } as never).eq('chat_id', chatId).eq('user_id', user.id);
+        if (error && !isMissingColumn(error)) throw error;
+        noteCleared(user.id, chatId, at);
+        window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+    }
+
     /** My own settings for a chat (mute, archive) */
     static async mySettings(chatId: string): Promise<{ muted_until: string | null; archived_at: string | null } | null> {
         const user = await currentUser();
@@ -478,6 +549,14 @@ export class GroupChatService {
             .order('created_at', { ascending: false })
             .limit(limit);
         if (before) query = query.lt('created_at', before);
+        // Cleared by me: only what came after, plus starred messages I kept
+        const cleared = await this.clearedAt(chatId);
+        if (cleared) {
+            const kept = [...(await this.starredIds(chatId))].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+            query = kept.length
+                ? query.or(`created_at.gt."${cleared}",id.in.(${kept.join(',')})`)
+                : query.gt('created_at', cleared);
+        }
 
         const { data, error } = await query;
         if (error) throw error;
@@ -663,6 +742,8 @@ export class GroupChatService {
 
     /** Everything from one message up to (not including) `before`, oldest first: jumping back to a quoted message */
     static async getMessagesBetween(chatId: string, from: string, before: string, limit = 500): Promise<ChatMessage[]> {
+        const cleared = await this.clearedAt(chatId);
+        if (cleared && msOf(from) < msOf(cleared)) from = cleared;
         const { data, error } = await supabase
             .from('chat_messages')
             .select(MESSAGE_SELECT)
@@ -703,7 +784,11 @@ export class GroupChatService {
             if (!m.locked && !m.content.startsWith('::call::') && m.content.toLowerCase().includes(needle)) found.set(m.id, m);
         }
         for (const m of (server.data || []).map(normalizeMessage)) if (!isEncrypted(m.content)) found.set(m.id, m);
-        return [...found.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, limit);
+        const cleared = await this.clearedAt(chatId);
+        return [...found.values()]
+            .filter((m) => !cleared || msOf(m.created_at) >= msOf(cleared))
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+            .slice(0, limit);
     }
 
     // ── Star, pin, delete for me ───────────────────────────────────────
@@ -862,11 +947,12 @@ export class GroupChatService {
         if (!user) return 0;
         const { data: memberships } = await supabase
             .from('chat_participants')
-            .select('chat_id, last_read_at, joined_at, chat:chat_id ( is_active )')
+            .select('*, chat:chat_id ( is_active )')
             .eq('user_id', user.id);
         const rows = (memberships || []).filter((m: any) => m.chat && m.chat.is_active !== false);
         const leaveOutImported = await hasImportColumns();
         const counts = await Promise.all(rows.map(async (m: any) => {
+            const clearedMs = noteCleared(user.id, m.chat_id, m.cleared_at);
             let q = supabase
                 .from('chat_messages')
                 .select('id', { count: 'exact', head: true })
@@ -876,6 +962,7 @@ export class GroupChatService {
                 .not('content', 'like', ANSWERED_CALLS)
                 .gt('created_at', m.last_read_at || m.joined_at || '1970-01-01');
             if (leaveOutImported) q = q.is('imported_from' as never, null);
+            if (clearedMs) q = q.gt('created_at', afterClear(clearedMs));
             const { count } = await q;
             return count || 0;
         }));
@@ -887,11 +974,12 @@ export class GroupChatService {
         if (!user) return 0;
         const { data: participant } = await supabase
             .from('chat_participants')
-            .select('last_read_at')
+            .select('*')
             .eq('chat_id', chatId)
             .eq('user_id', user.id)
             .maybeSingle();
         if (!participant) return 0;
+        const clearedMs = noteCleared(user.id, chatId, (participant as { cleared_at?: string | null }).cleared_at);
         let q = supabase
             .from('chat_messages')
             .select('id', { count: 'exact', head: true })
@@ -901,6 +989,7 @@ export class GroupChatService {
             .neq('user_id', user.id)
             .not('content', 'like', ANSWERED_CALLS);
         if (await hasImportColumns()) q = q.is('imported_from' as never, null);
+        if (clearedMs) q = q.gt('created_at', afterClear(clearedMs));
         const { count } = await q;
         return count || 0;
     }

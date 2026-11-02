@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Archive, ArrowLeft, BellOff, ChevronRight, Loader2, MessageCirclePlus, PhoneCall, Search, Users } from 'lucide-react';
+import { appAlert } from '@/lib/appAlert';
+import { GroupChatService } from '@/services/groupChatService';
+import { ClearChatDialog } from './ChatPanels';
+import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
@@ -31,6 +34,39 @@ const ChatList = ({
   const [filter, setFilter] = useState<Filter>('all');
   // Archived chats sit in their own list (like WhatsApp's "Archived")
   const [showArchived, setShowArchived] = useState(false);
+  // ⋮ menu, choosing chats, clearing them
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const [clearIds, setClearIds] = useState<string[] | null>(null);
+  const togglePick = (id: string) => setPicked((prev) => {
+    if (!prev) return prev;
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+  const clearChats = async (ids: string[], keepStarred: boolean) => {
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await GroupChatService.clearChat(id, keepStarred);
+      } catch {
+        failed += 1;
+      }
+    }
+    setPicked(null);
+    if (failed) {
+      appAlert(`Couldn't clear ${failed} ${failed === 1 ? 'chat' : 'chats'}`, 'Check your connection and try again.', 'error');
+      if (failed === ids.length) throw new Error('not cleared');
+    } else appAlert(ids.length === 1 ? 'Chat cleared' : `${ids.length} chats cleared`);
+  };
+  const archivePicked = async () => {
+    const ids = [...(picked ?? [])];
+    setPicked(null);
+    const archiving = ids.some((id) => !chats.find((c) => c.id === id)?.archived_at);
+    for (const id of ids) await GroupChatService.setArchived(id, archiving).catch(() => undefined);
+    appAlert(archiving ? (ids.length === 1 ? 'Chat archived' : `${ids.length} chats archived`) : 'Unarchived');
+  };
 
   const q = query.trim().toLowerCase();
   const archived = useMemo(() => chats.filter((c) => !!c.archived_at), [chats]);
@@ -53,6 +89,21 @@ const ChatList = ({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <header className="px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:pt-5">
+        {picked ? (
+          // Choosing chats: what to do with them
+          <div className="flex items-center gap-1" aria-label="Chosen chats">
+            <button onClick={() => setPicked(null)} className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted" aria-label="Stop choosing">
+              <X className="h-5 w-5" />
+            </button>
+            <p className="flex-1 text-[20px] font-bold text-foreground">{picked.size} selected</p>
+            <button onClick={archivePicked} disabled={!picked.size} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40" aria-label="Archive chosen chats">
+              <Archive className="h-5 w-5" />
+            </button>
+            <button onClick={() => setClearIds([...picked])} disabled={!picked.size} className="flex h-10 w-10 items-center justify-center rounded-full text-red-600 hover:bg-muted disabled:opacity-40" aria-label="Clear chosen chats">
+              <Eraser className="h-5 w-5" />
+            </button>
+          </div>
+        ) : (
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted md:hidden" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
@@ -65,7 +116,42 @@ const ChatList = ({
           >
             <MessageCirclePlus className="h-5 w-5" />
           </button>
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)} className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-muted" aria-label="More" aria-expanded={menuOpen}>
+              <MoreVertical className="h-5 w-5" />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} aria-hidden />
+                <div className="absolute right-0 top-11 z-40 w-52 overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-xl animate-in fade-in" role="menu">
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setPicked(new Set());
+                    }}
+                    disabled={!chats.length}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] text-foreground hover:bg-muted disabled:opacity-40"
+                  >
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" /> Select chats
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setClearIds(chats.map((c) => c.id));
+                    }}
+                    disabled={!chats.length}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] text-red-600 hover:bg-muted disabled:opacity-40 dark:text-red-400"
+                  >
+                    <Eraser className="h-4 w-4" /> Clear all chats
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+        )}
         <div className="relative mt-3">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -137,12 +223,18 @@ const ChatList = ({
               return (
                 <button
                   key={chat.id}
-                  onClick={() => onSelect(chat)}
+                  onClick={() => (picked ? togglePick(chat.id) : onSelect(chat))}
+                  aria-pressed={picked ? picked.has(chat.id) : undefined}
                   className={cn(
                     'flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left transition',
-                    selectedId === chat.id ? 'bg-blue-50 dark:bg-blue-950/50' : 'hover:bg-muted/70 active:bg-muted',
+                    picked?.has(chat.id) ? 'bg-blue-50 dark:bg-blue-950/50' : selectedId === chat.id && !picked ? 'bg-blue-50 dark:bg-blue-950/50' : 'hover:bg-muted/70 active:bg-muted',
                   )}
                 >
+                  {picked && (
+                    <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2', picked.has(chat.id) ? 'border-blue-600 bg-blue-600 text-white' : 'border-muted-foreground/40')} aria-hidden>
+                      {picked.has(chat.id) && <Check className="h-4 w-4" />}
+                    </span>
+                  )}
                   <UserAvatar name={chatTitle(chat, myName)} src={chat.avatar_url} seed={chat.id} className="h-12 w-12" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
@@ -201,6 +293,13 @@ const ChatList = ({
           </>
         )}
       </div>
+      <ClearChatDialog
+        open={!!clearIds}
+        count={clearIds?.length ?? 1}
+        name={clearIds?.length === 1 ? chatTitle(chats.find((c) => c.id === clearIds[0]) ?? { name: '' }, myName) || undefined : undefined}
+        onOpenChange={(o) => !o && setClearIds(null)}
+        onConfirm={(keepStarred) => clearChats(clearIds ?? [], keepStarred)}
+      />
     </div>
   );
 };

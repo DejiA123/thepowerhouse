@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, ArchiveRestore, Bell, BellOff, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -37,6 +37,8 @@ interface Props {
   settings?: { muted_until: string | null; archived_at: string | null } | null;
   onMute?: (until: Date | null) => void;
   onArchive?: (archived: boolean) => void;
+  /** Clear this chat (for me) */
+  onClear?: () => void;
   onlineIds: Set<string>;
   /** A one-to-one chat: the other person's "Online" / "Last seen …" */
   privateStatus?: string;
@@ -58,7 +60,8 @@ const StarredRow = ({ onClick }: { onClick: () => void }) => (
 const ALWAYS = new Date('2999-12-31T00:00:00Z');
 
 /** Mute, archive, import a WhatsApp chat, and what end-to-end encryption means here */
-const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive }: {
+const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive, onClear }: {
+  onClear?: () => void;
   onImport?: () => void;
   encrypted?: boolean;
   settings?: { muted_until: string | null; archived_at: string | null } | null;
@@ -109,6 +112,12 @@ const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive }: {
           <span className="flex-1 text-[15px] font-medium text-foreground">{settings.archived_at ? 'Unarchive chat' : 'Archive chat'}</span>
         </button>
       )}
+      {onClear && (
+        <button onClick={onClear} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+          <Eraser className="h-5 w-5 text-red-500" />
+          <span className="flex-1 text-[15px] font-medium text-red-600 dark:text-red-400">Clear chat</span>
+        </button>
+      )}
       {onImport && (
         <button onClick={onImport} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
           <FileUp className="h-5 w-5 text-emerald-600" />
@@ -139,7 +148,7 @@ const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive }: {
   );
 };
 
-const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onImport, encrypted, settings, onMute, onArchive, onlineIds, privateStatus, privateName }: Props) => {
+const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLeft, onCall, onSearch, onStarred, onImport, encrypted, settings, onMute, onArchive, onClear, onlineIds, privateStatus, privateName }: Props) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -296,7 +305,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
               ))}
             </div>
             {onStarred && <StarredRow onClick={onStarred} />}
-            <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} />
+            <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} onClear={onClear} />
           </div>
         </SheetContent>
       </Sheet>
@@ -396,7 +405,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 </div>
               )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
-              {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} />}
+              {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} onClear={onClear} />}
             </div>
 
             {/* Add members */}
