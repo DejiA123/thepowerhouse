@@ -459,9 +459,47 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     return () => observer.disconnect();
   }, []);
 
+  // Like WhatsApp: while scrolling, one floating chip says which day you're looking at, then fades
+  const [floatingDay, setFloatingDay] = useState<string | null>(null);
+  const dayTimer = useRef<ReturnType<typeof setTimeout>>();
+  const dayFrame = useRef(0);
+  const showFloatingDay = () => {
+    if (dayFrame.current) return;
+    dayFrame.current = requestAnimationFrame(() => {
+      dayFrame.current = 0;
+      const el = scrollRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + 8;
+      // The first message whose bottom is below the top edge is the one being read
+      const rows = el.querySelectorAll<HTMLElement>('[data-message-id]');
+      let id: string | null = null;
+      for (const row of rows) {
+        if (row.getBoundingClientRect().bottom > top) {
+          id = row.dataset.messageId ?? null;
+          break;
+        }
+      }
+      const first = id ? messages.find((m) => m.id === id) : null;
+      // Its own day label already sits at the top: no second one over it
+      const chips = el.querySelectorAll<HTMLElement>('[data-day-chip]');
+      const chipAtTop = Array.from(chips).some((c) => {
+        const r = c.getBoundingClientRect();
+        return r.bottom > top - 8 && r.top < top + 40;
+      });
+      setFloatingDay(first && !chipAtTop ? formatDayLabel(first.created_at) : null);
+    });
+    if (dayTimer.current) clearTimeout(dayTimer.current);
+    dayTimer.current = setTimeout(() => setFloatingDay(null), 1500);
+  };
+  useEffect(() => () => {
+    if (dayTimer.current) clearTimeout(dayTimer.current);
+    if (dayFrame.current) cancelAnimationFrame(dayFrame.current);
+  }, []);
+
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
+    showFloatingDay();
     const bottom = nearBottom(el);
     atBottomRef.current = bottom;
     if (bottom !== atBottom) setAtBottom(bottom);
@@ -929,7 +967,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const newDay = !prev || dayKey(prev.created_at) !== dayKey(m.created_at);
     if (newDay) {
       rendered.push(
-        <div key={`day-${m.id}`} className="sticky top-2 z-10 my-3 flex justify-center">
+        <div key={`day-${m.id}`} data-day-chip className="my-3 flex justify-center">
           <span className="rounded-full bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur">
             {formatDayLabel(m.created_at)}
           </span>
@@ -1142,6 +1180,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       {/* Messages */}
       <div className="relative min-h-0 flex-1">
         <ChatWallpaper />
+        {floatingDay && (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center animate-in fade-in" aria-hidden>
+            <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60">
+              {floatingDay}
+            </span>
+          </div>
+        )}
         <div
           ref={scrollRef}
           onScroll={onScroll}
