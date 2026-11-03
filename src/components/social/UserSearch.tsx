@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { onBroadcast } from '@/lib/realtime';
+import { PROFILES_TOPIC } from '@/lib/socialLive';
 import { Check, Loader2, Search, UserPlus, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { appAlert } from '@/lib/appAlert';
@@ -45,6 +48,25 @@ export const UserSearch = ({ circle, onChanged }: { circle: Circle | null; onCha
         }, typed ? 250 : 0);
         return () => clearTimeout(t);
     }, [typed]);
+
+    // Someone changed their name or photo: Discover shows it straight away (their phone says so),
+    // and looks again quietly every minute and when the app comes back, as a backup
+    const quietRefresh = useCallback(async () => {
+        try {
+            const page = await SocialService.discover(typed);
+            setPeople((list) => {
+                const fresh = new Map(page.people.map((p) => [p.person.id, p]));
+                // Same people and order as before, with their latest names and photos; the first page as it is now
+                const updated = list.map((p) => fresh.get(p.person.id) ?? p);
+                const seen = new Set(updated.map((p) => p.person.id));
+                return list.length <= page.people.length ? page.people : [...updated, ...page.people.filter((p) => !seen.has(p.person.id))];
+            });
+        } catch {
+            /* quiet: keep what's on screen */
+        }
+    }, [typed]);
+    useLiveRefresh([], quietRefresh);
+    useEffect(() => onBroadcast(PROFILES_TOPIC, 'changed', () => void quietRefresh()), [quietRefresh]);
 
     const more = async () => {
         setLoadingMore(true);

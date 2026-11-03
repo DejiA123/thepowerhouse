@@ -48,6 +48,7 @@ const lazyPage = <T extends React.ComponentType<any>>(load: () => Promise<{ defa
   });
 
 const BiblePage = lazyPage(() => import("@/pages/BiblePage"));
+const PushReportPage = lazyPage(() => import("@/pages/PushReportPage"));
 const NewsPage = lazyPage(() => import("@/pages/NewsPage"));
 const GroupsPage = lazyPage(() => import("@/pages/GroupsPage"));
 const GivePage = lazyPage(() => import("@/pages/GivePage"));
@@ -310,6 +311,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute>
                   <BibleReadingPlansPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/push-report"
+              element={
+                <ProtectedRoute>
+                  <PushReportPage />
                 </ProtectedRoute>
               }
             />

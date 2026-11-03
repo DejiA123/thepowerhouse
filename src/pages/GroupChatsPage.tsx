@@ -61,6 +61,8 @@ const GroupChatsPage = () => {
     try {
       const mine = await GroupChatService.getMyChats();
       setChats(mine);
+      // The chats at the top open instantly (their latest messages are fetched in the background)
+      setTimeout(() => void GroupChatService.prefetchChats(mine.filter((c) => !c.archived_at).map((c) => c.id)), 1500);
       try {
         localStorage.setItem(CACHE_KEY(user.id), JSON.stringify(mine));
       } catch {

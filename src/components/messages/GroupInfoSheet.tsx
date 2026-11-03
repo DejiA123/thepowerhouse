@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -168,6 +169,23 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   const [adding, setAdding] = useState(false);
   const [picked, setPicked] = useState<PickablePerson[]>([]);
   const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null);
+  // One-to-one: their About, and their number if they chose to show it
+  const [contact, setContact] = useState<{ bio: string | null; phone: string | null } | null>(null);
+  const contactId = isPrivateChat(chat) ? members.find((m) => m.user_id !== userId)?.user_id ?? null : null;
+  useEffect(() => {
+    if (!open || !contactId) return;
+    let stale = false;
+    Promise.all([
+      supabase.from('profiles').select('bio').eq('id', contactId).maybeSingle(),
+      supabase.rpc('profile_phone' as never, { _user_id: contactId } as never),
+    ]).then(([{ data: profile }, { data }]) => {
+      const phone = typeof (data as unknown) === 'string' ? (data as unknown as string).trim() : '';
+      if (!stale) setContact({ bio: (profile as { bio?: string | null } | null)?.bio?.trim() || null, phone: phone || null });
+    }).catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [open, contactId]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -293,6 +311,12 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   <p className={online ? 'mt-1 text-sm text-emerald-600 dark:text-emerald-400' : 'mt-1 text-sm text-muted-foreground'}>
                     {online ? 'Online' : privateStatus}
                   </p>
+                )}
+                {contact?.bio && <p className="mt-2 max-w-[18rem] text-sm text-muted-foreground">{contact.bio}</p>}
+                {contact?.phone && (
+                  <a href={`tel:${contact.phone.replace(/\s+/g, '')}`} className="mt-2 text-sm font-medium text-blue-600 dark:text-blue-400">
+                    {contact.phone}
+                  </a>
                 )}
               </>
             )}

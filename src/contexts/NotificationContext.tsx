@@ -8,7 +8,8 @@ import { isChatMuted, GroupChatService } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
-import { CIRCLE_CHANGED, refreshCircle, watchFriendships, type CircleChange } from '@/lib/socialLive';
+import { onBroadcast } from '@/lib/realtime';
+import { CIRCLE_CHANGED, PROFILES_TOPIC, refreshCircle, watchFriendships, type CircleChange } from '@/lib/socialLive';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -189,6 +190,14 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     if (!user) return;
     return watchFriendships(user.id, () => void refreshCircle());
+  }, [user]);
+
+  // Someone changed their name or photo: friends' names everywhere catch up straight away
+  useEffect(() => {
+    if (!user) return;
+    return onBroadcast(PROFILES_TOPIC, 'changed', (payload) => {
+      if ((payload as { id?: string } | null)?.id !== user.id) void refreshCircle();
+    });
   }, [user]);
 
   // A banner for a new request, or one of mine accepted (the Social page shows it itself).

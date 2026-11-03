@@ -79,3 +79,6 @@ export function watchFriendships(userId: string, onChange: () => void): () => vo
     supabase.removeChannel(channel);
   };
 }
+
+/** Someone changed their name or photo: screens listing people refresh (Discover, the circle) */
+export const PROFILES_TOPIC = 'app:profiles';
