@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { appAlert } from '@/lib/appAlert';
 import { createPortal } from 'react-dom';
 import {
   ChevronDown, Maximize2, Mic, MicOff, MonitorUp, PhoneCall, PhoneOff, RefreshCcw, UserPlus, Users, Video, VideoOff, Volume2, WifiOff, X,
@@ -167,12 +168,19 @@ const ControlButton = ({
   </div>
 );
 
+const IS_IPHONE = typeof navigator !== 'undefined' && /iPhone|iPod/.test(navigator.userAgent);
+
 const CallScreen = () => {
   const { user } = useAuth();
   const {
     call, minimized, setMinimized, endCall, toggleMute, toggleVideo, flipCamera, toggleScreenShare, toggleSpeaker, invites, inviteToCall,
+    callScreenTap, audioReport,
   } = useCall();
   const [adding, setAdding] = useState(false);
+  // Long-press Speaker: what happened when moving the sound (to send if it doesn't work)
+  const [report, setReport] = useState<string[] | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout>>();
+  const longPressed = useRef(false);
   const [canFlip, setCanFlip] = useState(false);
   const now = useNow(!!call);
 
@@ -237,7 +245,21 @@ const CallScreen = () => {
     : call.chatName;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9000] flex flex-col bg-slate-950 text-white animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9000] flex flex-col bg-slate-950 text-white animate-in fade-in duration-200" onPointerDownCapture={callScreenTap}>
+      {report && (
+        <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-50 max-h-[60vh] overflow-y-auto rounded-2xl bg-white p-4 text-slate-900 shadow-2xl" role="dialog" aria-label="Sound report">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[15px] font-semibold">Sound report</p>
+            <button onClick={() => setReport(null)} className="rounded-full px-3 py-1 text-sm font-medium text-blue-600">Close</button>
+          </div>
+          <p className="mb-2 text-xs text-slate-500">Take a screenshot of this if the earpiece or loudspeaker doesn't switch.</p>
+          <p className="mb-1 break-words font-mono text-[11px] leading-snug text-slate-500">{navigator.userAgent}</p>
+          <p className="mb-1 font-mono text-[11px]">Now: {call.speaker ? 'loudspeaker' : 'earpiece'} · switch offered: {call.canSwitchSpeaker ? 'yes' : 'no'} · setSinkId: {'setSinkId' in HTMLMediaElement.prototype ? 'yes' : 'no'}</p>
+          {report.length ? report.map((line, i) => (
+            <p key={i} className="break-words font-mono text-[11px] leading-snug">{line}</p>
+          )) : <p className="font-mono text-[11px]">Nothing tried yet.</p>}
+        </div>
+      )}
 
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
@@ -328,10 +350,43 @@ const CallScreen = () => {
 
       {/* Controls */}
       <div className="flex items-start justify-center gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3 sm:gap-6">
-        {call.canSwitchSpeaker && (
-          <ControlButton onClick={toggleSpeaker} active={call.speaker} label="Speaker">
-            <Volume2 className="h-6 w-6" />
-          </ControlButton>
+        {(call.canSwitchSpeaker || IS_IPHONE) && (
+          <div
+            onPointerDown={() => {
+              longPressed.current = false;
+              pressTimer.current = setTimeout(() => {
+                longPressed.current = true;
+                setReport(audioReport());
+              }, 700);
+            }}
+            onPointerUp={() => clearTimeout(pressTimer.current)}
+            onPointerLeave={() => clearTimeout(pressTimer.current)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <ControlButton
+              onClick={() => {
+                if (longPressed.current) {
+                  longPressed.current = false;
+                  return;
+                }
+                if (!call.canSwitchSpeaker) {
+                  // iPhone without the switch: say why rather than doing nothing
+                  appAlert(
+                    'Earpiece or loudspeaker',
+                    'setSinkId' in HTMLMediaElement.prototype
+                      ? 'The sound is going to your headphones or Bluetooth. Disconnect them to use the earpiece or loudspeaker.'
+                      : 'Update your iPhone (Settings → General → Software Update) to iOS 18.4 or later to switch between the earpiece and loudspeaker in calls.',
+                  );
+                  return;
+                }
+                toggleSpeaker();
+              }}
+              active={call.speaker}
+              label="Speaker"
+            >
+              <Volume2 className="h-6 w-6" />
+            </ControlButton>
+          </div>
         )}
         <ControlButton onClick={toggleMute} active={call.muted} label={call.muted ? 'Unmute' : 'Mute'}>
           {call.muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}

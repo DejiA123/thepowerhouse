@@ -108,6 +108,11 @@ export class CallEngine {
   private localAnalyser?: { ctx: AudioContext; node: AnalyserNode; data: Uint8Array };
   private audioOut: CallAudio | null = null;
   private audioRoute: AudioRoute | null = null;
+  /** The earpiece couldn't be chosen yet (iPhone wanted a fresh tap): done on the next tap */
+  private pendingRoute: boolean | null = null;
+  /** What happened each time the sound was moved (long-press Speaker shows it) */
+  private routeLog: string[] = [];
+  private onDeviceChange = () => void this.refreshAudioRoutes();
   /** When the last other person left (the call then waits a little for them to come back) */
   private aloneSince: number | null = null;
   private destroyed = false;
@@ -515,24 +520,84 @@ export class CallEngine {
   //    "Speakerphone") and plays the call through the one in use.
   // With headphones or Bluetooth connected the sound stays there (no button).
   private async findAudioRoutes() {
+    navigator.mediaDevices.addEventListener?.('devicechange', this.onDeviceChange);
     const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
     this.audioRoute = findAndroidRoute(devices) ?? findIPhoneRoute(devices);
+    this.log(`found: ${describeOutputs(devices)} → ${this.audioRoute ? this.audioRoute.via : 'no switch (headphones, or not offered)'}`);
     if (!this.audioRoute) return;
     this.set({ canSwitchSpeaker: true });
     if (this.snapshot.callType === 'audio') await this.routeAudio(false);
   }
 
+  /** Headphones or Bluetooth came or went: look again (the button hides while they're connected) */
+  private async refreshAudioRoutes() {
+    if (this.destroyed) return;
+    const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+    const route = findAndroidRoute(devices) ?? findIPhoneRoute(devices);
+    this.log(`devices changed: ${describeOutputs(devices)} → ${route ? route.via : 'no switch'}`);
+    this.audioRoute = route;
+    if (!route) {
+      this.set({ canSwitchSpeaker: false });
+      return;
+    }
+    // Back to the phone itself: put the sound where it was (on the next tap if the phone wants one)
+    if (!this.snapshot.canSwitchSpeaker) {
+      this.set({ canSwitchSpeaker: true });
+      if (!this.snapshot.speaker) this.pendingRoute = false;
+    }
+  }
+
   /** Called straight from the Speaker tap (iPhone needs the tap). */
-  toggleSpeaker = () => this.routeAudio(!this.snapshot.speaker);
+  toggleSpeaker = () => {
+    this.pendingRoute = null;
+    return this.routeAudio(!this.snapshot.speaker);
+  };
+
+  /** Any tap on the call screen: finish moving the sound if the phone refused it without a tap */
+  onUserTap = () => {
+    if (this.pendingRoute === null || this.destroyed) return;
+    const speaker = this.pendingRoute;
+    this.pendingRoute = null;
+    void this.routeAudio(speaker);
+  };
+
+  /** What happened when moving the sound, newest last */
+  audioReport(): string[] {
+    return [...this.routeLog];
+  }
+
+  private log(line: string) {
+    const t = new Date();
+    this.routeLog.push(`${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} ${line}`);
+    if (this.routeLog.length > 20) this.routeLog.shift();
+  }
 
   private async routeAudio(speaker: boolean) {
-    const route = this.audioRoute;
+    let route = this.audioRoute;
     if (!route || this.destroyed) return;
-    const deviceId = speaker ? route.speaker : route.earpiece;
-    const done = route.via === 'output'
-      ? await this.audioOut?.setOutput(deviceId)
-      : await this.useAudioInput(deviceId);
-    if (done && !this.destroyed) this.set({ speaker });
+    const where = speaker ? 'loudspeaker' : 'earpiece';
+    let done: boolean | undefined;
+    if (route.via === 'output') {
+      done = await this.audioOut?.setOutput(speaker ? route.speaker : route.earpiece);
+      if (!done) {
+        // The phone may have renamed its outputs since the call began: look again, try once more
+        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+        const fresh = findIPhoneRoute(devices);
+        if (fresh) {
+          this.audioRoute = route = fresh;
+          done = await this.audioOut?.setOutput(speaker ? fresh.speaker : fresh.earpiece);
+        }
+      }
+      // Loudspeaker: the phone's own choice is the loudspeaker during a call
+      if (!done && speaker) done = await this.audioOut?.setOutput('');
+    } else {
+      done = await this.useAudioInput(speaker ? route.speaker : route.earpiece);
+    }
+    this.log(`${where}: ${done ? 'done' : `refused (${this.audioOut?.lastError || 'no reason given'})`}`);
+    if (this.destroyed) return;
+    if (done) this.set({ speaker });
+    // Refused without a fresh tap (e.g. answered after the microphone prompt): finish on the next tap
+    else if (route.via === 'output') this.pendingRoute = speaker;
   }
 
   /** Switch to another microphone (on Android, that moves the call's sound too). */
@@ -599,6 +664,7 @@ export class CallEngine {
   end(reason: CallSnapshot['endedReason']) {
     if (this.destroyed) return;
     this.destroyed = true;
+    navigator.mediaDevices?.removeEventListener?.('devicechange', this.onDeviceChange);
     clearInterval(this.speakingTimer);
     this.peers.forEach((entry) => {
       clearTimeout(entry.disconnectTimer);
@@ -659,6 +725,14 @@ export class CallEngine {
     const selfSpeaking = !this.snapshot.muted && this.level(this.localAnalyser) > 18;
     if (changed || selfSpeaking !== this.snapshot.selfSpeaking) this.set({ participants, selfSpeaking });
   }
+}
+
+/** The outputs and microphones a phone lists, for the sound report */
+function describeOutputs(devices: MediaDeviceInfo[]) {
+  const list = devices
+    .filter((d) => d.kind === 'audiooutput' || d.kind === 'audioinput')
+    .map((d) => `${d.kind === 'audiooutput' ? 'out' : 'mic'}:${d.label || '(no name)'}${d.deviceId === 'default' ? '*' : ''}`);
+  return list.length ? list.join(', ') : 'nothing listed';
 }
 
 /** Chrome on Android: the earpiece and loudspeaker are listed as microphones. */
