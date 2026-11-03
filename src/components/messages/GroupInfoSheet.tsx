@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -16,6 +16,7 @@ import UserAvatar from '@/components/common/UserAvatar';
 import { GroupChatService, type GroupChat } from '@/services/groupChatService';
 import MemberPicker, { type PickablePerson } from './MemberPicker';
 import { isPrivateChat, uploadChatImage } from './chatUtils';
+import { WallpaperSheet } from './ChatWallpaper';
 
 interface Props {
   chat: GroupChat;
@@ -70,6 +71,7 @@ const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive, onClear }:
 }) => {
   const [explain, setExplain] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [wallpaper, setWallpaper] = useState(false);
   const until = settings?.muted_until ? new Date(settings.muted_until) : null;
   const muted = !!until && until.getTime() > Date.now();
   const mutedText = !muted ? 'Off' : until!.getFullYear() > 2900 ? 'Always' : `Until ${until!.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`;
@@ -112,6 +114,12 @@ const MoreRows = ({ onImport, encrypted, settings, onMute, onArchive, onClear }:
           <span className="flex-1 text-[15px] font-medium text-foreground">{settings.archived_at ? 'Unarchive chat' : 'Archive chat'}</span>
         </button>
       )}
+      <button onClick={() => setWallpaper(true)} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+        <Wallpaper className="h-5 w-5 text-muted-foreground" />
+        <span className="flex-1 text-[15px] font-medium text-foreground">Wallpaper</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </button>
+      <WallpaperSheet open={wallpaper} onOpenChange={setWallpaper} />
       {onClear && (
         <button onClick={onClear} className="flex w-full items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
           <Eraser className="h-5 w-5 text-red-500" />
@@ -271,10 +279,10 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="flex w-full flex-col gap-0 rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none"
+          className="flex w-full flex-col gap-0 overflow-hidden rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none"
         >
           <SheetTitle className="sr-only">Contact info</SheetTitle>
-          <div className="flex flex-col items-center px-6 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+2rem)] pt-10 text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-contain px-6 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+2rem)] pt-10 text-center">
             {loading && !other && !privateName ? (
               <Loader2 className="my-10 h-6 w-6 animate-spin text-muted-foreground" />
             ) : (

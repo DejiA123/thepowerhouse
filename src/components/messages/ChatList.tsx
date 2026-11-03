@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { appAlert } from '@/lib/appAlert';
 import { GroupChatService } from '@/services/groupChatService';
 import { ClearChatDialog } from './ChatPanels';
-import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, X } from 'lucide-react';
+import { WallpaperSheet } from './ChatWallpaper';
+import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
@@ -36,6 +37,7 @@ const ChatList = ({
   const [showArchived, setShowArchived] = useState(false);
   // ⋮ menu, choosing chats, clearing them
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
   const [picked, setPicked] = useState<Set<string> | null>(null);
   const [clearIds, setClearIds] = useState<string[] | null>(null);
   const togglePick = (id: string) => setPicked((prev) => {
@@ -134,6 +136,16 @@ const ChatList = ({
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] text-foreground hover:bg-muted disabled:opacity-40"
                   >
                     <CheckSquare className="h-4 w-4 text-muted-foreground" /> Select chats
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setWallpaperOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] text-foreground hover:bg-muted"
+                  >
+                    <Wallpaper className="h-4 w-4 text-muted-foreground" /> Chat wallpaper
                   </button>
                   <button
                     role="menuitem"
@@ -293,6 +305,7 @@ const ChatList = ({
           </>
         )}
       </div>
+      <WallpaperSheet open={wallpaperOpen} onOpenChange={setWallpaperOpen} />
       <ClearChatDialog
         open={!!clearIds}
         count={clearIds?.length ?? 1}

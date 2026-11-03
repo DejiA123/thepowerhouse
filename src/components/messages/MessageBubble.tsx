@@ -326,7 +326,7 @@ const MessageBubble = ({
 
       <div ref={slideRef} className={cn('flex max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
         {!isOwn && isFirst && (
-          <span className={cn('mb-1 ml-3 text-xs font-semibold', nameColor(who))}>{name}</span>
+          <span className={cn('mb-1 ml-1 w-fit max-w-full truncate rounded-full bg-background/85 px-2 py-px text-xs font-semibold', nameColor(who))}>{name}</span>
         )}
 
         <div className="relative flex items-center gap-1">
