@@ -47,6 +47,12 @@ export interface CallSnapshot {
   selfSpeaking: boolean;
   error: string | null;
   endedReason: 'hangup' | 'no-answer' | 'error' | null;
+  /**
+   * How the last person left: 'bye' = they hung up (end at once, like WhatsApp),
+   * 'presence' = their phone left the room (a short grace in case it rejoins),
+   * 'lost' = no connection for a long while
+   */
+  lastLeft: 'bye' | 'presence' | 'lost' | null;
 }
 
 export interface CallMe {
@@ -79,6 +85,8 @@ type Listener = () => void;
 type AudioRoute = { via: 'microphone' | 'output'; earpiece: string; speaker: string };
 
 const MAX_PARTICIPANTS = 8;
+/** No connection to someone for this long after trying again: they've left (phone died, signal gone) */
+const LOST_AFTER_MS = 15000;
 
 const AUDIO: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 
@@ -128,6 +136,7 @@ export class CallEngine {
       selfSpeaking: false,
       error: null,
       endedReason: null,
+      lastLeft: null,
     };
   }
 
@@ -249,11 +258,11 @@ export class CallEngine {
     channel
       .on('presence', { event: 'sync' }, () => this.onPresenceSync())
       .on('presence', { event: 'leave' }, ({ key }) => {
-        if (key && key !== this.me.id) this.dropPeer(key);
+        if (key && key !== this.me.id) this.dropPeer(key, 'presence');
       })
       .on('broadcast', { event: 'signal' }, ({ payload }) => this.onSignal(payload))
       .on('broadcast', { event: 'bye' }, ({ payload }) => {
-        if (payload?.from) this.dropPeer(payload.from);
+        if (payload?.from && payload.from !== this.me.id) this.dropPeer(payload.from, 'bye');
       });
 
     await new Promise<void>((resolve, reject) => {
@@ -348,16 +357,21 @@ export class CallEngine {
       const state = pc.connectionState;
       if (state === 'connected') {
         clearTimeout(entry.disconnectTimer);
+        entry.disconnectTimer = undefined;
         this.updateParticipant(remoteId, { connection: 'connected' });
-      } else if (state === 'disconnected') {
+      } else if (state === 'disconnected' || state === 'failed') {
         this.updateParticipant(remoteId, { connection: 'reconnecting' });
-        clearTimeout(entry.disconnectTimer);
+        if (state === 'failed') pc.restartIce();
+        // Already counting from when it first dropped: don't start again
+        if (entry.disconnectTimer) return;
         entry.disconnectTimer = setTimeout(() => {
-          if (pc.connectionState !== 'connected') pc.restartIce();
+          if (pc.connectionState === 'connected') return;
+          pc.restartIce();
+          // Still nothing (their phone died, or lost signal for good): they've left
+          entry.disconnectTimer = setTimeout(() => {
+            if (pc.connectionState !== 'connected' && this.peers.get(remoteId) === entry) this.dropPeer(remoteId, 'lost');
+          }, LOST_AFTER_MS);
         }, 3000);
-      } else if (state === 'failed') {
-        this.updateParticipant(remoteId, { connection: 'reconnecting' });
-        pc.restartIce();
       }
     };
 
@@ -411,8 +425,18 @@ export class CallEngine {
     }
   }
 
-  private dropPeer(userId: string) {
+  /** Someone hung up (their goodbye also comes by the chat's signals, in case the room missed it) */
+  peerLeft(userId: string) {
+    if (userId !== this.me.id && (this.peers.has(userId) || this.snapshot.participants.some((p) => p.userId === userId))) this.dropPeer(userId, 'bye');
+  }
+
+  private dropPeer(userId: string, how: 'bye' | 'presence' | 'lost' = 'presence') {
     const entry = this.peers.get(userId);
+    // Already gone (their goodbye came first, then their phone left the room): keep how they left
+    if (!entry && !this.snapshot.participants.some((p) => p.userId === userId)) {
+      this.presence.delete(userId);
+      return;
+    }
     if (entry) {
       clearTimeout(entry.disconnectTimer);
       entry.analyser?.ctx.close().catch(() => undefined);
@@ -420,6 +444,7 @@ export class CallEngine {
       this.peers.delete(userId);
     }
     this.presence.delete(userId);
+    this.set({ lastLeft: how });
     this.removeParticipant(userId);
   }
 
@@ -562,7 +587,11 @@ export class CallEngine {
   /** Leave the call. Resolves with how many other people were still in it. */
   hangup = async (): Promise<number> => {
     const others = this.snapshot.participants.length;
-    await this.channel?.send({ type: 'broadcast', event: 'bye', payload: { from: this.me.id } }).catch(() => undefined);
+    // Say goodbye before leaving the room, so the others end at once (not when the server notices)
+    await Promise.race([
+      this.channel?.send({ type: 'broadcast', event: 'bye', payload: { from: this.me.id } }).catch(() => undefined),
+      new Promise((r) => setTimeout(r, 800)),
+    ]);
     this.end('hangup');
     return others;
   };
