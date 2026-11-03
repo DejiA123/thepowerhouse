@@ -22,6 +22,12 @@ export function useLongPress(onLong: () => void, ms = 500) {
       timer.current = setTimeout(() => {
         fired.current = true;
         start.current = null;
+        // iPhone starts selecting text under a held finger ("Copy · Look Up"): clear it
+        try {
+          window.getSelection()?.removeAllRanges();
+        } catch {
+          /* nothing selected */
+        }
         try {
           navigator.vibrate?.(15);
         } catch {
@@ -45,6 +51,7 @@ export function useLongPress(onLong: () => void, ms = 500) {
         fired.current = false;
       }
     },
-    style: { WebkitTouchCallout: 'none' } as React.CSSProperties,
+    // No text selection or "Copy · Look Up" menu while holding
+    style: { WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' } as React.CSSProperties,
   };
 }

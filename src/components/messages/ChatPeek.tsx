@@ -75,16 +75,20 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
   return (
     <Dialog open={!!target} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] max-w-md gap-0 overflow-hidden rounded-3xl p-0 [&>button]:hidden"
+        className="w-[calc(100vw-1.5rem)] max-w-md select-none gap-0 overflow-hidden rounded-3xl p-0 [-webkit-touch-callout:none] [&>button]:hidden"
         aria-describedby={undefined}
         onInteractOutside={justOpened}
         onPointerDownOutside={justOpened}
         onFocusOutside={justOpened}
+        // No focus ring on "Open chat" when it opens
+        onOpenAutoFocus={(e) => e.preventDefault()}
         // The lifting finger's tap can land on a button in here: ignore it
         onClickCapture={(e) => {
           if (Date.now() - openedAt.current < 900) {
             e.preventDefault();
             e.stopPropagation();
+            // …and leaves no focus ring on the button it landed on
+            (document.activeElement as HTMLElement | null)?.blur?.();
           }
         }}
       >
