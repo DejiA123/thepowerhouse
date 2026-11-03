@@ -3,7 +3,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 /**
  * The background behind chats, like WhatsApp's wallpaper. Each member picks
  * their own (Me → Settings → Chat wallpaper, chat info → Wallpaper, or the chat
- * list's ⋮). Kept on this phone only, like WhatsApp: the choice in
+ * list's ⋮; Sky doodles by default). Kept on this phone only, like WhatsApp: the choice in
  * localStorage, their own photo in IndexedDB (never uploaded).
  */
 
@@ -35,7 +35,7 @@ export const WALLPAPERS: Wallpaper[] = [
   { id: 'night', name: 'Night doodles', bg: '#0B141A', ink: '#7A8A94', opacity: 0.16, dark: true },
 ];
 
-export const DEFAULT_WALLPAPER: WallpaperChoice = { id: 'cream', dim: 15 };
+export const DEFAULT_WALLPAPER: WallpaperChoice = { id: 'sky', dim: 15 };
 const KEY = 'chat_wallpaper_v1';
 export const WALLPAPER_CHANGED = 'chat-wallpaper:changed';
 
