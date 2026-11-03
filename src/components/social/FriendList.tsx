@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, MoreHorizontal, Search, ShieldAlert, UserMinus, Users, X } from 'lucide-react';
+import { CheckCheck, Loader2, MessageSquareDot, MoreHorizontal, Search, ShieldAlert, UserMinus, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import {
 import { appAlert } from '@/lib/appAlert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
-import { GroupChatService, type ChatSummary } from '@/services/groupChatService';
+import { CHAT_SETTINGS_CHANGED, GroupChatService, type ChatSummary } from '@/services/groupChatService';
 import { SocialService, type CircleEntry, type PrivateChat } from '@/services/socialService';
 import { formatListTime, isAnsweredCall, parseCall, previewText } from '@/components/messages/chatUtils';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
@@ -94,9 +94,12 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
         document.addEventListener('visibilitychange', onVisible);
         // Back online after a drop: fetch what was missed
         window.addEventListener('app:resync', loadChats);
+        // Marked unread / read (here or in Messages), muted, archived
+        window.addEventListener(CHAT_SETTINGS_CHANGED, loadChats);
         return () => {
             document.removeEventListener('visibilitychange', onVisible);
             window.removeEventListener('app:resync', loadChats);
+            window.removeEventListener(CHAT_SETTINGS_CHANGED, loadChats);
         };
     }, [loadChats]);
 
@@ -268,14 +271,17 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                                                 {formatListTime(last.created_at)}
                                             </span>
                                         )}
-                                        {unread > 0 && (
+                                        {unread > 0 && (summary?.marked_unread ? (
+                                            // Marked unread by me: a dot, like WhatsApp
+                                            <span aria-label="Marked unread" className="h-3 w-3 rounded-full bg-blue-600" />
+                                        ) : (
                                             <span
                                                 aria-label={`${unread} unread`}
                                                 className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white"
                                             >
                                                 {unread > 99 ? '99+' : unread}
                                             </span>
-                                        )}
+                                        ))}
                                     </>
                                 )}
                             </div>
@@ -285,7 +291,26 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                                         <MoreHorizontal className="h-4 w-4 text-slate-500" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                                <DropdownMenuContent align="end" className="w-52 rounded-2xl p-1.5">
+                                    {entry.chat && (
+                                        <DropdownMenuItem
+                                            onClick={async () => {
+                                                const chatId = entry.chat!.id;
+                                                // Only on my side, like WhatsApp: their ticks don't change
+                                                setChats((prev) => prev[chatId] ? {
+                                                    ...prev,
+                                                    [chatId]: unread > 0
+                                                        ? { ...prev[chatId], unread: 0, marked_unread: false }
+                                                        : { ...prev[chatId], unread: 1, marked_unread: true },
+                                                } : prev);
+                                                if (unread > 0) await GroupChatService.markAsRead(chatId).catch(() => undefined);
+                                                else await GroupChatService.setMarkedUnread(chatId, true).catch(() => undefined);
+                                            }}
+                                            className="gap-2 rounded-xl p-2.5"
+                                        >
+                                            {unread > 0 ? <><CheckCheck className="h-4 w-4" /> Mark as read</> : <><MessageSquareDot className="h-4 w-4" /> Mark as unread</>}
+                                        </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onClick={() => setConfirm({ entry, kind: 'remove' })} className="gap-2 rounded-xl p-2.5">
                                         <UserMinus className="h-4 w-4" /> Remove friend
                                     </DropdownMenuItem>
