@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { appAlert } from '@/lib/appAlert';
-import { GroupChatService } from '@/services/groupChatService';
+import { CHAT_SETTINGS_CHANGED, GroupChatService } from '@/services/groupChatService';
 import { ClearChatDialog } from './ChatPanels';
 import { WallpaperSheet } from './ChatWallpaper';
-import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X } from 'lucide-react';
+import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X, MessageSquareDot, CheckCheck as ReadAll } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
@@ -70,6 +70,20 @@ const ChatList = ({
     appAlert(archiving ? (ids.length === 1 ? 'Chat archived' : `${ids.length} chats archived`) : 'Unarchived');
   };
 
+  // "Mark as unread" / "Mark as read" (like WhatsApp): unread if any chosen chat isn't
+  const markPicked = async () => {
+    const ids = [...(picked ?? [])];
+    setPicked(null);
+    const markUnread = ids.some((id) => !(chats.find((c) => c.id === id)?.unread ?? 0));
+    for (const id of ids) {
+      if (markUnread) await GroupChatService.setMarkedUnread(id, true).catch(() => undefined);
+      else await GroupChatService.markAsRead(id).catch(() => undefined);
+    }
+    // The list reloads (as it does for mute and archive)
+    window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED));
+  };
+  const pickedAllRead = !!picked?.size && [...picked].every((id) => !(chats.find((c) => c.id === id)?.unread ?? 0));
+
   const q = query.trim().toLowerCase();
   const archived = useMemo(() => chats.filter((c) => !!c.archived_at), [chats]);
   const visible = useMemo(
@@ -98,6 +112,14 @@ const ChatList = ({
               <X className="h-5 w-5" />
             </button>
             <p className="flex-1 text-[20px] font-bold text-foreground">{picked.size} selected</p>
+            <button
+              onClick={markPicked}
+              disabled={!picked.size}
+              className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
+              aria-label={pickedAllRead || !picked.size ? 'Mark as unread' : 'Mark as read'}
+            >
+              {pickedAllRead || !picked.size ? <MessageSquareDot className="h-5 w-5" /> : <ReadAll className="h-5 w-5" />}
+            </button>
             <button onClick={archivePicked} disabled={!picked.size} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40" aria-label="Archive chosen chats">
               <Archive className="h-5 w-5" />
             </button>
@@ -270,11 +292,14 @@ const ChatList = ({
                           (isPrivateChat(chat) ? 'Say hello 👋' : chat.description) || 'No messages yet'
                         )}
                       </p>
-                      {chat.unread > 0 && (
+                      {chat.unread > 0 && (chat.marked_unread ? (
+                        // Marked unread by me: a dot, like WhatsApp
+                        <span aria-label="Marked unread" className={cn('h-3 w-3 shrink-0 rounded-full', isMuted(chat) ? 'bg-muted-foreground/60' : 'bg-blue-600')} />
+                      ) : (
                         <span className={cn('flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white', isMuted(chat) ? 'bg-muted-foreground/60' : 'bg-blue-600')}>
                           {chat.unread > 99 ? '99+' : chat.unread}
                         </span>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </button>

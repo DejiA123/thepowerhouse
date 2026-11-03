@@ -27,6 +27,8 @@ export interface ChatSummary extends GroupChat {
     muted_until?: string | null;
     /** Archived by me */
     archived_at?: string | null;
+    /** I marked it unread (nothing new in it): shows a dot until I open it */
+    marked_unread?: boolean;
 }
 
 /** My muted chats (chat id → until), kept up to date by the chat list and the mute switch */
@@ -58,6 +60,22 @@ function noteCleared(userId: string, chatId: string, serverIso?: string | null) 
 }
 /** "After the clear" as a time to compare with: a millisecond on, so the last cleared message (microseconds) stays hidden */
 const afterClear = (ms: number) => new Date(ms + 1).toISOString();
+
+/** "Mark as unread" (like WhatsApp): kept on the phone too, so it works before the database has the column */
+const unreadMarkKey = (userId: string, chatId: string) => `chat_marked_unread_${userId}_${chatId}`;
+const markedUnread = new Set<string>();
+function isMarkedUnread(userId: string, chatId: string, server?: boolean | null) {
+    let local = false;
+    try {
+        local = localStorage.getItem(unreadMarkKey(userId, chatId)) === '1';
+    } catch {
+        /* private window */
+    }
+    const on = !!server || local;
+    if (on) markedUnread.add(chatId);
+    else markedUnread.delete(chatId);
+    return on;
+}
 
 export interface ChatUser {
     id: string;
@@ -377,12 +395,15 @@ export class GroupChatService {
 
             if (m.muted_until) mutedUntil.set(m.chat_id, new Date(m.muted_until).getTime());
             else mutedUntil.delete(m.chat_id);
+            // Marked unread with nothing new: counts as one unread chat, shown as a dot
+            const marked = !count && isMarkedUnread(user.id, m.chat_id, m.marked_unread);
             return {
                 ...(m.chat as GroupChat),
                 last_read_at: m.last_read_at,
                 muted_until: m.muted_until ?? null,
                 archived_at: m.archived_at ?? null,
-                unread: count || 0,
+                marked_unread: marked,
+                unread: count || (marked ? 1 : 0),
                 last_message: last
                     ? {
                         content: (last as any).content,
@@ -1020,10 +1041,40 @@ export class GroupChatService {
             console.error('Error marking as read:', error);
             return;
         }
+        // Opening it clears "Mark as unread"
+        if (markedUnread.has(chatId) || isMarkedUnread(user.id, chatId)) await this.setMarkedUnread(chatId, false, true).catch(() => undefined);
         // Badges (Group Chats, the bell, the app icon) catch up
         window.dispatchEvent(new CustomEvent('chats:read', { detail: { chatId } }));
         // The others' ✓✓ turn to "seen" straight away
         broadcast(signalsTopic(chatId), 'signal', { type: 'read', from: user.id, payload: { at } }).catch(() => undefined);
+    }
+
+    /**
+     * "Mark as unread" / "Mark as read" for me only, like WhatsApp: the chat shows a dot
+     * until I open it. The others' read ticks don't change.
+     */
+    static async setMarkedUnread(chatId: string, on: boolean, quiet = false): Promise<void> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        try {
+            if (on) localStorage.setItem(unreadMarkKey(user.id, chatId), '1');
+            else localStorage.removeItem(unreadMarkKey(user.id, chatId));
+        } catch {
+            /* private window: the database still has it */
+        }
+        if (on) markedUnread.add(chatId);
+        else markedUnread.delete(chatId);
+        const { error } = await supabase
+            .from('chat_participants')
+            .update({ marked_unread: on } as never)
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
+        // Before the update the phone's own copy does it
+        if (error && !isMissingColumn(error)) console.warn('[chat] could not save "mark as unread"', error.message);
+        if (!quiet) {
+            window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+            window.dispatchEvent(new CustomEvent('chats:read', { detail: { chatId } }));
+        }
     }
 
     /** How many of my chats have messages I haven't read. */
@@ -1049,7 +1100,7 @@ export class GroupChatService {
             if (leaveOutImported) q = q.is('imported_from' as never, null);
             if (clearedMs) q = q.gt('created_at', afterClear(clearedMs));
             const { count } = await q;
-            return count || 0;
+            return count || (isMarkedUnread(user.id, m.chat_id, m.marked_unread) ? 1 : 0);
         }));
         return counts.filter((c) => c > 0).length;
     }
