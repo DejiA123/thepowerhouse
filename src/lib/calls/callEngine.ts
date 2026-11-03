@@ -204,7 +204,8 @@ export class CallEngine {
   // ── Lifecycle ──────────────────────────────────────────────────────
   async start() {
     try {
-      this.audioOut = new CallAudio(MAX_PARTICIPANTS - 1);
+      // iPhone: everyone's voice through one switchable player (newer iOS ignores the switch on call audio played directly)
+      this.audioOut = new CallAudio(MAX_PARTICIPANTS - 1, { relay: /iPhone|iPod/.test(navigator.userAgent) && 'setSinkId' in HTMLMediaElement.prototype });
       const ice = getIceServers();
       const stream = await this.getMedia();
       if (this.destroyed) {
@@ -555,6 +556,8 @@ export class CallEngine {
 
   /** Any tap on the call screen: finish moving the sound if the phone refused it without a tap */
   onUserTap = () => {
+    // A tap also wakes the phone's sound engine if it paused it
+    this.audioOut?.wake();
     if (this.pendingRoute === null || this.destroyed) return;
     const speaker = this.pendingRoute;
     this.pendingRoute = null;
@@ -563,7 +566,7 @@ export class CallEngine {
 
   /** What happened when moving the sound, newest last */
   audioReport(): string[] {
-    return [...this.routeLog];
+    return [`sound path: ${this.audioOut?.describe() ?? 'not started'}`, ...this.routeLog];
   }
 
   private log(line: string) {
