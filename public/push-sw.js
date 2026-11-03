@@ -90,10 +90,43 @@ async function unsealChatKey(chatId, keyId, sealed) {
   return null;
 }
 
+/*
+ * What happened to each chat notification on this phone (newest 30), so the app's
+ * "Notification report" (/push-report) can show why one said "🔒 New message".
+ */
+function logPush(entry) {
+  try {
+    const req = indexedDB.open('ph-push-log', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('log', { autoIncrement: true });
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('log', 'readwrite');
+      const store = tx.objectStore('log');
+      store.add(Object.assign({ at: new Date().toISOString() }, entry));
+      const keys = store.getAllKeys();
+      keys.onsuccess = () => {
+        const all = keys.result || [];
+        all.slice(0, Math.max(0, all.length - 30)).forEach((k) => store.delete(k));
+      };
+      tx.oncomplete = () => db.close();
+    };
+  } catch (e) {
+    /* best effort */
+  }
+}
+
+let lastHow = '';
+
 async function openEncrypted(chatId, content, sealed) {
+  lastHow = '';
   try {
     const parts = content.slice(E2E_PREFIX.length).split(':');
-    const key = (await readChatKey(chatId, parts[0])) || (await unsealChatKey(chatId, parts[0], sealed));
+    let key = await readChatKey(chatId, parts[0]);
+    lastHow = key ? 'key on this phone' : '';
+    if (!key) {
+      key = await unsealChatKey(chatId, parts[0], sealed);
+      lastHow = key ? 'opened the copy in the notification' : (Array.isArray(sealed) && sealed.length ? 'no copy for this phone' : 'no key on this phone, no copy sent');
+    }
     if (!key) return null;
     const plain = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: fromBase64(parts[1]), additionalData: new TextEncoder().encode(chatId) },
@@ -102,6 +135,7 @@ async function openEncrypted(chatId, content, sealed) {
     );
     return new TextDecoder().decode(plain);
   } catch (e) {
+    lastHow = 'could not open: ' + ((e && e.name) || e);
     return null;
   }
 }
@@ -168,9 +202,12 @@ self.addEventListener('push', (event) => {
     if (data.e2e) {
       const text = await openEncrypted(data.chatId, data.e2e, data.sealed);
       if (text !== null) payload = Object.assign({}, payload, { body: (data.e2ePrefix || '') + chatPreview(text) });
-      delete data.e2e;
-      delete data.sealed;
+      logPush({ title, shown: text !== null ? 'the message' : '🔒 New message', how: lastHow, copies: Array.isArray(data.sealed) ? data.sealed.length : 0 });
+    } else if (payload.kind === 'chat') {
+      logPush({ title, shown: payload.body || '', how: 'nothing to open (not encrypted, or the server sent no text)' });
     }
+    delete data.e2e;
+    delete data.sealed;
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const visible = windows.find((c) => c.visibilityState === 'visible' && c.focused);
 

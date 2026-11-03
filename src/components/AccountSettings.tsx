@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import UserRoleManager from "@/components/UserRoleManager";
 import MFAEnrollmentDialog from "@/components/MFAEnrollmentDialog";
+import { broadcast } from '@/lib/realtime';
+import { PROFILES_TOPIC } from '@/lib/socialLive';
 
 interface AccountSettingsProps {
   onBack: () => void;
@@ -121,6 +123,8 @@ export const AccountSettings = ({ onBack }: AccountSettingsProps) => {
       if (error) {
         throw error;
       }
+      // Others looking at Discover or their circle see the new name straight away
+      void broadcast(PROFILES_TOPIC, 'changed', { id: user.id }).catch(() => undefined);
 
 
       setIsEditing(false);

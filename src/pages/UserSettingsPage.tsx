@@ -45,6 +45,8 @@ import { HelpCenter } from "@/components/HelpCenter";
 import { InviteFriend } from "@/components/InviteFriend";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { church } from "@/config/church";
+import { broadcast } from "@/lib/realtime";
+import { PROFILES_TOPIC } from "@/lib/socialLive";
 import { WallpaperSheet } from "@/components/messages/ChatWallpaper";
 import { useChatWallpaper, wallpaperName } from "@/lib/chatWallpaper";
 
@@ -113,6 +115,7 @@ const UserSettingsPage = () => {
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [offlineOpen, setOfflineOpen] = useState(false);
+  const [phoneVisible, setPhoneVisible] = useState(false);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   const wallpaper = useChatWallpaper();
   const [offlineSummary, setOfflineSummary] = useState("");
@@ -126,7 +129,8 @@ const UserSettingsPage = () => {
     if (!user) return;
     try {
       setLoading(true);
-      let { data: profileData, error: profileError } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      // The phone number isn't readable directly any more (it's private): my_phone() below
+      let { data: profileData, error: profileError } = await supabase.from("profiles").select("id, full_name, email, bio, avatar_url, updated_at").eq("id", user.id).single();
       if (profileError && profileError.code !== "PGRST116") throw profileError;
 
       if (!profileData) {
@@ -141,7 +145,7 @@ const UserSettingsPage = () => {
               updated_at: new Date().toISOString(),
             },
           ])
-          .select()
+          .select("id, full_name, email, bio, avatar_url, updated_at")
           .single();
         if (createError) throw createError;
         profileData = createdProfile;
@@ -152,11 +156,25 @@ const UserSettingsPage = () => {
         full_name: profileData.full_name || "New User",
         email: profileData.email || user.email || "",
         bio: (profileData as any).bio || "",
-        // (accounts used to get a placeholder number nobody entered)
-        phone: profileData.phone && profileData.phone !== PLACEHOLDER_PHONE ? profileData.phone : "",
+        phone: "",
         avatar_url: profileData.avatar_url,
         updated_at: profileData.updated_at,
       });
+      // My own phone number and whether others can see it
+      const { data: mine, error: phoneError } = await supabase.rpc("my_phone" as never);
+      const list = mine as unknown;
+      const row = (Array.isArray(list) ? list[0] : list) as { phone: string | null; phone_visible: boolean } | null;
+      if (!phoneError && row) {
+        // (accounts used to get a placeholder number nobody entered)
+        const phone = row.phone && row.phone !== PLACEHOLDER_PHONE ? row.phone : "";
+        setProfile((prev) => ({ ...prev, phone }));
+        setPhoneVisible(!!row.phone_visible);
+      } else if (phoneError) {
+        // Before the privacy update: read it the old way
+        const { data: old } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
+        const phone = (old as { phone?: string | null } | null)?.phone;
+        if (phone && phone !== PLACEHOLDER_PHONE) setProfile((prev) => ({ ...prev, phone }));
+      }
     } catch (error) {
       console.error("Error in fetchUserProfile:", error);
       setProfile((prev) => ({
@@ -249,14 +267,25 @@ const UserSettingsPage = () => {
     setProfile((prev) =>
       field === "name" ? { ...prev, full_name: value } : field === "about" ? { ...prev, bio: value } : field === "phone" ? { ...prev, phone: value } : prev,
     );
-    const updateData: Record<string, string> = { updated_at: new Date().toISOString() };
+    if (field === "phone") {
+      await savePhone(value, phoneVisible);
+      return;
+    }
+    const updateData: Record<string, string | null> = { updated_at: new Date().toISOString() };
     if (field === "name") updateData.full_name = value;
-    if (field === "about") updateData.bio = value;
-    if (field === "phone") updateData.phone = value;
+    // An empty About is empty (nothing is filled in for you)
+    if (field === "about") updateData.bio = value.trim() || null;
     if (field === "links") updateData.links = value;
 
-    const { error } = await supabase.from("profiles").upsert({ id: user.id, ...updateData } as any, { onConflict: "id" });
-    if (!error) return;
+    const { error } = await supabase.from("profiles").update(updateData as any).eq("id", user.id);
+    if (!error) {
+      // Everyone looking at Discover or their circle sees the new name straight away
+      if (field === "name") {
+        void supabase.auth.updateUser({ data: { full_name: value } }).catch(() => undefined);
+        void broadcast(PROFILES_TOPIC, "changed", { id: user.id }).catch(() => undefined);
+      }
+      return;
+    }
     console.error("Error updating profile:", error);
     if (field === "about" && error.message?.includes("Could not find the 'bio' column")) {
       appAlert("Bio saved on this device", "It will sync once the church database is updated.", "info");
@@ -264,6 +293,18 @@ const UserSettingsPage = () => {
     }
     fetchUserProfile();
     appAlert("Couldn't save your changes", "Please try again.", "error");
+  };
+
+  /** My phone number, and whether other members can see it (off unless I turn it on) */
+  const savePhone = async (phone: string, visible: boolean) => {
+    if (!user) return;
+    setProfile((prev) => ({ ...prev, phone }));
+    setPhoneVisible(visible);
+    const { error } = await supabase.rpc("set_my_phone" as never, { _phone: phone, _visible: visible } as never);
+    if (!error) return;
+    // Before the privacy update
+    const { error: oldError } = await supabase.from("profiles").update({ phone, updated_at: new Date().toISOString() } as any).eq("id", user.id);
+    if (oldError) appAlert("Couldn't save your number", "Please try again.", "error");
   };
 
   const handleSignOut = async () => {
@@ -325,7 +366,16 @@ const UserSettingsPage = () => {
         <ListGroup>
           <ListRow icon={User} iconClassName={tint.blue} title="Name" subtitle={profile.full_name || "Add your name"} onClick={() => setEditingField("name")} />
           <ListRow icon={MessageCircle} iconClassName={tint.violet} title="About" subtitle={profile.bio || "Add a short bio"} onClick={() => setEditingField("about")} />
-          <ListRow icon={Phone} iconClassName={tint.green} title="Phone" subtitle={profile.phone || "Add your number"} onClick={() => setEditingField("phone")} />
+          <ListRow icon={Phone} iconClassName={tint.green} title="Phone" subtitle={profile.phone ? `${profile.phone} · ${phoneVisible ? "Members can see it" : "Only you can see it"}` : "Add your number"} onClick={() => setEditingField("phone")} />
+          {profile.phone && (
+            <ListRow
+              icon={Shield}
+              iconClassName={tint.slate}
+              title="Show my number to others"
+              subtitle={phoneVisible ? "Members you chat with can see and call it" : "Hidden: only you can see it"}
+              trailing={<Switch checked={phoneVisible} onCheckedChange={(on) => void savePhone(profile.phone, on)} aria-label="Show my number to others" />}
+            />
+          )}
         </ListGroup>
       </Page>
     );
@@ -377,6 +427,7 @@ const UserSettingsPage = () => {
           }
         />
         <ListRow icon={BellRing} iconClassName={tint.pink} title="Notification preferences" onClick={() => setCurrentView("notifications")} />
+        <ListRow icon={BellRing} iconClassName={tint.slate} title="Notification report" subtitle="If a message notification says “🔒 New message”" onClick={() => navigate("/push-report")} />
         <ListRow
           icon={BookOpen}
           iconClassName={tint.blue}

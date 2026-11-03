@@ -3,6 +3,8 @@ import { appAlert } from '@/lib/appAlert';
 import { CHAT_SETTINGS_CHANGED, GroupChatService } from '@/services/groupChatService';
 import { ClearChatDialog } from './ChatPanels';
 import { WallpaperSheet } from './ChatWallpaper';
+import ChatPeek, { type PeekTarget } from './ChatPeek';
+import HoldButton from '@/components/common/HoldButton';
 import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X, MessageSquareDot, CheckCheck as ReadAll } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
@@ -38,6 +40,7 @@ const ChatList = ({
   // ⋮ menu, choosing chats, clearing them
   const [menuOpen, setMenuOpen] = useState(false);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const [peek, setPeek] = useState<PeekTarget | null>(null);
   const [picked, setPicked] = useState<Set<string> | null>(null);
   const [clearIds, setClearIds] = useState<string[] | null>(null);
   const togglePick = (id: string) => setPicked((prev) => {
@@ -255,8 +258,17 @@ const ChatList = ({
               const who = last ? (mine ? 'You' : isPrivateChat(chat) ? null : last.sender_name?.split(' ')[0]) : null;
               const hasCall = !!ongoingCalls[chat.id];
               return (
-                <button
+                <HoldButton
                   key={chat.id}
+                  // Hold: look inside without opening it (like WhatsApp)
+                  onHold={picked ? undefined : () => setPeek({
+                    chatId: chat.id,
+                    title: chatTitle(chat, myName),
+                    avatar: chat.avatar_url,
+                    isPrivate: isPrivateChat(chat),
+                    unread: chat.unread,
+                    muted: isMuted(chat),
+                  })}
                   onClick={() => (picked ? togglePick(chat.id) : onSelect(chat))}
                   aria-pressed={picked ? picked.has(chat.id) : undefined}
                   className={cn(
@@ -302,7 +314,7 @@ const ChatList = ({
                       ))}
                     </div>
                   </div>
-                </button>
+                </HoldButton>
               );
             })}
 
@@ -331,6 +343,14 @@ const ChatList = ({
         )}
       </div>
       <WallpaperSheet open={wallpaperOpen} onOpenChange={setWallpaperOpen} />
+      <ChatPeek
+        target={peek}
+        onClose={() => setPeek(null)}
+        onOpen={(id) => {
+          const chat = chats.find((c) => c.id === id);
+          if (chat) onSelect(chat);
+        }}
+      />
       <ClearChatDialog
         open={!!clearIds}
         count={clearIds?.length ?? 1}

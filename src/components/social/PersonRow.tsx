@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 import UserAvatar from '@/components/common/UserAvatar';
 import type { Person } from '@/services/socialService';
+import HoldButton from '@/components/common/HoldButton';
 
 /**
  * One person in a Social Circle list: photo, name, a line about them, and
  * actions beside the name (or, with `below`, on their own line underneath).
  * With `onOpen`, tapping the photo or name does it (e.g. opens your chat).
  */
-export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel, online }: {
+export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel, online, onHold }: {
     person: Person;
     subtitle?: ReactNode;
     children?: ReactNode;
@@ -15,6 +16,8 @@ export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel
     onOpen?: () => void;
     openLabel?: string;
     online?: boolean;
+    /** Held instead of tapped (a chat's preview) */
+    onHold?: () => void;
 }) => {
     const who = (
         <>
@@ -29,14 +32,15 @@ export const PersonRow = ({ person, subtitle, children, below, onOpen, openLabel
         <div className="px-4 py-3">
             <div className="flex items-center gap-3">
                 {onOpen ? (
-                    <button
+                    <HoldButton
                         type="button"
+                        onHold={onHold}
                         onClick={onOpen}
                         aria-label={openLabel}
                         className="-my-1 -ml-1 flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-1 pl-1 text-left transition active:scale-[0.99] active:bg-slate-50 dark:active:bg-slate-800/60"
                     >
                         {who}
-                    </button>
+                    </HoldButton>
                 ) : (
                     <div className="flex min-w-0 flex-1 items-center gap-3">{who}</div>
                 )}

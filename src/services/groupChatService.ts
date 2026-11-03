@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
+import { dropCachedMessages, peekCachedMessages, readCachedMessages, writeCachedMessages } from "@/lib/chatCache";
 import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
 import { previewText } from "@/components/messages/chatUtils";
 import { WAITING_TEXT, decryptMessage, e2eReady, encryptMany, encryptMessage, isEncrypted, membersChanged, shareKeys } from "@/lib/chatCrypto";
@@ -569,7 +570,26 @@ export class GroupChatService {
         const { error } = await supabase.from('chat_participants').update({ cleared_at: at } as never).eq('chat_id', chatId).eq('user_id', user.id);
         if (error && !isMissingColumn(error)) throw error;
         noteCleared(user.id, chatId, at);
+        dropCachedMessages(user.id, chatId);
         window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+    }
+
+    /**
+     * Fetch the latest messages of chats I'm likely to open (the top of my list) in the
+     * background, so they open instantly. A few at a time, skipping ones already on the phone.
+     */
+    static async prefetchChats(chatIds: string[]): Promise<void> {
+        const user = await currentUser();
+        if (!user) return;
+        const todo = chatIds.filter((id) => !peekCachedMessages(user.id, id)).slice(0, 8);
+        for (let i = 0; i < todo.length; i += 2) {
+            await Promise.all(todo.slice(i, i + 2).map(async (id) => {
+                const cached = await readCachedMessages(user.id, id);
+                if (cached) return;
+                const list = await this.getChatMessages(id, 50).catch(() => null);
+                if (list) writeCachedMessages(user.id, id, list);
+            }));
+        }
     }
 
     /** My own settings for a chat (mute, archive) */
@@ -643,14 +663,15 @@ export class GroupChatService {
                 : query.gt('created_at', cleared);
         }
 
-        const { data, error } = await query;
+        // Notes where messages were deleted are asked for at the same time (not one after the other)
+        const [{ data, error }, allNotes] = await Promise.all([query, deletedNotes(chatId, cleared, before)]);
         if (error) throw error;
         const messages = await readable((data || []).map(normalizeMessage).reverse());
-        // Notes where messages were deleted, over the same stretch of the chat: from the oldest
-        // message loaded (or the start, or where I cleared it) up to `before`
+        // Only over the same stretch of the chat: from the oldest message loaded (or the start,
+        // or where I cleared it) up to `before`
         const full = (data || []).length >= limit;
-        const from = full ? messages[0]?.created_at : cleared;
-        const notes = (await deletedNotes(chatId, from, before)).filter((n) => !before || msOf(n.created_at) < msOf(before));
+        const fromMs = full ? msOf(messages[0]?.created_at) : 0;
+        const notes = allNotes.filter((n) => msOf(n.created_at) >= fromMs && (!before || msOf(n.created_at) < msOf(before)));
         return withDeletedNotes(messages, notes);
     }
 

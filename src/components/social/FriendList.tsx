@@ -26,6 +26,7 @@ import { CHAT_SETTINGS_CHANGED, GroupChatService, type ChatSummary } from '@/ser
 import { SocialService, type CircleEntry, type PrivateChat } from '@/services/socialService';
 import { formatListTime, isAnsweredCall, parseCall, previewText } from '@/components/messages/chatUtils';
 import { EmptyState, PeopleCard, PersonRow, SectionLabel, monthYear } from './PersonRow';
+import ChatPeek, { type PeekTarget } from '@/components/messages/ChatPeek';
 
 const chatsKey = (userId: string) => `friend_chats_v1_${userId}`;
 
@@ -61,6 +62,7 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
     const [saved] = useState(() => savedChats(user?.id));
     const [chats, setChats] = useState<Record<string, ChatSummary>>(saved ?? {});
     const [filter, setFilter] = useState<Filter>('all');
+    const [peek, setPeek] = useState<PeekTarget | null>(null);
     const [query, setQuery] = useState('');
     // Until we know who we last spoke to, the order isn't known: wait rather than reshuffle
     const [chatsKnown, setChatsKnown] = useState(!!saved);
@@ -72,6 +74,9 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
         try {
             const list = await GroupChatService.getMyChats(chatIds.split(','));
             setChats(Object.fromEntries(list.map((c) => [c.id, c])));
+            // Friends' chats open instantly: their latest messages are fetched in the background
+            const recent = [...list].sort((a, b) => (b.last_message?.created_at || '').localeCompare(a.last_message?.created_at || ''));
+            setTimeout(() => void GroupChatService.prefetchChats(recent.map((c) => c.id)), 1500);
         } catch {
             /* keep what's on screen (e.g. offline) */
         } finally {
@@ -87,6 +92,11 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
             /* storage full */
         }
     }, [user, chats, chatsKnown]);
+
+    // The chat screen's code is ready before a friend is tapped
+    useEffect(() => {
+        void import('@/pages/GroupChatsPage').catch(() => undefined);
+    }, []);
 
     useEffect(() => {
         loadChats();
@@ -259,6 +269,15 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                                 </span>
                             ) : `Friends since ${monthYear(entry.since)}`}
                             onOpen={() => opening !== entry.person.id && message(entry)}
+                            // Hold: look inside the chat without opening it (like WhatsApp)
+                            onHold={entry.chat ? () => setPeek({
+                                chatId: entry.chat!.id,
+                                title: entry.person.name,
+                                avatar: entry.person.avatar,
+                                seed: entry.person.id,
+                                isPrivate: true,
+                                unread,
+                            }) : undefined}
                             openLabel={`Message ${entry.person.name}`}
                         >
                             <div className="flex flex-col items-end gap-1">
@@ -324,6 +343,8 @@ export const FriendList = ({ friends, loading, onChanged, onFindPeople }: Props)
                 })}
             </PeopleCard>
             )}
+
+            <ChatPeek target={peek} onClose={() => setPeek(null)} onOpen={(id) => navigate(`/group-chats?chat=${id}`)} />
 
             <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
                 <AlertDialogContent className="rounded-3xl">

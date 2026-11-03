@@ -18,6 +18,7 @@ import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
 import { ChatWallpaper } from './ChatWallpaper';
+import { peekCachedMessages, readCachedMessages, writeCachedMessages } from '@/lib/chatCache';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
   FILE_PREFIX, VOICE_PREFIX, encodePreview, parseCall, parseMessageContent, plainMentions, previewText, uploadChatFile, uploadChatImage, uploadChatVideo, withEditedText,
@@ -184,8 +185,18 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     GroupChatService.starredIds(chat.id).then((ids) => !cancelled && setStarred(ids)).catch(() => undefined);
     GroupChatService.hiddenIds(chat.id).then((ids) => !cancelled && setHidden(ids)).catch(() => undefined);
     GroupChatService.getPin(chat.id).then((p) => !cancelled && setPin(p)).catch(() => undefined);
-    setLoading(true);
-    setMessages([]);
+    // Instant: what this phone had last time shows at once, then the chat catches up quietly
+    const cached = peekCachedMessages(me.id, chat.id);
+    setLoading(!cached?.length);
+    setMessages(cached ?? []);
+    if (!cached) {
+      readCachedMessages(me.id, chat.id).then((list) => {
+        if (cancelled || !list?.length) return;
+        // Only if the network hasn't already filled it
+        setMessages((prev) => (prev.length ? prev : list));
+        setLoading(false);
+      }).catch(() => undefined);
+    }
     setReactions({});
     setHasMore(true);
     setTyping({});
@@ -200,7 +211,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           supabase.from('chat_participants').select('user_id, last_read_at').eq('chat_id', chat.id),
         ]);
         if (cancelled) return;
-        setMessages(data);
+        // Fresh from the server; keep anything that arrived live meanwhile (and messages still sending)
+        setMessages((prev) => {
+          const ids = new Set(data.map((m) => m.id));
+          const newest = data.length ? new Date(data[data.length - 1].created_at.replace(/(\.\d{3})\d+/, '$1')).getTime() : 0;
+          const extra = prev.filter((m) => !ids.has(m.id) && (m.pending || m.failed || new Date(m.created_at.replace(/(\.\d{3})\d+/, '$1')).getTime() > newest));
+          return extra.length ? [...data, ...extra] : data;
+        });
         setLoading(false);
         setHasMore(data.length === PAGE);
         setMemberCount(marks?.length ?? null);
@@ -229,6 +246,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id, me.id, reloadTick]);
+
+  // Keep this chat's latest messages on the phone, so it opens instantly next time
+  useEffect(() => {
+    if (loading || !messages.length) return;
+    const t = setTimeout(() => writeCachedMessages(me.id, chat.id, messages), 400);
+    return () => clearTimeout(t);
+  }, [messages, loading, me.id, chat.id]);
 
   useEffect(() => {
     e2eReady().then(setEncryptedChats).catch(() => undefined);

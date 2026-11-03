@@ -51,8 +51,13 @@ export interface SendOptions {
 /** The two forms of one payload: the usual one, and Apple's (see below) */
 function bodiesFor(payload: PushPayload, timestamp: number) {
   const message = { ...payload, timestamp };
+  const body = JSON.stringify(message);
+  // An encrypted chat message only makes sense once the phone opens it, so iPhones get the
+  // ordinary form: iOS must then run push-sw.js, which opens it and shows the real text.
+  // (With the declarative form iOS may show its "🔒 New message" text without running it.)
+  if (payload.data && (payload.data as { e2e?: unknown }).e2e) return { body, appleBody: body };
   return {
-    body: JSON.stringify(message),
+    body,
     // iPhones and iPads (Apple's push service) also get Apple's "declarative"
     // form. From iOS 18.4 the phone shows that by itself, without waking the
     // app's background code, unless it's marked `mutable`: then the code
