@@ -17,6 +17,7 @@ import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
+import { ChatWallpaper } from './ChatWallpaper';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
   FILE_PREFIX, VOICE_PREFIX, encodePreview, parseCall, parseMessageContent, plainMentions, previewText, uploadChatFile, uploadChatImage, uploadChatVideo, withEditedText,
@@ -929,7 +930,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       rendered.push(
         <div key={`unread-${m.id}`} data-unread-divider className="my-3 flex items-center gap-3">
           <div className="h-px flex-1 bg-blue-500/30" />
-          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Unread messages</span>
+          <span className="rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm dark:text-blue-400">Unread messages</span>
           <div className="h-px flex-1 bg-blue-500/30" />
         </div>,
       );
@@ -1130,10 +1131,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
       {/* Messages */}
       <div className="relative min-h-0 flex-1">
+        <ChatWallpaper />
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="absolute inset-0 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] [background-size:22px_22px]"
+          className="absolute inset-0 overflow-y-auto overscroll-contain"
         >
           <div ref={contentRef} className="mx-auto flex min-h-full max-w-3xl flex-col px-3 pb-3 pt-2 sm:px-5">
             <div ref={topSentinel} className="h-1" />
@@ -1141,7 +1143,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
               <div className="flex justify-center py-3"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             )}
             {!hasMore && messages.length > 0 && (
-              <p className="py-4 text-center text-xs text-muted-foreground">{privateChat ? `This is the start of your chat with ${title}` : `This is the start of ${title}`}</p>
+              <p className="mx-auto my-4 w-fit max-w-full rounded-full bg-background/90 px-3 py-1 text-center text-xs text-muted-foreground shadow-sm">{privateChat ? `This is the start of your chat with ${title}` : `This is the start of ${title}`}</p>
             )}
             {encryptedChats && !loading && (
               <button
@@ -1163,7 +1165,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
                 ))}
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center py-16 text-center">
+              <div className="mx-auto my-10 flex max-w-sm flex-col items-center rounded-3xl bg-background/90 px-6 py-8 text-center shadow-sm">
                 <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-20 w-20 text-2xl" />
                 <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {title} 👋</p>
                 <p className="mt-1 max-w-xs text-sm text-muted-foreground">

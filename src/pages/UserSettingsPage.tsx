@@ -19,6 +19,7 @@ import {
   Shield,
   User,
   Users,
+  Wallpaper,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import UserAvatar from "@/components/common/UserAvatar";
@@ -44,6 +45,8 @@ import { HelpCenter } from "@/components/HelpCenter";
 import { InviteFriend } from "@/components/InviteFriend";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { church } from "@/config/church";
+import { WallpaperSheet } from "@/components/messages/ChatWallpaper";
+import { useChatWallpaper, wallpaperName } from "@/lib/chatWallpaper";
 
 const PLACEHOLDER_PHONE = '+234 123 456 7890';
 
@@ -110,6 +113,8 @@ const UserSettingsPage = () => {
   const [pushState, setPushState] = useState<PushState | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [offlineOpen, setOfflineOpen] = useState(false);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const wallpaper = useChatWallpaper();
   const [offlineSummary, setOfflineSummary] = useState("");
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -381,6 +386,7 @@ const UserSettingsPage = () => {
         />
         <ListRow icon={Download} iconClassName={tint.sky} title="Offline audio Bible" value={offlineSummary} onClick={() => setOfflineOpen(true)} />
         <ListRow icon={Palette} iconClassName={tint.indigo} title="Appearance" onClick={() => setCurrentView("theme")} />
+        <ListRow icon={Wallpaper} iconClassName={tint.violet} title="Chat wallpaper" value={wallpaperName(wallpaper.choice, wallpaper.photo)} onClick={() => setWallpaperOpen(true)} />
         <ListRow icon={MapPin} iconClassName={tint.teal} title="My campus" value={campus?.name ?? "Choose"} onClick={() => navigate("/services")} />
         <ListRow icon={Users} iconClassName={tint.amber} title="Social Circle" onClick={() => navigate("/social")} />
       </ListGroup>
@@ -418,6 +424,7 @@ const UserSettingsPage = () => {
         </div>
       )}
 
+      <WallpaperSheet open={wallpaperOpen} onOpenChange={setWallpaperOpen} />
       <OfflineAudioDialog
         open={offlineOpen}
         onOpenChange={setOfflineOpen}
