@@ -39,7 +39,8 @@ export interface WaChat {
 }
 
 const HEAD = /^\[?(\d{1,4})[./-](\d{1,2})[./-](\d{1,4}),?\s+(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*([AaPp]\.?\s?[Mm]\.?)?\]?\s*(?:[-–]\s+)?(.*)$/;
-const ATTACHED_IOS = /^<attached:\s*([^>]+)>\s*([\s\S]*)$/i;
+/** iPhone: "<attached: FILE>", at the start, or after a caption written in the same message */
+const ATTACHED_IOS_ANYWHERE = /<attached:\s*([^>]+)>/i;
 const ATTACHED_ANDROID = /^(.+?\.[A-Za-z0-9]{2,5})\s+\((?:file attached|archivo adjunto|fichier joint|Datei angehängt)\)\s*([\s\S]*)$/i;
 const OMITTED = /^(image|video|audio|sticker|document|GIF|Contact card|video note) omitted$/i;
 const EDITED = /\s*<This message was edited>\s*$/i;
@@ -124,12 +125,15 @@ export function parseWhatsAppText(text: string, forceOrder?: DateOrder): Omit<Wa
     previous = time;
 
     const message: WaMessage = { at: new Date(time), sender, text: body };
-    const ios = body.match(ATTACHED_IOS);
+    const ios = body.match(ATTACHED_IOS_ANYWHERE);
     const android = !ios ? body.match(ATTACHED_ANDROID) : null;
-    if (ios || android) {
-      const [, file, caption] = (ios || android)!;
-      message.attachment = file.trim();
-      message.text = caption.trim();
+    if (ios) {
+      // The caption is whatever else the message says, before or after the tag
+      message.attachment = ios[1].trim();
+      message.text = body.replace(ios[0], ' ').replace(/[ \t]+\n/g, '\n').replace(/\s{2,}/g, ' ').trim();
+    } else if (android) {
+      message.attachment = android[1].trim();
+      message.text = android[2].trim();
     } else if (OMITTED.test(body) || /^<Media omitted>$/i.test(body)) {
       message.omitted = (body.match(OMITTED)?.[1] || 'media').toLowerCase();
       message.text = '';
