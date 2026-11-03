@@ -211,6 +211,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             initiatorAvatar: payload.initiatorAvatar ?? null,
             receivedAt: Date.now(),
           });
+        } else if (signal?.type === 'call-left') {
+          // Someone hung up (backup for the room's goodbye): drop them now
+          const eng = engineRef.current;
+          if (eng && eng.getSnapshot().callId === payload.callId && signal.from) eng.peerLeft(signal.from);
         } else if (signal?.type === 'call-ended') {
           setOngoingCalls((prev) => {
             if (prev[chatId]?.callId !== payload.callId) return prev;
@@ -453,6 +457,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const snap = eng.getSnapshot();
     const answered = reason !== 'no-answer' && answeredCallsRef.current.has(snap.callId);
     const talked = eng.talkSeconds();
+    // Tell the others straight away on the chat's signals too (the room's goodbye can be missed)
+    if (reason !== 'no-answer') {
+      broadcast(signalsTopic(snap.chatId), 'signal', { type: 'call-left', from: user?.id, payload: { callId: snap.callId } }).catch(() => undefined);
+    }
     const others = reason === 'no-answer' ? (eng.end('no-answer'), 0) : await eng.hangup();
     playCue('end');
     if (others === 0) {
@@ -517,18 +525,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastCountRef.current = connected;
   }, [call]);
 
-  // Everyone else has left: end the call for me too after a short grace period.
+  // Everyone else has left: end the call for me too, like WhatsApp. Straight away when they
+  // hung up; after a few seconds if their phone just dropped out of the room (it may rejoin).
   // (People whose connection is dropping stay in the list while they reconnect.)
   useEffect(() => {
     if (!engine || !call || call.status !== 'active' || call.participants.length > 0) return;
+    const grace = call.lastLeft === 'bye' || call.lastLeft === 'lost' ? 0 : 4000;
     const timer = setTimeout(() => {
       if (engine.getSnapshot().participants.length === 0 && engine.getSnapshot().status !== 'ended') {
-        appAlert('Call ended', 'Everyone else has left the call.');
+        appAlert('Call ended', call.lastLeft === 'lost' ? 'The connection was lost.' : 'Everyone else has left the call.');
         finishCall(engine, 'hangup');
       }
-    }, 15000);
+    }, grace);
     return () => clearTimeout(timer);
-  }, [engine, call?.status, call?.participants.length, finishCall]);
+  }, [engine, call?.status, call?.participants.length, call?.lastLeft, finishCall]);
 
   // Engine ended on its own (e.g. error)
   useEffect(() => {
