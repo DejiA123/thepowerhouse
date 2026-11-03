@@ -194,8 +194,8 @@ export const PreviewCard = ({ preview, isOwn }: { preview: LinkPreview; isOwn: b
         <img src={preview.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setImageOk(false)} className="max-h-40 w-full object-cover" />
       )}
       <span className="block px-3 py-2">
-        <span className={cn('line-clamp-2 text-[14px] font-semibold leading-snug', isOwn ? 'text-white' : 'text-foreground')}>{preview.title}</span>
-        {preview.description && <span className={cn('mt-0.5 line-clamp-2 text-[12.5px]', isOwn ? 'text-white/80' : 'text-muted-foreground')}>{preview.description}</span>}
+        <span className={cn('line-clamp-2 text-[14px] font-semibold leading-snug [word-break:break-word] [overflow-wrap:anywhere]', isOwn ? 'text-white' : 'text-foreground')}>{preview.title}</span>
+        {preview.description && <span className={cn('mt-0.5 line-clamp-2 text-[12.5px] [word-break:break-word] [overflow-wrap:anywhere]', isOwn ? 'text-white/80' : 'text-muted-foreground')}>{preview.description}</span>}
         {site && <span className={cn('mt-1 block truncate text-[11.5px] uppercase tracking-wide', isOwn ? 'text-white/65' : 'text-muted-foreground')}>{site}</span>}
       </span>
     </a>

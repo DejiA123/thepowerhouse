@@ -324,12 +324,12 @@ const MessageBubble = ({
         </div>
       )}
 
-      <div ref={slideRef} className={cn('flex max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
+      <div ref={slideRef} className={cn('flex min-w-0 max-w-[82%] flex-col sm:max-w-[70%]', isOwn ? 'items-end' : 'items-start')}>
         {!isOwn && isFirst && (
           <span className={cn('mb-1 ml-1 w-fit max-w-full truncate rounded-full bg-background/85 px-2 py-px text-xs font-semibold', nameColor(who))}>{name}</span>
         )}
 
-        <div className="relative flex items-center gap-1">
+        <div className="relative flex min-w-0 max-w-full items-center gap-1">
           {/* Desktop quick-react button */}
           {isOwn && !message.pending && (
             <button
@@ -344,7 +344,7 @@ const MessageBubble = ({
           <div
             {...pressHandlers}
             className={cn(
-              'select-none touch-pan-y [-webkit-touch-callout:none] transition-transform active:scale-[0.985]',
+              'min-w-0 max-w-full select-none touch-pan-y [-webkit-touch-callout:none] transition-transform active:scale-[0.985]',
               bigEmoji
                 ? 'px-1 text-5xl leading-tight'
                 : cn(
@@ -382,7 +382,7 @@ const MessageBubble = ({
                 <span className={cn('w-1 shrink-0 bg-current', isOwn ? 'text-white/70' : nameColor(quote.userId))} />
                 <span className="min-w-0 flex-1 px-2 py-1.5">
                   <span className={cn('block truncate font-semibold', isOwn ? 'text-white' : nameColor(quote.userId))}>{quote.name}</span>
-                  <span className={cn('line-clamp-2 break-words', isOwn ? 'text-white/80' : 'text-muted-foreground')}>
+                  <span className={cn('line-clamp-2 break-words [word-break:break-word] [overflow-wrap:anywhere]', isOwn ? 'text-white/80' : 'text-muted-foreground')}>
                     {quote.missing ? 'This message isn’t available' : quote.text || 'Message'}
                   </span>
                 </span>
@@ -412,7 +412,7 @@ const MessageBubble = ({
             {linkPreview && <PreviewCard preview={linkPreview} isOwn={isOwn} />}
             {file && !text && <div className="flex justify-end pt-1">{meta}</div>}
             {!call && !voice && (text || (!media && !file)) && (
-              <div className={cn('whitespace-pre-wrap break-words', (media || file) && 'px-2.5 pb-1.5 pt-1.5', file && 'px-1', message.locked && 'italic opacity-80')}>
+              <div className={cn('whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]', (media || file) && 'px-2.5 pb-1.5 pt-1.5', file && 'px-1', message.locked && 'italic opacity-80')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
                     <a
