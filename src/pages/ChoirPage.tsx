@@ -116,6 +116,7 @@ import { church } from '@/config/church';
 import { useIsAdmin } from '@/lib/admin';
 import { choirUnlocked, lockChoir, unlockChoir } from '@/lib/choirKey';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { libraryMatcher, notesLines } from '@/lib/songImport';
 
 /** The choir's tabs by their new names and old ones (older links still work) */
 const CHOIR_TABS: Record<string, string> = {
@@ -3262,15 +3263,16 @@ const ChoirPage = () => {
     const handleImportSetlist = async () => {
         if (!importText.trim() || !importSetType) return;
 
-        const lines = importText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const lines = notesLines(importText);
         if (lines.length === 0) return;
+        const findInLibrary = libraryMatcher(allLibrarySongs);
 
         let matchedCount = 0;
 
         try {
             if (importSetType === 'learning') {
                 const newSongs: WeeklySetSong[] = lines.map((line, index) => {
-                    const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
+                    const match = findInLibrary(line);
                     if (match) matchedCount++;
                     return match ? {
                         id: crypto.randomUUID(),
@@ -3304,14 +3306,20 @@ const ChoirPage = () => {
 
             } else {
                 const weekDateStr = getEffectiveWeekDate(locationId!);
-                const results = await Promise.all(lines.map(async (line, idx) => {
-                    const match = allLibrarySongs.find(s => s.title.toLowerCase() === line.toLowerCase());
-                    const currentSetLength = importSetType === 'praise' ? praiseSet.length :
-                        importSetType === 'worship' ? worshipSet.length :
-                            importSetType === 'special' ? specialSet.length :
-                                importSetType === 'hymns' ? hymnsSet.length : 0;
+                // The national choir keeps each day's songs apart ("praise_d2"): import into the day on screen,
+                // like the + button does (without it the songs were saved but shown on no day)
+                const setType = locationId === 'national' ? `${importSetType}_d${selectedDay}` : importSetType;
+                const currentSetLength = importSetType === 'praise' ? praiseSet.length :
+                    importSetType === 'worship' ? worshipSet.length :
+                        importSetType === 'special' ? specialSet.length :
+                            importSetType === 'hymns' ? hymnsSet.length : 0;
+                // One at a time, in the order they were pasted
+                const newSongs: WeeklySetSong[] = [];
+                for (const [idx, line] of lines.entries()) {
+                    const match = findInLibrary(line);
+                    if (match) matchedCount++;
                     const songData = match ? {
-                        set_type: importSetType as 'praise' | 'worship' | 'special' | 'hymns',
+                        set_type: setType as 'praise',
                         title: match.title,
                         key: match.key,
                         artist: match.artist || "",
@@ -3320,7 +3328,7 @@ const ChoirPage = () => {
                         week_date: weekDateStr,
                         sort_order: currentSetLength + idx
                     } : {
-                        set_type: importSetType as 'praise' | 'worship' | 'special' | 'hymns',
+                        set_type: setType as 'praise',
                         title: line,
                         key: "??",
                         artist: "",
@@ -3328,28 +3336,38 @@ const ChoirPage = () => {
                         week_date: weekDateStr,
                         sort_order: currentSetLength + idx
                     };
-                    if (match) matchedCount++;
-                    return choirService.addWeeklySong(songData, locationId!);
-                }));
+                    newSongs.push(await choirService.addWeeklySong(songData, locationId!) as unknown as WeeklySetSong);
+                }
 
-                const newSongs = results as unknown as WeeklySetSong[];
                 const importedIds = newSongs.map((song: any) => song?.id).filter(Boolean);
                 if (importedIds.length) sendPush({ type: 'choir-song', table: 'weekly', ids: importedIds });
 
                 setIsImportOpen(false);
                 setImportText("");
-
+                // Show them straight away (not only when the live update arrives)
+                setLiveTick((t) => t + 1);
             }
+            const setName = importSetType === 'learning' ? 'Learning' : `${importSetType.charAt(0).toUpperCase()}${importSetType.slice(1)}`;
+            toast.success(`Added ${lines.length} ${lines.length === 1 ? 'song' : 'songs'} to the ${setName} set`, {
+                description: matchedCount
+                    ? `${matchedCount} found in the song library${matchedCount < lines.length ? '; the rest were added by name' : ''}.`
+                    : 'Added by name (none were in the song library yet).',
+            });
         } catch (e) {
             console.error(e);
-            toast.error("Failed to import some songs");
+            const err = e as { code?: string; message?: string };
+            const locked = err?.code === '42501' || /row-level security|permission/i.test(err?.message || '');
+            toast.error(locked ? 'Unlock the choir first' : 'Failed to import some songs', {
+                description: locked ? 'Tap the lock and enter the choir passcode, then import again.' : err?.message,
+            });
+            setLiveTick((t) => t + 1);
         }
     };
 
     const handleImportFolderSongs = async () => {
         if (!importFolderText.trim() || !activeFolderId) return;
 
-        const lines = importFolderText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const lines = notesLines(importFolderText);
         if (lines.length === 0) return;
 
         let matchedCount = 0;
@@ -4554,9 +4572,9 @@ const ChoirPage = () => {
                             <Button
                                 onClick={handleImportSetlist}
                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg shadow-blue-500/20"
-                                disabled={!importText.trim()}
+                                disabled={!notesLines(importText).length}
                             >
-                                Import {importText.split('\n').filter(l => l.trim()).length} Songs
+                                Import {notesLines(importText).length} {notesLines(importText).length === 1 ? 'Song' : 'Songs'}
                             </Button>
                             <Button
                                 variant="outline"
@@ -5894,7 +5912,7 @@ const ChoirPage = () => {
                                                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 text-xl font-bold shadow-xl shadow-blue-500/20"
                                                                         disabled={!importFolderText.trim()}
                                                                     >
-                                                                        Import {importFolderText.split('\n').filter(l => l.trim()).length} Songs
+                                                                        Import {notesLines(importFolderText).length} {notesLines(importFolderText).length === 1 ? 'Song' : 'Songs'}
                                                                     </Button>
                                                                     <Button
                                                                         variant="outline"
