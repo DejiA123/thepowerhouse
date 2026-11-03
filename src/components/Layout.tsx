@@ -319,7 +319,8 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Find anything, and the welcome tour (shown once; again from Help or Me) */}
       <SearchSlot />
       <InstallGuideSlot />
-      {showChrome && <AppTour />}
+      {/* Not over an invite link: joining comes first (the tour can wait) */}
+      {showChrome && !location.pathname.startsWith('/join/') && <AppTour />}
       {/* "A new update is ready" with a Refresh button */}
       <UpdatePrompt />
     </div>

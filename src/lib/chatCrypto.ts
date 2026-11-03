@@ -189,6 +189,8 @@ const held = new Map<string, Map<string, CryptoKey>>();
 const fetchedAt = new Map<string, number>();
 /** The key new messages in a chat are sent with (this session) */
 const sending = new Map<string, string>();
+/** When this phone last checked that every member's device has that key */
+const sendingChecked = new Map<string, number>();
 
 const storeKey = (chatId: string, keyId: string) => `chatkey:${chatId}:${keyId}`;
 
@@ -307,7 +309,9 @@ export async function shareKeys(userId: string, chatId: string): Promise<void> {
 async function sendingKey(userId: string, chatId: string): Promise<{ keyId: string; key: CryptoKey }> {
   const known = sending.get(chatId);
   const keys = await loadKeys(userId, chatId);
-  if (known && keys.get(known)) return { keyId: known, key: keys.get(known)! };
+  // Look again at least once a minute: someone may have joined (an invite link) on their own phone
+  if (known && keys.get(known) && Date.now() - (sendingChecked.get(chatId) ?? 0) < 60_000) return { keyId: known, key: keys.get(known)! };
+  sendingChecked.set(chatId, Date.now());
 
   const device = await myDevice(userId);
   if (!device) throw new Error('Encryption is not available');

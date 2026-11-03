@@ -49,6 +49,7 @@ const lazyPage = <T extends React.ComponentType<any>>(load: () => Promise<{ defa
 
 const BiblePage = lazyPage(() => import("@/pages/BiblePage"));
 const PushReportPage = lazyPage(() => import("@/pages/PushReportPage"));
+const JoinChatPage = lazyPage(() => import("@/pages/JoinChatPage"));
 const NewsPage = lazyPage(() => import("@/pages/NewsPage"));
 const GroupsPage = lazyPage(() => import("@/pages/GroupsPage"));
 const GivePage = lazyPage(() => import("@/pages/GivePage"));
@@ -314,6 +315,8 @@ const AppRoutes = () => {
                 </ProtectedRoute>
               }
             />
+            {/* A group's invite link: works signed out (shows the group, then sign in and join) */}
+            <Route path="/join/:code" element={<JoinChatPage />} />
             <Route
               path="/push-report"
               element={
