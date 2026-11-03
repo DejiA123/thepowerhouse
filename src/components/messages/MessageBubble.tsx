@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Check, CheckCheck, Clock, Forward, ImageOff, Loader2, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
+import { AlertCircle, Ban, Check, CheckCheck, Clock, Forward, ImageOff, Loader2, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
 import SecureImg, { useOpenedImage } from './SecureImg';
 import { isEncryptedFile } from '@/lib/chatCrypto';
 import { cn } from '@/lib/utils';
@@ -158,6 +158,8 @@ const MessageBubble = ({
   const file = parseFile(message.content);
   const linkPreview = parsePreview(message.content);
   const media = !!(imageUrl || videoUrl);
+  // Deleted for everyone: only a note stays ("You deleted this message", like WhatsApp)
+  const gone = !!message.is_deleted;
   // A reply or a forward keeps its bubble (the quote and label sit in it)
   const bigEmoji = !media && !message.reply_to_id && !message.forwarded && isEmojiOnly(text);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -170,7 +172,7 @@ const MessageBubble = ({
   const slideRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
   const swipe = useRef<{ x: number; y: number; dx: number; active: boolean; armed: boolean } | null>(null);
-  const canSwipe = !!onReply && !message.pending && !message.failed;
+  const canSwipe = !!onReply && !message.pending && !message.failed && !gone;
 
   const cancelPress = () => {
     clearTimeout(timer.current);
@@ -270,11 +272,11 @@ const MessageBubble = ({
         bigEmoji ? 'text-muted-foreground' : isOwn ? 'text-white/75' : 'text-muted-foreground',
       )}
     >
-      {starred && <Star className="h-3 w-3 fill-current" aria-label="Starred" />}
-      {message.imported_from && <span>Imported</span>}
-      {message.edited_at && !call && <span>Edited</span>}
+      {starred && !gone && <Star className="h-3 w-3 fill-current" aria-label="Starred" />}
+      {message.imported_from && !gone && <span>Imported</span>}
+      {message.edited_at && !call && !gone && <span>Edited</span>}
       {formatClock(message.created_at)}
-      {isOwn && !call && !message.imported_from && (
+      {isOwn && !call && !message.imported_from && !gone && (
         message.failed ? <AlertCircle className="h-3.5 w-3.5 text-red-300" />
           : message.pending ? <Clock className="h-3 w-3" />
             : seen ? <CheckCheck className="h-3.5 w-3.5" />
@@ -290,7 +292,8 @@ const MessageBubble = ({
         // Choosing several: a tap picks it (and doesn't open photos or links)
         e.preventDefault();
         e.stopPropagation();
-        onToggleSelect?.(message);
+        // A deleted message's note can't be copied, starred or forwarded
+        if (!gone) onToggleSelect?.(message);
       } : undefined}
       aria-selected={selecting ? !!selected : undefined}
       className={cn(
@@ -331,7 +334,7 @@ const MessageBubble = ({
 
         <div className="relative flex min-w-0 max-w-full items-center gap-1">
           {/* Desktop quick-react button */}
-          {isOwn && !message.pending && (
+          {isOwn && !message.pending && !gone && (
             <button
               onClick={() => onOpenActions(message)}
               className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
@@ -360,6 +363,13 @@ const MessageBubble = ({
                 ),
             )}
           >
+            {gone ? (
+              <p className={isOwn ? 'text-white/85' : 'text-muted-foreground'}>
+                <Ban className="-mt-0.5 mr-1.5 inline h-4 w-4 align-middle" aria-hidden />
+                <span className="italic">{isOwn ? 'You deleted this message.' : 'This message was deleted.'}</span>
+                {meta}
+              </p>
+            ) : (<>
             {message.forwarded && (
               <p className={cn('mb-0.5 flex items-center gap-1 text-[12px] italic', media && 'px-2 pt-1', bigEmoji ? 'text-muted-foreground' : isOwn ? 'text-white/75' : 'text-muted-foreground')}>
                 <Forward className="h-3 w-3" /> Forwarded
@@ -433,9 +443,10 @@ const MessageBubble = ({
               </div>
             )}
             {media && !text && <div className="flex justify-end px-2 pb-1">{meta}</div>}
+            </>)}
           </div>
 
-          {!isOwn && (
+          {!isOwn && !gone && (
             <button
               onClick={() => onOpenActions(message)}
               className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
@@ -453,7 +464,7 @@ const MessageBubble = ({
         )}
 
         {/* Reactions sit on the bubble's bottom edge, in front of it (like WhatsApp) */}
-        {reactions.length > 0 && (
+        {reactions.length > 0 && !gone && (
           <div className={cn('relative z-10 -mt-2 mb-1 flex flex-wrap gap-1', isOwn ? 'mr-2 justify-end' : 'ml-2')}>
             {reactions.map((r) => (
               <button
