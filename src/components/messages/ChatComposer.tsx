@@ -37,7 +37,7 @@ interface Props {
 const isTouchDevice = () => window.matchMedia?.('(pointer: coarse)').matches;
 
 const ChatComposer = ({
-  onSend, onSendMedia, onSendVoice, onSendFile, onTyping, disabled, placeholder = 'Message', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply, mentionables,
+  onSend, onSendMedia, onSendVoice, onSendFile, onTyping, disabled, placeholder = '', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply, mentionables,
 }: Props) => {
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
@@ -539,8 +539,9 @@ const ChatComposer = ({
                 value={text}
                 rows={1}
                 enterKeyHint={isTouchDevice() ? 'enter' : 'send'}
-                placeholder={editing ? (editing.caption ? 'Caption' : 'Message') : photo || doc ? 'Add a caption…' : placeholder}
-                aria-label={editing ? (editing.caption ? 'Edit caption' : 'Edit message') : undefined}
+                // Blank like WhatsApp; only a photo or document asks for a caption
+                placeholder={editing ? (editing.caption ? 'Caption' : '') : photo || doc ? 'Add a caption…' : placeholder}
+                aria-label={editing ? (editing.caption ? 'Edit caption' : 'Edit message') : photo || doc ? 'Caption' : 'Message'}
                 onChange={(e) => {
                   setText(e.target.value);
                   findMention(e.target.value, e.target.selectionStart ?? e.target.value.length);
