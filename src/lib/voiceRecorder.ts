@@ -109,7 +109,7 @@ export class VoiceRecorder {
     const tail = await ask({ type: 'end', job: this.job });
     const all = [...chunks, tail].filter((c): c is Uint8Array => !!c && c.length > 0);
     if (!all.length || seconds < 0.3) return null;
-    return { blob: new Blob(all, { type: 'audio/mpeg' }), seconds, bars: this.waveform() };
+    return { blob: new Blob(all.map((chunk) => new Uint8Array(chunk).buffer), { type: 'audio/mpeg' }), seconds, bars: this.waveform() };
   }
 
   /** Throw it away */
