@@ -1049,6 +1049,38 @@ export class GroupChatService {
         chatsChanged();
     }
 
+    // ── Invite links (like WhatsApp) ─────────────────────────────────
+    /** The group's invite link code (its admins, creator or a church admin); reset makes a new one */
+    static async inviteCode(chatId: string, reset = false): Promise<string> {
+        const { data, error } = await supabase.rpc('chat_invite_link' as never, { _chat_id: chatId, _reset: reset } as never);
+        if (error) throw error;
+        return data as unknown as string;
+    }
+
+    /** Can I share this group's link? */
+    static async canInvite(chatId: string): Promise<boolean> {
+        const { data, error } = await supabase.rpc('can_invite_to_chat' as never, { _chat_id: chatId } as never);
+        return !error && (data as unknown) === true;
+    }
+
+    /** What an invite link leads to (works before signing in) */
+    static async invitePreview(code: string): Promise<{ chat_id: string; name: string; description: string | null; avatar_url: string | null; members: number; is_member: boolean } | null> {
+        const { data, error } = await supabase.rpc('chat_invite_preview' as never, { _code: code } as never);
+        if (error) throw error;
+        const rows = (data as unknown as { chat_id: string; name: string; description: string | null; avatar_url: string | null; members: number; is_member: boolean }[]) || [];
+        return rows[0] ?? null;
+    }
+
+    /** Join a group with its invite link; returns the chat's id */
+    static async joinByInvite(code: string): Promise<string> {
+        const { data, error } = await supabase.rpc('join_chat_by_invite' as never, { _code: code } as never);
+        if (error) throw error;
+        const chatId = data as unknown as string;
+        membersChanged(chatId);
+        chatsChanged();
+        return chatId;
+    }
+
     static async markAsRead(chatId: string, timestamp?: string): Promise<void> {
         const user = await currentUser();
         if (!user) return;

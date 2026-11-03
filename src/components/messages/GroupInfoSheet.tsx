@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2 } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -18,6 +18,7 @@ import { GroupChatService, type GroupChat } from '@/services/groupChatService';
 import MemberPicker, { type PickablePerson } from './MemberPicker';
 import { isPrivateChat, uploadChatImage } from './chatUtils';
 import { WallpaperSheet } from './ChatWallpaper';
+import InviteLinkSheet from './InviteLinkSheet';
 
 interface Props {
   chat: GroupChat;
@@ -169,6 +170,12 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   const [adding, setAdding] = useState(false);
   const [picked, setPicked] = useState<PickablePerson[]>([]);
   const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [canInvite, setCanInvite] = useState(false);
+  useEffect(() => {
+    if (!open || isPrivateChat(chat)) return;
+    GroupChatService.canInvite(chat.id).then(setCanInvite).catch(() => setCanInvite(false));
+  }, [open, chat]);
   // One-to-one: their About, and their number if they chose to show it
   const [contact, setContact] = useState<{ bio: string | null; phone: string | null } | null>(null);
   const contactId = isPrivateChat(chat) ? members.find((m) => m.user_id !== userId)?.user_id ?? null : null;
@@ -436,6 +443,16 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   ))}
                 </div>
               )}
+              {!editing && canInvite && (
+                <button onClick={() => setInviteOpen(true)} className="mt-2 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-blue-50 px-4 py-3 text-left transition hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60">
+                  <Link2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-foreground">Invite via link</span>
+                    <span className="block text-xs text-muted-foreground">Share a link or QR code: one tap to join</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
               {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} onClear={onClear} />}
             </div>
@@ -518,6 +535,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
         </SheetContent>
       </Sheet>
 
+      <InviteLinkSheet chatId={chat.id} chatName={chat.name} open={inviteOpen} onOpenChange={setInviteOpen} />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
