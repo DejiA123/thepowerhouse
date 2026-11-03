@@ -10,7 +10,8 @@ const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(self.navigato
  * End-to-end encrypted chat messages arrive still scrambled (the server can't
  * read them). Open them here with this phone's own chat key, kept by the app
  * in IndexedDB (src/lib/chatCrypto.ts), so the notification can say what the
- * message says. Without the key it stays "🔒 New message".
+ * message says. A phone without the key yet opens the copy sealed for it in
+ * the notification (data.sealed). Without either it stays "🔒 New message".
  */
 const E2E_PREFIX = '::e2e::1:';
 
@@ -28,7 +29,7 @@ function readChatKey(chatId, keyId) {
     const req = db.transaction('kv').objectStore('kv').get('chatkey:' + chatId + ':' + keyId);
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => resolve(null);
-  }));
+  })).catch(() => null);
 }
 
 function fromBase64(text) {
@@ -38,10 +39,61 @@ function fromBase64(text) {
   return out;
 }
 
-async function openEncrypted(chatId, content) {
+function storeChatKey(chatId, keyId, key) {
+  return openKeyStore().then((db) => new Promise((resolve) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(key, 'chatkey:' + chatId + ':' + keyId);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  })).catch(() => undefined);
+}
+
+/** This phone's own devices (one per account signed in here), kept by the app: device:<user id> */
+function readDevices() {
+  return openKeyStore().then((db) => new Promise((resolve) => {
+    const req = db.transaction('kv').objectStore('kv').getAll(IDBKeyRange.bound('device:', 'device:\uffff'));
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  }));
+}
+
+/*
+ * The phone hasn't got this chat's key yet (a new chat, or the app hasn't
+ * been opened since): the notification carries this person's copy, sealed for
+ * each of their phones ({ d: device, w: sealed key, f: sender's public key }).
+ * Open it the same way the app does (src/lib/chatCrypto.ts unseal), and keep it.
+ */
+async function unsealChatKey(chatId, keyId, sealed) {
+  if (!Array.isArray(sealed) || !sealed.length) return null;
+  const devices = await readDevices();
+  for (const device of devices) {
+    const mine = sealed.find((s) => s && s.d === device.id);
+    if (!mine || !device.privateKey) continue;
+    try {
+      const pub = await crypto.subtle.importKey('raw', fromBase64(mine.f), { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+      const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: pub }, device.privateKey, 256));
+      const label = new TextEncoder().encode('ph-chat-key-v1|' + chatId + '|' + keyId + '|' + device.id);
+      const material = new Uint8Array(shared.length + label.length);
+      material.set(shared);
+      material.set(label, shared.length);
+      const wrapKey = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', material), { name: 'AES-GCM' }, false, ['decrypt']);
+      const bytes = fromBase64(mine.w);
+      const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.subarray(0, 12) }, wrapKey, bytes.subarray(12));
+      // Exportable, like the app's copy: it seals keys for the person's other phones
+      const key = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+      await storeChatKey(chatId, keyId, key);
+      return key;
+    } catch (e) {
+      /* sealed for an older copy of this device */
+    }
+  }
+  return null;
+}
+
+async function openEncrypted(chatId, content, sealed) {
   try {
     const parts = content.slice(E2E_PREFIX.length).split(':');
-    const key = await readChatKey(chatId, parts[0]);
+    const key = (await readChatKey(chatId, parts[0])) || (await unsealChatKey(chatId, parts[0], sealed));
     if (!key) return null;
     const plain = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: fromBase64(parts[1]), additionalData: new TextEncoder().encode(chatId) },
@@ -114,9 +166,10 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     // An encrypted chat message: open it on this phone (the scrambled text never shows)
     if (data.e2e) {
-      const text = await openEncrypted(data.chatId, data.e2e);
+      const text = await openEncrypted(data.chatId, data.e2e, data.sealed);
       if (text !== null) payload = Object.assign({}, payload, { body: (data.e2ePrefix || '') + chatPreview(text) });
       delete data.e2e;
+      delete data.sealed;
     }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const visible = windows.find((c) => c.visibilityState === 'visible' && c.focused);

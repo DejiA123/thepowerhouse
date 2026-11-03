@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
 import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
+import { previewText } from "@/components/messages/chatUtils";
 import { WAITING_TEXT, decryptMessage, e2eReady, encryptMany, encryptMessage, isEncrypted, membersChanged, shareKeys } from "@/lib/chatCrypto";
 
 export interface GroupChat {
@@ -191,6 +192,16 @@ export async function readable(messages: ChatMessage[]): Promise<ChatMessage[]> 
 
 /** Is the imported_from column there? (unread counts leave imported history out) */
 let importColumns: Promise<boolean> | null = null;
+/** A new message's notification line, encrypted like the message (null if that fails: the server then uses the message) */
+async function notificationPreview(userId: string, chatId: string, text: string): Promise<string | null> {
+    try {
+        const line = previewText(text);
+        return await encryptMessage(userId, chatId, line.length > 160 ? `${line.slice(0, 159)}…` : line);
+    } catch {
+        return null;
+    }
+}
+
 const hasImportColumns = () => {
     if (!importColumns) {
         importColumns = Promise.resolve(supabase.from('chat_messages').select('imported_from' as never).limit(1))
@@ -648,7 +659,14 @@ export class GroupChatService {
         if (extra.forwarded) emitLocal(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: saved });
         // This phone knows what it says
         const message: ChatMessage = { ...saved, content: text, encrypted };
-        sendPush({ type: 'chat-message', messageId: message.id });
+        if (encrypted) {
+            // The notification's line ("📷 Photo", the text…), encrypted with the same key, so
+            // the other phones can show what it says however long the message is
+            void notificationPreview(user.id, chatId, text)
+                .then((e2ePreview) => sendPush({ type: 'chat-message', messageId: message.id, ...(e2ePreview && { e2ePreview }) }));
+        } else {
+            sendPush({ type: 'chat-message', messageId: message.id });
+        }
         return message;
     }
 

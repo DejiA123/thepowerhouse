@@ -310,7 +310,8 @@ export async function unfollowTopic(topic: string): Promise<void> {
 export const isFollowingTopic = (topic: string) => readLocalTopics().includes(topic);
 
 type PushEvent =
-  | { type: 'chat-message'; messageId: string }
+  /** e2ePreview: the notification's one line, encrypted with the message's key (the server can't read either) */
+  | { type: 'chat-message'; messageId: string; e2ePreview?: string }
   | { type: 'call'; callId: string }
   | { type: 'call-missed'; callId: string }
   | { type: 'call-invite'; callId: string; userId: string }

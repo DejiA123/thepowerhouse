@@ -48,33 +48,45 @@ export interface SendOptions {
   topic?: string;
 }
 
+/** The two forms of one payload: the usual one, and Apple's (see below) */
+function bodiesFor(payload: PushPayload, timestamp: number) {
+  const message = { ...payload, timestamp };
+  return {
+    body: JSON.stringify(message),
+    // iPhones and iPads (Apple's push service) also get Apple's "declarative"
+    // form. From iOS 18.4 the phone shows that by itself, without waking the
+    // app's background code, unless it's marked `mutable`: then the code
+    // (public/push-sw.js) runs and replaces it (opening an encrypted message,
+    // for one). If the code fails, the declarative one still shows.
+    appleBody: JSON.stringify({
+      ...message,
+      web_push: 8030,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+        navigate: new URL(payload.url || '/', APP_ORIGIN).href,
+        mutable: true,
+        ...(payload.tag ? { tag: payload.tag } : {}),
+      },
+    }),
+  };
+}
+
 /**
- * Encrypt and deliver one payload to many subscriptions.
+ * Encrypt and deliver one payload to many subscriptions (or a payload made
+ * for each one: an encrypted chat message carries that person's own sealed key).
  * Expired subscriptions (404/410) are removed; other failures are counted so
  * that endpoints which keep failing are eventually pruned.
  */
 export async function sendToSubscriptions(
   subscriptions: PushSubscriptionRow[],
-  payload: PushPayload,
+  payload: PushPayload | ((sub: PushSubscriptionRow) => PushPayload),
   options: SendOptions = {},
 ): Promise<{ sent: number; failed: number; removed: number }> {
   if (!pushConfigured || subscriptions.length === 0) return { sent: 0, failed: 0, removed: 0 };
 
-  const message = { ...payload, timestamp: Date.now() };
-  const body = JSON.stringify(message);
-  // iPhones and iPads (Apple's push service) also get Apple's "declarative"
-  // form: from iOS 18.4 the phone shows it itself if the app's background code
-  // doesn't wake up in time (that code still replaces it with the full version)
-  const appleBody = JSON.stringify({
-    ...message,
-    web_push: 8030,
-    notification: {
-      title: payload.title,
-      body: payload.body,
-      navigate: new URL(payload.url || '/', APP_ORIGIN).href,
-      ...(payload.tag ? { tag: payload.tag } : {}),
-    },
-  });
+  const timestamp = Date.now();
+  const shared = typeof payload === 'function' ? null : bodiesFor(payload, timestamp);
   const expired: string[] = [];
   const failed: PushSubscriptionRow[] = [];
   const succeeded: string[] = [];
@@ -86,7 +98,10 @@ export async function sendToSubscriptions(
     try {
       const details = webpush.generateRequestDetails(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        isApple(sub.endpoint) ? appleBody : body,
+        (() => {
+          const bodies = shared ?? bodiesFor((payload as (sub: PushSubscriptionRow) => PushPayload)(sub), timestamp);
+          return isApple(sub.endpoint) ? bodies.appleBody : bodies.body;
+        })(),
         {
           vapidDetails: { subject: VAPID_SUBJECT, publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY },
           TTL: options.ttl ?? 60 * 60 * 24,
