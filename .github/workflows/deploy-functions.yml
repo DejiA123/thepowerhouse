@@ -1,0 +1,108 @@
+name: Deploy edge functions
+
+# Deploys Supabase edge functions straight from this repo, without Lovable.
+# Needs the repository secret SUPABASE_ACCESS_TOKEN (a personal access token
+# from https://supabase.com/dashboard/account/tokens, by an account that can
+# manage the project). Without it this does nothing and says so.
+#
+# - Run it by hand: Actions → Deploy edge functions → Run workflow (choose which).
+# - It also runs when a change to supabase/functions reaches main, deploying
+#   only the functions that changed (and those using a changed _shared file).
+#   Function settings come from supabase/config.toml, as Lovable's do.
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: 'Functions to deploy, separated by spaces (or "all")'
+        required: true
+        default: 'send-push'
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**']
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: swjzhzmhqyvwfwevijja
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the access token
+        id: token
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::warning::Add the repository secret SUPABASE_ACCESS_TOKEN to deploy edge functions from GitHub (Settings → Secrets and variables → Actions)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Work out which functions
+        id: which
+        if: steps.token.outputs.ok == 'true'
+        env:
+          REQUESTED: ${{ github.event.inputs.functions }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          cd supabase/functions
+          all=$(for d in */; do d=${d%/}; [ "$d" != "_shared" ] && [ -f "$d/index.ts" ] && echo "$d"; done)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "$REQUESTED" = "all" ]; then list="$all"; else list="$REQUESTED"; fi
+          else
+            if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              BEFORE=$(git rev-parse HEAD^1)
+            fi
+            changed=$(git diff --name-only "$BEFORE" HEAD -- . | sed 's#^supabase/functions/##')
+            list=$(echo "$changed" | grep -v '^_shared/' | cut -d/ -f1 | sort -u)
+            # Shared files changed: every function that uses them, directly or through another shared file
+            shared=$(echo "$changed" | grep '^_shared/' | sed 's#^_shared/##' | sort -u)
+            while [ -n "$shared" ]; do
+              more=""
+              for s in $shared; do
+                for f in _shared/*.ts; do
+                  b=${f#_shared/}
+                  if grep -q "\./$s['\"]" "$f" && ! echo "$seen $shared" | grep -qw "$b"; then more="$more $b"; fi
+                done
+                for fn in $all; do
+                  grep -rqs "_shared/$s['\"]" "$fn" && list="$list $fn"
+                done
+              done
+              seen="$seen $shared"
+              shared=$(echo $more | tr ' ' '\n' | sort -u)
+            done
+          fi
+          # Only real functions, once each
+          final=""
+          for f in $(echo $list | tr ' ' '\n' | sort -u); do
+            if echo "$all" | grep -qx "$f"; then final="$final $f"; else echo "::warning::No function called $f"; fi
+          done
+          echo "Deploying:$final"
+          echo "list=$final" >> "$GITHUB_OUTPUT"
+
+      - name: Set up the Supabase CLI
+        if: steps.token.outputs.ok == 'true' && steps.which.outputs.list != ''
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy
+        if: steps.token.outputs.ok == 'true' && steps.which.outputs.list != ''
+        run: |
+          failed=""
+          for f in ${{ steps.which.outputs.list }}; do
+            echo "::group::$f"
+            supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api || failed="$failed $f"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "::error::Couldn't deploy:$failed"; exit 1; fi
+          echo "Deployed: ${{ steps.which.outputs.list }}"
