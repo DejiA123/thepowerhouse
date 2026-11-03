@@ -533,7 +533,7 @@ const ChatComposer = ({
                 inputRef.current?.focus();
               }}
             />
-            <div className="flex min-w-0 flex-1 items-end rounded-[22px] border border-border bg-muted/50 px-4 transition focus-within:border-blue-500/50 focus-within:bg-background focus-within:ring-2 focus-within:ring-blue-500/15">
+            <div className="flex min-w-0 flex-1 items-end rounded-[22px] border border-border bg-muted/50 px-4 transition-colors focus-within:bg-background">
               <textarea
                 ref={inputRef}
                 value={text}
@@ -565,7 +565,7 @@ const ChatComposer = ({
                     else if (canSend) submit();
                   }
                 }}
-                className="max-h-[148px] min-h-[40px] w-full resize-none bg-transparent py-2.5 text-[16px] leading-5 text-foreground outline-none placeholder:text-muted-foreground"
+                className="max-h-[148px] min-h-[40px] w-full resize-none border-0 bg-transparent py-2.5 text-[16px] leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:border-transparent focus:shadow-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
               />
             </div>
           </>
