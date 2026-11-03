@@ -3,8 +3,8 @@
 // Files go to Cloudflare R2, which has no size limit to speak of and no
 // download charges, so videos play smoothly. Only someone in the chat can get
 // a link, and only for that chat's folder.
-import { S3Client, PutObjectCommand } from 'npm:@aws-sdk/client-s3@3.540.0';
-import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3.540.0';
+import { S3Client, PutObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.540.0';
+import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.540.0';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
