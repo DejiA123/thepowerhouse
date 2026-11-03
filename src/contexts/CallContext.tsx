@@ -73,6 +73,10 @@ interface CallContextType {
   flipCamera: () => void;
   toggleScreenShare: () => void;
   toggleSpeaker: () => void;
+  /** Any tap on the call screen (lets the phone finish moving the sound to the earpiece) */
+  callScreenTap: () => void;
+  /** What happened when the sound was moved (long-press Speaker) */
+  audioReport: () => string[];
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -720,6 +724,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     flipCamera: () => engineRef.current?.flipCamera(),
     toggleScreenShare: () => engineRef.current?.toggleScreenShare(),
     toggleSpeaker: () => engineRef.current?.toggleSpeaker(),
+    callScreenTap: () => engineRef.current?.onUserTap(),
+    audioReport: () => engineRef.current?.audioReport() ?? [],
   };
 
   return (

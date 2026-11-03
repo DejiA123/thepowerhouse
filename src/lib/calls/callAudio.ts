@@ -40,12 +40,30 @@ export class CallAudio {
     this.playing.delete(userId);
   }
 
-  /** Send everyone's voice to this output. False if the browser refused (e.g. no recent tap). */
+  /** Why the last choice of output was refused (shown in the sound report) */
+  lastError = '';
+
+  /** Send everyone's voice to this output ('' = the phone's own choice). False if the browser refused (e.g. no recent tap). */
   async setOutput(deviceId: string) {
     try {
       await Promise.all(this.elements.map((el) => el.setSinkId(deviceId)));
+      // Make sure it took (some versions quietly keep the old one)
+      const took = this.elements.every((el) => {
+        const sink = (el as HTMLAudioElement & { sinkId?: string }).sinkId;
+        return typeof sink !== 'string' || sink === deviceId;
+      });
+      if (!took) {
+        this.lastError = 'the phone kept the previous output';
+        return false;
+      }
+      // Playing ones pick the new output up straight away
+      this.playing.forEach((el) => {
+        if (el.paused) el.play().catch(() => undefined);
+      });
+      this.lastError = '';
       return true;
     } catch (error) {
+      this.lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
       console.warn('[call] could not choose where the call plays', error);
       return false;
     }
