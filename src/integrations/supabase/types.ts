@@ -459,6 +459,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           chat_id: string
+          cleared_at: string | null
           id: string
           joined_at: string | null
           last_read_at: string | null
@@ -468,6 +469,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           chat_id: string
+          cleared_at?: string | null
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
@@ -477,6 +479,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           chat_id?: string
+          cleared_at?: string | null
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
