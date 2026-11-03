@@ -14,6 +14,12 @@ import { church } from '../_shared/church.ts';
 
 const FRESH_MS = 10 * 60 * 1000; // only notify about things created in the last 10 minutes
 
+const E2E_PREFIX = '::e2e::1:';
+/** Sealed keys sent per person (one per phone or browser), so a notification stays well under 4 KB */
+const MAX_SEALED = 4;
+/** Web Push carries about 4 KB, and Apple's form adds a copy of the title and text */
+const MAX_PAYLOAD = 3300;
+
 // A chat between two friends (Social Circle) is stored as "A & B" with this description.
 // Its notifications show just the other person, like a text message or phone call.
 const PRIVATE_CHAT = 'Private chat';
@@ -99,7 +105,7 @@ Deno.serve(async (req) => {
       const isPrivate = chat?.description === PRIVATE_CHAT;
       const chatName = isPrivate ? sender : chat?.name ?? 'Group chat';
       // End-to-end encrypted: this server can't read it. The phone opens it (push-sw.js) with its own key.
-      const encrypted = message.content.startsWith('::e2e::');
+      const encrypted = message.content.startsWith(E2E_PREFIX);
       // Photos / GIFs are stored as "::image::<url>\n<caption>", videos as "::video::<url>\n<caption>"
       const isPhoto = !encrypted && message.content.startsWith('::image::');
       const isVideo = !encrypted && message.content.startsWith('::video::');
@@ -134,8 +140,34 @@ Deno.serve(async (req) => {
         ).then(({ error }) => error && console.warn('chat_notifications insert', error.message));
       }
 
-      const result = await sendToSubscriptions(await subscriptionsForUsers(recipients), {
-        kind: 'chat',
+      // Encrypted: the phone shows the real text (push-sw.js opens it with its own key).
+      // What it opens: the sender's short preview line (encrypted with the same key),
+      // or the message itself when it's small enough for a notification (4 KB at most)
+      const keyId = encrypted ? message.content.slice(E2E_PREFIX.length).split(':')[0] : '';
+      const sentPreview = typeof body.e2ePreview === 'string' && body.e2ePreview.startsWith(`${E2E_PREFIX}${keyId}:`) && body.e2ePreview.length <= 1200
+        ? body.e2ePreview
+        : null;
+      const e2eText = encrypted ? sentPreview ?? (message.content.length <= 1500 ? message.content : null) : null;
+      // Each person's own copy of the chat key, sealed for their phones (useless to anyone
+      // else), so a phone that hasn't got the key yet can still open the notification
+      const sealedFor = new Map<string, { d: string; w: string; f: string }[]>();
+      if (e2eText && recipients.length) {
+        const { data: keys } = await supabaseAdmin
+          .from('chat_keys')
+          .select('user_id, device_id, wrapped_key, from_public_key, created_at')
+          .eq('chat_id', message.chat_id)
+          .eq('key_id', keyId)
+          .in('user_id', recipients)
+          .order('created_at', { ascending: false });
+        for (const k of (keys ?? []) as { user_id: string; device_id: string; wrapped_key: string; from_public_key: string }[]) {
+          const list = sealedFor.get(k.user_id) ?? [];
+          if (list.length < MAX_SEALED) list.push({ d: k.device_id, w: k.wrapped_key, f: k.from_public_key });
+          sealedFor.set(k.user_id, list);
+        }
+      }
+
+      const base = {
+        kind: 'chat' as const,
         title: chatName,
         body: isPrivate ? preview : `${sender}: ${preview}`,
         // Opens the chat at this message
@@ -143,13 +175,30 @@ Deno.serve(async (req) => {
         tag: `chat-${message.chat_id}`,
         renotify: true,
         image: isPhoto ? photoUrl : undefined,
-        data: {
-          chatId: message.chat_id,
-          messageId: message.id,
-          // Still scrambled: only the phone can open it
-          ...(encrypted && { e2e: message.content, e2ePrefix: isPrivate ? '' : `${sender}: ` }),
+      };
+      const plainData = { chatId: message.chat_id, messageId: message.id };
+      const result = await sendToSubscriptions(
+        await subscriptionsForUsers(recipients),
+        (sub) => {
+          const sealed = sub.user_id ? sealedFor.get(sub.user_id) : undefined;
+          const make = (withText: boolean, withKeys: boolean) => ({
+            ...base,
+            data: {
+              ...plainData,
+              // Still scrambled: only the phone can open it
+              ...(withText && !!e2eText && { e2e: e2eText, e2ePrefix: isPrivate ? '' : `${sender}: ` }),
+              ...(withText && withKeys && !!sealed?.length && { sealed }),
+            },
+          });
+          // Too big to deliver: drop the keys, then the text (it then just says "🔒 New message")
+          for (const [text, keys] of [[true, true], [true, false], [false, false]] as const) {
+            const payload = make(text, keys);
+            if (JSON.stringify(payload).length <= MAX_PAYLOAD) return payload;
+          }
+          return make(false, false);
         },
-      }, { ttl: 60 * 60 * 24, urgency: 'high', topic: `chat-${message.chat_id}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) });
+        { ttl: 60 * 60 * 24, urgency: 'high', topic: `chat-${message.chat_id}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) },
+      );
       return json({ ok: true, ...result });
     }
 
