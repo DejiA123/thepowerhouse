@@ -9,7 +9,7 @@ import { useCall } from '@/contexts/CallContext';
 import { useOnlineUsers } from '@/contexts/PresenceContext';
 import UserAvatar from '@/components/common/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
-import { GroupChatService, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
+import { GroupChatService, asDeletedNote, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
 import { ChatSearchSheet, ClearChatDialog, EncryptionInfo, ForwardSheet, MessageInfoSheet, SolidLock, StarredSheet } from './ChatPanels';
@@ -134,7 +134,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   const addMessage = useCallback((incoming: ChatMessage) => {
     setMessages((prev) => {
-      if (incoming.is_deleted) return prev.filter((m) => m.id !== incoming.id);
+      // Deleted for everyone: a note stays where it was ("This message was deleted")
+      if (incoming.is_deleted) return prev.map((m) => (m.id === incoming.id ? asDeletedNote(m) : m));
       if (prev.some((m) => m.id === incoming.id)) return prev;
       // Replace my optimistic copy if this is its confirmed version
       const pendingIndex = incoming.user_id === me.id
@@ -282,7 +283,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           return next;
         });
       } else if (signal.type === 'message-deleted' && signal.payload?.messageId) {
-        setMessages((prev) => prev.filter((m) => m.id !== signal.payload.messageId));
+        setMessages((prev) => prev.map((m) => (m.id === signal.payload.messageId ? asDeletedNote(m) : m)));
       } else if (signal.type === 'message-edited' && signal.payload?.messageId && typeof signal.payload.content === 'string') {
         applyEdit(signal.payload.messageId, signal.payload.content, signal.payload.edited_at);
       } else if (signal.type === 'imported') {
@@ -681,7 +682,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       return;
     }
     const snapshot = messages;
-    setMessages((prev) => prev.filter((m) => m.id !== message.id));
+    // Like WhatsApp: "You deleted this message" stays in its place
+    setMessages((prev) => prev.map((m) => (m.id === message.id ? asDeletedNote(m) : m)));
     try {
       await GroupChatService.deleteMessage(message.id, chat.id);
     } catch (error) {
@@ -788,8 +790,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       id,
       userId: original.user_id,
       name: own ? 'You' : senderName(original),
-      text: previewText(original.content, own),
-      image: parseMessageContent(original.content).imageUrl,
+      text: original.is_deleted ? '🚫 This message was deleted' : previewText(original.content, own),
+      image: original.is_deleted ? undefined : parseMessageContent(original.content).imageUrl,
     };
   }, [me.id]);
 

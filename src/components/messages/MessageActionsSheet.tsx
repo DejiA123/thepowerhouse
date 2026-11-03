@@ -67,7 +67,9 @@ const MessageActionsSheet = ({
   // Something to save to the phone (photo, video, voice message, document)
   const voice = message ? parseVoice(message.content) : null;
   const file = message ? parseFile(message.content) : null;
-  const media = parsed?.imageUrl
+  // Deleted for everyone: only its note is left, which can be deleted for me
+  const gone = !!message?.is_deleted;
+  const media = gone ? null : parsed?.imageUrl
     ? { url: parsed.imageUrl, kind: 'photo' as const, label: 'Save photo' }
     : parsed?.videoUrl
     ? { url: parsed.videoUrl, kind: 'video' as const, label: 'Save video' }
@@ -93,7 +95,7 @@ const MessageActionsSheet = ({
   }, [mediaUrl]);
   const sent = !!message && !message.pending && !message.failed;
   // Encrypted and not opened on this phone yet: nothing to reply to, copy or forward
-  const locked = !!message?.locked;
+  const locked = !!message?.locked || gone;
   const isCall = !!message && !!parseCall(message.content);
 
   const quick = sent && !locked
@@ -113,7 +115,7 @@ const MessageActionsSheet = ({
         {message && (
           <div className="mx-auto w-full max-w-md overflow-y-auto px-3 pt-3">
             <p className="mb-3 line-clamp-2 px-2 text-center text-sm text-muted-foreground">
-              {previewText(message.content, isOwn)}
+              {gone ? (isOwn ? 'You deleted this message.' : 'This message was deleted.') : previewText(message.content, isOwn)}
             </p>
             {sent && !locked && (
               <div className="mb-2 flex items-center justify-between rounded-2xl bg-muted/60 p-2">
@@ -162,9 +164,9 @@ const MessageActionsSheet = ({
                 />
               )}
               {sent && onInfo && !locked && <Action icon={Info} label="Info" onClick={onInfo} />}
-              {sent && onSelect && <Action icon={CheckSquare} label="Select" onClick={onSelect} />}
+              {sent && onSelect && !gone && <Action icon={CheckSquare} label="Select" onClick={onSelect} />}
               {sent && onDeleteForMe && <Action icon={Trash2} label="Delete for me" onClick={onDeleteForMe} danger />}
-              {isOwn && (!sent || canDeleteForEveryone) && <Action icon={Trash2} label={sent ? 'Delete for everyone' : 'Delete'} onClick={onDelete} danger />}
+              {isOwn && !gone && (!sent || canDeleteForEveryone) && <Action icon={Trash2} label={sent ? 'Delete for everyone' : 'Delete'} onClick={onDelete} danger />}
             </div>
           </div>
         )}

@@ -190,6 +190,59 @@ export async function readable(messages: ChatMessage[]): Promise<ChatMessage[]> 
     return Promise.all(messages.map((m) => openMessage(m, user?.id)));
 }
 
+/** Is deleted_chat_messages() there yet? (migration 20261103130000) */
+let noDeletedNotes = false;
+
+/**
+ * Where deleted messages were ("This message was deleted", like WhatsApp): only the id,
+ * sender and time come back (the read rule keeps their text in the database). Newest 500.
+ */
+async function deletedNotes(chatId: string, from?: string | null, to?: string | null): Promise<ChatMessage[]> {
+    if (noDeletedNotes) return [];
+    const { data, error } = await supabase.rpc('deleted_chat_messages' as never, { _chat_id: chatId, _from: from ?? null, _to: to ?? null } as never);
+    if (error) {
+        if (error.code === 'PGRST202' || error.code === '42883' || /could not find the function/i.test(error.message)) noDeletedNotes = true;
+        return [];
+    }
+    type Row = { id: string; chat_id: string; user_id: string; created_at: string; imported_from: string | null; imported_as: string | null; full_name: string | null; avatar_url: string | null };
+    return ((data || []) as unknown as Row[]).map((r) =>
+        normalizeMessage({
+            id: r.id,
+            chat_id: r.chat_id,
+            user_id: r.user_id,
+            content: '',
+            created_at: r.created_at,
+            updated_at: r.created_at,
+            is_deleted: true,
+            imported_from: r.imported_from,
+            imported_as: r.imported_as,
+            user: { id: r.user_id, full_name: r.full_name, avatar_url: r.avatar_url },
+        }),
+    );
+}
+
+/** Messages and deleted-message notes together, oldest first (a message never appears twice) */
+function withDeletedNotes(messages: ChatMessage[], notes: ChatMessage[]): ChatMessage[] {
+    if (!notes.length) return messages;
+    const seen = new Set(messages.map((m) => m.id));
+    return [...messages, ...notes.filter((n) => !seen.has(n.id))].sort((a, b) => msOf(a.created_at) - msOf(b.created_at));
+}
+
+/** A message deleted for everyone, as its note: no text, no file, nothing to reply to */
+export const asDeletedNote = (m: ChatMessage): ChatMessage => ({
+    ...m,
+    content: '',
+    is_deleted: true,
+    locked: false,
+    cipher: undefined,
+    encrypted: false,
+    reply_to_id: null,
+    forwarded: false,
+    edited_at: null,
+    pending: false,
+    failed: false,
+});
+
 /** Is the imported_from column there? (unread counts leave imported history out) */
 let importColumns: Promise<boolean> | null = null;
 /** A new message's notification line, encrypted like the message (null if that fails: the server then uses the message) */
@@ -571,7 +624,13 @@ export class GroupChatService {
 
         const { data, error } = await query;
         if (error) throw error;
-        return readable((data || []).map(normalizeMessage).reverse());
+        const messages = await readable((data || []).map(normalizeMessage).reverse());
+        // Notes where messages were deleted, over the same stretch of the chat: from the oldest
+        // message loaded (or the start, or where I cleared it) up to `before`
+        const full = (data || []).length >= limit;
+        const from = full ? messages[0]?.created_at : cleared;
+        const notes = (await deletedNotes(chatId, from, before)).filter((n) => !before || msOf(n.created_at) < msOf(before));
+        return withDeletedNotes(messages, notes);
     }
 
     /** Messages newer than `after` (oldest first): fills the gap after the phone was asleep or offline. */
