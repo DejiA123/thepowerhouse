@@ -687,7 +687,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     } catch (error) {
       setMessages(snapshot);
       const reason = String((error as { message?: string })?.message ?? '');
-      appAlert('Could not delete message', /2 days/.test(reason) ? 'Messages can be deleted for everyone up to 2 days after sending. You can still delete it for yourself.' : '', 'error');
+      appAlert(
+        'Could not delete message',
+        /2 days/.test(reason)
+          ? 'Messages can be deleted for everyone up to 2 days after sending. You can still delete it for yourself.'
+          : /fetch|network|offline/i.test(reason)
+            ? 'Check your connection and try again.'
+            : reason.slice(0, 140),
+        'error',
+      );
     }
   };
 

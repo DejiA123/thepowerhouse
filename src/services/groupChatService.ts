@@ -739,12 +739,20 @@ export class GroupChatService {
     static async deleteMessage(messageId: string, chatId?: string): Promise<void> {
         const user = await currentUser();
         if (!user) throw new Error('User must be authenticated to delete messages');
-        const { error } = await supabase
-            .from('chat_messages')
-            .update({ is_deleted: true })
-            .eq('id', messageId)
-            .eq('user_id', user.id);
-        if (error) throw error;
+        // Through the database function: a plain update is refused, because the read rule hides
+        // deleted messages and the update returns the changed row (migration 20261103120000)
+        const { error: rpcError } = await supabase.rpc('delete_chat_message' as never, { _message_id: messageId } as never);
+        if (rpcError) {
+            const missing = rpcError.code === 'PGRST202' || rpcError.code === '42883' || /could not find the function/i.test(rpcError.message);
+            if (!missing) throw rpcError;
+            // Before the migration: the old way
+            const { error } = await supabase
+                .from('chat_messages')
+                .update({ is_deleted: true })
+                .eq('id', messageId)
+                .eq('user_id', user.id);
+            if (error) throw error;
+        }
         // Deleted rows are hidden from everyone (is_deleted = false in the read rule), so the
         // database feed never tells the others: say it on the chat's signals topic
         if (chatId) broadcast(signalsTopic(chatId), 'signal', { type: 'message-deleted', from: user.id, payload: { messageId } }).catch(() => undefined);
