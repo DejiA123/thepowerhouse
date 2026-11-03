@@ -374,6 +374,30 @@ export type Database = {
           },
         ]
       }
+      chat_devices: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          public_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          last_seen_at?: string
+          public_key: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          public_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_hidden_messages: {
         Row: {
           chat_id: string
@@ -410,6 +434,54 @@ export type Database = {
           },
         ]
       }
+      chat_keys: {
+        Row: {
+          chat_id: string
+          created_at: string
+          device_id: string
+          from_device_id: string
+          from_public_key: string
+          key_id: string
+          user_id: string
+          wrapped_key: string
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          device_id: string
+          from_device_id: string
+          from_public_key: string
+          key_id: string
+          user_id: string
+          wrapped_key: string
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          device_id?: string
+          from_device_id?: string
+          from_public_key?: string
+          key_id?: string
+          user_id?: string
+          wrapped_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_keys_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_keys_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "chat_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           chat_id: string
@@ -418,6 +490,8 @@ export type Database = {
           edited_at: string | null
           forwarded: boolean
           id: string
+          imported_as: string | null
+          imported_from: string | null
           is_deleted: boolean | null
           reply_to_id: string | null
           updated_at: string | null
@@ -430,6 +504,8 @@ export type Database = {
           edited_at?: string | null
           forwarded?: boolean
           id?: string
+          imported_as?: string | null
+          imported_from?: string | null
           is_deleted?: boolean | null
           reply_to_id?: string | null
           updated_at?: string | null
@@ -442,6 +518,8 @@ export type Database = {
           edited_at?: string | null
           forwarded?: boolean
           id?: string
+          imported_as?: string | null
+          imported_from?: string | null
           is_deleted?: boolean | null
           reply_to_id?: string | null
           updated_at?: string | null
