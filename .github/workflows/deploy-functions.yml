@@ -101,7 +101,8 @@ jobs:
           failed=""
           for f in ${{ steps.which.outputs.list }}; do
             echo "::group::$f"
-            supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api || failed="$failed $f"
+            # --yes: the CLI asks to confirm otherwise, and a workflow can't answer
+            supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api --yes || failed="$failed $f"
             echo "::endgroup::"
           done
           if [ -n "$failed" ]; then echo "::error::Couldn't deploy:$failed"; exit 1; fi
