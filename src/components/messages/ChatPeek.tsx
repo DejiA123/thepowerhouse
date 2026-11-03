@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ban, BellOff, CheckCheck, Loader2, MessageCircle, MessageSquareDot } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import UserAvatar from '@/components/common/UserAvatar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +28,10 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatId = target?.chatId;
+  // While it closes (animating away) it keeps showing the chat it was showing
+  const lastTarget = useRef<PeekTarget | null>(null);
+  if (target) lastTarget.current = target;
+  const shown = target ?? lastTarget.current;
   // The finger that held the chat lifts just after this opens: that isn't a tap outside
   const openedAt = useRef(0);
   useEffect(() => {
@@ -73,9 +77,12 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
 
   let lastDay = '';
   return (
-    <Dialog open={!!target} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="w-[calc(100vw-1.5rem)] max-w-md select-none gap-0 overflow-hidden rounded-3xl p-0 [-webkit-touch-callout:none] [&>button]:hidden"
+    <DialogPrimitive.Root open={!!target} onOpenChange={(open) => !open && onClose()}>
+      <DialogPrimitive.Portal>
+      {/* Like WhatsApp: the screen behind blurs, and the preview springs up from the chat */}
+      <DialogPrimitive.Overlay className="chat-peek-overlay fixed inset-x-0 top-0 bottom-[var(--bottom-nav-h,0px)] z-[200] bg-black/25 backdrop-blur-md" />
+      <DialogPrimitive.Content
+        className="chat-peek fixed left-1/2 top-[calc(50%-var(--bottom-nav-h,0px)/2)] z-[200] flex max-h-[calc(100dvh-var(--bottom-nav-h,0px)-2rem)] w-[calc(100vw-1.5rem)] max-w-md select-none flex-col overflow-hidden rounded-3xl bg-background shadow-2xl outline-none [-webkit-touch-callout:none]"
         aria-describedby={undefined}
         onInteractOutside={justOpened}
         onPointerDownOutside={justOpened}
@@ -92,13 +99,13 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
           }
         }}
       >
-        <DialogTitle className="sr-only">{target ? `Preview of ${target.title}` : 'Chat preview'}</DialogTitle>
-        {target && (
+        <DialogPrimitive.Title className="sr-only">{shown ? `Preview of ${shown.title}` : 'Chat preview'}</DialogPrimitive.Title>
+        {shown && (
           <>
             <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
-              <UserAvatar name={target.title} src={target.avatar} seed={target.seed ?? target.chatId} className="h-10 w-10" />
-              <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{target.title}</p>
-              {target.muted && <BellOff className="h-4 w-4 text-muted-foreground" aria-label="Muted" />}
+              <UserAvatar name={shown.title} src={shown.avatar} seed={shown.seed ?? shown.chatId} className="h-10 w-10" />
+              <p className="min-w-0 flex-1 truncate text-[16px] font-semibold text-foreground">{shown.title}</p>
+              {shown.muted && <BellOff className="h-4 w-4 text-muted-foreground" aria-label="Muted" />}
             </div>
             <div ref={scrollRef} className="max-h-[min(52dvh,26rem)] min-h-[10rem] space-y-1.5 overflow-y-auto bg-[#E8EEF6] px-3 py-3 dark:bg-slate-900" data-testid="chat-peek">
               {messages === null ? (
@@ -123,7 +130,7 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
                           'max-w-[85%] rounded-2xl px-3 py-1.5 text-[14px] leading-snug shadow-sm [overflow-wrap:anywhere] [word-break:break-word]',
                           mine ? 'rounded-br-md bg-blue-600 text-white' : 'rounded-bl-md bg-card text-card-foreground',
                         )}>
-                          {!mine && !target.isPrivate && !m.is_deleted && (
+                          {!mine && !shown.isPrivate && !m.is_deleted && (
                             <p className="text-[11.5px] font-semibold text-blue-700 dark:text-blue-300">{senderName(m)}</p>
                           )}
                           {m.is_deleted ? (
@@ -148,20 +155,21 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
               <button
                 onClick={() => {
                   onClose();
-                  onOpen(target.chatId);
+                  onOpen(shown.chatId);
                 }}
                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[15px] font-medium text-foreground hover:bg-muted"
               >
                 <MessageCircle className="h-5 w-5 text-blue-600" /> Open chat
               </button>
               <button onClick={toggleRead} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[15px] font-medium text-foreground hover:bg-muted">
-                {target.unread > 0 ? <><CheckCheck className="h-5 w-5 text-muted-foreground" /> Mark as read</> : <><MessageSquareDot className="h-5 w-5 text-muted-foreground" /> Mark as unread</>}
+                {shown.unread > 0 ? <><CheckCheck className="h-5 w-5 text-muted-foreground" /> Mark as read</> : <><MessageSquareDot className="h-5 w-5 text-muted-foreground" /> Mark as unread</>}
               </button>
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 };
 

@@ -2001,3 +2001,43 @@ body.modal-open {
   100% { background-color: transparent; box-shadow: 0 0 0 6px transparent; }
 }
 .verse-flash { animation: verseFlash 2.6s ease-out; border-radius: 10px; }
+
+/* Hold-a-chat preview (ChatPeek), like WhatsApp: the screen behind blurs in, and the
+   card springs up from slightly smaller with a touch of overshoot; closing is quicker. */
+.chat-peek {
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+.chat-peek[data-state='open'] {
+  animation: chat-peek-in 340ms cubic-bezier(0.2, 0.9, 0.25, 1.12) both;
+}
+.chat-peek[data-state='closed'] {
+  animation: chat-peek-out 170ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+.chat-peek-overlay[data-state='open'] {
+  animation: chat-peek-fade-in 240ms ease-out both;
+}
+.chat-peek-overlay[data-state='closed'] {
+  animation: chat-peek-fade-out 170ms ease-in both;
+}
+@keyframes chat-peek-in {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.86); }
+  45% { opacity: 1; }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes chat-peek-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.92); }
+}
+@keyframes chat-peek-fade-in {
+  from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+  to { opacity: 1; }
+}
+@keyframes chat-peek-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-peek[data-state], .chat-peek-overlay[data-state] { animation-duration: 1ms; }
+}
