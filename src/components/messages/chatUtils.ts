@@ -88,6 +88,33 @@ export function parsePreview(content: string): LinkPreview | null {
   }
 }
 
+/** A poll, like WhatsApp's: "::poll::<base64 JSON>" (inside the encrypted message); votes are in chat_poll_votes */
+export const POLL_PREFIX = '::poll::';
+export const MAX_POLL_OPTIONS = 12;
+
+export interface Poll {
+  question: string;
+  options: string[];
+  /** More than one answer allowed */
+  multi: boolean;
+}
+
+export function encodePoll(p: Poll) {
+  const json = JSON.stringify({ q: p.question.trim().slice(0, 300), o: p.options.map((o) => o.trim().slice(0, 100)).filter(Boolean).slice(0, MAX_POLL_OPTIONS), m: p.multi ? 1 : 0 });
+  return `${POLL_PREFIX}${btoa(unescape(encodeURIComponent(json)))}`;
+}
+
+export function parsePoll(content: string): Poll | null {
+  if (!content.startsWith(POLL_PREFIX)) return null;
+  try {
+    const raw = JSON.parse(decodeURIComponent(escape(atob(content.slice(POLL_PREFIX.length).trim()))));
+    if (typeof raw?.q !== 'string' || !Array.isArray(raw.o) || raw.o.length < 2) return null;
+    return { question: raw.q, options: raw.o.filter((o: unknown) => typeof o === 'string').slice(0, MAX_POLL_OPTIONS), multi: !!raw.m };
+  } catch {
+    return null;
+  }
+}
+
 /** "@[Name](user id)": someone mentioned in a group */
 export const MENTION = /@\[([^\]\n]{1,80})\]\(([0-9a-f-]{36})\)/g;
 /** The text with mentions as plain "@Name" (lists, notifications, editing) */
@@ -142,6 +169,10 @@ const GIF_LINK = /^https:\/\/\S+\.gif(?:\?\S*)?$/i;
  */
 export function parseMessageContent(content: string): { imageUrl: string | null; videoUrl: string | null; text: string } {
   if (content.startsWith(CALL_PREFIX) || content.startsWith(VOICE_PREFIX)) return { imageUrl: null, videoUrl: null, text: '' };
+  if (content.startsWith(POLL_PREFIX)) {
+    const poll = parsePoll(content);
+    return { imageUrl: null, videoUrl: null, text: poll ? `📊 ${poll.question}\n${poll.options.map((o) => `• ${o}`).join('\n')}` : '' };
+  }
   if (content.startsWith(FILE_PREFIX)) return { imageUrl: null, videoUrl: null, text: parseFile(content)?.caption ?? '' };
   if (content.startsWith(PREVIEW_PREFIX)) return { imageUrl: null, videoUrl: null, text: content.split('\n').slice(1).join('\n') };
   for (const [prefix, kind] of [[IMAGE_PREFIX, 'image'], [VIDEO_PREFIX, 'video']] as const) {
@@ -165,6 +196,8 @@ export const previewText = (content: string, mine = false) => {
   }
   const voice = parseVoice(content || '');
   if (voice) return `🎤 Voice message (${formatSeconds(voice.seconds)})`;
+  const poll = parsePoll(content || '');
+  if (poll) return `📊 Poll: ${poll.question.replace(/\s+/g, ' ').trim()}`;
   const file = parseFile(content || '');
   if (file) return file.caption ? `📄 ${plainMentions(file.caption)}` : `📄 ${file.name}`;
   const { imageUrl, videoUrl, text } = parseMessageContent(content || '');
@@ -184,7 +217,7 @@ const isMediaContent = (content: string) => content.startsWith(IMAGE_PREFIX) || 
 /** Text and captions can be edited; calls and GIF links can't */
 export function canEditMessage(message: { user_id: string; content: string; created_at: string; pending?: boolean; failed?: boolean; is_deleted?: boolean; locked?: boolean; imported_from?: string | null }, myId: string, now = Date.now()) {
   if (message.user_id !== myId || message.pending || message.failed || message.is_deleted || message.locked || message.imported_from) return false;
-  if (parseCall(message.content) || message.content.startsWith(VOICE_PREFIX) || message.content.startsWith(FILE_PREFIX)) return false;
+  if (parseCall(message.content) || message.content.startsWith(VOICE_PREFIX) || message.content.startsWith(FILE_PREFIX) || message.content.startsWith(POLL_PREFIX)) return false;
   const { imageUrl, videoUrl } = parseMessageContent(message.content);
   if ((imageUrl || videoUrl) && !isMediaContent(message.content)) return false;
   return now - timeMs(message.created_at) < EDIT_WINDOW_MS;

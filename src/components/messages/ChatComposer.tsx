@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, FileText, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, FileText, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { nameColor } from '@/components/common/UserAvatar';
 import UserAvatar from '@/components/common/UserAvatar';
@@ -14,6 +14,8 @@ const URL_IN_TEXT = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/i;
 interface Props {
   /** Text, with mentions written as "@[Name](id)", and the link's preview if one was found */
   onSend: (text: string, preview?: LinkPreview | null) => void;
+  /** "+" → Poll (groups) */
+  onNewPoll?: () => void;
   /** A photo, GIF or video, with an optional caption; reports upload progress (0–100) for videos */
   onSendMedia: (file: File, caption: string, onProgress: (pct: number) => void) => Promise<void>;
   /** A voice message (hold the microphone) */
@@ -37,7 +39,7 @@ interface Props {
 const isTouchDevice = () => window.matchMedia?.('(pointer: coarse)').matches;
 
 const ChatComposer = ({
-  onSend, onSendMedia, onSendVoice, onSendFile, onTyping, disabled, placeholder = '', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply, mentionables,
+  onSend, onNewPoll, onSendMedia, onSendVoice, onSendFile, onTyping, disabled, placeholder = '', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply, mentionables,
 }: Props) => {
   const [text, setText] = useState('');
   const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
@@ -496,6 +498,20 @@ const ChatComposer = ({
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300"><FileText className="h-5 w-5" /></span>
                   Document
                 </button>
+                {onNewPoll && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onNewPoll();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] text-foreground transition hover:bg-muted"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300"><BarChart3 className="h-5 w-5" /></span>
+                    Poll
+                  </button>
+                )}
               </div>
             )}
             <input

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2 } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -19,6 +19,8 @@ import MemberPicker, { type PickablePerson } from './MemberPicker';
 import { isPrivateChat, uploadChatImage } from './chatUtils';
 import { WallpaperSheet } from './ChatWallpaper';
 import InviteLinkSheet from './InviteLinkSheet';
+import { ChoirPickerSheet } from './ChoirChat';
+import { cachedChoirLink, choirLocations, choirName, getChoirLink } from '@/lib/choirChat';
 
 interface Props {
   chat: GroupChat;
@@ -175,6 +177,21 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   useEffect(() => {
     if (!open || isPrivateChat(chat)) return;
     GroupChatService.canInvite(chat.id).then(setCanInvite).catch(() => setCanInvite(false));
+  }, [open, chat]);
+  // A choir's chat: its songs and setlist show in the chat
+  const [choir, setChoir] = useState<string | null>(() => cachedChoirLink(chat.id)?.location ?? null);
+  const [choirOpen, setChoirOpen] = useState(false);
+  useEffect(() => {
+    if (!open || isPrivateChat(chat) || !choirLocations().length) return;
+    let stale = false;
+    const load = () => getChoirLink(chat.id).then((l) => !stale && setChoir(l?.location ?? null)).catch(() => undefined);
+    load();
+    const onChanged = (e: Event) => (e as CustomEvent).detail?.chatId === chat.id && load();
+    window.addEventListener('choir-chat:changed', onChanged);
+    return () => {
+      stale = true;
+      window.removeEventListener('choir-chat:changed', onChanged);
+    };
   }, [open, chat]);
   // One-to-one: their About, and their number if they chose to show it
   const [contact, setContact] = useState<{ bio: string | null; phone: string | null } | null>(null);
@@ -453,6 +470,16 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
+              {!editing && choirLocations().length > 0 && (canInvite || choir) && (
+                <button onClick={() => setChoirOpen(true)} className="mt-2 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+                  <Music2 className="h-5 w-5 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium text-foreground">Choir</span>
+                    <span className="block truncate text-xs text-muted-foreground">{choir ? `${choirName(choir)}: new songs and the setlist show here` : 'Show a choir’s new songs and setlist here'}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
               {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} onClear={onClear} />}
             </div>
@@ -536,6 +563,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       </Sheet>
 
       <InviteLinkSheet chatId={chat.id} chatName={chat.name} open={inviteOpen} onOpenChange={setInviteOpen} />
+      <ChoirPickerSheet open={choirOpen} onOpenChange={setChoirOpen} chatId={chat.id} current={choir} canChange={canInvite} />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>

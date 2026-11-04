@@ -21,12 +21,17 @@ import { ChatWallpaper } from './ChatWallpaper';
 import { peekCachedMessages, readCachedMessages, writeCachedMessages } from '@/lib/chatCache';
 import {
   IMAGE_PREFIX, VIDEO_PREFIX, canEditMessage, chatTitle, dayKey, editableText, formatDayLabel, formatLastSeen, isAnsweredCall, isPrivateChat, isVideoFile,
-  FILE_PREFIX, VOICE_PREFIX, encodePreview, parseCall, parseMessageContent, plainMentions, previewText, uploadChatFile, uploadChatImage, uploadChatVideo, withEditedText,
+  FILE_PREFIX, VOICE_PREFIX, encodePoll, encodePreview, parsePoll, timeMs, parseCall, parseMessageContent, plainMentions, previewText, uploadChatFile, uploadChatImage, uploadChatVideo, withEditedText,
   type LinkPreview,
 } from './chatUtils';
 import type { VoiceRecording } from '@/lib/voiceRecorder';
 import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
+import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { cachedChoirLink, getChoirLink, getCurrentSetlist, getSongsAddedSince, groupSongCards, type ChoirLink, type ChoirSongRow } from '@/lib/choirChat';
+import { getPollVotes, nextVotes, setMyVotes, votesByPoll, type PollVote } from '@/lib/polls';
+import { ChoirSongCard, SetlistBanner, SetlistSheet, SongSheet, useSongPlayer, type SongView } from './ChoirChat';
+import { NewPollSheet } from './PollCard';
 
 interface Me {
   id: string;
@@ -112,6 +117,16 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
   const [unreadAnchor, setUnreadAnchor] = useState<string | null>(null);
+  // A choir's chat: its songs as cards, and this week's setlist under the header
+  const [choirLink, setChoirLinkState] = useState<ChoirLink | null>(() => cachedChoirLink(chat.id));
+  const [songRows, setSongRows] = useState<ChoirSongRow[]>([]);
+  const [setlist, setSetlist] = useState<ChoirSongRow[] | null>(null);
+  const [setlistOpen, setSetlistOpen] = useState(false);
+  const [songView, setSongView] = useState<SongView>(null);
+  const playSong = useSongPlayer(setSongView);
+  // Polls: everyone's votes in this chat
+  const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
+  const [newPoll, setNewPoll] = useState(false);
   // Private chat: the other person, and when they were last in the app
   const [otherId, setOtherId] = useState<string | null>(null);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
@@ -291,6 +306,64 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     return () => window.removeEventListener(KEYS_ARRIVED, onKeys);
   }, [chat.id]);
 
+  // ── A choir's chat ────────────────────────────────────────────────
+  useEffect(() => {
+    let stale = false;
+    setChoirLinkState(cachedChoirLink(chat.id));
+    setSongRows([]);
+    setSetlist(null);
+    const load = () => getChoirLink(chat.id).then((link) => !stale && setChoirLinkState(link)).catch(() => undefined);
+    load();
+    const onChanged = (e: Event) => (e as CustomEvent).detail?.chatId === chat.id && load();
+    window.addEventListener('choir-chat:changed', onChanged);
+    return () => {
+      stale = true;
+      window.removeEventListener('choir-chat:changed', onChanged);
+    };
+  }, [chat.id]);
+
+  const choirLocation = choirLink?.location ?? null;
+  const refreshChoir = useCallback(() => {
+    if (!choirLocation || !choirLink) return;
+    // Cards for songs added from a week before the chat was linked (so linking shows this week's)
+    const since = new Date(Math.max(timeMs(choirLink.set_at) - 7 * 86400_000, Date.now() - 120 * 86400_000)).toISOString();
+    getSongsAddedSince(choirLocation, since).then(setSongRows).catch(() => undefined);
+    getCurrentSetlist(choirLocation).then(setSetlist).catch(() => setSetlist((prev) => prev ?? []));
+  }, [choirLocation, choirLink]);
+  useEffect(() => {
+    refreshChoir();
+  }, [refreshChoir]);
+  useLiveRefresh(choirLocation ? [{ table: 'choir_weekly_set_songs', filter: `location=eq.${choirLocation}` }] : [], refreshChoir, { enabled: !!choirLocation });
+
+  // ── Polls ─────────────────────────────────────────────────────────
+  const refreshVotes = useCallback(() => {
+    getPollVotes(chat.id).then(setPollVotes).catch(() => undefined);
+  }, [chat.id]);
+  const hasPolls = useMemo(() => messages.some((m) => m.content.startsWith('::poll::')), [messages]);
+  useEffect(() => {
+    setPollVotes([]);
+  }, [chat.id]);
+  useEffect(() => {
+    if (hasPolls) refreshVotes();
+  }, [hasPolls, refreshVotes]);
+  useLiveRefresh([{ table: 'chat_poll_votes', filter: `chat_id=eq.${chat.id}` }], refreshVotes, { enabled: hasPolls, pollMs: 30_000 });
+  const votesFor = useMemo(() => votesByPoll(pollVotes), [pollVotes]);
+  const vote = useCallback((message: ChatMessage, option: number) => {
+    const poll = parsePoll(message.content);
+    if (!poll) return;
+    const before = pollVotes.filter((v) => v.message_id === message.id && v.user_id === me.id).map((v) => v.option_index);
+    const after = nextVotes(before, option, poll.multi);
+    if ('vibrate' in navigator) navigator.vibrate?.(8);
+    setPollVotes((prev) => [
+      ...prev.filter((v) => !(v.message_id === message.id && v.user_id === me.id)),
+      ...after.map((option_index) => ({ message_id: message.id, user_id: me.id, option_index })),
+    ]);
+    setMyVotes(chat.id, message.id, me.id, before, after).catch(() => {
+      refreshVotes();
+      appAlert("Couldn't save your vote", 'Check your connection and try again.', 'error');
+    });
+  }, [pollVotes, me.id, chat.id, refreshVotes]);
+
   // ── Realtime ──────────────────────────────────────────────────────
   useEffect(() => {
     const dbChannel = GroupChatService.subscribeToMessages(chat.id, addMessage, (row) => applyEdit(row.id, row.content, row.edited_at));
@@ -315,6 +388,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setReloadTick((t) => t + 1);
       } else if (signal.type === 'pin') {
         GroupChatService.getPin(chat.id).then(setPin).catch(() => undefined);
+      } else if (signal.type === 'poll' && signal.from !== me.id) {
+        getPollVotes(chat.id).then(setPollVotes).catch(() => undefined);
       } else if (signal.type === 'read' && signal.from && signal.from !== me.id && signal.payload?.at) {
         // Someone read up to here: my ✓✓ show it straight away
         const at = String(signal.payload.at);
@@ -984,20 +1059,38 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   // Messages I deleted just for me aren't shown
   const visible = hidden.size ? messages.filter((m) => !hidden.has(m.id)) : messages;
+  // A choir's chat: song cards sit among the messages by time (not before the oldest loaded message, while older ones can load)
+  const oldestShown = hasMore && visible.length ? timeMs(visible[0].created_at) : 0;
+  const songCards = choirLocation ? groupSongCards(songRows).filter((g) => timeMs(g.at) >= oldestShown) : [];
+  let cardAt = 0;
   const rendered: React.ReactNode[] = [];
+  let lastDay = '';
+  const dayChip = (key: string, iso: string) => {
+    lastDay = dayKey(iso);
+    rendered.push(
+      <div key={`day-${key}`} data-day-chip className="my-3 flex justify-center">
+        <span className="rounded-full bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur">
+          {formatDayLabel(iso)}
+        </span>
+      </div>,
+    );
+  };
+  const cardsUntil = (ms: number) => {
+    let placed = false;
+    while (cardAt < songCards.length && timeMs(songCards[cardAt].at) <= ms) {
+      const card = songCards[cardAt++];
+      if (dayKey(card.at) !== lastDay) dayChip(card.id, card.at);
+      rendered.push(<ChoirSongCard key={card.id} group={card} location={choirLocation!} onView={setSongView} onPlay={playSong} />);
+      placed = true;
+    }
+    return placed;
+  };
   visible.forEach((m, i) => {
     const prev = visible[i - 1];
     const next = visible[i + 1];
-    const newDay = !prev || dayKey(prev.created_at) !== dayKey(m.created_at);
-    if (newDay) {
-      rendered.push(
-        <div key={`day-${m.id}`} data-day-chip className="my-3 flex justify-center">
-          <span className="rounded-full bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border/60 backdrop-blur">
-            {formatDayLabel(m.created_at)}
-          </span>
-        </div>,
-      );
-    }
+    const afterCard = cardsUntil(timeMs(m.created_at));
+    const newDay = dayKey(m.created_at) !== lastDay;
+    if (newDay) dayChip(m.id, m.created_at);
     if (m.id === unreadAnchor) {
       rendered.push(
         <div key={`unread-${m.id}`} data-unread-divider className="my-3 flex items-center gap-3">
@@ -1009,7 +1102,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     }
     const gapBefore = prev ? new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() : Infinity;
     const gapAfter = next ? new Date(next.created_at).getTime() - new Date(m.created_at).getTime() : Infinity;
-    const isFirst = newDay || !prev || author(prev) !== author(m) || gapBefore > GROUP_GAP_MS || m.id === unreadAnchor;
+    const isFirst = newDay || afterCard || !prev || author(prev) !== author(m) || gapBefore > GROUP_GAP_MS || m.id === unreadAnchor;
     const isLast = !next || author(next) !== author(m) || gapAfter > GROUP_GAP_MS || dayKey(next.created_at) !== dayKey(m.created_at) || next.id === unreadAnchor;
     const isOwn = isMine(m, me.id);
 
@@ -1036,9 +1129,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         selecting={!!picking}
         selected={!!picking?.has(m.id)}
         onToggleSelect={togglePick}
+        pollVotes={votesFor[m.id]}
+        onVote={vote}
       />,
     );
   });
+  cardsUntil(Infinity);
 
   return (
     <div ref={rootRef} className="relative flex h-full min-h-0 flex-col bg-background">
@@ -1201,6 +1297,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         </div>
       )}
 
+      {/* A choir's chat: this week's setlist, pinned */}
+      {choirLocation && (
+        <SetlistBanner location={choirLocation} count={setlist ? setlist.length : null} onOpen={() => setSetlistOpen(true)} />
+      )}
+
       {/* Messages */}
       <div className="relative min-h-0 flex-1">
         <ChatWallpaper />
@@ -1243,7 +1344,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
                   </div>
                 ))}
               </div>
-            ) : messages.length === 0 ? (
+            ) : messages.length === 0 && songCards.length === 0 ? (
               <div className="mx-auto my-10 flex max-w-sm flex-col items-center rounded-3xl bg-background/90 px-6 py-8 text-center shadow-sm">
                 <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-20 w-20 text-2xl" />
                 <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {title} 👋</p>
@@ -1287,6 +1388,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onSendMedia={sendMedia}
         onSendVoice={sendVoice}
         onSendFile={sendFile}
+        onNewPoll={privateChat ? undefined : () => setNewPoll(true)}
         mentionables={mentionables}
         onTyping={onTyping}
         replyTo={replyTo ? { ...quoteOf(replyTo, replyTo.id), name: replyTo.user_id === me.id ? 'yourself' : senderName(replyTo) } : null}
@@ -1363,6 +1465,20 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       />
 
       <ImageViewer url={viewImage} onClose={() => setViewImage(null)} />
+
+      {choirLocation && (
+        <SetlistSheet open={setlistOpen} onOpenChange={setSetlistOpen} location={choirLocation} songs={setlist} onView={setSongView} onPlay={playSong} />
+      )}
+      <SongSheet view={songView} onClose={() => setSongView(null)} />
+      <NewPollSheet
+        open={newPoll}
+        onOpenChange={setNewPoll}
+        onSend={(poll) => {
+          setReplyTo(null);
+          sendContent(encodePoll(poll));
+          if ('vibrate' in navigator) navigator.vibrate?.(10);
+        }}
+      />
 
       <GroupInfoSheet
         chat={chat}
