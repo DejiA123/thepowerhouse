@@ -379,6 +379,68 @@ export async function decryptMessage(userId: string, chatId: string, content: st
   }
 }
 
+/** This phone's device id for the signed-in account (notifications carry the key copy sealed for it) */
+export async function currentDeviceId(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return null;
+    return (await myDevice(userId))?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const KEPT_KEY = (userId: string) => `chat_keys_kept_${userId}`;
+
+/**
+ * Every chat key sealed for this phone, opened and kept on the phone, so the
+ * notification helper (push-sw.js) can show any message, even in a chat the
+ * app hasn't opened since its key changed. Only keys new since last time.
+ */
+export async function keepAllKeys(userId: string): Promise<number> {
+  const device = await myDevice(userId);
+  if (!device) return 0;
+  let since = '1970-01-01T00:00:00Z';
+  try {
+    since = localStorage.getItem(KEPT_KEY(userId)) || since;
+  } catch {
+    /* private window */
+  }
+  const { data, error } = await supabase
+    .from('chat_keys' as never)
+    .select('chat_id, key_id, wrapped_key, from_public_key, created_at')
+    .eq('device_id', device.id)
+    .gt('created_at', since)
+    .order('created_at', { ascending: true })
+    .limit(1000);
+  if (error) throw error;
+  const rows = (data || []) as { chat_id: string; key_id: string; wrapped_key: string; from_public_key: string; created_at: string }[];
+  let kept = 0;
+  for (const row of rows) {
+    if (held.get(row.chat_id)?.has(row.key_id)) continue;
+    const stored = await idbGet<CryptoKey>(storeKey(row.chat_id, row.key_id)).catch(() => undefined);
+    if (stored) continue;
+    try {
+      await keep(row.chat_id, row.key_id, await unseal(device, row.chat_id, row.key_id, row.wrapped_key, row.from_public_key));
+      kept++;
+    } catch {
+      /* sealed for an older copy of this device */
+    }
+  }
+  const newest = rows[rows.length - 1]?.created_at;
+  if (newest) {
+    try {
+      localStorage.setItem(KEPT_KEY(userId), newest);
+    } catch {
+      /* private window */
+    }
+  }
+  // A full page: there may be more
+  if (rows.length === 1000) kept += await keepAllKeys(userId);
+  return kept;
+}
+
 /** Keys arrived for this device: forget when the server was last asked, so the next read asks again */
 export function keysArrived(chatId: string) {
   fetchedAt.delete(chatId);

@@ -151,6 +151,8 @@ Deno.serve(async (req) => {
       // Each person's own copy of the chat key, sealed for their phones (useless to anyone
       // else), so a phone that hasn't got the key yet can still open the notification
       const sealedFor = new Map<string, { d: string; w: string; f: string }[]>();
+      // Every copy, by device: each phone gets the one sealed for it first
+      const sealedByDevice = new Map<string, { d: string; w: string; f: string }>();
       if (e2eText && recipients.length) {
         const { data: keys } = await supabaseAdmin
           .from('chat_keys')
@@ -160,6 +162,7 @@ Deno.serve(async (req) => {
           .in('user_id', recipients)
           .order('created_at', { ascending: false });
         for (const k of (keys ?? []) as { user_id: string; device_id: string; wrapped_key: string; from_public_key: string }[]) {
+          if (!sealedByDevice.has(k.device_id)) sealedByDevice.set(k.device_id, { d: k.device_id, w: k.wrapped_key, f: k.from_public_key });
           const list = sealedFor.get(k.user_id) ?? [];
           if (list.length < MAX_SEALED) list.push({ d: k.device_id, w: k.wrapped_key, f: k.from_public_key });
           sealedFor.set(k.user_id, list);
@@ -180,22 +183,26 @@ Deno.serve(async (req) => {
       const result = await sendToSubscriptions(
         await subscriptionsForUsers(recipients),
         (sub) => {
-          const sealed = sub.user_id ? sealedFor.get(sub.user_id) : undefined;
-          const make = (withText: boolean, withKeys: boolean) => ({
+          const newest = sub.user_id ? sealedFor.get(sub.user_id) ?? [] : [];
+          const own = sub.device_id ? sealedByDevice.get(sub.device_id) : undefined;
+          // This phone's own copy first (always fits), then the newest others in case it has another account's device
+          const sealed = own ? [own, ...newest.filter((c) => c.d !== own.d)].slice(0, MAX_SEALED) : newest;
+          const make = (withText: boolean, keys: { d: string; w: string; f: string }[]) => ({
             ...base,
             data: {
               ...plainData,
               // Still scrambled: only the phone can open it
               ...(withText && !!e2eText && { e2e: e2eText, e2ePrefix: isPrivate ? '' : `${sender}: ` }),
-              ...(withText && withKeys && !!sealed?.length && { sealed }),
+              ...(withText && keys.length > 0 && { sealed: keys }),
             },
           });
-          // Too big to deliver: drop the keys, then the text (it then just says "🔒 New message")
-          for (const [text, keys] of [[true, true], [true, false], [false, false]] as const) {
+          // Too big to deliver: keep only this phone's own key, then drop the keys, then the text ("🔒 New message")
+          const tries: [boolean, { d: string; w: string; f: string }[]][] = [[true, sealed], ...(own ? [[true, [own]] as [boolean, typeof sealed]] : []), [true, []], [false, []]];
+          for (const [text, keys] of tries) {
             const payload = make(text, keys);
             if (JSON.stringify(payload).length <= MAX_PAYLOAD) return payload;
           }
-          return make(false, false);
+          return make(false, []);
         },
         { ttl: 60 * 60 * 24, urgency: 'high', topic: `chat-${message.chat_id}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32) },
       );

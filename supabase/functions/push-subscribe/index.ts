@@ -65,10 +65,16 @@ Deno.serve(async (req) => {
         failure_count: 0,
         updated_at: new Date().toISOString(),
       };
+      // This phone's encryption device (chat notifications carry the key sealed for it)
+      const deviceId = typeof body.deviceId === 'string' && /^[0-9a-f-]{36}$/i.test(body.deviceId) ? body.deviceId : null;
 
-      const { error } = await supabaseAdmin
+      let { error } = await supabaseAdmin
         .from('push_subscriptions')
-        .upsert(row, { onConflict: 'endpoint' });
+        .upsert(deviceId ? { ...row, device_id: deviceId } : row, { onConflict: 'endpoint' });
+      // Before the device column exists
+      if (error && deviceId && /device_id/.test(error.message)) {
+        ({ error } = await supabaseAdmin.from('push_subscriptions').upsert(row, { onConflict: 'endpoint' }));
+      }
       if (error) throw error;
 
       return json({ ok: true, topics: row.topics, linked: Boolean(row.user_id) });
