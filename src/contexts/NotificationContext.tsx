@@ -106,12 +106,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
     window.addEventListener('chats:read', onRead);
     window.addEventListener('chats:changed', onRead);
+    // Marked as unread / read from a list or the preview
+    window.addEventListener('chat:settings', onRead);
     // Back online after a drop: badges catch up
     window.addEventListener('app:resync', onRead);
     return () => {
       clearTimeout(timer);
       window.removeEventListener('chats:read', onRead);
       window.removeEventListener('chats:changed', onRead);
+      window.removeEventListener('chat:settings', onRead);
       window.removeEventListener('app:resync', onRead);
     };
   }, [user, refreshNotifications]);

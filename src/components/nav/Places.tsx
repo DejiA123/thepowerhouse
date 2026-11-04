@@ -4,11 +4,13 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ListRow, PictureTile } from '@/components/page/PageKit';
 import { TILE, destination, pathOf, type TileColor } from '@/data/appDirectory';
+import CountBadge from '@/components/common/CountBadge';
 
 /** A coloured picture for a list row, a little bigger than the usual badge. */
-export const RowPicture = ({ icon: Icon, color }: { icon: LucideIcon; color: TileColor }) => (
-  <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-white shadow-sm', TILE[color])}>
+export const RowPicture = ({ icon: Icon, color, count = 0 }: { icon: LucideIcon; color: TileColor; count?: number }) => (
+  <span className={cn('relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-white shadow-sm', TILE[color])}>
     <Icon className="h-[22px] w-[22px]" />
+    <CountBadge count={count} label={count === 1 ? 'unread chat' : 'unread chats'} />
   </span>
 );
 
@@ -18,14 +20,14 @@ const useOpen = () => {
 };
 
 /** A place in the app as a list row (picture, name, one line). */
-export const PlaceRow = ({ id, title, subtitle, trailing }: { id: string; title?: ReactNode; subtitle?: ReactNode; trailing?: ReactNode }) => {
+export const PlaceRow = ({ id, title, subtitle, trailing, count }: { id: string; title?: ReactNode; subtitle?: ReactNode; trailing?: ReactNode; count?: number }) => {
   const open = useOpen();
   const d = destination(id);
   // A part this church has switched off
   if (!d) return null;
   return (
     <ListRow
-      leading={<RowPicture icon={d.icon} color={d.color} />}
+      leading={<RowPicture icon={d.icon} color={d.color} count={count} />}
       title={title ?? d.title}
       subtitle={subtitle ?? d.subtitle}
       onClick={() => open(pathOf(d))}

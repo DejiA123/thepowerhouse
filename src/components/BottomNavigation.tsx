@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
 import { setBottomNavHeight, useKeyboardLiftsPage } from "@/lib/bottomNav";
+import { useNotifications } from "@/contexts/NotificationContext";
+import CountBadge from "@/components/common/CountBadge";
 
 /**
  * The five places everything lives (phones): Home, Bible, Church, Teams, Me.
@@ -10,6 +12,8 @@ import { setBottomNavHeight, useKeyboardLiftsPage } from "@/lib/bottomNav";
 const BottomNavigation = () => {
   const location = useLocation();
   const active = sectionForPath(location.pathname);
+  // Like WhatsApp's Chats tab: how many chats have unread messages (Messages lives under Me)
+  const { unreadChats } = useNotifications();
   const navRef = useRef<HTMLElement>(null);
   // On every page, except while Android's keyboard has pushed the page up (it'd sit on the keyboard)
   const keyboardUp = useKeyboardLiftsPage();
@@ -71,8 +75,9 @@ const BottomNavigation = () => {
                   animation library into the app's start-up code */}
               <div className="relative flex flex-col items-center gap-1 transition-transform duration-150 active:scale-[0.85]">
                 <span
-                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-200 ${isActive ? "bg-primary/10 dark:bg-primary/25" : ""}`}
+                  className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-200 ${isActive ? "bg-primary/10 dark:bg-primary/25" : ""}`}
                 >
+                  {item.id === 'me' && <CountBadge count={unreadChats} className="right-1.5 -top-1" label={unreadChats === 1 ? 'unread chat' : 'unread chats'} />}
                   <Icon
                     className={`w-6 h-6 transition-colors duration-200 ${isActive ? "text-primary" : "text-muted-foreground dark:text-gray-400"}`}
                     strokeWidth={isActive ? 2.3 : 2}

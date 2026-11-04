@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CountBadge from '@/components/common/CountBadge';
 
 /**
  * Shared building blocks for the app's pages so every screen feels the same:
@@ -111,6 +112,7 @@ export const PictureTile = ({
   onClick,
   layout = 'stack',
   badge,
+  count = 0,
 }: {
   icon: LucideIcon;
   tint: string;
@@ -119,6 +121,8 @@ export const PictureTile = ({
   onClick: () => void;
   layout?: 'stack' | 'row';
   badge?: ReactNode;
+  /** A red count on the picture's corner (unread chats) */
+  count?: number;
 }) => (
   <button
     type="button"
@@ -128,8 +132,9 @@ export const PictureTile = ({
       layout === 'row' ? 'min-h-[84px] items-center gap-2.5 p-3' : 'min-h-[128px] flex-col justify-between gap-3 p-4',
     )}
   >
-    <span className={cn('flex shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', layout === 'row' ? 'h-11 w-11' : 'h-[52px] w-[52px]', tint)}>
+    <span className={cn('relative flex shrink-0 items-center justify-center rounded-2xl text-white shadow-sm', layout === 'row' ? 'h-11 w-11' : 'h-[52px] w-[52px]', tint)}>
       <Icon className={layout === 'row' ? 'h-6 w-6' : 'h-7 w-7'} />
+      <CountBadge count={count} label={count === 1 ? 'unread chat' : 'unread chats'} />
     </span>
     <span className="min-w-0">
       <span className={cn('block font-outfit font-semibold leading-tight text-foreground', layout === 'row' ? 'text-[16.5px]' : 'text-[17px]')}>{title}</span>

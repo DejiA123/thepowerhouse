@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftRight, Bookmark, LogOut, ShieldCheck, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
 import UserAvatar from "@/components/common/UserAvatar";
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
 import { PlaceRow, RowPicture } from "@/components/nav/Places";
@@ -23,6 +24,7 @@ const MePage = () => {
   // Phones not yet installed; computers only when the browser can install it in one tap
   const install = useInstallContext();
   const isAdmin = useIsAdmin();
+  const { unreadChats } = useNotifications();
   const canInstall =
     install.kind !== 'installed' &&
     (install.kind !== 'desktop' || install.canPrompt) &&
@@ -57,7 +59,7 @@ const MePage = () => {
 
       <SectionLabel>Yours</SectionLabel>
       <ListGroup>
-        <PlaceRow id="messages" />
+        <PlaceRow id="messages" count={unreadChats} />
         <PlaceRow id="friends" />
         <PlaceRow id="notes" />
         <PlaceRow id="learn" />

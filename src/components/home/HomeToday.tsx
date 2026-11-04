@@ -6,6 +6,7 @@ import { HOME_TILES, TILE } from '@/data/appDirectory';
 import { openSearch } from '@/lib/appEvents';
 import { PictureTile } from '@/components/page/PageKit';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useGlobalAudio } from '@/contexts/GlobalAudioContext';
 import { useBiblePreferences } from '@/hooks/useBiblePreferences';
 import { normalizeBookApiName } from '@/components/bible/bookUtils';
@@ -33,6 +34,7 @@ const greetingFor = (hour: number) => (hour < 12 ? 'Good morning' : hour < 17 ? 
  */
 const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
   const navigate = useNavigate();
+  const { unreadChats } = useNotifications();
   const { user } = useAuth();
   const audio = useGlobalAudio();
   const { preferences } = useBiblePreferences();
@@ -163,10 +165,10 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
         {HOME_TILES.map((t) => (
           <div key={t.id} className="contents">
             <span className="md:hidden">
-              <PictureTile layout="row" icon={t.icon} tint={TILE[t.color]} title={t.title} subtitle={t.subtitle} onClick={() => navigate(typeof t.to === 'function' ? t.to() : t.to)} />
+              <PictureTile layout="row" count={t.id === 'messages' ? unreadChats : 0} icon={t.icon} tint={TILE[t.color]} title={t.title} subtitle={t.subtitle} onClick={() => navigate(typeof t.to === 'function' ? t.to() : t.to)} />
             </span>
             <span className="hidden md:block">
-              <PictureTile icon={t.icon} tint={TILE[t.color]} title={t.title} subtitle={t.subtitle} onClick={() => navigate(typeof t.to === 'function' ? t.to() : t.to)} />
+              <PictureTile count={t.id === 'messages' ? unreadChats : 0} icon={t.icon} tint={TILE[t.color]} title={t.title} subtitle={t.subtitle} onClick={() => navigate(typeof t.to === 'function' ? t.to() : t.to)} />
             </span>
           </div>
         ))}
