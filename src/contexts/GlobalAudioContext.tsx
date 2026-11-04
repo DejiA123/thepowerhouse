@@ -517,7 +517,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } else if (reason !== 'cancelled') {
             const why =
               navigator.onLine === false ? "You're offline. Connect to the internet and try again." :
-              reason === 'AI credits have run out.' ? 'Listening to this translation is paused for now. Please let the church office know.' :
+              reason === 'AI credits have run out.' || reason === 'The voice is not set up' ? 'Listening to this translation is paused for now. Please let the church office know.' :
               reason === 'Too many requests, please wait a moment.' ? 'Lots of people are listening right now. Wait a moment and try again.' :
               'Please try again. If it keeps happening, restart the app.';
             appAlert("This chapter couldn't be played", why, 'error');
