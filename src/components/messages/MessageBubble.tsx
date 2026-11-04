@@ -5,7 +5,9 @@ import { isEncryptedFile } from '@/lib/chatCrypto';
 import { cn } from '@/lib/utils';
 import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
-import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseFile, parseMessageContent, parsePreview, parseVoice } from './chatUtils';
+import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseFile, parseMessageContent, parsePoll, parsePreview, parseVoice } from './chatUtils';
+import { PollCard } from './PollCard';
+import type { PollVote } from '@/lib/polls';
 import { FileCard, PreviewCard, VoicePlayer, withMentionSpans } from './MessageExtras';
 
 /**
@@ -141,8 +143,12 @@ interface Props {
   onRetry?: (message: ChatMessage) => void;
   /** Tapping a call in the chat ("Missed voice call") calls back */
   onCall?: (type: 'audio' | 'video') => void;
+  /** A poll's votes, and voting on it */
+  pollVotes?: PollVote[];
+  onVote?: (message: ChatMessage, option: number) => void;
 }
 
+const NO_VOTES: PollVote[] = [];
 const LONG_PRESS_MS = 420;
 /** How far to swipe a message to reply, and the most it moves */
 const SWIPE_REPLY_PX = 56;
@@ -150,12 +156,13 @@ const SWIPE_MAX_PX = 84;
 
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
-  quote, onQuoteTap, onReply, starred, highlighted, myId, selecting, selected, onToggleSelect,
+  quote, onQuoteTap, onReply, starred, highlighted, myId, selecting, selected, onToggleSelect, pollVotes, onVote,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
   const call = parseCall(message.content);
   const voice = parseVoice(message.content);
   const file = parseFile(message.content);
+  const poll = parsePoll(message.content);
   const linkPreview = parsePreview(message.content);
   const media = !!(imageUrl || videoUrl);
   // Deleted for everyone: only a note stays ("You deleted this message", like WhatsApp)
@@ -418,10 +425,21 @@ const MessageBubble = ({
                 <span className="-mr-1 pb-0.5">{meta}</span>
               </div>
             )}
+            {poll && (
+              <PollCard
+                poll={poll}
+                votes={pollVotes ?? NO_VOTES}
+                myId={myId}
+                isOwn={isOwn}
+                chatId={message.chat_id}
+                onVote={onVote && !message.pending && !message.failed ? (option) => onVote(message, option) : undefined}
+                meta={meta}
+              />
+            )}
             {file && <FileCard file={file} isOwn={isOwn} />}
             {linkPreview && <PreviewCard preview={linkPreview} isOwn={isOwn} />}
             {file && !text && <div className="flex justify-end pt-1">{meta}</div>}
-            {!call && !voice && (text || (!media && !file)) && (
+            {!call && !voice && !poll && (text || (!media && !file)) && (
               <div className={cn('whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]', (media || file) && 'px-2.5 pb-1.5 pt-1.5', file && 'px-1', message.locked && 'italic opacity-80')}>
                 {linkify(text).map((part, i) =>
                   part.type === 'link' ? (
