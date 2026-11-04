@@ -26,6 +26,8 @@ export interface PushSubscriptionRow {
   p256dh: string;
   auth: string;
   failure_count: number;
+  /** The phone's encryption device (chat notifications carry the key sealed for it) */
+  device_id?: string | null;
 }
 
 export interface PushPayload {
@@ -166,6 +168,12 @@ const SUB_COLUMNS = 'id, user_id, endpoint, p256dh, auth, failure_count';
 
 export async function subscriptionsForUsers(userIds: string[]): Promise<PushSubscriptionRow[]> {
   if (userIds.length === 0) return [];
+  const withDevice = await supabaseAdmin
+    .from('push_subscriptions')
+    .select(`${SUB_COLUMNS}, device_id`)
+    .in('user_id', userIds);
+  if (!withDevice.error) return (withDevice.data ?? []) as PushSubscriptionRow[];
+  // Before the device column exists
   const { data, error } = await supabaseAdmin
     .from('push_subscriptions')
     .select(SUB_COLUMNS)

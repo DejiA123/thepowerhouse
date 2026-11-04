@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { uniqueTopic } from '@/lib/realtime';
-import { KEYS_ARRIVED, e2eReady, keysArrived, myDevice, shareAllKeys } from '@/lib/chatCrypto';
+import { KEYS_ARRIVED, e2eReady, keepAllKeys, keysArrived, myDevice, shareAllKeys } from '@/lib/chatCrypto';
 
 /**
  * Keeps end-to-end encryption working in the background, while the app is open:
@@ -26,6 +26,8 @@ const ChatKeySync = () => {
       if (!force && Date.now() - last < 2 * 60_000) return;
       last = Date.now();
       shareAllKeys(user.id).catch(() => undefined);
+      // Every key sealed for this phone, kept for the notification helper (so notifications always show the message)
+      keepAllKeys(user.id).catch(() => undefined);
     };
     const onVisible = () => document.visibilityState === 'visible' && share();
 
@@ -40,6 +42,7 @@ const ChatKeySync = () => {
           const chatId = (row as { chat_id?: string }).chat_id;
           if (!chatId) return;
           keysArrived(chatId);
+          keepAllKeys(user.id).catch(() => undefined);
           window.dispatchEvent(new CustomEvent(KEYS_ARRIVED, { detail: { chatId } }));
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_devices' }, ({ new: row }) => {

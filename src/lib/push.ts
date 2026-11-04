@@ -136,8 +136,10 @@ export async function getPushState(): Promise<PushState> {
 
 async function register(subscription: PushSubscription, topics: string[] = []) {
   const json = subscription.toJSON();
+  // This phone's encryption device: its chat notifications carry the key copy sealed for it
+  const deviceId = await import('@/lib/chatCrypto').then((m) => m.currentDeviceId()).catch(() => null);
   const { error } = await supabase.functions.invoke('push-subscribe', {
-    body: { action: 'subscribe', subscription: json, topics },
+    body: { action: 'subscribe', subscription: json, topics, deviceId },
   });
   if (error) throw error;
 }
