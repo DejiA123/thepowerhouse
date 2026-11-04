@@ -138,6 +138,16 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const atBottomRef = useRef(true);
   const restoreScroll = useRef<{ height: number; top: number } | null>(null);
   const initialScrollDone = useRef(false);
+  // Opening a chat: it keeps its place (the latest message, or the unread line) while the
+  // server's messages, pictures and cards arrive, until the person scrolls themselves
+  const openingUntil = useRef(Number.POSITIVE_INFINITY);
+  // When the person last touched or scrolled the chat (scrolls the app makes itself don't count)
+  const lastInput = useRef(0);
+  const userActive = () => Date.now() - lastInput.current < 1200;
+  const noteInput = () => {
+    lastInput.current = Date.now();
+    openingUntil.current = 0;
+  };
 
   useKeyboardSafeHeight(rootRef);
 
@@ -191,6 +201,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   useEffect(() => {
     let cancelled = false;
     initialScrollDone.current = false;
+    openingUntil.current = Number.POSITIVE_INFINITY;
+    lastInput.current = 0;
+    atBottomRef.current = true;
     setEditing(null);
     setReplyTo(null);
     setStarred(new Set());
@@ -242,6 +255,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         const lastRead = membership?.last_read_at;
         const firstUnread = lastRead ? data.find((m) => m.user_id !== me.id && m.created_at > lastRead && !isAnsweredCall(m.content)) : null;
         setUnreadAnchor(firstUnread?.id ?? null);
+        // The server's messages are in: keep the opening place while pictures, cards and reactions settle
+        if (openingUntil.current) openingUntil.current = Date.now() + 2500;
 
         if (data.length) setReactions(await GroupChatService.getReactions(data.map((m) => m.id)));
         const last = data[data.length - 1];
@@ -527,17 +542,36 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       restoreScroll.current = null;
       return;
     }
-    if (!initialScrollDone.current && messages.length > 0 && !loading) {
+    // Opening (from the phone's copy, then again when the server's messages come in)
+    if (messages.length > 0 && !loading && (!initialScrollDone.current || Date.now() < openingUntil.current)) {
       initialScrollDone.current = true;
-      const anchor = unreadAnchor ? el.querySelector(`[data-unread-divider]`) : null;
-      if (anchor) (anchor as HTMLElement).scrollIntoView({ block: 'center' });
-      else el.scrollTop = el.scrollHeight;
-      atBottomRef.current = nearBottom(el);
+      placeOpening();
       return;
     }
     const last = messages[messages.length - 1];
     if (last && newLatest && (atBottomRef.current || last.user_id === me.id)) scrollToBottom(true);
   }, [messages, me.id, scrollToBottom, unreadAnchor, loading]);
+
+  /**
+   * Where a chat opens: at the very latest message. Only when the unread
+   * messages fill more than two screens does it open at the "Unread messages"
+   * line instead (like WhatsApp), so nobody starts reading in the middle.
+   */
+  function placeOpening() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const divider = el.querySelector<HTMLElement>('[data-unread-divider]');
+    if (divider) {
+      const top = divider.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+      if (el.scrollHeight - top > el.clientHeight * 2) {
+        el.scrollTop = Math.max(0, top - 8);
+        atBottomRef.current = nearBottom(el);
+        return;
+      }
+    }
+    el.scrollTop = el.scrollHeight;
+    atBottomRef.current = true;
+  }
 
   // Photos and videos only get their height once they've loaded, after the chat
   // has scrolled down, so they'd push the newest message out of view. Keep it in
@@ -551,7 +585,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const observer = new ResizeObserver(() => {
       const newMessages = messagesRef.current.length !== count;
       count = messagesRef.current.length;
-      if (!newMessages && atBottomRef.current) el.scrollTop = el.scrollHeight;
+      // Still opening: keep the opening place
+      if (Date.now() < openingUntil.current && initialScrollDone.current) placeOpening();
+      else if (!newMessages && atBottomRef.current) el.scrollTop = el.scrollHeight;
     });
     observer.observe(content);
     observer.observe(el);
@@ -600,7 +636,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     if (!el) return;
     showFloatingDay();
     const bottom = nearBottom(el);
-    atBottomRef.current = bottom;
+    // Only the person scrolling up stops the chat following new messages (the app's own
+    // smooth scrolls pass through "not at the bottom" on the way down)
+    if (bottom || userActive()) atBottomRef.current = bottom;
     if (bottom !== atBottom) setAtBottom(bottom);
     if (bottom && newBelow > 0) {
       setNewBelow(0);
@@ -648,6 +686,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         if (el) {
           initialScrollDone.current = true;
           el.scrollIntoView({ block: 'center' });
+          openingUntil.current = 0;
           if (scrollRef.current) atBottomRef.current = nearBottom(scrollRef.current);
           el.animate?.(
             [{ backgroundColor: 'rgba(59, 130, 246, 0.22)' }, { backgroundColor: 'rgba(59, 130, 246, 0)' }],
@@ -945,6 +984,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const show = () => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${id.replace(/["\\]/g, '')}"]`);
       if (!el) return false;
+      openingUntil.current = 0;
       atBottomRef.current = false;
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       setHighlightId(id);
@@ -1315,6 +1355,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         <div
           ref={scrollRef}
           onScroll={onScroll}
+          onTouchStart={noteInput}
+          onTouchMove={noteInput}
+          onTouchEnd={noteInput}
+          onWheel={noteInput}
+          onKeyDown={noteInput}
+          onPointerDown={(e) => e.pointerType === 'mouse' && noteInput()}
           className="absolute inset-0 overflow-y-auto overscroll-contain"
         >
           <div ref={contentRef} className="mx-auto flex min-h-full max-w-3xl flex-col px-3 pb-3 pt-2 sm:px-5">
