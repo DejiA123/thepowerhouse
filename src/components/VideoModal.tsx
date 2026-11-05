@@ -65,10 +65,10 @@ const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoMo
             />
           )}
         </div>
-        {/* The live service's chat (it needs the broadcast's own video id) */}
-        {isOpen && isLive && !channelStream && (
+        {/* The live service's chat: the church's own always; YouTube's needs the broadcast's own video id */}
+        {isOpen && isLive && (
           <div className="bg-background px-3 pb-3">
-            <LiveChat videoId={videoId} />
+            <LiveChat videoId={videoId} youtube={!channelStream} />
           </div>
         )}
       </DialogContent>
