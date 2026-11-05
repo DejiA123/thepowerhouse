@@ -63,9 +63,47 @@ export function describe(row: ActivityRow): string {
     case 'sign_in': return 'Signed in';
     case 'sign_out': return 'Signed out';
     case 'crash': return `Saw the error screen: ${String(d.message ?? '').slice(0, 120)}`;
+    case 'time': {
+      const top = topAreas(d.areas, 2);
+      return `Used the app for ${duration(secondsOf(row) / 60)}${top.length ? ` (${top.join(', ')})` : ''}`;
+    }
     default: return row.event;
   }
 }
+
+/** Seconds in a 'time' row, read as the database reads them: whole numbers only, at most 15 minutes a row */
+export const secondsOf = (row: { detail: Record<string, unknown> | null }) => {
+  const v = row.detail?.seconds;
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(Math.floor(v), 900) : 0;
+};
+
+/** A 'time' row's busiest areas, most time first */
+const topAreas = (areas: unknown, n: number) =>
+  areas && typeof areas === 'object' && !Array.isArray(areas)
+    ? Object.entries(areas as Record<string, unknown>)
+        .filter(([, s]) => typeof s === 'number' && s >= 30)
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .slice(0, n)
+        .map(([k]) => k)
+    : [];
+
+/** "Under a minute", "45 min", "2 h 15 min", "2 h" */
+export const duration = (minutes: number) => {
+  const m = Math.round(minutes);
+  if (m < 1) return 'under a minute';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest ? `${h} h ${rest} min` : `${h} h`;
+};
+
+/** Short, for the big numbers: "45m", "2h 15m", "128h" */
+export const shortDuration = (minutes: number) => {
+  const m = Math.round(minutes);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return h >= 10 || m % 60 === 0 ? `${h}h` : `${h}h ${m % 60}m`;
+};
 
 /** "Today", "Yesterday", or "Mon 26 Oct" */
 export const dayLabel = (iso: string) => {

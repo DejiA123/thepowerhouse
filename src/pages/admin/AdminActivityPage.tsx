@@ -5,7 +5,8 @@ import { Loader2, Search, UserRound } from 'lucide-react';
 import { ListGroup, Page, PageTitle, SectionLabel } from '@/components/page/PageKit';
 import UserAvatar from '@/components/common/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
-import { ago, dayLabel, describe, notSetUp, type ActivityRow } from '@/lib/admin';
+import { ago, dayLabel, describe, duration, notSetUp, secondsOf, type ActivityRow } from '@/lib/admin';
+import { cn } from '@/lib/utils';
 import AdminGate, { NotSetUp } from './AdminGate';
 
 interface Member {
@@ -14,7 +15,11 @@ interface Member {
   avatar_url: string | null;
   last_at: string;
   areas: string[] | null;
+  /** Minutes in the app in the last 7 days (missing until the database has it) */
+  minutes_week?: number;
 }
+
+const WEEK_MS = 7 * 86400_000;
 
 /** Admin → Activity: every member and when they were last in the app. */
 const MemberList = () => {
@@ -23,6 +28,12 @@ const MemberList = () => {
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState<Member[] | null>(null);
   const [missing, setMissing] = useState(false);
+  const [order, setOrder] = useState<'recent' | 'time'>('recent');
+  const timed = !!members?.some((m) => typeof m.minutes_week === 'number');
+  const shown = useMemo(
+    () => (order === 'time' && members ? [...members].sort((a, b) => (b.minutes_week ?? 0) - (a.minutes_week ?? 0)) : members),
+    [members, order],
+  );
 
   const loadMembers = () =>
     supabase.rpc('admin_activity_members' as never, { search: search.trim() || null } as never).then(({ data, error }) => {
@@ -53,6 +64,21 @@ const MemberList = () => {
           className="h-full flex-1 bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
+      {timed && (
+        <div className="mb-3 flex rounded-full bg-muted p-0.5 text-[13px] font-semibold" role="tablist" aria-label="Order">
+          {(['recent', 'time'] as const).map((o) => (
+            <button
+              key={o}
+              role="tab"
+              aria-selected={order === o}
+              onClick={() => setOrder(o)}
+              className={cn('flex-1 rounded-full py-1.5 transition', order === o ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground')}
+            >
+              {o === 'recent' ? 'Recently active' : 'Most time this week'}
+            </button>
+          ))}
+        </div>
+      )}
       {members === null ? (
         <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
       ) : members.length === 0 ? (
@@ -61,7 +87,7 @@ const MemberList = () => {
         </p>
       ) : (
         <ListGroup>
-          {members.map((m) => {
+          {shown!.map((m) => {
             const when = ago(m.last_at);
             return (
               <button key={m.user_id} onClick={() => setParams({ user: m.user_id })} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted">
@@ -72,6 +98,12 @@ const MemberList = () => {
                     {when}{m.areas?.length ? ` · ${m.areas.join(', ')}` : ''}
                   </span>
                 </span>
+                {!!m.minutes_week && (
+                  <span className="shrink-0 text-right">
+                    <span className="block text-[13px] font-semibold text-foreground">{duration(m.minutes_week)}</span>
+                    <span className="block text-[11px] text-muted-foreground">this week</span>
+                  </span>
+                )}
                 {when === 'Active now' && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />}
               </button>
             );
@@ -86,6 +118,8 @@ const MemberList = () => {
 const MemberTimeline = ({ userId }: { userId: string }) => {
   const [, setParams] = useSearchParams();
   const [rows, setRows] = useState<ActivityRow[] | null>(null);
+  // Time in the app, loaded on its own so a busy timeline can't cut the totals short
+  const [timeRows, setTimeRows] = useState<{ detail: Record<string, unknown> | null; created_at: string }[]>([]);
   const [person, setPerson] = useState<{ full_name: string; avatar_url: string | null; created_at: string } | null>(null);
 
   useEffect(() => {
@@ -94,10 +128,34 @@ const MemberTimeline = ({ userId }: { userId: string }) => {
       .from('app_activity' as never)
       .select('id, event, area, path, detail, device, created_at')
       .eq('user_id', userId)
+      .neq('event', 'time')
       .order('created_at', { ascending: false })
       .limit(500)
       .then(({ data }) => setRows((data ?? []) as unknown as ActivityRow[]));
+    supabase
+      .from('app_activity' as never)
+      .select('detail, created_at')
+      .eq('user_id', userId)
+      .eq('event', 'time')
+      .gte('created_at', new Date(Date.now() - 60 * 86400_000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1000)
+      .then(({ data }) => setTimeRows((data ?? []) as unknown as typeof timeRows));
   }, [userId]);
+
+  // Minutes each day, and in the last 7 days
+  const { perDay, weekMinutes } = useMemo(() => {
+    const perDay = new Map<string, number>();
+    let week = 0;
+    const weekStart = Date.now() - WEEK_MS;
+    for (const r of timeRows) {
+      const s = secondsOf(r);
+      const day = dayLabel(r.created_at);
+      perDay.set(day, (perDay.get(day) ?? 0) + s / 60);
+      if (new Date(r.created_at).getTime() >= weekStart) week += s / 60;
+    }
+    return { perDay, weekMinutes: week };
+  }, [timeRows]);
 
   // Grouped by day; the same thing twice in a row shows once
   const days = useMemo(() => {
@@ -128,6 +186,11 @@ const MemberTimeline = ({ userId }: { userId: string }) => {
           </span>
         </span>
       </div>
+      {weekMinutes >= 1 && (
+        <p className="mb-1 text-[14px] text-foreground" data-testid="week-time">
+          <span className="font-semibold">{duration(weekMinutes)}</span> in the app this week
+        </p>
+      )}
       {rows === null ? (
         <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
       ) : days.length === 0 ? (
@@ -135,11 +198,15 @@ const MemberTimeline = ({ userId }: { userId: string }) => {
       ) : (
         days.map((d) => (
           <div key={d.day}>
-            <SectionLabel>{d.day}</SectionLabel>
+            <SectionLabel
+              action={(perDay.get(d.day) ?? 0) >= 1 ? <span className="text-[12.5px] text-muted-foreground">{duration(perDay.get(d.day)!)} in the app</span> : undefined}
+            >
+              {d.day}
+            </SectionLabel>
             <ListGroup>
               {d.items.map((it, i) => (
                 <div key={i} className="flex gap-3 px-4 py-2.5 text-[14px]">
-                  <span className="w-11 shrink-0 tabular-nums text-muted-foreground">{it.time}</span>
+                  <span className="min-w-11 shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">{it.time}</span>
                   <span className="min-w-0 flex-1 text-foreground">{it.text}</span>
                 </div>
               ))}

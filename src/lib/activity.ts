@@ -23,6 +23,8 @@ export type ActivityEvent =
   | 'feedback'
   | 'sign_in'
   | 'sign_out'
+  /** Time spent in the app: { seconds, areas: { Bible: 120, … } } (on screen and in use) */
+  | 'time'
   /** The app's error screen came up (the message, for fixing it) */
   | 'crash';
 
@@ -182,10 +184,87 @@ const visited: string[] = [];
 
 /** A page was opened */
 export const trackPage = () => {
+  // The time so far belongs to the page being left
+  accrue();
+  timeArea = areaForPath(location.pathname, location.search);
   visited.push(location.pathname + location.search);
   if (visited.length > 5) visited.shift();
   track('page');
 };
+
+// ── Time spent in the app ─────────────────────────────────────────────
+// Counted only while the app is on screen and in use: not in the background, and not
+// after 10 minutes with no touch or typing unless something is playing (the Bible read
+// aloud, worship music, a video). Added up by area and recorded when the app is put
+// away, or every 5 minutes, so closing it suddenly loses little.
+const IDLE_MS = 10 * 60_000;
+const TICK_MS = 15_000;
+const CHECKPOINT_SECONDS = 300;
+let timeArea = 'Home';
+let lastTick = 0;
+let lastInput = Date.now();
+let pending: Record<string, number> = {};
+let pendingTotal = 0;
+
+const somethingPlaying = () => {
+  try {
+    // The Bible read aloud and worship music set the phone's media controls
+    if ((navigator as Navigator & { mediaSession?: MediaSession }).mediaSession?.playbackState === 'playing') return true;
+    if (Array.from(document.querySelectorAll('audio, video')).some((m) => !(m as HTMLMediaElement).paused)) return true;
+    // A YouTube video someone opened (the live service, a song's Play): these start by themselves
+    return !!document.querySelector('iframe[src*="youtube"][src*="autoplay=1"]');
+  } catch {
+    return false;
+  }
+};
+
+/** Adds the time since the last look to the area being used */
+function accrue() {
+  const now = Date.now();
+  const since = lastTick;
+  lastTick = now;
+  if (!since || document.visibilityState !== 'visible') return;
+  if (now - lastInput > IDLE_MS && !somethingPlaying()) return;
+  // A frozen timer (phone asleep) never counts as hours: at most two ticks at a time
+  const seconds = Math.min(Math.round((now - since) / 1000), (2 * TICK_MS) / 1000);
+  if (seconds <= 0) return;
+  pending[timeArea] = (pending[timeArea] ?? 0) + seconds;
+  pendingTotal += seconds;
+  if (pendingTotal >= CHECKPOINT_SECONDS) recordTime();
+}
+
+/** Records the time added up so far (one row) */
+function recordTime() {
+  if (pendingTotal < 1) return;
+  const areas = Object.fromEntries(Object.entries(pending).filter(([, s]) => s > 0).slice(0, 12));
+  track('time', { seconds: pendingTotal, areas });
+  pending = {};
+  pendingTotal = 0;
+}
+
+function startTimeTracking() {
+  timeArea = areaForPath(location.pathname, location.search);
+  lastTick = document.visibilityState === 'visible' ? Date.now() : 0;
+  const touched = () => {
+    lastInput = Date.now();
+  };
+  for (const e of ['pointerdown', 'keydown', 'scroll', 'wheel', 'touchstart']) window.addEventListener(e, touched, { passive: true, capture: true });
+  setInterval(accrue, TICK_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      accrue();
+      recordTime();
+      lastTick = 0;
+    } else {
+      lastTick = Date.now();
+      lastInput = Date.now();
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    accrue();
+    recordTime();
+  });
+}
 
 /** The page someone was on before this one (feedback says where it came from) */
 export const pageBefore = () => visited[visited.length - 2] ?? null;
@@ -206,6 +285,8 @@ export function startActivity() {
     if (event === 'SIGNED_IN' && !before && userId) track('sign_in');
   });
   setInterval(() => flush(), FLUSH_MS);
+  // Time counting first, so its record is in the queue when the app is put away
+  startTimeTracking();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush(true);
   });
@@ -214,6 +295,9 @@ export function startActivity() {
 
 /** Before signing out: record it while still signed in, and send it. */
 export async function trackSignOut() {
+  // The time so far was this account's
+  accrue();
+  recordTime();
   track('sign_out');
   await flush();
 }
