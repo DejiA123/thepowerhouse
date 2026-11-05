@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
+import { lazyWithReload } from "@/lib/lazyLoad";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeftRight, Bookmark, LogOut, ShieldCheck, Smartphone, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +14,7 @@ import { church } from "@/config/church";
 import { useIsAdmin } from "@/lib/admin";
 import { chosenChurch, forgetChurch, onPlatform } from "@/lib/churchSpace";
 
-const SidebarCustomizer = lazy(() => import("@/components/SidebarCustomizer"));
+const SidebarCustomizer = lazyWithReload(() => import("@/components/SidebarCustomizer"));
 
 /** Me: your messages, friends, notes, settings, help and the tour. */
 const MePage = () => {

@@ -1,5 +1,7 @@
 // First: which church this is (before anything reads its name, colours or parts)
 import '@/lib/churchSpace';
+import { isChunkError, reloadForUpdate } from '@/lib/lazyLoad';
+import { track } from '@/lib/activity';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
@@ -77,9 +79,17 @@ if ('serviceWorker' in navigator) {
   }).catch(() => undefined);
 }
 
+// A piece of the old version that's gone after an update: reload into the new one
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadForUpdate()) event.preventDefault();
+});
+window.addEventListener('unhandledrejection', (event) => {
+  if (isChunkError(event.reason)) reloadForUpdate();
+});
+
 /** Catches render errors so one broken screen doesn't blank the whole app. */
-class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
-  state = { error: null as Error | null };
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null; reloading: boolean }> {
+  state = { error: null as Error | null, reloading: false };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
@@ -87,12 +97,24 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('App crashed:', error, info.componentStack);
+    // The app was updated while open: reload into the new version (no error screen)
+    if (isChunkError(error) && reloadForUpdate()) {
+      this.setState({ reloading: true });
+      return;
+    }
+    // Kept with the app's activity, so the cause can be found and fixed
+    track('crash', {
+      message: String(error?.message ?? error).slice(0, 300),
+      stack: String(error?.stack ?? '').slice(0, 800),
+      component: String(info.componentStack ?? '').slice(0, 600),
+    });
     // Don't keep the splash screen over the error message
     window.dispatchEvent(new Event('app-ready'));
   }
 
   render() {
     if (!this.state.error) return this.props.children;
+    if (this.state.reloading) return null;
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div style={{ maxWidth: 360, textAlign: 'center' }}>
@@ -107,6 +129,9 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
           >
             Reload app
           </button>
+          <p style={{ color: '#94a3b8', fontSize: 11.5, marginTop: 20, lineHeight: 1.4, wordBreak: 'break-word' }}>
+            {String(this.state.error?.message ?? this.state.error).slice(0, 160)}
+          </p>
         </div>
       </div>
     );

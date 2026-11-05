@@ -1,5 +1,6 @@
 // App.tsx
 import React, { Suspense, useEffect } from "react";
+import { lazyWithReload } from "@/lib/lazyLoad";
 import SignInPrompt, { MESSAGING_REASON, type SignInReason } from "@/components/auth/SignInPrompt";
 import { peekNext, takeNext } from "@/lib/authRedirect";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,20 +33,7 @@ import { RESERVED_SLUGS } from "@/config/church";
  * downloading every page of the app up front. After a new deploy an old tab
  * may request a chunk that no longer exists; reload once to pick up the new build.
  */
-const lazyPage = <T extends React.ComponentType<any>>(load: () => Promise<{ default: T }>) =>
-  React.lazy(async () => {
-    try {
-      const module = await load();
-      sessionStorage.removeItem("chunk-reload");
-      return module;
-    } catch (error) {
-      if (!sessionStorage.getItem("chunk-reload")) {
-        sessionStorage.setItem("chunk-reload", "1");
-        window.location.reload();
-      }
-      throw error;
-    }
-  });
+const lazyPage = lazyWithReload;
 
 const BiblePage = lazyPage(() => import("@/pages/BiblePage"));
 const PushReportPage = lazyPage(() => import("@/pages/PushReportPage"));

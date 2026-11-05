@@ -62,6 +62,7 @@ export function describe(row: ActivityRow): string {
     case 'feedback': return `Sent feedback ${d.rating === 'up' ? '👍' : d.rating === 'down' ? '👎' : ''}`.trim();
     case 'sign_in': return 'Signed in';
     case 'sign_out': return 'Signed out';
+    case 'crash': return `Saw the error screen: ${String(d.message ?? '').slice(0, 120)}`;
     default: return row.event;
   }
 }

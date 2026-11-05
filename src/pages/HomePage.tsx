@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithReload } from "@/lib/lazyLoad";
 import { useNavigate } from "react-router-dom";
 import NotificationPrompt from "@/components/notifications/NotificationPrompt";
 import InstallCard from "@/components/install/InstallCard";
@@ -7,9 +8,9 @@ import { useAfterFirstScreen } from "@/hooks/useAfterFirstScreen";
 import { church, hasFeature } from "@/config/church";
 
 // Further down the page: loaded just after the first screen is showing
-const DailyScripture = lazy(() => import("@/components/DailyScripture"));
-const EventCountdown = lazy(() => import("@/components/EventCountdown"));
-const ChurchVideos = lazy(() => import("@/components/ChurchVideos"));
+const DailyScripture = lazyWithReload(() => import("@/components/DailyScripture"));
+const EventCountdown = lazyWithReload(() => import("@/components/EventCountdown"));
+const ChurchVideos = lazyWithReload(() => import("@/components/ChurchVideos"));
 
 const HomePage = () => {
   const navigate = useNavigate();

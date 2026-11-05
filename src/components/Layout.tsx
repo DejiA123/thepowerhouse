@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithReload } from "@/lib/lazyLoad";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
@@ -12,7 +13,7 @@ import { INSTALL_GUIDE_EVENT } from "@/lib/install";
 
 // "Find anything" loads when first asked for (and quietly once the app is idle)
 const loadSearch = () => import("./search/FindAnything");
-const FindAnything = lazy(loadSearch);
+const FindAnything = lazyWithReload(loadSearch);
 const SearchSlot = () => {
   const [request, setRequest] = useState<{ query: string; at: number } | null>(null);
   useEffect(() => {
@@ -34,7 +35,7 @@ const SearchSlot = () => {
 };
 
 // "Install the app" pictures: loaded the first time someone asks for them
-const InstallGuide = lazy(() => import("./install/InstallGuide"));
+const InstallGuide = lazyWithReload(() => import("./install/InstallGuide"));
 const InstallGuideSlot = () => {
   const [request, setRequest] = useState(0);
   useEffect(() => {
@@ -51,7 +52,7 @@ const InstallGuideSlot = () => {
 };
 
 // The floating player (and its animation library) loads only once something plays
-const GlobalMiniPlayer = lazy(() => import("./GlobalMiniPlayer"));
+const GlobalMiniPlayer = lazyWithReload(() => import("./GlobalMiniPlayer"));
 const MiniPlayerSlot = () => {
   const { audioState } = useGlobalAudio();
   if (!audioState.hasAudio || audioState.isBibleMode) return null;

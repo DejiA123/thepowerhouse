@@ -1,13 +1,14 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { lazyWithReload } from "@/lib/lazyLoad";
 import { useAuth } from "@/contexts/AuthContext";
 import { Bookmark, ChevronLeft, CircleHelp, LogIn, Search, Settings } from "lucide-react";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebarShortcuts, ICON_MAP } from "@/hooks/useSidebarShortcuts";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
 import { openSearch } from "@/lib/appEvents";
 import { church } from '@/config/church';
-const SidebarCustomizer = lazy(() => import("./SidebarCustomizer"));
+const SidebarCustomizer = lazyWithReload(() => import("./SidebarCustomizer"));
 
 /**
  * Tablets and computers: the same five places as the phone's bottom bar, each

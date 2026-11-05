@@ -22,7 +22,9 @@ export type ActivityEvent =
   | 'notification_opened'
   | 'feedback'
   | 'sign_in'
-  | 'sign_out';
+  | 'sign_out'
+  /** The app's error screen came up (the message, for fixing it) */
+  | 'crash';
 
 interface Row {
   user_id: string | null;
