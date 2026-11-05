@@ -417,14 +417,23 @@ Deno.serve(async (req) => {
         ? body.userIds.filter((id: unknown) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id as string)).slice(0, 256)
         : [];
       if (!chatId || !wanted.length) return json({ error: 'Nothing to send' }, 400);
-      const { data: chat } = await supabaseAdmin.from('group_chats').select('name, description, created_by').eq('id', chatId).maybeSingle();
+      const { data: chat } = await supabaseAdmin.from('group_chats').select('name, description, created_by, church_id').eq('id', chatId).maybeSingle();
       if (!chat || chat.description === PRIVATE_CHAT) return json({ error: 'Not found' }, 404);
-      // Only the group's admins (or its creator, or a church admin) add people
-      const [{ data: adminRow }, { data: churchAdmin }] = await Promise.all([
+      // Only the group's admins (or its creator, or an admin of the group's church) add people.
+      // The church admin check looks at the group's own church (this server has no "current church").
+      const [{ data: adminRow }, { data: churchRole }] = await Promise.all([
         supabaseAdmin.from('group_admins').select('id').eq('chat_id', chatId).eq('user_id', user.id).maybeSingle(),
-        supabaseAdmin.rpc('is_admin', { _user_id: user.id }),
+        supabaseAdmin
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('church_id', chat.church_id)
+          .eq('is_active', true)
+          .in('role', ['administrator', 'pastor'])
+          .limit(1),
       ]);
-      if (!adminRow && chat.created_by !== user.id && churchAdmin !== true) return json({ error: 'Forbidden' }, 403);
+      const churchAdmin = Array.isArray(churchRole) && churchRole.length > 0;
+      if (!adminRow && chat.created_by !== user.id && !churchAdmin) return json({ error: 'Forbidden' }, 403);
       // Only people who really are in it now, added in the last few minutes (never a way to nag members)
       const { data: rows } = await supabaseAdmin
         .from('chat_participants')
