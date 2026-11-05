@@ -285,6 +285,11 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     }
   };
 
+  // Like WhatsApp: you first, then the admins, then everyone else by name
+  const sortedMembers = [...members].sort((a, b) => {
+    const rank = (m: Member) => (m.user_id === userId ? 0 : m.is_admin ? 1 : 2);
+    return rank(a) - rank(b) || (a.user?.full_name || a.user?.email || '').localeCompare(b.user?.full_name || b.user?.email || '');
+  });
   const nameOf = (m: Member) => m.user?.full_name || m.user?.email?.split('@')[0] || 'this member';
   const removeMember = async (member: Member) => {
     setRemoving(null);
@@ -516,12 +521,14 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
 
             {/* Members */}
             <div className="px-4 pb-4">
-              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Members</p>
+              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {members.length ? `${members.length} ${members.length === 1 ? 'member' : 'members'}` : 'Members'}
+              </p>
               {loading && members.length === 0 ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : (
                 <div className="space-y-0.5">
-                  {members.map((m) => {
+                  {sortedMembers.map((m) => {
                     const displayName = m.user_id === userId ? 'You' : m.user?.full_name || m.user?.email?.split('@')[0] || 'Member';
                     const online = m.user_id === userId || onlineIds.has(m.user_id);
                     return (
@@ -532,8 +539,9 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                           {online && <p className="text-xs text-emerald-600 dark:text-emerald-400">Online</p>}
                         </div>
                         {m.is_admin && (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                            Admin
+                          // Like WhatsApp's "Group admin"
+                          <span className="shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11.5px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" data-testid="admin-label">
+                            Group admin
                           </span>
                         )}
                         {canManage && m.user_id !== userId && (
@@ -544,9 +552,12 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="z-[300]">
-                              <DropdownMenuItem onClick={() => toggleAdmin(m)}>
-                                {m.is_admin ? <><ShieldOff className="mr-2 h-4 w-4" /> Dismiss as admin</> : <><ShieldCheck className="mr-2 h-4 w-4" /> Make group admin</>}
-                              </DropdownMenuItem>
+                              {/* Whoever made the group stays its admin */}
+                              {!(m.is_admin && m.user_id === chat.created_by) && (
+                                <DropdownMenuItem onClick={() => toggleAdmin(m)}>
+                                  {m.is_admin ? <><ShieldOff className="mr-2 h-4 w-4" /> Dismiss as admin</> : <><ShieldCheck className="mr-2 h-4 w-4" /> Make group admin</>}
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setRemoving(m)}>
                                 <UserMinus className="mr-2 h-4 w-4" /> Remove {nameOf(m).split(' ')[0]}
                               </DropdownMenuItem>
