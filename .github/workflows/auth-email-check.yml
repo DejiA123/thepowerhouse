@@ -1,0 +1,114 @@
+name: Check sign-up emails
+
+# Why aren't sign-up / sign-in emails arriving? Run by hand (Actions → Check
+# sign-up emails → Run workflow). Read-only: it changes nothing.
+#
+# Prints, through Supabase's Management API (secret SUPABASE_ACCESS_TOKEN):
+# - how Auth sends its emails (which mail server, sender, limits, whether
+#   accounts need confirming), never a password;
+# - sign-ups of the last 30 days by email provider (Yahoo, Gmail, …): counts only;
+# - the last 7 days of email errors from the Auth logs.
+# This repository's Actions logs are public, so it never prints an email
+# address: any that appear in log lines are replaced with ***@domain.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: swjzhzmhqyvwfwevijja
+    steps:
+      - name: Check the access token
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::The SUPABASE_ACCESS_TOKEN secret isn't set."
+            exit 1
+          fi
+
+      - name: How Auth sends emails
+        run: |
+          code=$(curl -sS -o /tmp/auth.json -w '%{http_code}' \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+          echo "HTTP $code"
+          jq '{
+            site_url, uri_allow_list,
+            email_sign_up_on: .external_email_enabled,
+            accounts_confirmed_without_email: .mailer_autoconfirm,
+            google_sign_in_on: .external_google_enabled,
+            own_mail_server: ((.smtp_host // "") != ""),
+            smtp_host, smtp_port, smtp_sender_name,
+            smtp_sender_domain: ((.smtp_admin_email // "") | split("@") | last),
+            smtp_password_set: ((.smtp_pass // "") != ""),
+            smtp_max_frequency_seconds: .smtp_max_frequency,
+            emails_per_hour_limit: .rate_limit_email_sent,
+            send_email_hook_on: .hook_send_email_enabled,
+            send_email_hook: .hook_send_email_uri,
+            code_length: .mailer_otp_length, code_expires_seconds: .mailer_otp_exp,
+            confirmation_subject: .mailer_subjects_confirmation,
+            confirmation_email_uses_code: ((.mailer_templates_confirmation_content // "") | test("Token")),
+            confirmation_email_uses_link: ((.mailer_templates_confirmation_content // "") | test("ConfirmationURL|TokenHash")),
+            magic_link_email_uses_code: ((.mailer_templates_magic_link_content // "") | test("Token"))
+          }' /tmp/auth.json || head -c 300 /tmp/auth.json
+
+      - name: Sign-ups of the last 30 days by provider (counts only)
+        run: |
+          cat > /tmp/q.sql <<'SQL'
+          select created_at::date as day,
+            case
+              when email ~* '@(yahoo|ymail|rocketmail)\.' then 'yahoo'
+              when email ~* '@(gmail|googlemail)\.com$' then 'gmail'
+              when email ~* '@(hotmail|outlook|live|msn)\.' then 'microsoft'
+              when email ~* '@(icloud|me|mac)\.com$' then 'apple'
+              when email is null then 'no email'
+              else 'other'
+            end as provider,
+            coalesce(raw_app_meta_data ->> 'provider', '?') as signed_up_with,
+            count(*) as accounts,
+            count(*) filter (where email_confirmed_at is not null) as confirmed,
+            count(*) filter (where confirmation_sent_at is not null) as email_sent,
+            count(*) filter (where last_sign_in_at is not null) as ever_signed_in
+          from auth.users
+          where created_at > now() - interval '30 days'
+          group by 1, 2, 3
+          order by 1 desc, 2, 3;
+          SQL
+          jq -Rs '{query: .}' < /tmp/q.sql > /tmp/body.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' \
+            --data @/tmp/body.json | jq -c '.[]?' || true
+
+      - name: Auth events of the last 14 days (counts only)
+        run: |
+          cat > /tmp/q.sql <<'SQL'
+          select created_at::date as day, payload ->> 'action' as action, count(*) as times
+          from auth.audit_log_entries
+          where created_at > now() - interval '14 days'
+          group by 1, 2
+          order by 1 desc, 3 desc;
+          SQL
+          jq -Rs '{query: .}' < /tmp/q.sql > /tmp/body.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' \
+            --data @/tmp/body.json | jq -c '.[]?' || true
+
+      - name: Email errors in the Auth logs (addresses hidden)
+        run: |
+          sql="select cast(timestamp as string) as ts, event_message from auth_logs where regexp_contains(lower(event_message), 'mail|smtp|rate limit|confirmation|otp') order by timestamp desc limit 60"
+          for back in 0 1 2 3 4 5 6; do
+            start=$(date -u -d "-$((back + 1)) day" +%Y-%m-%dT%H:%M:%SZ)
+            end=$(date -u -d "-$back day" +%Y-%m-%dT%H:%M:%SZ)
+            echo "::group::$start → $end"
+            curl -sS -G "https://api.supabase.com/v1/projects/$PROJECT_REF/analytics/endpoints/logs.all" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              --data-urlencode "sql=$sql" \
+              --data-urlencode "iso_timestamp_start=$start" \
+              --data-urlencode "iso_timestamp_end=$end" \
+              | jq -r '(.result // [])[] | "\(.ts)  \(.event_message)"' \
+              | sed -E 's/[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+)/***@\1/g' \
+              | cut -c1-600 || true
+            echo "::endgroup::"
+          done
