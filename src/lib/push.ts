@@ -318,6 +318,8 @@ type PushEvent =
   | { type: 'call-missed'; callId: string }
   | { type: 'call-invite'; callId: string; userId: string }
   | { type: 'choir-song'; table: 'weekly' | 'library'; ids: string[] }
+  /** "X added you to <group>": the server checks the sender manages the group and that they were just added */
+  | { type: 'chat-added'; chatId: string; userIds: string[] }
   | { type: 'prayer-prayed'; prayerRequestId: string }
   | { type: 'test' };
 

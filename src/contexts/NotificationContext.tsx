@@ -4,11 +4,11 @@ import { AlertCircle, CheckCircle2, Info, MessageCircle, Music2, PhoneMissed, X 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { pushNotificationService, ChatNotification } from '@/services/pushNotificationService';
-import { isChatMuted, GroupChatService } from '@/services/groupChatService';
+import { isChatMuted, GroupChatService, joinedMyself } from '@/services/groupChatService';
 import { clearNotifications, setAppBadge } from '@/lib/push';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall, isPrivateChat, previewText } from '@/components/messages/chatUtils';
-import { onBroadcast } from '@/lib/realtime';
+import { onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { CIRCLE_CHANGED, PROFILES_TOPIC, refreshCircle, watchFriendships, type CircleChange } from '@/lib/socialLive';
 
 interface NotificationContextType {
@@ -249,6 +249,37 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     window.addEventListener('chats:changed', loadMyChats);
     return () => window.removeEventListener('chats:changed', loadMyChats);
   }, [loadMyChats]);
+
+  // Added to a group (by an admin): the chat lists pick it up at once, with a banner, like
+  // WhatsApp's "You were added". Not for groups I joined or made myself.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(uniqueTopic(`added-to-chats:${user.id}`))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` }, ({ new: row }) => {
+        const chatId = (row as { chat_id?: string }).chat_id;
+        if (!chatId) return;
+        void loadMyChats();
+        window.dispatchEvent(new CustomEvent('chats:changed'));
+        // My own Join / invite link answers a moment after the row arrives: wait for it
+        setTimeout(async () => {
+          if (joinedMyself(chatId) || document.visibilityState !== 'visible') return;
+          const { data: chat } = await supabase.from('group_chats').select('name, description').eq('id', chatId).maybeSingle();
+          if (!chat || isPrivateChat(chat)) return;
+          pushBanner({
+            kind: 'chat',
+            key: `chat-added-${chatId}`,
+            title: chat.name || 'New group',
+            message: `You were added to ${chat.name || 'a group'}`,
+            url: `/group-chats?chat=${chatId}`,
+          });
+        }, 1500);
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadMyChats, pushBanner]);
 
   // Live: show a banner for new messages in my chats even without push set up
   useEffect(() => {

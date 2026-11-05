@@ -409,6 +409,45 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...result, chats: chatResult });
     }
 
+    // ── Someone added me to a group (like WhatsApp's "X added you") ──
+    if (type === 'chat-added') {
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const chatId = typeof body.chatId === 'string' ? body.chatId : '';
+      const wanted = Array.isArray(body.userIds)
+        ? body.userIds.filter((id: unknown) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id as string)).slice(0, 256)
+        : [];
+      if (!chatId || !wanted.length) return json({ error: 'Nothing to send' }, 400);
+      const { data: chat } = await supabaseAdmin.from('group_chats').select('name, description, created_by').eq('id', chatId).maybeSingle();
+      if (!chat || chat.description === PRIVATE_CHAT) return json({ error: 'Not found' }, 404);
+      // Only the group's admins (or its creator, or a church admin) add people
+      const [{ data: adminRow }, { data: churchAdmin }] = await Promise.all([
+        supabaseAdmin.from('group_admins').select('id').eq('chat_id', chatId).eq('user_id', user.id).maybeSingle(),
+        supabaseAdmin.rpc('is_admin', { _user_id: user.id }),
+      ]);
+      if (!adminRow && chat.created_by !== user.id && churchAdmin !== true) return json({ error: 'Forbidden' }, 403);
+      // Only people who really are in it now, added in the last few minutes (never a way to nag members)
+      const { data: rows } = await supabaseAdmin
+        .from('chat_participants')
+        .select('user_id, joined_at')
+        .eq('chat_id', chatId)
+        .in('user_id', wanted);
+      const recipients = ((rows ?? []) as { user_id: string; joined_at: string | null }[])
+        .filter((r) => r.user_id !== user.id && (!r.joined_at || isFresh(r.joined_at)))
+        .map((r) => r.user_id);
+      if (!recipients.length) return json({ ok: true, skipped: 'no-one-new' });
+      const actor = await displayName(user.id);
+      const result = await sendToSubscriptions(await subscriptionsForUsers(recipients), {
+        kind: 'general',
+        title: chat.name || 'Group',
+        body: `${actor} added you to ${chat.name || 'a group'}`,
+        url: `/group-chats?chat=${chatId}`,
+        tag: `chat-added-${chatId}`,
+        renotify: true,
+        data: { chatId },
+      }, { ttl: 60 * 60 * 24 * 3, urgency: 'high' });
+      return json({ ok: true, ...result });
+    }
+
     // ── Prayer Wall: someone is praying for your request ────────────
     if (type === 'prayer-prayed') {
       if (!user) return json({ error: 'Unauthorized' }, 401);
