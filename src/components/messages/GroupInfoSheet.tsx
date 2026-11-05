@@ -247,8 +247,8 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       await GroupChatService.updateGroupInfo(chat.id, { name: name.trim(), description: description.trim() });
       onChatUpdated({ name: name.trim(), description: description.trim() });
       setEditing(false);
-    } catch {
-      appAlert('Could not save changes', 'Only group admins can edit group info.', 'error');
+    } catch (e) {
+      appAlert('Could not save changes', (e as Error).message || 'Only group admins can edit group info.', 'error');
     } finally {
       setSaving(false);
     }
@@ -260,8 +260,14 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       const url = await uploadChatImage(userId, file, 'groups');
       await GroupChatService.updateGroupInfo(chat.id, { avatar_url: url });
       onChatUpdated({ avatar_url: url });
-    } catch {
-      appAlert('Could not update the group photo', '', 'error');
+      appAlert('Group photo updated', '', 'success');
+    } catch (e) {
+      const why = (e as Error)?.message || '';
+      appAlert(
+        'Could not update the group photo',
+        /admins/i.test(why) ? 'Only the group’s admins can change it.' : /decode|image|load/i.test(why) ? 'That photo couldn’t be opened. Try another one.' : 'Check your connection and try again.',
+        'error',
+      );
     } finally {
       setUploading(false);
     }
