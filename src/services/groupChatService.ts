@@ -1241,6 +1241,15 @@ export class GroupChatService {
         return Object.fromEntries(chats.map((c) => [c.id, c.unread]));
     }
 
+    /** A group's admins (its admins and whoever made it), as every member sees them */
+    static async adminIds(chatId: string): Promise<string[]> {
+        const { data, error } = await supabase.rpc('chat_admin_ids' as never, { _chat_id: chatId } as never);
+        if (!error && Array.isArray(data)) return (data as unknown[]).map((x) => (typeof x === 'string' ? x : (x as { chat_admin_ids?: string })?.chat_admin_ids ?? '')).filter(Boolean);
+        // Before the function exists: what the table shows
+        const { data: rows } = await supabase.from('group_admins').select('user_id').eq('chat_id', chatId);
+        return (rows || []).map((a: any) => a.user_id);
+    }
+
     static async getParticipants(chatId: string): Promise<(ChatParticipant & { presence?: UserPresence; is_admin?: boolean })[]> {
         const { data, error } = await supabase
             .from('chat_participants')
@@ -1251,12 +1260,12 @@ export class GroupChatService {
 
         const participants = (data || []) as any[];
         const ids = participants.map((p) => p.user_id);
-        const [{ data: presence }, { data: admins }] = await Promise.all([
+        const [{ data: presence }, adminIds] = await Promise.all([
             supabase.from('user_presence').select('*').in('user_id', ids),
-            supabase.from('group_admins').select('user_id').eq('chat_id', chatId),
+            this.adminIds(chatId),
         ]);
         const presenceMap = new Map((presence || []).map((p: any) => [p.user_id, p]));
-        const adminSet = new Set((admins || []).map((a: any) => a.user_id));
+        const adminSet = new Set(adminIds);
 
         return participants.map((p) => ({
             ...p,
