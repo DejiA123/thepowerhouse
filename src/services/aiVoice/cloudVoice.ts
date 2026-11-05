@@ -16,8 +16,10 @@ const CLOUD_VOICE: Record<string, string> = {
   F1: 'Kore', F2: 'Aoede', F3: 'Leda', F4: 'Zephyr', F5: 'Callirrhoe',
 };
 
-/** How many pieces are made at once */
+/** How many pieces are made at once (one at a time once the voice service says to slow down) */
 export const CLOUD_AHEAD = 4;
+let throttled = false;
+export const cloudAhead = () => (throttled ? 1 : CLOUD_AHEAD);
 
 /**
  * The app's own backend (the same one the rest of the app uses). Not from the
@@ -111,7 +113,18 @@ async function speak(text: string, voice: string): Promise<ArrayBuffer> {
       });
       const audio = res.ok && /audio|octet-stream/i.test(res.headers.get('Content-Type') || '');
       if (audio) return await res.arrayBuffer();
-      const retry = (res.status === 429 || res.status >= 500) && attempt < 3;
+      if (res.status === 429) {
+        const msg = await res.clone().json().then((j) => j?.error).catch(() => null);
+        throttled = true;
+        // Too many at once: wait as long as the service asks, then carry on (not when the day's allowance is used up)
+        if (msg !== 'The voice has reached its daily limit.' && attempt < 6) {
+          const wait = Math.min(30, Number(res.headers.get('Retry-After')) || 5 * attempt);
+          clearTimeout(timer);
+          await new Promise((r) => setTimeout(r, wait * 1000 + Math.random() * 800));
+          continue;
+        }
+      }
+      const retry = res.status >= 500 && attempt < 3;
       if (!retry) {
         const msg = await res.json().then((j) => j?.error).catch(() => null);
         throw new Error(msg || `The cloud voice failed (${res.status})`);

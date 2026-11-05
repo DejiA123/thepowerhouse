@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ArrowDown, ArrowLeft, Copy, Forward, Info, Loader2, Phone, PhoneCall, Pin, Star, Trash2, Video, X } from 'lucide-react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { KEYS_ARRIVED, e2eReady } from '@/lib/chatCrypto';
@@ -28,6 +29,7 @@ import type { VoiceRecording } from '@/lib/voiceRecorder';
 import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
+import { useChatPeers } from '@/lib/chatPhotos';
 import { cachedChoirLink, getChoirLink, getCurrentSetlist, getSongsAddedSince, groupSongCards, type ChoirLink, type ChoirSongRow } from '@/lib/choirChat';
 import { getPollVotes, nextVotes, setMyVotes, votesByPoll, type PollVote } from '@/lib/polls';
 import { ChoirSongCard, SetlistBanner, SetlistSheet, SongSheet, useSongPlayer, type SongView } from './ChoirChat';
@@ -124,6 +126,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [setlistOpen, setSetlistOpen] = useState(false);
   const [songView, setSongView] = useState<SongView>(null);
   const playSong = useSongPlayer(setSongView);
+  const peerOf = useChatPeers(me.id, isPrivateChat(chat) ? [chat.id] : []);
   // Polls: everyone's votes in this chat
   const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
   const [newPoll, setNewPoll] = useState(false);
@@ -293,7 +296,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     GroupChatService.mySettings(chat.id).then(setSettings).catch(() => undefined);
     if (!isPrivateChat(chat)) {
       GroupChatService.getParticipants(chat.id)
-        .then((list) => setMentionables(list.filter((p) => p.user_id !== me.id && p.user?.full_name).map((p) => ({ id: p.user_id, name: p.user!.full_name!.trim(), avatar: p.user?.avatar_url ?? null }))))
+        .then((list) => setMentionables(list
+          .filter((p) => p.user_id !== me.id && (p.user?.full_name?.trim() || p.user?.email))
+          .map((p) => ({ id: p.user_id, name: p.user?.full_name?.trim() || p.user!.email!.split('@')[0], avatar: p.user?.avatar_url ?? null }))))
         .catch(() => undefined);
     }
     // Only when the chat changes
@@ -927,9 +932,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   // ── Reply, forward, star, pin, delete for me, go to a message ───────
   const startReply = useCallback((message: ChatMessage) => {
-    setActionsFor(null);
-    setEditing(null);
-    setReplyTo(message);
+    // Like WhatsApp, straight into the message box with the keyboard up. iPhone only opens
+    // the keyboard when the box is focused during the tap/swipe itself, so the menu closes
+    // (and lets go of focus) right now, and the box is focused here, not a moment later.
+    flushSync(() => {
+      setActionsFor(null);
+      setEditing(null);
+      setReplyTo(message);
+    });
+    rootRef.current?.querySelector<HTMLTextAreaElement>('[data-composer-input]')?.focus({ preventScroll: true });
   }, []);
 
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
@@ -1089,6 +1100,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   const title = chatTitle(chat, me.name);
   const privateChat = isPrivateChat(chat);
+  // One-to-one: the other person's profile photo, like WhatsApp
+  const chatPhoto = privateChat ? peerOf(chat.id)?.avatar ?? chat.avatar_url : chat.avatar_url;
   const subtitle = typingNames.length
     ? `${typingNames.slice(0, 2).join(', ')}${typingNames.length > 2 ? ' and others' : ''} ${typingNames.length === 1 ? 'is' : 'are'} typing…`
     : privateChat
@@ -1275,7 +1288,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
           <ArrowLeft className="h-5 w-5" />
         </button>
         <button onClick={() => setInfoOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left hover:bg-muted/60">
-          <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-10 w-10" />
+          <UserAvatar name={title} src={chatPhoto} seed={chat.id} className="h-10 w-10" />
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight text-foreground">{title}</p>
             {subtitle && (
@@ -1392,7 +1405,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
               </div>
             ) : messages.length === 0 && songCards.length === 0 ? (
               <div className="mx-auto my-10 flex max-w-sm flex-col items-center rounded-3xl bg-background/90 px-6 py-8 text-center shadow-sm">
-                <UserAvatar name={title} src={chat.avatar_url} seed={chat.id} className="h-20 w-20 text-2xl" />
+                <UserAvatar name={title} src={chatPhoto} seed={chat.id} className="h-20 w-20 text-2xl" />
                 <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {title} 👋</p>
                 <p className="mt-1 max-w-xs text-sm text-muted-foreground">
                   {privateChat

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2, ShieldCheck, ShieldOff, UserMinus } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -214,7 +214,9 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isCreator = chat.created_by === userId || chat.created_by_user === userId;
-  const canManage = isAdmin || isCreator;
+  // A church admin (or anyone the database says may hand out the link) manages too
+  const canManage = isAdmin || isCreator || canInvite;
+  const [removing, setRemoving] = useState<Member | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -283,12 +285,26 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     }
   };
 
+  const nameOf = (m: Member) => m.user?.full_name || m.user?.email?.split('@')[0] || 'this member';
   const removeMember = async (member: Member) => {
+    setRemoving(null);
     try {
       await GroupChatService.removeMember(chat.id, member.user_id);
       setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id));
-    } catch {
-      appAlert('Could not remove member', '', 'error');
+      appAlert(`${nameOf(member)} was removed`);
+    } catch (e) {
+      appAlert('Could not remove them', (e as Error).message || 'Please try again.', 'error');
+    }
+  };
+  const toggleAdmin = async (member: Member) => {
+    const admin = !member.is_admin;
+    setMembers((prev) => prev.map((m) => (m.user_id === member.user_id ? { ...m, is_admin: admin } : m)));
+    try {
+      await GroupChatService.setAdmin(chat.id, member.user_id, admin);
+      appAlert(admin ? `${nameOf(member)} is now a group admin` : `${nameOf(member)} is no longer an admin`);
+    } catch (e) {
+      setMembers((prev) => prev.map((m) => (m.user_id === member.user_id ? { ...m, is_admin: !admin } : m)));
+      appAlert(admin ? 'Could not make them an admin' : 'Could not dismiss them as admin', (e as Error).message || 'Please try again.', 'error');
     }
   };
 
@@ -527,9 +543,12 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                                 <MoreVertical className="h-4 w-4" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="z-[80]">
-                              <DropdownMenuItem className="text-red-600" onClick={() => removeMember(m)}>
-                                Remove from group
+                            <DropdownMenuContent align="end" className="z-[300]">
+                              <DropdownMenuItem onClick={() => toggleAdmin(m)}>
+                                {m.is_admin ? <><ShieldOff className="mr-2 h-4 w-4" /> Dismiss as admin</> : <><ShieldCheck className="mr-2 h-4 w-4" /> Make group admin</>}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => setRemoving(m)}>
+                                <UserMinus className="mr-2 h-4 w-4" /> Remove {nameOf(m).split(' ')[0]}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -564,6 +583,21 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
 
       <InviteLinkSheet chatId={chat.id} chatName={chat.name} open={inviteOpen} onOpenChange={setInviteOpen} />
       <ChoirPickerSheet open={choirOpen} onOpenChange={setChoirOpen} chatId={chat.id} current={choir} canChange={canInvite} />
+      <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing ? nameOf(removing) : ''} from “{chat.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>They’ll stop getting this group’s messages and won’t be able to read new ones.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="rounded-full bg-red-600 hover:bg-red-700" onClick={() => removing && removeMember(removing)}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>

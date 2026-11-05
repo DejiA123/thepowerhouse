@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useKeyboardSafeHeight } from "@/hooks/useKeyboardSafeHeight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AcademyDashboard } from "@/components/choir/AcademyDashboard";
@@ -1721,6 +1722,8 @@ const ChoirPage = () => {
 
     // UI States for Import Setlist
     const [isImportOpen, setIsImportOpen] = useState(false);
+    const importDialogRef = useRef<HTMLDivElement>(null);
+    useKeyboardSafeHeight(importDialogRef, isImportOpen);
     const [importText, setImportText] = useState("");
     const [importSetType, setImportSetType] = useState<'praise' | 'worship' | 'learning' | 'special' | 'hymns' | null>(null);
 
@@ -4540,6 +4543,7 @@ const ChoirPage = () => {
             {/* Import Setlist Dialog */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogContent
+                    ref={importDialogRef}
                     onOpenAutoFocus={(e) => e.preventDefault()}
                     className="w-full h-full max-w-none m-0 rounded-none flex flex-col p-0 bg-white dark:bg-slate-900 overflow-hidden [&>button]:!top-[calc(1.5rem+env(safe-area-inset-top,0px))] [&>button]:!right-6"
                 >
@@ -4553,25 +4557,26 @@ const ChoirPage = () => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto py-6 px-4 md:px-20 max-w-4xl mx-auto w-full">
-                        <div className="space-y-4">
+                    {/* The box takes the space there is: with the iPhone keyboard up, the window ends above it (no page jump) */}
+                    <div className="flex min-h-0 flex-1 flex-col py-4 px-4 md:px-20 max-w-4xl mx-auto w-full">
+                        <div className="flex min-h-0 flex-1 flex-col gap-3">
                             <p className="text-slate-500 dark:text-slate-400 font-medium">
                                 Paste a list of songs from your notes app (one song per line). We'll try to find matches in your library.
                             </p>
                             <Textarea
                                 placeholder="Way Maker&#10;Goodness of God&#10;Agnes Dei"
-                                className="min-h-[400px] font-mono text-base p-4 rounded-2xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm"
+                                className="min-h-[7rem] flex-1 resize-none font-mono text-base p-4 rounded-2xl border-purple-100 dark:border-purple-800/50 focus-visible:ring-purple-500 text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm"
                                 value={importText}
                                 onChange={(e) => setImportText(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="p-6 md:px-20 border-t border-slate-100 dark:border-slate-800 max-w-4xl mx-auto w-full">
-                        <div className="flex flex-col sm:flex-row gap-4 pb-4">
+                    <div className="px-6 pt-3 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.75rem)] md:px-20 border-t border-slate-100 dark:border-slate-800 max-w-4xl mx-auto w-full">
+                        <div className="flex flex-row gap-3">
                             <Button
                                 onClick={handleImportSetlist}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-6 text-lg font-bold shadow-lg shadow-blue-500/20"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 text-[17px] font-bold shadow-lg shadow-blue-500/20"
                                 disabled={!notesLines(importText).length}
                             >
                                 Import {notesLines(importText).length} {notesLines(importText).length === 1 ? 'Song' : 'Songs'}
@@ -4579,7 +4584,7 @@ const ChoirPage = () => {
                             <Button
                                 variant="outline"
                                 onClick={() => setIsImportOpen(false)}
-                                className="rounded-xl py-6 text-lg font-bold border-slate-200 dark:border-slate-700 h-auto"
+                                className="rounded-xl h-12 px-5 text-[17px] font-bold border-slate-200 dark:border-slate-700"
                             >
                                 Cancel
                             </Button>

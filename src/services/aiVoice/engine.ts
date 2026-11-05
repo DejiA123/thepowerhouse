@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { AI_VOICES, DEFAULT_VOICE } from './voices';
-import { CLOUD_AHEAD, cloudDrop, cloudEnd, cloudPrefetch, cloudSynth } from './cloudVoice';
+import { cloudAhead, cloudDrop, cloudEnd, cloudPrefetch, cloudSynth } from './cloudVoice';
 
 const VOICE_KEY = 'ai_voice_id';
 const CHANGE = 'ai-voice:changed';
@@ -53,7 +53,7 @@ class VoiceEngine {
 
   /** How many pieces are made at once */
   get piecesAhead() {
-    return CLOUD_AHEAD;
+    return cloudAhead();
   }
 
   /** Starts making a later piece of the chapter now. */

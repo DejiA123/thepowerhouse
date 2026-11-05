@@ -7,6 +7,7 @@ import UserAvatar, { nameColor } from '@/components/common/UserAvatar';
 import { senderAvatar, senderName, type ChatMessage } from '@/services/groupChatService';
 import { describeCall, formatClock, isEmojiOnly, linkify, parseCall, parseFile, parseMessageContent, parsePoll, parsePreview, parseVoice } from './chatUtils';
 import { PollCard } from './PollCard';
+import { renderFormatted } from './whatsappFormat';
 import type { PollVote } from '@/lib/polls';
 import { FileCard, PreviewCard, VoicePlayer, withMentionSpans } from './MessageExtras';
 
@@ -441,10 +442,10 @@ const MessageBubble = ({
             {file && !text && <div className="flex justify-end pt-1">{meta}</div>}
             {!call && !voice && !poll && (text || (!media && !file)) && (
               <div className={cn('whitespace-pre-wrap break-words [word-break:break-word] [overflow-wrap:anywhere]', (media || file) && 'px-2.5 pb-1.5 pt-1.5', file && 'px-1', message.locked && 'italic opacity-80')}>
-                {linkify(text).map((part, i) =>
+                {renderFormatted(text, (stretch, key) => linkify(stretch).map((part, i) =>
                   part.type === 'link' ? (
                     <a
-                      key={i}
+                      key={`${key}.${i}`}
                       href={part.value}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -454,9 +455,9 @@ const MessageBubble = ({
                       {part.value}
                     </a>
                   ) : (
-                    <span key={i}>{withMentionSpans(part.value, myId, isOwn, i)}</span>
+                    <span key={`${key}.${i}`}>{withMentionSpans(part.value, myId, isOwn, i)}</span>
                   ),
-                )}
+                ), isOwn)}
                 {meta}
               </div>
             )}

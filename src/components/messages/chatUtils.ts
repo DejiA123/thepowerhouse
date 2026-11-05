@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { plainFormatting } from './whatsappFormat';
 import { encryptFile, encryptedFileType, isEncryptedFile } from '@/lib/chatCrypto';
 
 /** A chat between two friends (made from Social Circle), named "A & B". */
@@ -117,6 +118,15 @@ export function parsePoll(content: string): Poll | null {
 
 /** "@[Name](user id)": someone mentioned in a group */
 export const MENTION = /@\[([^\]\n]{1,80})\]\(([0-9a-f-]{36})\)/g;
+/** "@all" / "@everyone": the whole group, like WhatsApp */
+export const MENTION_ALL = /(^|[\s([{"'])@(all|everyone)(?![\w])/i;
+
+/** Who a message mentions: member ids, or ['all'] for the whole group (for notifications) */
+export function mentionsIn(text: string): string[] {
+  if (MENTION_ALL.test(text)) return ['all'];
+  return [...new Set([...text.matchAll(MENTION)].map((m) => m[2]))].slice(0, 50);
+}
+
 /** The text with mentions as plain "@Name" (lists, notifications, editing) */
 export const plainMentions = (text: string) => text.replace(MENTION, '@$1');
 
@@ -199,11 +209,12 @@ export const previewText = (content: string, mine = false) => {
   const poll = parsePoll(content || '');
   if (poll) return `📊 Poll: ${poll.question.replace(/\s+/g, ' ').trim()}`;
   const file = parseFile(content || '');
-  if (file) return file.caption ? `📄 ${plainMentions(file.caption)}` : `📄 ${file.name}`;
+  if (file) return file.caption ? `📄 ${plainFormatting(plainMentions(file.caption))}` : `📄 ${file.name}`;
   const { imageUrl, videoUrl, text } = parseMessageContent(content || '');
   const label = videoUrl ? '🎥 Video' : imageUrl ? (isGifUrl(imageUrl) ? '🎞️ GIF' : '📷 Photo') : null;
-  if (label) return text ? `${label.split(' ')[0]} ${plainMentions(text)}` : label;
-  return plainMentions(text).replace(/\s+/g, ' ').trim();
+  if (label) return text ? `${label.split(' ')[0]} ${plainFormatting(plainMentions(text))}` : label;
+  // Like WhatsApp: no *bold* or _italic_ marks in lists and notifications
+  return plainFormatting(plainMentions(text)).replace(/\s+/g, ' ').trim();
 };
 
 /** A database time in ms (it writes microseconds, which not every Safari reads) */

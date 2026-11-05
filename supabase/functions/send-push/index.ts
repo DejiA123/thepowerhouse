@@ -38,7 +38,15 @@ async function displayName(userId: string, fallback = 'Someone') {
   return data?.full_name?.trim() || data?.email?.split('@')[0] || fallback;
 }
 
-async function chatRecipients(chatId: string, excludeUserId: string, opts: { skipMuted?: boolean } = {}) {
+/** Who the sender says a message mentions (ids, or ['all']) */
+function mentionOpts(raw: unknown): { mentioned?: Set<string>; everyone?: boolean } {
+  if (!Array.isArray(raw)) return {};
+  if (raw.includes('all')) return { everyone: true };
+  const ids = raw.filter((x): x is string => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 50);
+  return ids.length ? { mentioned: new Set(ids) } : {};
+}
+
+async function chatRecipients(chatId: string, excludeUserId: string, opts: { skipMuted?: boolean; mentioned?: Set<string>; everyone?: boolean } = {}) {
   const { data: participants } = await supabaseAdmin
     .from('chat_participants')
     .select('*')
@@ -47,7 +55,8 @@ async function chatRecipients(chatId: string, excludeUserId: string, opts: { ski
   const ids = (participants ?? [])
     .filter((p: any) => p.user_id !== excludeUserId)
     // A chat someone muted stays quiet for messages (calls still ring, like WhatsApp)
-    .filter((p: any) => !opts.skipMuted || !p.muted_until || new Date(p.muted_until).getTime() <= now)
+    // …unless it mentions them (or @all), like WhatsApp
+    .filter((p: any) => !opts.skipMuted || !p.muted_until || new Date(p.muted_until).getTime() <= now || opts.everyone || opts.mentioned?.has(p.user_id))
     .map((p: any) => p.user_id as string);
   if (ids.length === 0) return [];
 
@@ -100,7 +109,7 @@ Deno.serve(async (req) => {
       const [{ data: chat }, sender, recipients] = await Promise.all([
         supabaseAdmin.from('group_chats').select('name, description').eq('id', message.chat_id).maybeSingle(),
         displayName(user.id),
-        chatRecipients(message.chat_id, user.id, { skipMuted: true }),
+        chatRecipients(message.chat_id, user.id, { skipMuted: true, ...mentionOpts(body.mentions) }),
       ]);
       const isPrivate = chat?.description === PRIVATE_CHAT;
       const chatName = isPrivate ? sender : chat?.name ?? 'Group chat';

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { readCachedMessages, writeCachedMessages } from '@/lib/chatCache';
 import { GroupChatService, senderName, type ChatMessage } from '@/services/groupChatService';
 import { formatClock, formatDayLabel, parseMessageContent, plainMentions, previewText } from './chatUtils';
+import { plainFormatting } from './whatsappFormat';
 
 export interface PeekTarget {
   chatId: string;
@@ -139,7 +140,7 @@ const ChatPeek = ({ target, onClose, onOpen }: { target: PeekTarget | null; onCl
                               {mine ? 'You deleted this message.' : 'This message was deleted.'}
                             </span>
                           ) : (
-                            <span className="whitespace-pre-wrap">{plain ? plainMentions(text) : previewText(m.content, mine)}</span>
+                            <span className="whitespace-pre-wrap">{plain ? plainFormatting(plainMentions(text)) : previewText(m.content, mine)}</span>
                           )}
                           <span className={cn('ml-2 whitespace-nowrap align-bottom text-[10.5px]', mine ? 'text-white/75' : 'text-muted-foreground')}>
                             {formatClock(m.created_at)}

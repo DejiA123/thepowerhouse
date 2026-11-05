@@ -3,7 +3,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push";
 import { dropCachedMessages, peekCachedMessages, readCachedMessages, writeCachedMessages } from "@/lib/chatCache";
 import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
-import { previewText } from "@/components/messages/chatUtils";
+import { mentionsIn, previewText } from "@/components/messages/chatUtils";
 import { WAITING_TEXT, decryptMessage, e2eReady, encryptMany, encryptMessage, isEncrypted, membersChanged, shareKeys } from "@/lib/chatCrypto";
 
 export interface GroupChat {
@@ -28,6 +28,8 @@ export interface ChatSummary extends GroupChat {
     muted_until?: string | null;
     /** Archived by me */
     archived_at?: string | null;
+    /** Pinned to the top of my list (when) */
+    pinned_at?: string | null;
     /** I marked it unread (nothing new in it): shows a dot until I open it */
     marked_unread?: boolean;
 }
@@ -61,6 +63,32 @@ function noteCleared(userId: string, chatId: string, serverIso?: string | null) 
 }
 /** "After the clear" as a time to compare with: a millisecond on, so the last cleared message (microseconds) stays hidden */
 const afterClear = (ms: number) => new Date(ms + 1).toISOString();
+
+/** Pinned chats (like WhatsApp, up to 3): the database's value, or the phone's own copy before it has the column */
+export const MAX_PINNED = 3;
+const pinKey = (userId: string, chatId: string) => `chat_pinned_${userId}_${chatId}`;
+function pinnedAt(userId: string, chatId: string, server: string | null | undefined): string | null {
+    try {
+        if (server !== undefined) {
+            if (server) localStorage.setItem(pinKey(userId, chatId), server);
+            else localStorage.removeItem(pinKey(userId, chatId));
+            return server;
+        }
+        return localStorage.getItem(pinKey(userId, chatId));
+    } catch {
+        return server ?? null;
+    }
+}
+
+/** My chat list's order: pinned first (latest pinned on top), then the latest message first */
+export function sortChats<T extends { pinned_at?: string | null; last_message?: { created_at: string } | null; created_at?: string }>(chats: T[]): T[] {
+    const t = (iso?: string | null) => (iso ? Date.parse(iso.replace(/(\.\d{3})\d+/, '$1')) || 0 : 0);
+    return [...chats].sort((a, b) => {
+        if (!!a.pinned_at !== !!b.pinned_at) return a.pinned_at ? -1 : 1;
+        if (a.pinned_at && b.pinned_at) return t(b.pinned_at) - t(a.pinned_at);
+        return t(b.last_message?.created_at || b.created_at) - t(a.last_message?.created_at || a.created_at);
+    });
+}
 
 /** "Mark as unread" (like WhatsApp): kept on the phone too, so it works before the database has the column */
 const unreadMarkKey = (userId: string, chatId: string) => `chat_marked_unread_${userId}_${chatId}`;
@@ -404,6 +432,7 @@ export class GroupChatService {
                 muted_until: m.muted_until ?? null,
                 archived_at: m.archived_at ?? null,
                 marked_unread: marked,
+                pinned_at: pinnedAt(user.id, m.chat_id, m.pinned_at),
                 unread: count || (marked ? 1 : 0),
                 last_message: last
                     ? {
@@ -416,11 +445,7 @@ export class GroupChatService {
             } as ChatSummary;
         }));
 
-        return summaries.sort((a, b) => {
-            const ta = new Date(a.last_message?.created_at || a.created_at || 0).getTime();
-            const tb = new Date(b.last_message?.created_at || b.created_at || 0).getTime();
-            return tb - ta;
-        });
+        return sortChats(summaries);
     }
 
     /** Community groups anyone can join that I'm not in yet. */
@@ -521,12 +546,9 @@ export class GroupChatService {
     }
 
     static async removeMember(chatId: string, userId: string): Promise<void> {
-        const { error } = await supabase
-            .from('chat_participants')
-            .delete()
-            .eq('chat_id', chatId)
-            .eq('user_id', userId);
-        if (error) throw error;
+        // The group's admins (checked by the database: its own rules only let people remove themselves)
+        const { error } = await supabase.rpc('remove_chat_member' as never, { _chat_id: chatId, _user_id: userId } as never);
+        if (error) throw new Error(error.message);
         // The next message uses a new key the person who left doesn't get
         membersChanged(chatId);
     }
@@ -618,6 +640,29 @@ export class GroupChatService {
         window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
     }
 
+    /** Pin a chat to the top of my list (or unpin it). False when 3 are pinned already. */
+    static async setPinned(chatId: string, on: boolean, pinnedCount = 0): Promise<boolean> {
+        const user = await currentUser();
+        if (!user) throw new Error('Not signed in');
+        if (on && pinnedCount >= MAX_PINNED) return false;
+        const at = on ? new Date().toISOString() : null;
+        try {
+            if (at) localStorage.setItem(pinKey(user.id, chatId), at);
+            else localStorage.removeItem(pinKey(user.id, chatId));
+        } catch {
+            /* private window: the database still has it */
+        }
+        const { error } = await supabase
+            .from('chat_participants')
+            .update({ pinned_at: at } as never)
+            .eq('chat_id', chatId)
+            .eq('user_id', user.id);
+        // Before the update the phone's own copy does it
+        if (error && !isMissingColumn(error)) throw error;
+        window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+        return true;
+    }
+
     static async setArchived(chatId: string, archived: boolean): Promise<void> {
         const user = await currentUser();
         if (!user) throw new Error('Not signed in');
@@ -628,6 +673,12 @@ export class GroupChatService {
             .eq('user_id', user.id);
         if (error) throw error;
         window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+    }
+
+    /** Make a member a group admin, or dismiss them as admin (the group's admins only) */
+    static async setAdmin(chatId: string, userId: string, admin: boolean): Promise<void> {
+        const { error } = await supabase.rpc('set_chat_admin' as never, { _chat_id: chatId, _user_id: userId, _admin: admin } as never);
+        if (error) throw new Error(error.message);
     }
 
     static async isAdmin(chatId: string): Promise<boolean> {
@@ -760,13 +811,15 @@ export class GroupChatService {
         if (extra.forwarded) emitLocal(signalsTopic(chatId), 'signal', { type: 'new-message', from: user.id, payload: saved });
         // This phone knows what it says
         const message: ChatMessage = { ...saved, content: text, encrypted };
+        // Who it mentions (ids only, never the text): they're notified even if they muted the group
+        const mentions = mentionsIn(text);
         if (encrypted) {
             // The notification's line ("📷 Photo", the text…), encrypted with the same key, so
             // the other phones can show what it says however long the message is
             void notificationPreview(user.id, chatId, text)
-                .then((e2ePreview) => sendPush({ type: 'chat-message', messageId: message.id, ...(e2ePreview && { e2ePreview }) }));
+                .then((e2ePreview) => sendPush({ type: 'chat-message', messageId: message.id, ...(e2ePreview && { e2ePreview }), ...(mentions.length && { mentions }) }));
         } else {
-            sendPush({ type: 'chat-message', messageId: message.id });
+            sendPush({ type: 'chat-message', messageId: message.id, ...(mentions.length && { mentions }) });
         }
         return message;
     }
