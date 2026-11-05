@@ -46,7 +46,25 @@ const ACTIONS: Record<string, { label: string; icon: LucideIcon }> = {
   notification_opened: { label: 'Opened from a notification', icon: Bell },
 };
 
-const n = (v: number) => v.toLocaleString();
+/** Whatever the server sends, a complete Usage: missing lists are empty, missing numbers 0 */
+const LISTS = ['areas', 'actions', 'chapters_read', 'chapters_heard', 'books', 'translations', 'videos', 'chats', 'choir', 'devices', 'by_day'] as const;
+function complete(raw: unknown): Usage | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const out = {
+    since: typeof r.since === 'string' ? r.since : '',
+    members: num(r.members),
+    visitors: num(r.visitors),
+    opens: num(r.opens),
+    minutes: num(r.minutes),
+    hours: Array.isArray(r.hours) && r.hours.length === 24 ? r.hours.map(num) : null,
+  } as Usage;
+  for (const k of LISTS) (out as unknown as Record<string, unknown>)[k] = Array.isArray(r[k]) ? r[k] : [];
+  return out;
+}
+
+const n = (v: number) => (Number.isFinite(v) ? v : 0).toLocaleString();
 const people = (v: number) => `${n(v)} ${v === 1 ? 'person' : 'people'}`;
 const choirName = (id: string) => (id === 'national' ? church.labels.nationalChoir : `${id.charAt(0).toUpperCase()}${id.slice(1)} choir`);
 /** The phone's own clock: "7 PM" or "19:00" */
@@ -162,9 +180,12 @@ const AdminUsage = () => {
     () =>
       supabase.rpc('admin_usage' as never, { days, tz: church.locale.timeZone || 'UTC' } as never).then(({ data, error }) => {
         if (notSetUp(error)) setMissing(true);
-        else if (data) {
-          setData(data as unknown as Usage);
-          setLoadedFor(days);
+        else if (!error) {
+          const usage = complete(data);
+          if (usage) {
+            setData(usage);
+            setLoadedFor(days);
+          }
         }
       }),
     [days],
