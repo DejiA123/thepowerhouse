@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { appAlert } from '@/lib/appAlert';
 import { CHAT_SETTINGS_CHANGED, GroupChatService, MAX_PINNED, sortChats } from '@/services/groupChatService';
 import SwipeRow from '@/components/common/SwipeRow';
@@ -34,8 +34,37 @@ interface Props {
 type Filter = 'all' | 'unread';
 
 const ChatList = ({
-  chats, discover, selectedId, loading, myId, myName, ongoingCalls, joiningId, onSelect, onJoin, onNewGroup, onBack,
+  chats: serverChats, discover, selectedId, loading, myId, myName, ongoingCalls, joiningId, onSelect, onJoin, onNewGroup, onBack,
 }: Props) => {
+  // Pin, unread and archive change on screen the moment they're tapped (like WhatsApp);
+  // the list from the server catches up behind them
+  const [overrides, setOverrides] = useState<Record<string, Partial<ChatSummary>>>({});
+  const chats = useMemo(
+    () => (Object.keys(overrides).length ? serverChats.map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c)) : serverChats),
+    [serverChats, overrides],
+  );
+  // Once the server's list says the same, the override isn't needed
+  useEffect(() => {
+    setOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [id, patch] of Object.entries(prev)) {
+        const c = serverChats.find((x) => x.id === id);
+        if (!c || Object.entries(patch).every(([k, v]) => !!(c as unknown as Record<string, unknown>)[k] === !!v)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [serverChats]);
+  const override = (id: string, patch: Partial<ChatSummary> | null) =>
+    setOverrides((prev) => {
+      const next = { ...prev };
+      if (patch) next[id] = { ...prev[id], ...patch };
+      else delete next[id];
+      return next;
+    });
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   // Archived chats sit in their own list (like WhatsApp's "Archived")
@@ -54,23 +83,38 @@ const ChatList = ({
   const [moreFor, setMoreFor] = useState<ChatSummary | null>(null);
   const pinnedCount = chats.filter((c) => !!c.pinned_at).length;
   const togglePinned = async (chat: ChatSummary) => {
+    const pin = !chat.pinned_at;
+    if (pin && pinnedCount >= MAX_PINNED) {
+      appAlert(`You can only pin up to ${MAX_PINNED} chats`, 'Unpin one first.', 'info');
+      return;
+    }
+    override(chat.id, { pinned_at: pin ? new Date().toISOString() : null });
     try {
-      const ok = await GroupChatService.setPinned(chat.id, !chat.pinned_at, chat.pinned_at ? 0 : pinnedCount);
-      if (!ok) appAlert(`You can only pin up to ${MAX_PINNED} chats`, 'Unpin one first.', 'info');
+      await GroupChatService.setPinned(chat.id, pin);
     } catch {
-      appAlert(chat.pinned_at ? "Couldn't unpin the chat" : "Couldn't pin the chat", 'Check your connection and try again.', 'error');
+      override(chat.id, null);
+      appAlert(pin ? "Couldn't pin the chat" : "Couldn't unpin the chat", 'Check your connection and try again.', 'error');
     }
   };
   const toggleRead = async (chat: ChatSummary) => {
-    if (chat.unread > 0) await GroupChatService.markAsRead(chat.id).catch(() => undefined);
-    else await GroupChatService.setMarkedUnread(chat.id, true).catch(() => undefined);
-    window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId: chat.id } }));
+    const read = chat.unread > 0;
+    override(chat.id, read ? { unread: 0, marked_unread: false } : { unread: 1, marked_unread: true });
+    try {
+      if (read) await GroupChatService.markAsRead(chat.id);
+      else await GroupChatService.setMarkedUnread(chat.id, true);
+      window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId: chat.id } }));
+    } catch {
+      override(chat.id, null);
+    }
   };
   const toggleArchived = async (chat: ChatSummary) => {
+    const archive = !chat.archived_at;
+    override(chat.id, { archived_at: archive ? new Date().toISOString() : null });
+    appAlert(archive ? 'Chat archived' : 'Chat unarchived');
     try {
-      await GroupChatService.setArchived(chat.id, !chat.archived_at);
-      appAlert(chat.archived_at ? 'Chat unarchived' : 'Chat archived');
+      await GroupChatService.setArchived(chat.id, archive);
     } catch {
+      override(chat.id, null);
       appAlert("Couldn't change it", 'Check your connection and try again.', 'error');
     }
   };
