@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2, ShieldCheck, ShieldOff, UserMinus } from 'lucide-react';
+import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2, ShieldCheck, ShieldOff, UserMinus, Globe, Check } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -216,6 +216,23 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   // A church admin (or anyone the database says may hand out the link) manages too
   const canManage = isAdmin || isCreator || canInvite;
   const [removing, setRemoving] = useState<Member | null>(null);
+  // Private (added or with the link) or community (anyone in the church can join)
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [privateOverride, setPrivateOverride] = useState<boolean | null>(null);
+  const isPrivateGroup = privateOverride ?? (chat.is_private ?? !!chat.is_custom);
+  const setPrivacy = async (next: boolean) => {
+    setPrivacyOpen(false);
+    if (next === isPrivateGroup) return;
+    setPrivateOverride(next);
+    try {
+      await GroupChatService.setPrivate(chat.id, next);
+      onChatUpdated({ is_private: next });
+      appAlert(next ? 'The group is now private' : 'The group is now a community group', next ? 'Only people you add or who have the invite link can join.' : 'Anyone in the church can find it under Community groups and join.', 'success');
+    } catch (e) {
+      setPrivateOverride(null);
+      appAlert("Couldn't change who can join", (e as Error).message || 'Please try again.', 'error');
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -480,6 +497,24 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
+              {/* Who can join: private (added or the link) or community (anyone in the church) */}
+              {!editing && (
+                <button
+                  onClick={() => canManage && setPrivacyOpen(true)}
+                  disabled={!canManage}
+                  className="mt-2 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted disabled:hover:bg-muted/60"
+                  data-testid="group-privacy"
+                >
+                  {isPrivateGroup ? <Lock className="h-5 w-5 text-muted-foreground" /> : <Globe className="h-5 w-5 text-muted-foreground" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium text-foreground">{isPrivateGroup ? 'Private group' : 'Community group'}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {isPrivateGroup ? 'Only people added or with the invite link can join' : 'Anyone in the church can find and join it'}
+                    </span>
+                  </span>
+                  {canManage && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </button>
+              )}
               {!editing && choirLocations().length > 0 && (canInvite || choir) && (
                 <button onClick={() => setChoirOpen(true)} className="mt-2 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
                   <Music2 className="h-5 w-5 text-muted-foreground" />
@@ -585,6 +620,33 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       </Sheet>
 
       <InviteLinkSheet chatId={chat.id} chatName={chat.name} open={inviteOpen} onOpenChange={setInviteOpen} />
+      <Sheet open={privacyOpen} onOpenChange={setPrivacyOpen}>
+        <SheetContent side={isMobile ? 'bottom' : 'right'} className="flex max-h-[92dvh] w-full flex-col gap-0 overflow-hidden rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none">
+          <div className="border-b border-border/60 px-5 py-4">
+            <SheetTitle className="text-[17px] font-semibold">Who can join {chat.name}?</SheetTitle>
+          </div>
+          <div className="space-y-2 px-3 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1rem)] pt-3">
+            {[
+              { value: true, icon: Lock, title: 'Private', detail: 'Only people the admins add, or who have the invite link. It isn’t listed for others.' },
+              { value: false, icon: Globe, title: 'Community', detail: 'Listed under Community groups: anyone in the church can find it and join.' },
+            ].map((o) => (
+              <button
+                key={o.title}
+                onClick={() => setPrivacy(o.value)}
+                className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${isPrivateGroup === o.value ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-border hover:bg-muted'}`}
+                aria-pressed={isPrivateGroup === o.value}
+              >
+                <o.icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15.5px] font-semibold text-foreground">{o.title}</span>
+                  <span className="block text-[13px] leading-snug text-muted-foreground">{o.detail}</span>
+                </span>
+                {isPrivateGroup === o.value && <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />}
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
       <AddMembersSheet
         open={adding}
         onOpenChange={setAdding}
