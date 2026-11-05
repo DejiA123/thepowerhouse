@@ -37,7 +37,9 @@ interface Props {
 }
 
 const UserAvatar = ({ name, src, seed, className, online }: Props) => {
-  const [failed, setFailed] = useState(false);
+  // Which picture failed to load (a new picture gets a fresh try)
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = !!src && failedSrc === src;
   const color = PALETTE[hash(seed || name || '?') % PALETTE.length];
 
   return (
@@ -47,7 +49,7 @@ const UserAvatar = ({ name, src, seed, className, online }: Props) => {
           src={src}
           alt=""
           loading="lazy"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src)}
           className="h-full w-full rounded-full object-cover"
         />
       ) : (

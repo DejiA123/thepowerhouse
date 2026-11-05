@@ -523,8 +523,21 @@ export class GroupChatService {
     }
 
     static async updateGroupInfo(chatId: string, updates: { name?: string; description?: string; avatar_url?: string | null }): Promise<void> {
-        const { error } = await supabase.from('group_chats').update(updates).eq('id', chatId);
-        if (error) throw error;
+        // The group's admins (checked by the database: a plain update only worked for whoever
+        // the table's own rules allow, and others got no error but no change)
+        const { error } = await supabase.rpc('update_chat_info' as never, {
+            _chat_id: chatId,
+            _name: updates.name ?? null,
+            _description: updates.description ?? null,
+            _avatar_url: updates.avatar_url === undefined ? null : updates.avatar_url ?? '',
+        } as never);
+        if (error) {
+            // Before the function exists: the old way, but say so when nothing changed
+            if (!/function|schema cache|does not exist/i.test(error.message)) throw new Error(error.message);
+            const { data, error: updateError } = await supabase.from('group_chats').update(updates).eq('id', chatId).select('id');
+            if (updateError) throw updateError;
+            if (!data?.length) throw new Error("Only the group's admins can change its info");
+        }
         chatsChanged();
     }
 
