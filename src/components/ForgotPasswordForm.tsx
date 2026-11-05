@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Mail, KeyRound, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { alertToast as toast } from "@/lib/appAlert";
 import { appUrl } from "@/lib/authRedirect";
 
 interface ForgotPasswordFormProps {
@@ -17,7 +17,6 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,16 +28,17 @@ const ForgotPasswordForm = ({ onBackToLogin }: ForgotPasswordFormProps) => {
       });
 
       if (error) {
+        const busy = error.status === 429 || /rate limit|too many|security purposes/i.test(error.message);
         toast({
-          title: "Error",
-          description: error.message,
+          title: busy ? "Couldn't send the email just now" : "Couldn't send the reset email",
+          description: busy ? "Too many emails were sent in the last hour. Try again later, or continue with Google." : error.message,
           variant: "destructive",
         });
       } else {
         setEmailSent(true);
         toast({
-          title: "Password Reset Email Sent",
-          description: "Check your email for password reset instructions.",
+          title: "Reset email sent",
+          description: "Check your email for the link (and the Spam folder).",
         });
       }
     } catch (error) {

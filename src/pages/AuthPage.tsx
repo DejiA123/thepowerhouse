@@ -16,6 +16,8 @@ import EmailOTPForm from "@/components/EmailOTPForm";
 import MFAVerificationDialog from "@/components/MFAVerificationDialog";
 import { church } from '@/config/church';
 import { JOINING_KEY, onPlatform } from '@/lib/churchSpace';
+import CheckEmailPanel from '@/components/auth/CheckEmailPanel';
+import { suggestEmail } from '@/lib/emailTypos';
 
 /** Built-in browsers of social apps, where Google blocks sign-in */
 const inAppBrowser = () => /FBAN|FBAV|FB_IAB|Instagram|Line\/|LinkedInApp|Snapchat|TikTok|musical_ly|BytedanceWebview|Twitter|MicroMessenger/i.test(navigator.userAgent);
@@ -45,6 +47,9 @@ const AuthPage = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupFullName, setSignupFullName] = useState("");
+  // Signed up (or tried to sign in unconfirmed): the address the confirmation email went to
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const signupSuggestion = suggestEmail(signupEmail);
 
   // MFA state
   const [showMFAVerification, setShowMFAVerification] = useState(false);
@@ -84,10 +89,14 @@ const AuthPage = () => {
       if (error) {
         const msg = /invalid login credentials/i.test(error.message)
           ? 'The email or password is wrong. Try again, or tap "Forgot password".'
-          : /email not confirmed/i.test(error.message)
-            ? 'Please confirm your email first: open the link we sent you (check spam too).'
-            : error.message;
-        appAlert("Couldn't sign in", msg, 'error');
+          : error.message;
+        if (/email not confirmed/i.test(error.message)) {
+          // Not confirmed yet: where the email went, and a way to send it again
+          setSentTo(loginEmail.trim());
+          setActiveTab("signup");
+        } else {
+          appAlert("Couldn't sign in", msg, 'error');
+        }
       } else if (data.user) {
         // Check if MFA is required
         const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -122,20 +131,16 @@ const AuthPage = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    const email = signupEmail.trim();
     setIsLoading(true);
 
     try {
-      console.log('Attempting signup with:', {
-        email: signupEmail,
-        redirectTo: appUrl('/email-confirmation')
-      });
-
       const { data, error } = await supabase.auth.signUp({
-        email: signupEmail,
+        email,
         password: signupPassword,
         options: {
           data: {
-            full_name: signupFullName,
+            full_name: signupFullName.trim(),
             // Signing up from a church's page on Church Space: join that church (not The Power House)
             ...(onPlatform && localStorage.getItem(JOINING_KEY) ? { church_id: localStorage.getItem(JOINING_KEY) } : {}),
           },
@@ -143,22 +148,29 @@ const AuthPage = () => {
         }
       });
 
-      console.log('Signup response:', { data, error });
-
       if (error) {
-        console.error('Signup error:', error);
-        appAlert("Signup Failed", error.message, 'error');
-      } else if (data.user) {
-        console.log('Signup successful:', data.user);
-        appAlert("Account created 🎉", "We've emailed you a link to confirm your account (check spam too). Tap it, then sign in here.", 'success');
-
-        // Clear the form
-        setSignupEmail("");
-        setSignupPassword("");
-        setSignupFullName("");
-
-        // Switch to Sign In tab
+        const busy = error.status === 429 || /rate limit|too many|security purposes/i.test(error.message);
+        appAlert(
+          busy ? "Couldn't send the email just now" : "Couldn't create the account",
+          busy
+            ? 'Too many sign-up emails were sent in the last hour. Try again later, or sign up with Google.'
+            : /already registered/i.test(error.message)
+              ? 'That email already has an account. Sign in instead, or tap "Forgot password".'
+              : error.message,
+          'error'
+        );
+      } else if (data.session) {
+        // No confirmation needed: signed in already
+        appAlert("Welcome 🎉", "Your account is ready.", 'success');
+        navigate(takeNext(next), { replace: true });
+      } else if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        // The address already has an account (Supabase doesn't send a second email)
+        appAlert("You already have an account", 'Sign in with this email, or tap "Forgot password". If you joined with Google, use "Continue with Google".', 'info');
+        setLoginEmail(email);
         setActiveTab("login");
+      } else if (data.user) {
+        setSignupPassword("");
+        setSentTo(email);
       }
     } catch (error) {
       appAlert("Error", "An unexpected error occurred. Please try again.", 'error');
@@ -355,6 +367,22 @@ const AuthPage = () => {
               </TabsContent>
 
               <TabsContent value="signup" className="mt-6">
+                {sentTo ? (
+                  <CheckEmailPanel
+                    email={sentTo}
+                    googleBusy={googleBusy}
+                    onGoogle={handleGoogleSignIn}
+                    onSignIn={() => {
+                      setLoginEmail(sentTo);
+                      setSentTo(null);
+                      setActiveTab("login");
+                    }}
+                    onChangeEmail={() => {
+                      setSignupEmail(sentTo);
+                      setSentTo(null);
+                    }}
+                  />
+                ) : (
                 <form onSubmit={handleSignup} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="signup-name" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Full Name</Label>
@@ -382,10 +410,22 @@ const AuthPage = () => {
                         placeholder="your@email.com"
                         value={signupEmail}
                         onChange={(e) => setSignupEmail(e.target.value)}
+                        autoComplete="email"
+                        autoCapitalize="none"
                         className="pl-12 h-12 rounded-2xl border-gray-200 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800 transition-all duration-200"
                         required
                       />
                     </div>
+                    {signupSuggestion && (
+                      <button
+                        type="button"
+                        onClick={() => setSignupEmail(signupSuggestion)}
+                        className="text-left text-[13.5px] text-amber-700 dark:text-amber-400"
+                        data-testid="email-suggestion"
+                      >
+                        Did you mean <span className="font-semibold underline">{signupSuggestion}</span>? Tap to fix.
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -460,6 +500,7 @@ const AuthPage = () => {
                     {googleBusy ? "Opening Google…" : "Sign up with Google"}
                   </Button>
                 </form>
+                )}
               </TabsContent>
 
               <TabsContent value="passcode" className="mt-6">

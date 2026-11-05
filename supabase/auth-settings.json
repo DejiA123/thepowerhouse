@@ -1,0 +1,4 @@
+{
+  "mailer_subjects_magic_link": "Your sign-in code",
+  "mailer_templates_magic_link_content": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0f172a\"><h2 style=\"margin:0 0 12px\">Your sign-in code</h2><p style=\"margin:0 0 16px\">Type this code in the app to sign in:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:8px;margin:0 0 20px\">{{ .Token }}</p><p style=\"margin:0 0 20px\">Or open this email on the same phone and <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p><p style=\"margin:0;color:#64748b;font-size:13px\">The code works once. If you didn't ask for it, you can ignore this email.</p></div>"
+}
