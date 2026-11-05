@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useNavigate } from 'react-router-dom';
-import { Activity, MessageSquareHeart, ShieldCheck } from 'lucide-react';
-import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from '@/components/page/PageKit';
+import { Activity, BarChart3, MessageSquareHeart, ShieldCheck } from 'lucide-react';
+import { ListGroup, ListRow, Page, PageTitle, SectionLabel, SectionLink } from '@/components/page/PageKit';
 import { RowPicture } from '@/components/nav/Places';
 import { supabase } from '@/integrations/supabase/client';
 import { duration, notSetUp, shortDuration } from '@/lib/admin';
@@ -106,13 +106,21 @@ const AdminPage = () => {
           chevron
           className="min-h-[68px] py-3"
         />
+        <ListRow
+          leading={<RowPicture icon={BarChart3} color="blue" />}
+          title="What's used most"
+          subtitle="Bible chapters, videos, chats, busiest times"
+          onClick={() => navigate('/admin/usage')}
+          chevron
+          className="min-h-[68px] py-3"
+        />
       </ListGroup>
 
       <ChurchAdminSection />
 
       {!!data?.top_areas?.length && (
         <>
-          <SectionLabel>Most used this week</SectionLabel>
+          <SectionLabel action={<SectionLink onClick={() => navigate('/admin/usage')}>See all</SectionLink>}>Most used this week</SectionLabel>
           <ListGroup>
             {data.top_areas.map((a) => (
               <div key={a.area} className="flex justify-between px-4 py-2.5 text-[14.5px]">

@@ -42,7 +42,7 @@ export interface ActivityRow {
 }
 
 const allBooks = [...bibleBooks['Old Testament'], ...bibleBooks['New Testament']];
-const bookName = (apiName: unknown) =>
+export const bookName = (apiName: unknown) =>
   allBooks.find((b) => b.apiName === String(apiName).toLowerCase())?.name ?? String(apiName ?? '');
 
 /** One line of a member's timeline ("Read John 3 (NIV)") */

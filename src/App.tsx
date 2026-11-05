@@ -62,6 +62,7 @@ const GoogleSignInPage = lazyPage(() => import("@/pages/GoogleSignInPage"));
 const AdminPage = lazyPage(() => import("@/pages/admin/AdminPage"));
 const AdminFeedbackPage = lazyPage(() => import("@/pages/admin/AdminFeedbackPage"));
 const AdminActivityPage = lazyPage(() => import("@/pages/admin/AdminActivityPage"));
+const AdminUsagePage = lazyPage(() => import("@/pages/admin/AdminUsagePage"));
 const FindChurchPage = lazyPage(() => import("@/pages/space/FindChurchPage"));
 const ChurchLandingPage = lazyPage(() => import("@/pages/space/ChurchLandingPage"));
 const CreateChurchPage = lazyPage(() => import("@/pages/space/CreateChurchPage"));
@@ -335,6 +336,7 @@ const AppRoutes = () => {
             <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
             <Route path="/admin/feedback" element={<ProtectedRoute><AdminFeedbackPage /></ProtectedRoute>} />
             <Route path="/admin/activity" element={<ProtectedRoute><AdminActivityPage /></ProtectedRoute>} />
+            <Route path="/admin/usage" element={<ProtectedRoute><AdminUsagePage /></ProtectedRoute>} />
             <Route path="/reset-password" element={<PasswordResetPage />} />
             <Route path="/debug-email" element={<EmailConfirmationDebug />} />
             <Route
