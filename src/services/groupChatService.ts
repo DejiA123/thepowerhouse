@@ -333,6 +333,11 @@ const currentUser = async () => {
 /** Tell other parts of the app (calls, banners) that my chat list changed. */
 const chatsChanged = () => window.dispatchEvent(new CustomEvent('chats:changed'));
 
+/** Chats I joined myself just now (Join, an invite link, a group I made): no "you were added" banner for those */
+const selfJoins = new Map<string, number>();
+export const markSelfJoin = (chatId: string) => selfJoins.set(chatId, Date.now());
+export const joinedMyself = (chatId: string) => Date.now() - (selfJoins.get(chatId) ?? 0) < 30_000;
+
 /** The latest messages of a chat, opened on the phone, for searching (kept a minute) */
 const searchCache = new Map<string, { at: number; list: Promise<ChatMessage[]> }>();
 function recentForSearch(chatId: string): Promise<ChatMessage[]> {
@@ -499,8 +504,11 @@ export class GroupChatService {
             chat_id: group.id,
             user_id: userId,
         }));
+        markSelfJoin(group.id);
         const { error: membersError } = await supabase.from('chat_participants').insert(participants);
         if (membersError) console.error('Error adding members:', membersError);
+        // Everyone added gets "Ayodeji added you to <group>"
+        else if (memberIds.length) sendPush({ type: 'chat-added', chatId: group.id, userIds: memberIds.filter((id) => id !== user.id) });
 
         chatsChanged();
         return group as GroupChat;
@@ -552,6 +560,8 @@ export class GroupChatService {
             membersChanged(chatId);
             const me = await currentUser();
             if (me) shareKeys(me.id, chatId).catch(() => undefined);
+            // "Ayodeji added you to Choir" on their phones
+            sendPush({ type: 'chat-added', chatId, userIds });
             return;
         }
         // Before the function exists: the old way
@@ -566,6 +576,7 @@ export class GroupChatService {
         if (rows.length === 0) return;
         const { error } = await supabase.from('chat_participants').insert(rows);
         if (error) throw error;
+        sendPush({ type: 'chat-added', chatId, userIds: rows.map((r) => r.user_id) });
         // New members get the chat's keys from this phone straight away (their devices, if they have any yet)
         membersChanged(chatId);
         const user = await currentUser();
@@ -1130,6 +1141,7 @@ export class GroupChatService {
             .maybeSingle();
         if (existing) return;
 
+        markSelfJoin(chatId);
         const { error } = await supabase.from('chat_participants').insert({ chat_id: chatId, user_id: user.id });
         if (error) throw error;
         membersChanged(chatId);
@@ -1163,6 +1175,7 @@ export class GroupChatService {
         const { data, error } = await supabase.rpc('join_chat_by_invite' as never, { _code: code } as never);
         if (error) throw error;
         const chatId = data as unknown as string;
+        markSelfJoin(chatId);
         membersChanged(chatId);
         chatsChanged();
         return chatId;
