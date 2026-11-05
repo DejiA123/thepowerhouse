@@ -63,14 +63,85 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [], fill = fals
     };
   }, [query, userId]);
 
+  // Everyone in the church app (not just friends), a page at a time, A–Z
+  const [everyone, setEveryone] = useState<PickablePerson[]>([]);
+  const [more, setMore] = useState<{ offset: number; has: boolean }>({ offset: 0, has: false });
+  const [loadingEveryone, setLoadingEveryone] = useState(true);
+  const loadEveryone = async (offset: number) => {
+    setLoadingEveryone(true);
+    try {
+      const page = await SocialService.discover('', offset);
+      const people = page.people.map((p) => pickable(p.person)).filter((p) => p.id !== userId);
+      setEveryone((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...people.filter((p) => !seen.has(p.id))];
+      });
+      setMore({ offset: page.nextOffset, has: page.hasMore });
+    } catch {
+      setMore((m) => ({ ...m, has: false }));
+    } finally {
+      setLoadingEveryone(false);
+    }
+  };
+  useEffect(() => {
+    setEveryone([]);
+    void loadEveryone(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
   const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
   const selectedIds = useMemo(() => new Set(selected.map((p) => p.id)), [selected]);
-  const list = query.trim().length >= 2 ? results : friends;
+  const friendIds = useMemo(() => new Set(friends.map((f) => f.id)), [friends]);
+  const searchingNow = query.trim().length >= 2;
+  // Friends first in search results too
+  const searchList = useMemo(
+    () => [...results].sort((a, b) => Number(friendIds.has(b.id)) - Number(friendIds.has(a.id))),
+    [results, friendIds],
+  );
+  const others = useMemo(() => everyone.filter((p) => !friendIds.has(p.id)), [everyone, friendIds]);
 
   const toggle = (person: PickablePerson) => {
     if (excluded.has(person.id)) return;
     onChange(selectedIds.has(person.id) ? selected.filter((p) => p.id !== person.id) : [...selected, person]);
   };
+
+  const row = (person: PickablePerson, label?: string) => {
+    const isMember = excluded.has(person.id);
+    const isSelected = selectedIds.has(person.id);
+    return (
+      <button
+        key={person.id}
+        onClick={() => toggle(person)}
+        disabled={isMember}
+        className={cn(
+          'flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition',
+          isMember ? 'opacity-60' : 'hover:bg-muted active:bg-muted',
+        )}
+      >
+        <UserAvatar name={person.full_name} src={person.avatar_url} seed={person.id} className="h-10 w-10" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-foreground">{person.full_name || person.email}</p>
+          {label && <p className="truncate text-xs text-muted-foreground">{label}</p>}
+        </div>
+        {isMember ? (
+          <span className="text-xs text-muted-foreground">Member</span>
+        ) : (
+          <span
+            className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-full border-2 transition',
+              isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-muted-foreground/30',
+            )}
+          >
+            {isSelected && <Check className="h-3.5 w-3.5" />}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  const heading = (text: string) => (
+    <p className="px-1 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground first:pt-0">{text}</p>
+  );
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -95,57 +166,42 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [], fill = fals
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search people by name"
+          placeholder="Search everyone by name"
           className="h-11 rounded-xl pl-10"
         />
         {searching && <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
       </div>
 
-      <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {query.trim().length >= 2 ? 'Search results' : 'Your friends'}
-      </p>
-
-      <div className={cn('-mx-1 min-h-[120px] px-1', !fill && 'max-h-[42vh] overflow-y-auto')}>
-        {list.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {query.trim().length >= 2
-              ? searching ? 'Searching…' : 'No one found'
-              : 'Search to find people in the church app'}
-          </p>
+      <div className={cn('-mx-1 min-h-[120px] px-1', !fill && 'max-h-[42vh] overflow-y-auto')} data-testid="member-picker-list">
+        {searchingNow ? (
+          <>
+            {heading('Search results')}
+            {searchList.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{searching ? 'Searching…' : 'No one found'}</p>
+            ) : (
+              searchList.map((p) => row(p, friendIds.has(p.id) ? 'Friend' : undefined))
+            )}
+          </>
         ) : (
-          list.map((person) => {
-            const isMember = excluded.has(person.id);
-            const isSelected = selectedIds.has(person.id);
-            return (
-              <button
-                key={person.id}
-                onClick={() => toggle(person)}
-                disabled={isMember}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition',
-                  isMember ? 'opacity-60' : 'hover:bg-muted active:bg-muted',
-                )}
-              >
-                <UserAvatar name={person.full_name} src={person.avatar_url} seed={person.id} className="h-10 w-10" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-foreground">{person.full_name || person.email}</p>
-                  {person.email && person.full_name && <p className="truncate text-xs text-muted-foreground">{person.email}</p>}
-                </div>
-                {isMember ? (
-                  <span className="text-xs text-muted-foreground">Member</span>
-                ) : (
-                  <span
-                    className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full border-2 transition',
-                      isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-muted-foreground/30',
-                    )}
-                  >
-                    {isSelected && <Check className="h-3.5 w-3.5" />}
-                  </span>
-                )}
+          <>
+            {friends.length > 0 && (
+              <>
+                {heading('Your friends')}
+                {friends.map((p) => row(p))}
+              </>
+            )}
+            {heading('Everyone on the app')}
+            {others.map((p) => row(p))}
+            {loadingEveryone ? (
+              <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : more.has ? (
+              <button onClick={() => loadEveryone(more.offset)} className="my-2 w-full rounded-xl py-2.5 text-[14px] font-semibold text-blue-600 hover:bg-muted dark:text-blue-400">
+                Show more people
               </button>
-            );
-          })
+            ) : others.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No one else on the app yet</p>
+            ) : null}
+          </>
         )}
       </div>
     </div>
