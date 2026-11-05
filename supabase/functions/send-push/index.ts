@@ -339,20 +339,53 @@ Deno.serve(async (req) => {
       const more = count > 3 ? ` +${count - 3} more` : '';
       const lead = actor ? `${actor} added ` : 'Added ';
 
-      let subs = await subscriptionsForTopic(`choir:${location}`);
       const exclude = typeof body.excludeEndpoint === 'string' ? body.excludeEndpoint : null;
-      subs = subs.filter((s) => s.endpoint !== exclude && (!user || s.user_id !== user.id));
+      const line = `${lead}${titles}${more} to ${where}`;
+
+      // Members of the choir's chats (chat info → Choir): the notification opens the chat,
+      // where the new song's card is. Muted chats and "group chat notifications off" stay
+      // quiet; the person who added it isn't told; nobody gets it twice.
+      const sentTo = new Set<string>();
+      let chatResult = { sent: 0, failed: 0, removed: 0 } as Record<string, number>;
+      if (table === 'choir_weekly_set_songs') {
+        const { data: links } = await supabaseAdmin.from('choir_chat_links').select('chat_id').eq('location', location);
+        for (const link of (links ?? []) as { chat_id: string }[]) {
+          const [{ data: chat }, members] = await Promise.all([
+            supabaseAdmin.from('group_chats').select('name').eq('id', link.chat_id).maybeSingle(),
+            chatRecipients(link.chat_id, user?.id ?? '', { skipMuted: true }),
+          ]);
+          const subsForChat = (await subscriptionsForUsers(members)).filter((s) => s.endpoint !== exclude && !sentTo.has(s.endpoint));
+          subsForChat.forEach((s) => sentTo.add(s.endpoint));
+          if (!subsForChat.length) continue;
+          const r = await sendToSubscriptions(subsForChat, {
+            kind: 'choir',
+            title: chat?.name || 'Choir',
+            body: `🎵 ${line}`,
+            url: `/group-chats?chat=${link.chat_id}`,
+            tag: `choir-chat-${link.chat_id}`,
+            renotify: true,
+            data: { location, chatId: link.chat_id, songIds: sameLocation.map((s) => s.id) },
+          }, { ttl: 60 * 60 * 24 * 3, urgency: 'high' });
+          for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
+            if (typeof v === 'number') chatResult[k] = (chatResult[k] ?? 0) + v;
+          }
+        }
+      }
+
+      // Everyone else following this choir (the bell on the choir page)
+      let subs = await subscriptionsForTopic(`choir:${location}`);
+      subs = subs.filter((s) => s.endpoint !== exclude && (!user || s.user_id !== user.id) && !sentTo.has(s.endpoint));
 
       const result = await sendToSubscriptions(subs, {
         kind: 'choir',
         title: count === 1 ? '🎵 New song added' : `🎵 ${count} new songs added`,
-        body: `${lead}${titles}${more} to ${where}`,
+        body: line,
         url: `/groups/choir/${location}`,
         tag: `choir-${location}`,
         renotify: true,
         data: { location, songIds: sameLocation.map((s) => s.id) },
       }, { ttl: 60 * 60 * 24 * 3, urgency: 'normal' });
-      return json({ ok: true, ...result });
+      return json({ ok: true, ...result, chats: chatResult });
     }
 
     // ── Prayer Wall: someone is praying for your request ────────────
