@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, lazy, Suspense } from 'react';
+import { lazyWithReload } from '@/lib/lazyLoad';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -11,8 +12,8 @@ import { GroupChatService } from '@/services/groupChatService';
 import { broadcast, onBroadcast, uniqueTopic } from '@/lib/realtime';
 import { sendPush } from '@/lib/push';
 // Loaded when a call rings or starts, not at app start
-const IncomingCallScreen = lazy(() => import('@/components/calls/IncomingCallScreen'));
-const CallScreen = lazy(() => import('@/components/calls/CallScreen'));
+const IncomingCallScreen = lazyWithReload(() => import('@/components/calls/IncomingCallScreen'));
+const CallScreen = lazyWithReload(() => import('@/components/calls/CallScreen'));
 
 export interface IncomingCall {
   callId: string;
