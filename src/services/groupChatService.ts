@@ -18,6 +18,8 @@ export interface GroupChat {
     created_at: string;
     created_by: string;
     created_by_user: string | null;
+    /** Only joined by being added or with the invite link (not listed under Community groups) */
+    is_private?: boolean;
 }
 
 export interface ChatSummary extends GroupChat {
@@ -454,14 +456,16 @@ export class GroupChatService {
             .from('group_chats')
             .select('*')
             .eq('is_active', true)
-            .or('is_custom.is.null,is_custom.eq.false')
             .order('name', { ascending: true });
         if (error) {
             console.error('Error fetching community chats:', error);
             return [];
         }
         const mine = new Set(myChatIds);
-        return ((data || []) as GroupChat[]).filter((c) => !mine.has(c.id));
+        // Private groups (and one-to-one chats) are never listed; before the privacy
+        // column, groups made in the app were the private ones
+        const open = (c: GroupChat) => c.description !== 'Private chat' && ('is_private' in c ? !c.is_private : !c.is_custom);
+        return ((data || []) as GroupChat[]).filter((c) => !mine.has(c.id) && open(c));
     }
 
     // ── Group management ───────────────────────────────────────────────
@@ -696,6 +700,13 @@ export class GroupChatService {
             .eq('user_id', user.id);
         if (error) throw error;
         window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId } }));
+    }
+
+    /** Private (added or invite link only) or community (anyone in the church can join): the group's admins */
+    static async setPrivate(chatId: string, isPrivate: boolean): Promise<void> {
+        const { error } = await supabase.rpc('set_chat_private' as never, { _chat_id: chatId, _private: isPrivate } as never);
+        if (error) throw new Error(error.message);
+        chatsChanged();
     }
 
     /** Make a member a group admin, or dismiss them as admin (the group's admins only) */
