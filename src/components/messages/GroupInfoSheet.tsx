@@ -15,10 +15,10 @@ import { appAlert } from '@/lib/appAlert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserAvatar from '@/components/common/UserAvatar';
 import { GroupChatService, type GroupChat } from '@/services/groupChatService';
-import MemberPicker, { type PickablePerson } from './MemberPicker';
 import { isPrivateChat, uploadChatImage } from './chatUtils';
 import { WallpaperSheet } from './ChatWallpaper';
 import InviteLinkSheet from './InviteLinkSheet';
+import AddMembersSheet from './AddMembersSheet';
 import { ChoirPickerSheet } from './ChoirChat';
 import { cachedChoirLink, choirLocations, choirName, getChoirLink } from '@/lib/choirChat';
 
@@ -170,7 +170,6 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   const [description, setDescription] = useState(chat.description || '');
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [picked, setPicked] = useState<PickablePerson[]>([]);
   const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [canInvite, setCanInvite] = useState(false);
@@ -237,7 +236,6 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     setDescription(chat.description || '');
     setEditing(false);
     setAdding(false);
-    setPicked([]);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, chat.id]);
@@ -269,21 +267,6 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     }
   };
 
-  const addPeople = async () => {
-    if (picked.length === 0) return;
-    setSaving(true);
-    try {
-      await GroupChatService.addMembers(chat.id, picked.map((p) => p.id));
-      appAlert(`Added ${picked.length} ${picked.length === 1 ? 'person' : 'people'}`, '', 'success');
-      setAdding(false);
-      setPicked([]);
-      load();
-    } catch {
-      appAlert('Could not add members', 'Only group admins can add people.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Like WhatsApp: you first, then the admins, then everyone else by name
   const sortedMembers = [...members].sort((a, b) => {
@@ -506,18 +489,6 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
             </div>
 
             {/* Add members */}
-            {adding && (
-              <div className="mx-4 mb-4 rounded-2xl border border-border p-4">
-                <p className="mb-3 font-semibold text-foreground">Add people</p>
-                <MemberPicker userId={userId} selected={picked} onChange={setPicked} excludeIds={members.map((m) => m.user_id)} />
-                <div className="mt-3 flex gap-2">
-                  <Button variant="outline" className="flex-1 rounded-full" onClick={() => setAdding(false)}>Cancel</Button>
-                  <Button className="flex-1 rounded-full" onClick={addPeople} disabled={saving || picked.length === 0}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : `Add ${picked.length || ''}`}
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {/* Members */}
             <div className="px-4 pb-4">
@@ -528,6 +499,21 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
               ) : (
                 <div className="space-y-0.5">
+                  {/* Like WhatsApp: add people, or share the group's link, right above the members */}
+                  {canManage && !editing && (
+                    <>
+                      <button onClick={() => setAdding(true)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white"><UserPlus className="h-5 w-5" /></span>
+                        <span className="font-medium text-foreground">Add members</span>
+                      </button>
+                      {canInvite && (
+                        <button onClick={() => setInviteOpen(true)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"><Link2 className="h-5 w-5" /></span>
+                          <span className="font-medium text-foreground">Invite via link</span>
+                        </button>
+                      )}
+                    </>
+                  )}
                   {sortedMembers.map((m) => {
                     const displayName = m.user_id === userId ? 'You' : m.user?.full_name || m.user?.email?.split('@')[0] || 'Member';
                     const online = m.user_id === userId || onlineIds.has(m.user_id);
@@ -593,6 +579,15 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
       </Sheet>
 
       <InviteLinkSheet chatId={chat.id} chatName={chat.name} open={inviteOpen} onOpenChange={setInviteOpen} />
+      <AddMembersSheet
+        open={adding}
+        onOpenChange={setAdding}
+        chatId={chat.id}
+        chatName={chat.name}
+        userId={userId}
+        memberIds={members.map((m) => m.user_id)}
+        onAdded={() => void load()}
+      />
       <ChoirPickerSheet open={choirOpen} onOpenChange={setChoirOpen} chatId={chat.id} current={choir} canChange={canInvite} />
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent className="rounded-2xl">

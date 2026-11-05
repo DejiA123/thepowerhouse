@@ -95,7 +95,7 @@ const MemberPicker = ({ userId, selected, onChange, excludeIds = [], fill = fals
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search members by name"
+          placeholder="Search people by name"
           className="h-11 rounded-xl pl-10"
         />
         {searching && <Loader2 className="absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
