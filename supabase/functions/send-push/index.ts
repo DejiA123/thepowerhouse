@@ -323,9 +323,30 @@ Deno.serve(async (req) => {
       const location = songs[0].location as string;
       const sameLocation = songs.filter((s) => s.location === location);
 
+      // Songs added one after another (a leader building Sunday's setlist): one notification
+      // that grows ("3 new songs in Praise Set: …") instead of a buzz for every song. Same tag,
+      // so phones replace the earlier one; only the first in a 15-minute run buzzes.
+      let shown = sameLocation;
+      let followUp = false;
+      if (table === 'choir_weekly_set_songs') {
+        const { data: recentRows } = await supabaseAdmin
+          .from('choir_weekly_set_songs')
+          .select('id, title, location, created_at, set_type')
+          .eq('location', location)
+          .gte('created_at', new Date(Date.now() - 15 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: true });
+        const recent = ((recentRows ?? []) as any[]).filter((r) => r.location === location);
+        const ours = new Set(sameLocation.map((s) => s.id));
+        if (recent.some((r) => !ours.has(r.id))) {
+          followUp = true;
+          // Newest first, so the latest song is always named
+          shown = [...recent].reverse();
+        }
+      }
+
       let where = '';
       if (table === 'choir_weekly_set_songs') {
-        const labels = Array.from(new Set(sameLocation.map((s) => setLabel(s.set_type))));
+        const labels = Array.from(new Set(shown.map((s) => setLabel(s.set_type))));
         where = labels.length === 1 ? labels[0] : "this week's setlist";
       } else {
         const { data: folder } = await supabaseAdmin
@@ -334,13 +355,13 @@ Deno.serve(async (req) => {
       }
 
       const actor = user ? await displayName(user.id, '') : '';
-      const count = sameLocation.length;
-      const titles = sameLocation.slice(0, 3).map((s) => `“${s.title}”`).join(', ');
+      const count = shown.length;
+      const titles = shown.slice(0, 3).map((s) => `“${s.title}”`).join(', ');
       const more = count > 3 ? ` +${count - 3} more` : '';
       const lead = actor ? `${actor} added ` : 'Added ';
 
       const exclude = typeof body.excludeEndpoint === 'string' ? body.excludeEndpoint : null;
-      const line = `${lead}${titles}${more} to ${where}`;
+      const line = followUp ? `${count} new songs in ${where}: ${titles}${more}` : `${lead}${titles}${more} to ${where}`;
 
       // Members of the choir's chats (chat info → Choir): the notification opens the chat,
       // where the new song's card is. Muted chats and "group chat notifications off" stay
@@ -363,8 +384,8 @@ Deno.serve(async (req) => {
             body: `🎵 ${line}`,
             url: `/group-chats?chat=${link.chat_id}`,
             tag: `choir-chat-${link.chat_id}`,
-            renotify: true,
-            data: { location, chatId: link.chat_id, songIds: sameLocation.map((s) => s.id) },
+            renotify: !followUp,
+            data: { location, chatId: link.chat_id, songIds: shown.map((s) => s.id) },
           }, { ttl: 60 * 60 * 24 * 3, urgency: 'high' });
           for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
             if (typeof v === 'number') chatResult[k] = (chatResult[k] ?? 0) + v;
@@ -382,8 +403,8 @@ Deno.serve(async (req) => {
         body: line,
         url: `/groups/choir/${location}`,
         tag: `choir-${location}`,
-        renotify: true,
-        data: { location, songIds: sameLocation.map((s) => s.id) },
+        renotify: !followUp,
+        data: { location, songIds: shown.map((s) => s.id) },
       }, { ttl: 60 * 60 * 24 * 3, urgency: 'normal' });
       return json({ ok: true, ...result, chats: chatResult });
     }
