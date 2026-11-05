@@ -82,7 +82,7 @@ const PrivacyPolicyPage = () => {
               <p>
                 To improve the App and to support you, we record what you do in it: for example the pages you open, the Bible
                 chapters you read or listen to, and that you sent a message, posted or prayed for a prayer request, or watched a
-                video. We record <strong>actions only, never their content</strong>: never the words of your messages, prayers,
+                video, and how long you spend in each part of the App while it is open and in use. We record <strong>actions only, never their content</strong>: never the words of your messages, prayers,
                 notes or searches. Visitors who are not signed in are counted without their name. This record can only be seen by
                 the church's administrators and pastors, and is deleted after 6 months. Feedback you send from the Help page is
                 kept until it has been dealt with.

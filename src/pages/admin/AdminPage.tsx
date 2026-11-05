@@ -5,7 +5,7 @@ import { Activity, MessageSquareHeart, ShieldCheck } from 'lucide-react';
 import { ListGroup, ListRow, Page, PageTitle, SectionLabel } from '@/components/page/PageKit';
 import { RowPicture } from '@/components/nav/Places';
 import { supabase } from '@/integrations/supabase/client';
-import { notSetUp } from '@/lib/admin';
+import { duration, notSetUp, shortDuration } from '@/lib/admin';
 import AdminGate, { NotSetUp } from './AdminGate';
 import ChurchAdminSection from './ChurchAdminSection';
 
@@ -17,6 +17,11 @@ interface Overview {
   thumbs_down: number;
   new_feedback: number;
   top_areas: { area: string; visits: number }[];
+  /** Time in the app (missing until the database has it) */
+  minutes_today?: number;
+  minutes_week?: number;
+  avg_minutes_week?: number;
+  time_areas?: { area: string; minutes: number }[];
 }
 
 const Stat = ({ value, label, tone }: { value: string; label: string; tone?: string }) => (
@@ -46,6 +51,8 @@ const AdminPage = () => {
   useLiveRefresh(['app_feedback'], load, { pollMs: 30_000, enabled: !missing });
 
   const rated = (data?.thumbs_up ?? 0) + (data?.thumbs_down ?? 0);
+  const timed = typeof data?.minutes_week === 'number';
+  const mostMinutes = Math.max(1, ...(data?.time_areas ?? []).map((a) => a.minutes));
 
   return (
     <Page>
@@ -63,6 +70,22 @@ const AdminPage = () => {
       </div>
       {!!data?.visitors_today && (
         <p className="mt-2 px-1 text-[13px] text-muted-foreground">Plus {data.visitors_today} visitors today who weren't signed in.</p>
+      )}
+
+      {timed && (
+        <section aria-label="Time in the app">
+          <SectionLabel>Time in the app</SectionLabel>
+          <div className="grid grid-cols-3 gap-2">
+            <Stat value={shortDuration(data!.minutes_today ?? 0)} label="today" />
+            <Stat value={shortDuration(data!.minutes_week ?? 0)} label="this week" />
+            <Stat value={shortDuration(data!.avg_minutes_week ?? 0)} label="per member this week" />
+          </div>
+          <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+            {data!.minutes_week
+              ? 'Minutes with the app open and in use (not in the background or left idle).'
+              : 'Counting has started: it fills in as members use the app.'}
+          </p>
+        </section>
       )}
 
       <ListGroup className="mt-4">
@@ -95,6 +118,25 @@ const AdminPage = () => {
               <div key={a.area} className="flex justify-between px-4 py-2.5 text-[14.5px]">
                 <span className="text-foreground">{a.area}</span>
                 <span className="font-semibold text-foreground">{a.visits} visits</span>
+              </div>
+            ))}
+          </ListGroup>
+        </>
+      )}
+
+      {!!data?.time_areas?.length && (
+        <>
+          <SectionLabel>Where the time goes this week</SectionLabel>
+          <ListGroup>
+            {data.time_areas.map((a) => (
+              <div key={a.area} className="px-4 py-2.5">
+                <div className="flex justify-between text-[14.5px]">
+                  <span className="text-foreground">{a.area}</span>
+                  <span className="font-semibold text-foreground">{duration(a.minutes)}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.max(3, (100 * a.minutes) / mostMinutes)}%` }} />
+                </div>
               </div>
             ))}
           </ListGroup>
