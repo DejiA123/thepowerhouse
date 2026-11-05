@@ -81,6 +81,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
   const [readMarks, setReadMarks] = useState<Record<string, string>>({});
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  // Group info reloaded its members (someone added or removed): the header's count follows
+  useEffect(() => {
+    const onCount = (e: Event) => {
+      const d = (e as CustomEvent).detail as { chatId?: string; count?: number } | undefined;
+      if (d?.chatId === chat.id && typeof d.count === 'number') setMemberCount(d.count);
+    };
+    window.addEventListener('chat-members:count', onCount);
+    return () => window.removeEventListener('chat-members:count', onCount);
+  }, [chat.id]);
   const [typing, setTyping] = useState<Record<string, { name: string; at: number }>>({});
   const [actionsFor, setActionsFor] = useState<ChatMessage | null>(null);
   // One of my messages being edited in the message box

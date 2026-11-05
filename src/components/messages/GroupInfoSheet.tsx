@@ -239,7 +239,7 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     try {
       const [list, admin] = await Promise.all([GroupChatService.getParticipants(chat.id), GroupChatService.isAdmin(chat.id)]);
       setMembers(list);
-      setIsAdmin(admin);
+      setIsAdmin(admin || list.some((m) => m.user_id === userId && m.is_admin));
     } catch {
       appAlert('Could not load members', 'Please try again.', 'error');
     } finally {
@@ -296,6 +296,11 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     const rank = (m: Member) => (m.user_id === userId ? 0 : m.is_admin ? 1 : 2);
     return rank(a) - rank(b) || (a.user?.full_name || a.user?.email || '').localeCompare(b.user?.full_name || b.user?.email || '');
   });
+  // The chat's header ("4 members") follows the list when people are added or removed
+  useEffect(() => {
+    if (!members.length) return;
+    window.dispatchEvent(new CustomEvent('chat-members:count', { detail: { chatId: chat.id, count: members.length } }));
+  }, [members.length, chat.id]);
   const nameOf = (m: Member) => m.user?.full_name || m.user?.email?.split('@')[0] || 'this member';
   const removeMember = async (member: Member) => {
     setRemoving(null);
