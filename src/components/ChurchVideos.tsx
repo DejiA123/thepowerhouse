@@ -151,7 +151,8 @@ const ChurchVideos = () => {
               )}
               <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-foreground">{activeVideo.title}</h3>
             </div>
-            {activeVideo.isLive && !isChannelId(activeVideo.id) && <LiveChat videoId={activeVideo.id} />}
+            {/* The church's own chat always; YouTube's too when the live video is known */}
+            {activeVideo.isLive && <LiveChat videoId={activeVideo.id} youtube={!isChannelId(activeVideo.id)} />}
           </div>
 
           {(videos.length > 1 || (liveVideo && videos.length > 0) || (picked && liveVideo)) && (
