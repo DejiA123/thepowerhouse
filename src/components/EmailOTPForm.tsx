@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, KeyRound, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { alertToast as toast } from "@/lib/appAlert";
 import { useNavigate } from "react-router-dom";
 
 const EmailOTPForm = () => {
@@ -13,7 +13,6 @@ const EmailOTPForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
     const [countdown, setCountdown] = useState(0);
-    const { toast } = useToast();
     const navigate = useNavigate();
 
     const handleSendOTP = async (e: React.FormEvent) => {
@@ -22,24 +21,31 @@ const EmailOTPForm = () => {
 
         try {
             const { error } = await supabase.auth.signInWithOtp({
-                email: email,
+                email: email.trim(),
                 options: {
                     shouldCreateUser: false, // Only allow existing users
                 }
             });
 
             if (error) {
+                // In plain words: no account yet, too many emails, or what the server said
+                const noAccount = /signups? not allowed|user not found/i.test(error.message);
+                const busy = error.status === 429 || /rate limit|too many|security purposes/i.test(error.message);
                 toast({
-                    title: "Failed to send OTP",
-                    description: error.message,
+                    title: noAccount ? "No account with this email yet" : busy ? "Couldn't send the code just now" : "Couldn't send the code",
+                    description: noAccount
+                        ? 'Create one in "Sign Up" first, or continue with Google.'
+                        : busy
+                            ? "Too many emails were sent in the last hour. Try again later, or sign in with your password."
+                            : error.message,
                     variant: "destructive",
                 });
             } else {
                 setOtpSent(true);
                 setCountdown(60); // 60 second cooldown
                 toast({
-                    title: "OTP Sent!",
-                    description: "Check your email for the verification code.",
+                    title: "Code sent",
+                    description: "Check your email for the 6-digit code (and the Spam folder).",
                 });
 
                 // Start countdown timer

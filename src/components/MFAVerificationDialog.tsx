@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, Loader2, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { alertToast as toast } from "@/lib/appAlert";
 
 interface MFAVerificationDialogProps {
     open: boolean;
@@ -23,7 +23,6 @@ interface MFAVerificationDialogProps {
 const MFAVerificationDialog = ({ open, onOpenChange, factorId, onSuccess }: MFAVerificationDialogProps) => {
     const [verificationCode, setVerificationCode] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const { toast } = useToast();
 
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
