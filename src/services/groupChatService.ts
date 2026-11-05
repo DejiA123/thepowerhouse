@@ -529,6 +529,16 @@ export class GroupChatService {
     }
 
     static async addMembers(chatId: string, userIds: string[]): Promise<void> {
+        // The group's admins (checked by the database: its own rule needs a "can add" flag many admins don't have)
+        const { error: rpcError } = await supabase.rpc('add_chat_members' as never, { _chat_id: chatId, _user_ids: userIds } as never);
+        if (!rpcError) {
+            membersChanged(chatId);
+            const me = await currentUser();
+            if (me) shareKeys(me.id, chatId).catch(() => undefined);
+            return;
+        }
+        // Before the function exists: the old way
+        if (!/function|schema cache|does not exist/i.test(rpcError.message)) throw new Error(rpcError.message);
         const { data: existing } = await supabase
             .from('chat_participants')
             .select('user_id')
