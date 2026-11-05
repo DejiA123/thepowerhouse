@@ -207,15 +207,20 @@ export function withMentionSpans(text: string, myId: string | undefined, isOwn: 
   const out: React.ReactNode[] = [];
   let last = 0;
   let i = 0;
-  for (const m of text.matchAll(MENTION)) {
-    if (m.index! > last) out.push(text.slice(last, m.index));
-    const me = m[2] === myId;
+  // "@[Name](id)" for a person, "@all" / "@everyone" for the whole group (which includes me)
+  const ANY = new RegExp(`${MENTION.source}|(^|[\\s([{"'])@(all|everyone)(?![\\w])`, 'gi');
+  for (const m of text.matchAll(ANY)) {
+    const everyone = !!m[4];
+    const lead = everyone ? m[3] : '';
+    const start = m.index! + lead.length;
+    if (start > last) out.push(text.slice(last, start));
+    const me = everyone || m[2] === myId;
     out.push(
       <span
         key={`${key}-m${i++}`}
         className={cn('font-semibold', isOwn ? 'text-white' : 'text-blue-600 dark:text-blue-400', me && !isOwn && 'rounded bg-blue-100 px-0.5 dark:bg-blue-900/50')}
       >
-        @{m[1]}
+        @{everyone ? m[4] : m[1]}
       </span>,
     );
     last = m.index! + m[0].length;

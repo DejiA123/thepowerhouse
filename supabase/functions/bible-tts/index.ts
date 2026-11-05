@@ -14,7 +14,9 @@ const LOVABLE_MODEL = 'google/gemini-3.1-flash-tts-preview';
 const VOICES = new Set(['Charon', 'Orus', 'Iapetus', 'Fenrir', 'Puck', 'Kore', 'Aoede', 'Leda', 'Zephyr', 'Callirrhoe']);
 const PROMPT = 'Read this Bible passage aloud, warmly and reverently, at a calm, steady pace: ';
 
-type Result = { ok: true; audio: Uint8Array | ReadableStream<Uint8Array>; type: string } | { ok: false; status: number; why: string };
+type Result =
+  | { ok: true; audio: Uint8Array | ReadableStream<Uint8Array>; type: string }
+  | { ok: false; status: number; why: string; retryAfter?: number; daily?: boolean };
 
 const env = (name: string) => (Deno.env.get(name) || '').trim();
 
@@ -49,8 +51,15 @@ export function wavFromPcm(pcm: Uint8Array, sampleRate = 24000): Uint8Array {
 
 async function failed(service: string, res: Response): Promise<Result> {
   const detail = await res.text().catch(() => '');
-  console.error(`bible-tts ${service}`, res.status, detail.slice(0, 300));
-  return { ok: false, status: res.status, why: detail.slice(0, 200) };
+  console.error(`bible-tts ${service}`, res.status, detail.slice(0, 600));
+  const result: Result = { ok: false, status: res.status, why: detail.slice(0, 200) };
+  if (res.status === 429) {
+    // Google says how long to wait ("retryDelay": "37s"), and whether the day's allowance is used up
+    const delay = Number(detail.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/)?.[1]);
+    if (delay > 0) result.retryAfter = Math.ceil(delay);
+    if (/PerDay/i.test(detail)) result.daily = true;
+  }
+  return result;
 }
 
 /** Google Cloud Text-to-Speech (Chirp 3 HD) */
@@ -138,6 +147,8 @@ Deno.serve(async (req) => {
       ['LOVABLE_API_KEY', lovable],
     ];
     const statuses: number[] = [];
+    let retryAfter = 0;
+    let daily = false;
     for (const [name, speak] of services) {
       const key = env(name);
       if (!key) continue;
@@ -152,15 +163,24 @@ Deno.serve(async (req) => {
         });
       }
       statuses.push(result.status);
+      if (result.status === 429) {
+        retryAfter = Math.max(retryAfter, result.retryAfter ?? 0);
+        daily = daily || !!result.daily;
+      }
     }
     if (!statuses.length) return json({ error: 'The voice is not set up' }, 503);
     // Every service refused: say why in the app's words
+    if (daily) {
+      return json({ error: 'The voice has reached its daily limit.' }, 429);
+    }
     const status = statuses.includes(429) ? 429 : statuses.every((s) => s === 402 || s === 401 || s === 403) ? 402 : statuses[statuses.length - 1];
     const message =
       status === 402 ? 'AI credits have run out.' :
       status === 429 ? 'Too many requests, please wait a moment.' :
       'The voice could not read this.';
-    return json({ error: message }, status >= 400 && status < 600 ? status : 502);
+    const res = json({ error: message }, status >= 400 && status < 600 ? status : 502);
+    if (status === 429) res.headers.set('Retry-After', String(Math.min(60, retryAfter || 10)));
+    return res;
   } catch (error) {
     console.error('bible-tts', error);
     return json({ error: 'The voice could not read this.' }, 500);

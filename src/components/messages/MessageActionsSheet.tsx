@@ -110,7 +110,11 @@ const MessageActionsSheet = ({
 
   return (
     <Drawer open={!!message} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.75rem)]">
+      <DrawerContent
+        className="pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.75rem)]"
+        // Closing doesn't move focus back to the message (Reply has just put it in the message box)
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         <DrawerTitle className="sr-only">Message options</DrawerTitle>
         {message && (
           <div className="mx-auto w-full max-w-md overflow-y-auto px-3 pt-3">

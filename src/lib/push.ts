@@ -313,7 +313,7 @@ export const isFollowingTopic = (topic: string) => readLocalTopics().includes(to
 
 type PushEvent =
   /** e2ePreview: the notification's one line, encrypted with the message's key (the server can't read either) */
-  | { type: 'chat-message'; messageId: string; e2ePreview?: string }
+  | { type: 'chat-message'; messageId: string; e2ePreview?: string; mentions?: string[] }
   | { type: 'call'; callId: string }
   | { type: 'call-missed'; callId: string }
   | { type: 'call-invite'; callId: string; userId: string }

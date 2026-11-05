@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { appAlert } from '@/lib/appAlert';
-import { CHAT_SETTINGS_CHANGED, GroupChatService } from '@/services/groupChatService';
+import { CHAT_SETTINGS_CHANGED, GroupChatService, MAX_PINNED, sortChats } from '@/services/groupChatService';
+import SwipeRow from '@/components/common/SwipeRow';
+import ChatMoreSheet from './ChatMoreSheet';
 import { ClearChatDialog } from './ChatPanels';
 import { WallpaperSheet } from './ChatWallpaper';
 import ChatPeek, { type PeekTarget } from './ChatPeek';
 import HoldButton from '@/components/common/HoldButton';
-import { Archive, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X, MessageSquareDot, CheckCheck as ReadAll } from 'lucide-react';
+import { Archive, ArchiveRestore, MoreHorizontal, Pin, PinOff, ArrowLeft, BellOff, Check, CheckSquare, ChevronRight, Eraser, Loader2, MessageCirclePlus, MoreVertical, PhoneCall, Search, Users, Wallpaper, X, MessageSquareDot, CheckCheck as ReadAll } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
+import { useChatPeers } from '@/lib/chatPhotos';
 import type { ChatSummary, GroupChat } from '@/services/groupChatService';
 import type { OngoingCall } from '@/contexts/CallContext';
 import { chatTitle, formatListTime, isPrivateChat, parseCall, previewText } from './chatUtils';
@@ -41,8 +44,36 @@ const ChatList = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   const [peek, setPeek] = useState<PeekTarget | null>(null);
+  // One-to-one chats: the other person's profile photo
+  const peerOf = useChatPeers(myId, chats.filter((c) => isPrivateChat(c)).map((c) => c.id));
+  const photoOf = (chat: GroupChat) => (isPrivateChat(chat) ? peerOf(chat.id)?.avatar ?? chat.avatar_url : chat.avatar_url);
   const [picked, setPicked] = useState<Set<string> | null>(null);
   const [clearIds, setClearIds] = useState<string[] | null>(null);
+  // Swiping a row (like WhatsApp): which row shows its actions, and the "More" menu
+  const [swiped, setSwiped] = useState<{ id: string; side: 'left' | 'right' } | null>(null);
+  const [moreFor, setMoreFor] = useState<ChatSummary | null>(null);
+  const pinnedCount = chats.filter((c) => !!c.pinned_at).length;
+  const togglePinned = async (chat: ChatSummary) => {
+    try {
+      const ok = await GroupChatService.setPinned(chat.id, !chat.pinned_at, chat.pinned_at ? 0 : pinnedCount);
+      if (!ok) appAlert(`You can only pin up to ${MAX_PINNED} chats`, 'Unpin one first.', 'info');
+    } catch {
+      appAlert(chat.pinned_at ? "Couldn't unpin the chat" : "Couldn't pin the chat", 'Check your connection and try again.', 'error');
+    }
+  };
+  const toggleRead = async (chat: ChatSummary) => {
+    if (chat.unread > 0) await GroupChatService.markAsRead(chat.id).catch(() => undefined);
+    else await GroupChatService.setMarkedUnread(chat.id, true).catch(() => undefined);
+    window.dispatchEvent(new CustomEvent(CHAT_SETTINGS_CHANGED, { detail: { chatId: chat.id } }));
+  };
+  const toggleArchived = async (chat: ChatSummary) => {
+    try {
+      await GroupChatService.setArchived(chat.id, !chat.archived_at);
+      appAlert(chat.archived_at ? 'Chat unarchived' : 'Chat archived');
+    } catch {
+      appAlert("Couldn't change it", 'Check your connection and try again.', 'error');
+    }
+  };
   const togglePick = (id: string) => setPicked((prev) => {
     if (!prev) return prev;
     const next = new Set(prev);
@@ -90,7 +121,7 @@ const ChatList = ({
   const q = query.trim().toLowerCase();
   const archived = useMemo(() => chats.filter((c) => !!c.archived_at), [chats]);
   const visible = useMemo(
-    () => chats.filter((c) =>
+    () => sortChats(chats).filter((c) =>
       // Searching looks everywhere; otherwise archived chats only in their list
       (q ? true : showArchived ? !!c.archived_at : !c.archived_at) &&
       (!q || chatTitle(c, myName).toLowerCase().includes(q) || (c.last_message?.content || '').toLowerCase().includes(q)) &&
@@ -258,13 +289,26 @@ const ChatList = ({
               const who = last ? (mine ? 'You' : isPrivateChat(chat) ? null : last.sender_name?.split(' ')[0]) : null;
               const hasCall = !!ongoingCalls[chat.id];
               return (
-                <HoldButton
+                <SwipeRow
                   key={chat.id}
+                  disabled={!!picked}
+                  open={swiped?.id === chat.id ? swiped.side : null}
+                  onOpenChange={(side) => setSwiped(side ? { id: chat.id, side } : null)}
+                  left={[
+                    { label: chat.unread > 0 ? 'Read' : 'Unread', icon: chat.unread > 0 ? ReadAll : MessageSquareDot, className: 'bg-emerald-600', onClick: () => toggleRead(chat) },
+                    { label: chat.pinned_at ? 'Unpin' : 'Pin', icon: chat.pinned_at ? PinOff : Pin, className: 'bg-slate-500', onClick: () => togglePinned(chat) },
+                  ]}
+                  right={[
+                    { label: 'More', icon: MoreHorizontal, className: 'bg-slate-500', onClick: () => setMoreFor(chat) },
+                    { label: chat.archived_at ? 'Unarchive' : 'Archive', icon: chat.archived_at ? ArchiveRestore : Archive, className: 'bg-blue-600', onClick: () => toggleArchived(chat) },
+                  ]}
+                >
+                <HoldButton
                   // Hold: look inside without opening it (like WhatsApp)
                   onHold={picked ? undefined : () => setPeek({
                     chatId: chat.id,
                     title: chatTitle(chat, myName),
-                    avatar: chat.avatar_url,
+                    avatar: photoOf(chat),
                     isPrivate: isPrivateChat(chat),
                     unread: chat.unread,
                     muted: isMuted(chat),
@@ -281,7 +325,7 @@ const ChatList = ({
                       {picked.has(chat.id) && <Check className="h-4 w-4" />}
                     </span>
                   )}
-                  <UserAvatar name={chatTitle(chat, myName)} src={chat.avatar_url} seed={chat.id} className="h-12 w-12" />
+                  <UserAvatar name={chatTitle(chat, myName)} src={photoOf(chat)} seed={chat.id} className="h-12 w-12" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <p className={cn('flex-1 truncate text-[15px] text-foreground', chat.unread ? 'font-bold' : 'font-semibold')}>
@@ -304,6 +348,7 @@ const ChatList = ({
                           (isPrivateChat(chat) ? 'Say hello 👋' : chat.description) || 'No messages yet'
                         )}
                       </p>
+                      {chat.pinned_at && <Pin className="h-3.5 w-3.5 shrink-0 rotate-45 text-muted-foreground" aria-label="Pinned" />}
                       {chat.unread > 0 && (chat.marked_unread ? (
                         // Marked unread by me: a dot, like WhatsApp
                         <span aria-label="Marked unread" className={cn('h-3 w-3 shrink-0 rounded-full', isMuted(chat) ? 'bg-muted-foreground/60' : 'bg-blue-600')} />
@@ -315,6 +360,7 @@ const ChatList = ({
                     </div>
                   </div>
                 </HoldButton>
+                </SwipeRow>
               );
             })}
 
@@ -343,6 +389,13 @@ const ChatList = ({
         )}
       </div>
       <WallpaperSheet open={wallpaperOpen} onOpenChange={setWallpaperOpen} />
+      <ChatMoreSheet
+        chat={moreFor}
+        title={moreFor ? chatTitle(moreFor, myName) : ''}
+        onClose={() => setMoreFor(null)}
+        onClear={(id) => setClearIds([id])}
+        onSelect={(id) => setPicked(new Set([id]))}
+      />
       <ChatPeek
         target={peek}
         onClose={() => setPeek(null)}

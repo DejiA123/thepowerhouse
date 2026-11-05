@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BarChart3, Check, ChevronLeft, FileText, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
+import { BarChart3, Check, ChevronLeft, FileText, Users, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { nameColor } from '@/components/common/UserAvatar';
 import UserAvatar from '@/components/common/UserAvatar';
@@ -61,9 +61,16 @@ const ChatComposer = ({
   // ── @mentions (groups) ─────────────────────────────────────────────
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const mentioned = useRef(new Map<string, string>()); // name → id
-  const suggestions = mentionQuery === null || !mentionables?.length
-    ? []
-    : mentionables.filter((m) => m.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6);
+  // Like WhatsApp: "@" lists everyone in the group (Everyone first), narrowing as you type
+  const suggestions = useMemo(() => {
+    if (mentionQuery === null || !mentionables?.length) return [];
+    const q = mentionQuery.toLowerCase();
+    const people = mentionables
+      .filter((m) => !q || m.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q)) || m.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const everyone = !q || 'all'.startsWith(q) || 'everyone'.startsWith(q);
+    return [...(everyone ? [{ id: 'all', name: 'Everyone', avatar: null, all: true }] : []), ...people.map((p) => ({ ...p, all: false }))];
+  }, [mentionQuery, mentionables]);
 
   const findMention = (value: string, caret: number) => {
     const before = value.slice(0, caret);
@@ -71,12 +78,12 @@ const ChatComposer = ({
     setMentionQuery(m && mentionables?.length ? m[2] : null);
   };
 
-  const pickMention = (person: { id: string; name: string }) => {
+  const pickMention = (person: { id: string; name: string; all?: boolean }) => {
     const el = inputRef.current;
     const caret = el?.selectionStart ?? text.length;
-    const before = text.slice(0, caret).replace(/@([^\s@]{0,30})$/, `@${person.name} `);
+    const before = text.slice(0, caret).replace(/@([^\s@]{0,30})$/, person.all ? '@all ' : `@${person.name} `);
     const next = before + text.slice(caret);
-    mentioned.current.set(person.name, person.id);
+    if (!person.all) mentioned.current.set(person.name, person.id);
     setText(next);
     setMentionQuery(null);
     requestAnimationFrame(() => {
@@ -320,17 +327,26 @@ const ChatComposer = ({
 
       {/* @mention suggestions */}
       {suggestions.length > 0 && (
-        <div className="mx-auto mb-2 max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+        <div className="mx-auto mb-2 max-h-[min(16rem,40dvh)] max-w-4xl overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card py-1 shadow-lg" role="listbox" aria-label="Mention someone">
           {suggestions.map((m) => (
             <button
               key={m.id}
               type="button"
+              role="option"
+              aria-selected={false}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pickMention(m)}
-              className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted"
+              className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted active:bg-muted"
             >
-              <UserAvatar name={m.name} src={m.avatar} seed={m.id} className="h-8 w-8" />
-              <span className="truncate text-[15px] text-foreground">{m.name}</span>
+              {m.all ? (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white"><Users className="h-4 w-4" /></span>
+              ) : (
+                <UserAvatar name={m.name} src={m.avatar} seed={m.id} className="h-8 w-8" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] text-foreground">{m.name}</span>
+                {m.all && <span className="block text-[12px] text-muted-foreground">@all · notifies everyone in the group</span>}
+              </span>
             </button>
           ))}
         </div>
@@ -552,6 +568,7 @@ const ChatComposer = ({
             <div className="flex min-w-0 flex-1 items-end rounded-[22px] border border-border bg-muted/50 px-4 transition-colors focus-within:bg-background">
               <textarea
                 ref={inputRef}
+                data-composer-input
                 value={text}
                 rows={1}
                 enterKeyHint={isTouchDevice() ? 'enter' : 'send'}
