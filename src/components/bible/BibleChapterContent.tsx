@@ -1134,9 +1134,10 @@ export const BibleChapterContent = ({
                     className={cn(
                       // Every verse keeps the same box, so following the audio only changes colour:
                       // animating padding and margin left smeared trails as the highlight moved on
-                      '-mx-3 cursor-pointer select-none rounded-xl px-3 py-1.5 font-serif text-foreground ring-1 ring-transparent transition-[background-color,box-shadow,opacity] duration-200 ease-out',
-                      isReading && 'bg-blue-50 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60',
-                      readingVerse !== null && !isReading && 'opacity-60'
+                      '-mx-3 cursor-pointer select-none rounded-xl px-3 py-1.5 font-serif text-foreground ring-1 ring-transparent transition-[background-color,box-shadow] duration-200 ease-out',
+                      // Only the verse being read is marked; the others stay full strength (fading
+                      // them made the whole page look greyed out while listening)
+                      isReading && 'bg-blue-50 ring-blue-200/80 dark:bg-blue-950/50 dark:ring-blue-800/60'
                     )}
                     style={verseStyle}
                     onClick={handleVerseClick}
