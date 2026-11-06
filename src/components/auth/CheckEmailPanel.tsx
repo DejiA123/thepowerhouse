@@ -59,7 +59,7 @@ const CheckEmailPanel = ({ email, onChangeEmail, onSignIn, onGoogle, googleBusy 
       <ul className="space-y-1.5 rounded-2xl bg-slate-50 p-4 text-left text-[13.5px] leading-snug text-gray-600 dark:bg-slate-700/50 dark:text-gray-300">
         <li>• It can take a few minutes to arrive.</li>
         <li>• Look in Junk or Spam too. On Yahoo it's the “Spam” folder.</li>
-        <li>• Search your inbox for “Confirm your email for {church.name}”, from noreply@tphcreatives.com.</li>
+        <li>• Search your inbox for “Confirm your email for {church.name}”.</li>
       </ul>
       <div className="space-y-2.5">
         <Button type="button" onClick={resend} disabled={wait > 0 || sending} className="h-12 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 font-semibold text-white">
