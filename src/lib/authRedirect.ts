@@ -57,3 +57,22 @@ export function authUrl(next: string, mode: 'signin' | 'signup' = 'signin') {
   if (mode === 'signup') params.set('mode', 'signup');
   return `/auth?${params}`;
 }
+
+const STARTED_KEY = 'auth_started_v1';
+/** Which sign-in someone just started, so a failure on return names the right one */
+export function markAuthStart(kind: 'google' | 'email') {
+  try {
+    localStorage.setItem(STARTED_KEY, JSON.stringify({ kind, at: Date.now() }));
+  } catch {
+    /* storage blocked */
+  }
+}
+/** 'google' or 'email' if one was started in the last day, else null */
+export function lastAuthStart(): 'google' | 'email' | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(STARTED_KEY) || 'null');
+    return v && Date.now() - v.at < 86_400_000 && (v.kind === 'google' || v.kind === 'email') ? v.kind : null;
+  } catch {
+    return null;
+  }
+}

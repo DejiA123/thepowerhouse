@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, KeyRound, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { appUrl, markAuthStart } from "@/lib/authRedirect";
 import { alertToast as toast } from "@/lib/appAlert";
 import { useNavigate } from "react-router-dom";
 
@@ -20,10 +21,13 @@ const EmailOTPForm = () => {
         setIsLoading(true);
 
         try {
+            markAuthStart('email');
             const { error } = await supabase.auth.signInWithOtp({
                 email: email.trim(),
                 options: {
                     shouldCreateUser: false, // Only allow existing users
+                    // The email's link lands on its own page (not Home, where Google returns)
+                    emailRedirectTo: appUrl('/email-confirmation?via=link'),
                 }
             });
 
@@ -115,7 +119,7 @@ const EmailOTPForm = () => {
             <form onSubmit={handleVerifyOTP} className="space-y-6">
                 <div className="text-center mb-4">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                        We sent a 6-digit code to <span className="font-semibold text-blue-600 dark:text-blue-400">{email}</span>
+                        We emailed <span className="font-semibold text-blue-600 dark:text-blue-400">{email}</span>. Type the 6-digit code from it here, or open the email on this phone and tap its sign-in link.
                     </p>
                 </div>
 

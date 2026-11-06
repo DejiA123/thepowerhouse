@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, Sparkles, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { appAlert } from "@/lib/appAlert";
-import { peekNext, rememberNext, takeNext, appUrl } from "@/lib/authRedirect";
+import { peekNext, rememberNext, takeNext, appUrl, markAuthStart } from "@/lib/authRedirect";
 import { googleDirectSignIn, startGoogleSignIn } from "@/lib/googleSignIn";
 import ForgotPasswordForm from "@/components/ForgotPasswordForm";
 import EmailOTPForm from "@/components/EmailOTPForm";
@@ -46,6 +46,13 @@ const AuthPage = () => {
   // Signup form state
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirm, setSignupConfirm] = useState("");
+  // Said while typing the second password: as soon as it stops matching the start of the
+  // first, or once it's as long and still different (not while it's merely shorter)
+  const confirmMismatch =
+    signupConfirm.length > 0 &&
+    signupConfirm !== signupPassword &&
+    (!signupPassword.startsWith(signupConfirm) || signupConfirm.length >= signupPassword.length);
   const [signupFullName, setSignupFullName] = useState("");
   // Signed up (or tried to sign in unconfirmed): the address the confirmation email went to
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -132,7 +139,13 @@ const AuthPage = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     const email = signupEmail.trim();
+    if (signupPassword !== signupConfirm) {
+      appAlert("The passwords don't match", "Type the same password in both boxes.", 'error');
+      document.getElementById('signup-confirm')?.focus();
+      return;
+    }
     setIsLoading(true);
+    markAuthStart('email');
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -170,6 +183,7 @@ const AuthPage = () => {
         setActiveTab("login");
       } else if (data.user) {
         setSignupPassword("");
+        setSignupConfirm("");
         setSentTo(email);
       }
     } catch (error) {
@@ -194,6 +208,7 @@ const AuthPage = () => {
       return;
     }
     setGoogleBusy(true);
+    markAuthStart('google');
     // Come back to where they were heading, however long Google takes
     if (next) rememberNext(next);
     try {
@@ -435,6 +450,7 @@ const AuthPage = () => {
                       <Input
                         id="signup-password"
                         type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
                         placeholder="Choose a strong password"
                         value={signupPassword}
                         onChange={(e) => setSignupPassword(e.target.value)}
@@ -456,6 +472,31 @@ const AuthPage = () => {
                         )}
                       </Button>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm" className="text-sm font-semibold text-gray-700 dark:text-gray-200">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                      <Input
+                        id="signup-confirm"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Type the password again"
+                        autoComplete="new-password"
+                        value={signupConfirm}
+                        onChange={(e) => setSignupConfirm(e.target.value)}
+                        aria-invalid={confirmMismatch}
+                        aria-describedby="signup-confirm-note"
+                        className={`pl-12 pr-12 h-12 rounded-2xl bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 transition-all duration-200 ${confirmMismatch ? 'border-red-400 focus:border-red-500 focus:ring-red-200 dark:focus:ring-red-900' : 'border-gray-200 dark:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-purple-200 dark:focus:ring-purple-800'}`}
+                        required
+                      />
+                      {signupConfirm.length > 0 && signupConfirm === signupPassword && (
+                        <Check className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" aria-hidden />
+                      )}
+                    </div>
+                    <p id="signup-confirm-note" className="min-h-[1.25rem] text-[13px] text-red-600 dark:text-red-400" aria-live="polite">
+                      {confirmMismatch ? "The passwords don't match yet." : ''}
+                    </p>
                   </div>
 
                   <Button

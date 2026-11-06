@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { detachPushFromUser } from '@/lib/push';
 import { installOfflineAuth, isOffline, storedSession } from '@/lib/offlineAuth';
-import { appUrl } from '@/lib/authRedirect';
+import { appUrl, lastAuthStart, markAuthStart } from '@/lib/authRedirect';
 import { trackSignOut } from '@/lib/activity';
 
 installOfflineAuth();
@@ -24,15 +24,25 @@ const oauthReturn = (() => {
 })();
 
 const reportOAuthProblem = (detail?: string | null) => {
-  const cancelled = /access_denied|cancel/i.test(detail || '');
+  // An email link and Google both come back with ?code=…: name the one that was started
+  const via = lastAuthStart();
+  const cancelled = via !== 'email' && /access_denied|cancel/i.test(detail || '');
   window.dispatchEvent(
     new CustomEvent('showInAppNotification', {
       detail: {
         kind: cancelled ? 'info' : 'error',
-        title: cancelled ? 'Google sign-in cancelled' : "Couldn't finish signing in with Google",
+        title: cancelled
+          ? 'Google sign-in cancelled'
+          : via === 'email'
+            ? "That sign-in link didn't work"
+            : via === 'google'
+              ? "Couldn't finish signing in with Google"
+              : "Couldn't finish signing in",
         message: cancelled
           ? 'No problem. You can try again any time.'
-          : 'Please try again. If it keeps happening, open the app in Safari or Chrome and sign in there.',
+          : via === 'email'
+            ? 'Use the newest email, and open it on the phone and app where you asked for it. Or sign in with your password.'
+            : 'Please try again. If it keeps happening, open the app in Safari or Chrome and sign in there.',
       },
     }),
   );
@@ -336,10 +346,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Email OTP Methods
   const signInWithOTP = async (email: string) => {
     try {
+      markAuthStart('email');
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: false,
+          emailRedirectTo: appUrl('/email-confirmation?via=link'),
         },
       });
       return { error };
