@@ -3,7 +3,8 @@
 // write  — a full Christian / gospel song from a brief (theme, scripture, style, feel,
 //          key): title, key, tempo, sections with chords over the words, and notes for
 //          the choir parts and the band. Gemini (GEMINI_API_KEY; SONG_MODEL, default
-//          gemini-2.5-pro, then gemini-2.5-flash), then OpenAI (OPENAI_API_KEY).
+//          gemini-3.1-pro-preview, then gemini-3.8-flash, and any
+//          replacement Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
 //          Saved as the writer's draft (song_drafts). 25 a day per person.
 // music  — the draft as a full produced song (vocals, choir, band) through ElevenLabs
 //          music (ELEVENLABS_API_KEY), stored in the public 'song-drafts' bucket.
@@ -17,7 +18,7 @@ import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 const GEMINI = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI = Deno.env.get('OPENAI_API_KEY') ?? '';
 const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
-const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-2.5-pro';
+const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.1-pro-preview';
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 const WRITES_PER_DAY = 25;
 const SONGS_PER_DAY = 4;
@@ -173,10 +174,18 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
 async function writeSong(b: Brief) {
   const errors: string[] = [];
   if (GEMINI) {
-    for (const model of [...new Set([SONG_MODEL, 'gemini-2.5-flash'])]) {
+    const queue = [SONG_MODEL, 'gemini-3.1-pro-preview', 'gemini-3.8-flash'];
+    const tried = new Set<string>();
+    while (queue.length && tried.size < 5) {
+      const model = queue.shift()!;
+      if (tried.has(model)) continue;
+      tried.add(model);
       const r = await gemini(model, b);
       if (r.song || r.refused) return r;
       errors.push(r.error!);
+      // A retired model's error names its replacement ("… use models/<name> …"): try that next
+      const next = r.error?.match(/use models\/([a-z0-9.\-]+)/i)?.[1];
+      if (next && !tried.has(next)) queue.unshift(next);
     }
   }
   if (OPENAI) {
