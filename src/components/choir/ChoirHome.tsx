@@ -2,6 +2,7 @@ import { ArrowLeftRight, Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, P
 import { PictureTile } from "@/components/page/PageKit";
 import { TILE } from "@/data/appDirectory";
 import { church } from "@/config/church";
+import ChoirChatCard from "./ChoirChatCard";
 
 export type ChoirSection = "songs" | "band" | "singing" | "instruments" | "basics" | "lessons";
 
@@ -28,6 +29,7 @@ const ChoirHome = ({
   onSwitch: () => void;
 }) => (
   <div className="mx-auto max-w-4xl">
+    <ChoirChatCard locationId={locationId} />
     <h2 className="mb-3 px-1 font-outfit text-[22px] font-bold tracking-tight text-foreground">What do you need?</h2>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
       <PictureTile icon={ListMusic} tint={TILE.indigo} title="Songs" subtitle="Setlists, lyrics and the song library" onClick={() => onOpen("songs")} />
