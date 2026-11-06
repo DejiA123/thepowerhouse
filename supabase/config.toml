@@ -1,1 +1,5 @@
 project_id = "swjzhzmhqyvwfwevijja"
+
+# Called by Supabase Auth (Send Email hook), which signs its requests instead of sending a user token
+[functions.auth-send-email]
+verify_jwt = false
