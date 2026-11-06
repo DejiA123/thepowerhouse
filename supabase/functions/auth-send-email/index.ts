@@ -10,6 +10,7 @@
 // A signed request with {"check": true} instead asks Resend which sending domains it
 // has, so the setup can be checked without sending anything.
 import { church } from '../_shared/church.ts';
+import { resendDomain, sendEmail } from '../_shared/resend.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const HOOK_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
@@ -114,23 +115,24 @@ function compose(d: EmailData, newEmail?: string): { subject: string; html: stri
 }
 
 async function send(to: string, subject: string, html: string) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: church.email.from, to: [to], subject, html }),
-  });
-  if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  await sendEmail({ to: [to], subject, html });
 }
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   const body = await req.text();
   if (!(await verified(req, body))) return json({ error: { http_code: 401, message: 'Not a signed request from Supabase Auth' } }, 401);
-  let payload: { check?: boolean; user?: { email?: string; new_email?: string }; email_data?: EmailData };
+  let payload: { check?: boolean; domain?: string; user?: { email?: string; new_email?: string }; email_data?: EmailData };
   try {
     payload = JSON.parse(body);
   } catch {
     return json({ error: { http_code: 400, message: 'Bad request' } }, 400);
+  }
+
+  // Signed admin actions: the church's own sending domain in Resend
+  const domainAction = (payload as { domain?: string }).domain;
+  if (domainAction === 'status' || domainAction === 'add' || domainAction === 'verify') {
+    return json(await resendDomain(domainAction));
   }
 
   if (payload.check) {

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { church } from '../_shared/church.ts';
+import { sendEmail } from '../_shared/resend.ts';
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -41,21 +41,8 @@ serve(async (req) => {
       </div>
     `
 
-        const res = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${RESEND_API_KEY}`
-            },
-            body: JSON.stringify({
-                from: church.email.from,
-                to: [church.email.feedbackTo],
-                subject: 'New Service Feedback',
-                html: emailHtml
-            })
-        })
-
-        const data = await res.json()
+        const sent = await sendEmail({ to: [church.email.feedbackTo], subject: 'New Service Feedback', html: emailHtml })
+        const data = sent
 
         return new Response(
             JSON.stringify(data),
@@ -64,7 +51,7 @@ serve(async (req) => {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 },
-                status: res.ok ? 200 : 400
+                status: 200
             }
         )
     } catch (error) {
