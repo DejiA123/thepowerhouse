@@ -10,8 +10,10 @@ export const church = {
   youtube: { channelId: 'UC35azCG6jqVkR2G8aH91v4A', handle: '@thepowerhouseintl' },
   /** Who sends the app's emails, and where service feedback goes */
   email: {
-    // Must be on a domain verified in Resend (tphcreatives.com, galwayforchrist.ie): thepowerhouse.ie isn't
-    from: 'The Power House <noreply@tphcreatives.com>',
+    // The church's own domain. Until Resend has verified it (DNS records at the domain's
+    // provider), emails go from the fallback, a domain already verified in the Resend account
+    from: 'The Power House <noreply@thepowerhouseinternational.org>',
+    fallbackFrom: 'The Power House <noreply@tphcreatives.com>',
     feedbackTo: 'youths.powerhouse@gmail.com',
   },
 } as const;
