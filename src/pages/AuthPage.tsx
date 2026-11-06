@@ -266,16 +266,16 @@ const AuthPage = () => {
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger
-                  value="signup"
-                  className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
-                >
-                  Sign Up
-                </TabsTrigger>
-                <TabsTrigger
                   value="passcode"
                   className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
                 >
                   Passcode
+                </TabsTrigger>
+                <TabsTrigger
+                  value="signup"
+                  className="rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-600 data-[state=active]:shadow-lg data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-300 font-semibold transition-all duration-300 data-[state=active]:scale-105 text-slate-700 dark:text-slate-300"
+                >
+                  Sign Up
                 </TabsTrigger>
               </TabsList>
 
