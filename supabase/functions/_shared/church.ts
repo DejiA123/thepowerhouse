@@ -10,7 +10,8 @@ export const church = {
   youtube: { channelId: 'UC35azCG6jqVkR2G8aH91v4A', handle: '@thepowerhouseintl' },
   /** Who sends the app's emails, and where service feedback goes */
   email: {
-    from: 'The Powerhouse <noreply@thepowerhouse.ie>',
+    // Must be on a domain verified in Resend (tphcreatives.com, galwayforchrist.ie): thepowerhouse.ie isn't
+    from: 'The Power House <noreply@tphcreatives.com>',
     feedbackTo: 'youths.powerhouse@gmail.com',
   },
 } as const;
