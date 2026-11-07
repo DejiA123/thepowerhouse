@@ -1,7 +1,9 @@
 /**
- * The cloud voice: the same chapters read by Lovable AI instead of a voice
- * model on the phone (which is too big for many phones and froze them).
- * Each piece comes back as speech and is turned into MP3 in a small helper.
+ * The cloud voice: chapters read in the cloud instead of by a voice model on the phone
+ * (which is too big for many phones and froze them). The bible-tts function answers each
+ * piece with the address of an MP3 in the media store (the church's own voice, read once
+ * and kept for everybody), or, from the backup voices, the speech itself (WAV). Either
+ * way it's turned into numbers here and joined into the chapter's MP3 in a small helper.
  *
  * Pieces are asked for a few at a time ahead of where the chapter is up to
  * (each takes several seconds to make), and joined in order, so a chapter is
@@ -99,7 +101,44 @@ export function parseWav(buf: ArrayBuffer): { pcm: Float32Array; sampleRate: num
  */
 const pieceTimeout = (text: string, attempt: number) => (15_000 + 30 * text.length) * attempt;
 
-async function speak(text: string, voice: string): Promise<ArrayBuffer> {
+/** A piece's sound, from wherever it came (an MP3 in the media store, or WAV) */
+interface Spoken {
+  buf: ArrayBuffer;
+  mp3: boolean;
+}
+
+/** The MP3 kept in the media store (a plain GET, so no preflight) */
+async function fromStore(url: string): Promise<Spoken> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, { cache: 'force-cache' });
+      if (res.ok) return { buf: await res.arrayBuffer(), mp3: true };
+      if (attempt >= 3 || res.status < 500) throw new Error(`The kept reading couldn't be fetched (${res.status})`);
+    } catch (error) {
+      if (attempt >= 3 || navigator.onLine === false) throw error;
+    }
+    await new Promise((r) => setTimeout(r, 800 * attempt));
+  }
+}
+
+let decoder: OfflineAudioContext | null = null;
+/** MP3 → numbers at 24 kHz (the browser's own decoder, resampling to the context's rate) */
+async function decodeMp3(buf: ArrayBuffer): Promise<{ pcm: Float32Array; sampleRate: number }> {
+  const Ctx = (window.OfflineAudioContext || (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext)!;
+  decoder ??= new Ctx(1, 1, 24000);
+  const audio = await new Promise<AudioBuffer>((resolve, reject) => {
+    // Older Safari only has the callback form
+    const p = decoder!.decodeAudioData(buf.slice(0), resolve, reject) as Promise<AudioBuffer> | undefined;
+    p?.then(resolve, reject);
+  });
+  const pcm = new Float32Array(audio.length);
+  pcm.set(audio.getChannelData(0));
+  return { pcm, sampleRate: audio.sampleRate };
+}
+
+const toPcm = (s: Spoken) => (s.mp3 ? decodeMp3(s.buf) : Promise.resolve(parseWav(s.buf)));
+
+async function speak(text: string, voice: string): Promise<Spoken> {
   const { data: { session } } = await supabase.auth.getSession();
   for (let attempt = 1; ; attempt++) {
     const controller = new AbortController();
@@ -111,8 +150,14 @@ async function speak(text: string, voice: string): Promise<ArrayBuffer> {
         body: JSON.stringify({ text, voice: CLOUD_VOICE[voice] ?? 'Charon' }),
         signal: controller.signal,
       });
-      const audio = res.ok && /audio|octet-stream/i.test(res.headers.get('Content-Type') || '');
-      if (audio) return await res.arrayBuffer();
+      const type = res.headers.get('Content-Type') || '';
+      // The church's own voice (or a piece read before): fetch it from the media store
+      if (res.ok && /json/i.test(type)) {
+        const url = await res.json().then((j) => (typeof j?.url === 'string' ? j.url : null)).catch(() => null);
+        clearTimeout(timer);
+        if (url) return await fromStore(url);
+      }
+      if (res.ok && /audio|octet-stream/i.test(type)) return { buf: await res.arrayBuffer(), mp3: /mpeg|mp3/i.test(type) };
       if (res.status === 429) {
         const msg = await res.clone().json().then((j) => j?.error).catch(() => null);
         throttled = true;
@@ -150,7 +195,7 @@ const aheadKey = (job: string, text: string, voice: string) => `${job}|${voice}|
 export function cloudPrefetch(job: string, text: string, voice: string) {
   const key = aheadKey(job, text, voice);
   if (ahead.has(key)) return;
-  const made = speak(text, voice).then(parseWav);
+  const made = speak(text, voice).then(toPcm);
   made.catch(() => undefined); // reported when the chapter gets to it
   ahead.set(key, made);
 }
@@ -158,7 +203,7 @@ export function cloudPrefetch(job: string, text: string, voice: string) {
 export async function cloudSynth(job: string, text: string, pause: number, voice: string): Promise<SynthResult> {
   const started = performance.now();
   const key = aheadKey(job, text, voice);
-  const made = ahead.get(key) ?? speak(text, voice).then(parseWav);
+  const made = ahead.get(key) ?? speak(text, voice).then(toPcm);
   ahead.delete(key);
   const { pcm: speech, sampleRate } = await made;
   const silence = Math.floor(pause * sampleRate);

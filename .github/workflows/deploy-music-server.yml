@@ -80,13 +80,15 @@ jobs:
         run: |
           URL="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'server').get_web_url())")"
           SEP="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'separate').get_web_url())")"
+          SPEAK="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'speak').get_web_url())")"
           echo "ACE_URL=$URL" >> "$GITHUB_ENV"
-          export ACE_URL="$URL" ACE_SEPARATE="$SEP"
+          export ACE_URL="$URL" ACE_SEPARATE="$SEP" ACE_SPEAK="$SPEAK"
           echo "Server address: $URL"
           echo "Music-only / voices-only address: $SEP"
+          echo "Read-aloud voice address: $SPEAK"
           python - <<'PY' > body.json
           import json, os
-          value = json.dumps({"url": os.environ["ACE_URL"], "key": os.environ["ACE_KEY"], "separate": os.environ["ACE_SEPARATE"]})
+          value = json.dumps({"url": os.environ["ACE_URL"], "key": os.environ["ACE_KEY"], "separate": os.environ["ACE_SEPARATE"], "speak": os.environ["ACE_SPEAK"]})
           sql = "select public.put_service_key('00000000-0000-0000-0000-000000000000'::uuid, 'acestep', $v$" + value + "$v$, null)"
           print(json.dumps({"query": sql}))
           PY

@@ -205,3 +205,78 @@ def separate(body: dict):
         "vocals": base64.b64encode(voices.read_bytes()).decode(),
         "seconds": round(time.time() - started, 1),
     }
+
+
+# ── The read-aloud Bible voice (non-narrated translations) ────────────────
+# Kokoro-82M (Apache 2.0): a small, natural open-source reading voice, so listening has no
+# daily allowance and costs only a little of the free Modal credit (a whole Bible is about
+# an hour of a T4). bible-tts sends one piece of a chapter at a time (≈230 characters) and
+# keeps every answer in the media store, so each piece is only ever read once for everybody.
+voice_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("espeak-ng", "ffmpeg")
+    .pip_install("kokoro==0.9.4", "soundfile==0.12.1", "fastapi[standard]==0.115.6")
+    .run_commands("python -m spacy download en_core_web_sm")
+    .env({"HF_HOME": "/models/hf-voice"})
+)
+
+_pipes = {}
+_voice_lock = threading.Lock()
+
+
+def _pipeline(lang: str):
+    """Kokoro's English pipelines: 'a' American, 'b' British (made once per container)"""
+    if lang not in _pipes:
+        from kokoro import KPipeline
+
+        _pipes[lang] = KPipeline(lang_code=lang, repo_id="hexgrad/Kokoro-82M")
+    return _pipes[lang]
+
+
+@app.function(
+    image=voice_image,
+    gpu="T4",
+    volumes={"/models": models},
+    secrets=[modal.Secret.from_name("ace-step-api")],
+    timeout=300,
+    scaledown_window=180,
+    max_containers=2,
+)
+@modal.concurrent(max_inputs=8)
+@modal.fastapi_endpoint(method="POST")
+def speak(body: dict):
+    """
+    POST {"text": "...", "voice": "bm_george", "speed": 0.95, "key": "<server key>"} → MP3
+    (24 kHz mono, 48 kbps). Kokoro voice ids: af_*/am_* American, bf_*/bm_* British.
+    """
+    import hmac
+
+    import numpy as np
+    from fastapi import HTTPException, Response
+
+    key = os.environ.get("ACESTEP_API_KEY", "")
+    if not key or not hmac.compare_digest(str(body.get("key", "")), key):
+        raise HTTPException(status_code=401, detail="Not allowed")
+    text = str(body.get("text", "")).strip()
+    voice = str(body.get("voice", "bm_george"))
+    if not text or len(text) > 2000 or not voice[:3] in ("af_", "am_", "bf_", "bm_"):
+        raise HTTPException(status_code=400, detail="Give 1–2000 characters and a Kokoro voice")
+    speed = min(1.3, max(0.7, float(body.get("speed", 0.95))))
+    started = time.time()
+    with _voice_lock:  # one reading at a time per container (the model isn't shared safely)
+        pipe = _pipeline("b" if voice.startswith("b") else "a")
+        parts = [a for _, _, a in pipe(text, voice=voice, speed=speed)]
+    if not parts:
+        raise HTTPException(status_code=500, detail="No speech")
+    pcm = np.concatenate([p.detach().cpu().numpy() if hasattr(p, "detach") else np.asarray(p) for p in parts]).astype(np.float32)
+    mp3 = subprocess.run(
+        ["ffmpeg", "-v", "quiet", "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "-", "-codec:a", "libmp3lame", "-b:a", "48k", "-f", "mp3", "-"],
+        input=pcm.tobytes(),
+        capture_output=True,
+    ).stdout
+    if not mp3:
+        raise HTTPException(status_code=500, detail="Couldn't encode the speech")
+    if not getattr(speak, "_committed", False):
+        models.commit()  # keep the voice model on the volume for next time
+        speak._committed = True
+    return Response(content=mp3, media_type="audio/mpeg", headers={"X-Seconds": f"{len(pcm) / 24000:.2f}", "X-Took": f"{time.time() - started:.2f}"})
