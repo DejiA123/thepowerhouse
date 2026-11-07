@@ -1,5 +1,6 @@
 // First: which church this is (before anything reads its name, colours or parts)
 import '@/lib/churchSpace';
+import '@/lib/functionsAuth';
 import { freshReload, isChunkError, isUpdating, reloadForUpdate } from '@/lib/lazyLoad';
 import { track } from '@/lib/activity';
 import React from 'react'
