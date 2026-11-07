@@ -78,9 +78,11 @@ export function usePartPlayer(audio: HTMLAudioElement | null, parts: PartTime[] 
     };
     // The full player's own play/seek outside the part ends "part" mode
     const onPause = () => {
-      if (state.current.playing !== null && !audio.seeking) setPlaying(null);
+      // Switching between Full song / Music only / Voices only isn't stopping
+      if (state.current.playing !== null && !audio.seeking && audio.dataset.switching !== '1') setPlaying(null);
     };
     const onSeeked = () => {
+      if (audio.dataset.switching === '1') return;
       const { playing: i, parts: list } = state.current;
       if (i !== null && list?.[i] && (audio.currentTime < list[i].start - LEAD_IN - 1 || audio.currentTime > list[i].end)) setPlaying(null);
     };
