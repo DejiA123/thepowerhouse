@@ -38,7 +38,17 @@ interface Brief {
   language?: string;
   languageMode?: 'chorus' | 'all';
   notes?: string;
+  /** The lead singer for the music: auto (the music chooses), female, male or a duet */
+  voice?: Voice;
 }
+
+type Voice = 'auto' | 'female' | 'male' | 'duet';
+const VOICES: { id: Voice; label: string }[] = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'female', label: 'Female' },
+  { id: 'male', label: 'Male' },
+  { id: 'duet', label: 'Duet' },
+];
 
 /** The styles the song helper writes in (ids match the song-writer function) */
 const STYLE_GROUPS: { name: string; styles: { id: string; label: string }[] }[] = [
@@ -153,7 +163,7 @@ const ComposeSongPage = () => {
   const { user } = useAuth();
   const openId = params.get('song');
 
-  const [brief, setBrief] = useState<Brief>({ theme: '', scripture: '', style: 'gospel_choir', feel: 'mid', key: '', language: 'English', languageMode: 'chorus', notes: '' });
+  const [brief, setBrief] = useState<Brief>({ theme: '', scripture: '', style: 'gospel_choir', feel: 'mid', key: '', language: 'English', languageMode: 'chorus', notes: '', voice: 'auto' });
   const [count, setCount] = useState(1);
   const [ideas, setIdeas] = useState(() => [...IDEAS].sort(() => Math.random() - 0.5).slice(0, 4));
   const [writing, setWriting] = useState(false);
@@ -163,6 +173,9 @@ const ComposeSongPage = () => {
   const [current, setCurrent] = useState<Draft | null>(null);
   const poll = useRef<number | null>(null);
   const [service, setService] = useState<MusicService | null>(null);
+  /** The lead voice for this song's music (its own saved choice, Auto until changed) */
+  const [voice, setVoice] = useState<Voice>('auto');
+  useEffect(() => setVoice(current?.brief?.voice ?? 'auto'), [current?.id, current?.brief?.voice]);
 
   const loadDrafts = useCallback(async () => {
     if (!user) return;
@@ -258,7 +271,7 @@ const ComposeSongPage = () => {
   const makeMusic = async () => {
     if (!current) return;
     setCurrent({ ...current, audio_status: 'making', music_requested_at: new Date().toISOString() });
-    const r = await call({ action: 'music', draftId: current.id });
+    const r = await call({ action: 'music', draftId: current.id, voice });
     if (!r.draft) {
       appAlert("Couldn't make the music", r.error ?? 'Please try again later.', 'error');
       const { data } = await supabase.from('song_drafts' as never).select('*').eq('id', current.id).maybeSingle();
@@ -266,6 +279,25 @@ const ComposeSongPage = () => {
       return;
     }
     setCurrent(r.draft);
+  };
+
+  /** A song's own name (its title, also inside the song so the sheet and copies use it) */
+  const rename = async (title: string) => {
+    if (!current) return false;
+    const name = title.replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!name || name === current.title) return true;
+    const before = current;
+    const next = { ...current, title: name, song: { ...current.song, title: name } };
+    setCurrent(next);
+    setDrafts((list) => list?.map((x) => (x.id === next.id ? next : x)) ?? list);
+    const { error } = await supabase.from('song_drafts' as never).update({ title: name, song: next.song } as never).eq('id', current.id);
+    if (error) {
+      setCurrent(before);
+      setDrafts((list) => list?.map((x) => (x.id === before.id ? before : x)) ?? list);
+      appAlert("Couldn't rename it", 'Please try again.', 'error');
+      return false;
+    }
+    return true;
   };
 
   const toggleShare = async () => {
@@ -315,13 +347,14 @@ const ComposeSongPage = () => {
       <Page>
         <PageTitle title="" back={back} />
         <div className="-mt-4">
-          <SongSheet song={current.song} />
+          <SongSheet song={current.song} onRename={mine ? rename : undefined} />
 
           <SectionLabel>The music</SectionLabel>
           <div className="rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="song-music">
             {current.audio_status === 'ready' && current.audio_url ? (
               <>
                 <audio controls preload="metadata" src={current.audio_url} className="w-full" />
+                {mine && <VoicePicker value={voice} onChange={setVoice} className="mt-3" note="For Make it again" />}
                 <div className="mt-3 flex gap-2">
                   <a href={current.audio_url} download={`${current.title}.${current.audio_url.split('?')[0].split('.').pop() || 'mp3'}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
                     <Download className="h-4 w-4" /> Save
@@ -351,6 +384,7 @@ const ComposeSongPage = () => {
                       : "The music couldn't be made last time. Try again in a little while."}
                   </p>
                 )}
+                <VoicePicker value={voice} onChange={setVoice} className="mb-3" />
                 <button type="button" onClick={makeMusic} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[15px] font-semibold text-white">
                   <Music2 className="h-5 w-5" /> Make the full song
                 </button>
@@ -466,6 +500,7 @@ const ComposeSongPage = () => {
             )}
           </div>
         </div>
+        <VoicePicker value={brief.voice ?? 'auto'} onChange={(v) => setBrief({ ...brief, voice: v })} />
         <label className="block">
           <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Anything else <span className="font-normal text-muted-foreground">(optional)</span></span>
           <input value={brief.notes} onChange={(e) => setBrief({ ...brief, notes: e.target.value.slice(0, 600) })} placeholder="A line you want in it, a Yoruba chorus, for Easter…" className={field} />
@@ -615,6 +650,21 @@ const MusicServiceRow = ({ service, onChange }: { service: MusicService; onChang
     </>
   );
 };
+
+/** Lead voice for the music: Auto (as before: the music chooses) or a female, male or duet lead */
+const VoicePicker = ({ value, onChange, className, note }: { value: Voice; onChange: (v: Voice) => void; className?: string; note?: string }) => (
+  <div className={className} data-testid="voice-picker">
+    <span className="mb-1.5 block text-[14px] font-semibold text-foreground">
+      Lead voice {note && <span className="font-normal text-muted-foreground">({note.toLowerCase()})</span>}
+    </span>
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Lead voice">
+      {VOICES.map((v) => (
+        <Chip key={v.id} on={value === v.id} onClick={() => onChange(v.id)}>{v.label}</Chip>
+      ))}
+    </div>
+    {value === 'auto' && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Auto lets the music choose the singer.</p>}
+  </div>
+);
 
 const WritingProgress = ({ run, className }: { run: { at: number; count: number; done: boolean }; className?: string }) => (
   <LiveProgress

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, Copy, Minus, Plus } from 'lucide-react';
+import { Check, ChevronDown, Copy, Minus, Pencil, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { chordSheetText, pieces, prefersFlats, transposeKey, transposeLine } from '@/lib/chordSheet';
@@ -41,8 +41,14 @@ const ChordLine = ({ line, steps, flats, showChords }: { line: string; steps: nu
  * over the words; change key, hide the chords, copy it; the choir's and the
  * band's notes underneath.
  */
-const SongSheet = ({ song }: { song: ComposedSong }) => {
+const SongSheet = ({ song, onRename }: { song: ComposedSong; onRename?: (title: string) => Promise<boolean> }) => {
   const [steps, setSteps] = useState(0);
+  const [naming, setNaming] = useState<string | null>(null);
+  const saveName = async () => {
+    if (naming === null) return;
+    if (!naming.trim()) return setNaming(null);
+    if (await onRename?.(naming)) setNaming(null);
+  };
   const [showChords, setShowChords] = useState(true);
   const [notesOpen, setNotesOpen] = useState(false);
   const key = transposeKey(song.key, steps);
@@ -60,7 +66,40 @@ const SongSheet = ({ song }: { song: ComposedSong }) => {
 
   return (
     <div data-testid="song-sheet">
-      <h2 className="font-outfit text-[26px] font-bold leading-tight tracking-tight text-foreground">{song.title}</h2>
+      {naming !== null ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveName();
+          }}
+        >
+          <input
+            autoFocus
+            value={naming}
+            onChange={(e) => setNaming(e.target.value.slice(0, 120))}
+            onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
+            aria-label="Song name"
+            enterKeyHint="done"
+            className="h-12 min-w-0 flex-1 rounded-2xl border border-border bg-card px-3.5 font-outfit text-[20px] font-bold text-foreground outline-none focus:border-blue-500"
+          />
+          <button type="submit" aria-label="Save the name" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
+            <Check className="h-5 w-5" />
+          </button>
+          <button type="button" onClick={() => setNaming(null)} aria-label="Cancel" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </form>
+      ) : (
+        <h2 className="font-outfit text-[26px] font-bold leading-tight tracking-tight text-foreground">
+          {song.title}
+          {onRename && (
+            <button type="button" onClick={() => setNaming(song.title)} aria-label="Rename the song" className="ml-2 inline-flex h-8 w-8 translate-y-[-2px] items-center justify-center rounded-full bg-muted align-middle text-muted-foreground active:bg-muted/70">
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+        </h2>
+      )}
       {song.summary && <p className="mt-1 text-[14px] leading-snug text-muted-foreground">{song.summary}</p>}
       <div className="mt-3 flex flex-wrap gap-1.5 text-[12.5px] font-semibold">
         <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">Key {key}</span>
