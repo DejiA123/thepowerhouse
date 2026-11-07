@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { nameColor } from '@/components/common/UserAvatar';
 import UserAvatar from '@/components/common/UserAvatar';
 import SecureImg from './SecureImg';
+import { BOX_TEXT, composerFormatted, hasFormatting } from './whatsappFormat';
 import { formatBytes, formatSeconds, isGifFile, isVideoFile, type LinkPreview } from './chatUtils';
 import { MAX_VOICE_SECONDS, VoiceRecorder, type VoiceRecording } from '@/lib/voiceRecorder';
 
@@ -49,6 +50,12 @@ const ChatComposer = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  /** The formatted copy of the text drawn under the box (WhatsApp's live *bold*, _italic_ …) */
+  const mirrorRef = useRef<HTMLDivElement>(null);
+  const formatted = useMemo(() => hasFormatting(text), [text]);
+  useLayoutEffect(() => {
+    if (mirrorRef.current && inputRef.current) mirrorRef.current.scrollTop = inputRef.current.scrollTop;
+  }, [text, formatted]);
   const fileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -566,6 +573,21 @@ const ChatComposer = ({
               }}
             />
             <div className="flex min-w-0 flex-1 items-end rounded-[22px] border border-border bg-muted/50 px-4 transition-colors focus-within:bg-background">
+              <div className="relative min-w-0 flex-1">
+              {/* Live formatting like WhatsApp: the box's own text turns see-through and this
+                  copy, with the same letters and widths, shows *bold*, _italic_, ~strike~ and
+                  `code` under it; the cursor and selection stay the box's own */}
+              {formatted && (
+                <div
+                  ref={mirrorRef}
+                  aria-hidden
+                  data-testid="composer-mirror"
+                  className={cn('pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap py-2.5 text-[16px] leading-5 text-foreground [overflow-wrap:break-word]', BOX_TEXT)}
+                >
+                  {composerFormatted(text)}
+                  {'\u200b'}
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 data-composer-input
@@ -599,8 +621,16 @@ const ChatComposer = ({
                     else if (canSend) submit();
                   }
                 }}
-                className="max-h-[148px] min-h-[40px] w-full resize-none border-0 bg-transparent py-2.5 text-[16px] leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:border-transparent focus:shadow-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+                onScroll={(e) => {
+                  if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
+                }}
+                className={cn(
+                  BOX_TEXT,
+                  'relative block max-h-[148px] min-h-[40px] w-full resize-none border-0 bg-transparent py-2.5 text-[16px] leading-5 text-foreground outline-none [overflow-wrap:break-word] [scrollbar-width:none] placeholder:text-muted-foreground focus:border-transparent focus:shadow-none focus:outline-none [-webkit-tap-highlight-color:transparent] [&::-webkit-scrollbar]:hidden',
+                  formatted && 'text-transparent caret-foreground [-webkit-text-fill-color:transparent] selection:bg-blue-500/25',
+                )}
               />
+              </div>
             </div>
           </>
         )}
