@@ -1139,6 +1139,12 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
+    // {"audioOf": "<draft id>"}: the recording itself, as base64 (to check timings)
+    if (typeof input.audioOf === 'string') {
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', input.audioOf).maybeSingle();
+      if (!d?.audio_url) return json({ ...out, error: 'No music' });
+      return json({ audio: toBase64(new Uint8Array(await (await fetch(d.audio_url)).arrayBuffer())) });
+    }
     // {"sectionsOf": "<draft id>"}: times that song's sections (shown, not saved)
     if (typeof input.sectionsOf === 'string') {
       const { data: d } = await supabaseAdmin.from('song_drafts').select('song, audio_url').eq('id', input.sectionsOf).maybeSingle();
