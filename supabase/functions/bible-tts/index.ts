@@ -65,10 +65,15 @@ async function kept(path: string): Promise<string | null> {
   return res?.ok ? url : null;
 }
 
-/** The music server's address and key (the voice is `speak` there) */
+/**
+ * The music server's address and key (the voice is `speak` there). Kept for a minute at
+ * most: every music server deploy makes a new key, and a function still holding the old
+ * one got "not allowed" (401) from the voice until it restarted.
+ */
 let server: { speak: string; key: string } | null | undefined;
-async function voiceServer() {
-  if (server !== undefined) return server;
+let serverAt = 0;
+async function voiceServer(fresh = false) {
+  if (!fresh && server !== undefined && Date.now() - serverAt < 60_000) return server;
   const { data } = await supabaseAdmin.rpc('service_key' as never, { _church: '00000000-0000-0000-0000-000000000000', _service: 'acestep' } as never);
   try {
     const v = typeof data === 'string' ? JSON.parse(data) : null;
@@ -76,19 +81,28 @@ async function voiceServer() {
   } catch {
     server = null;
   }
+  serverAt = Date.now();
   return server;
 }
 
 /** The own voice reads the piece and it's kept; answers its public address */
 async function ownVoice(text: string, voice: string, path: string): Promise<{ url?: string; audio?: Uint8Array; why?: string }> {
-  const srv = await voiceServer();
+  let srv = await voiceServer();
   if (!srv) return { why: 'not set up' };
-  const res = await fetch(srv.speak, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, voice: KOKORO[voice] ?? 'bm_george', speed: SPEED, key: srv.key }),
-    signal: AbortSignal.timeout(60_000),
-  }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }) as unknown as Response);
+  const ask = (s: { speak: string; key: string }) =>
+    fetch(s.speak, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice: KOKORO[voice] ?? 'bm_george', speed: SPEED, key: s.key }),
+      signal: AbortSignal.timeout(60_000),
+    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }) as unknown as Response);
+  let res = await ask(srv);
+  // Refused: the server was redeployed with a new key since it was read; read it again
+  if (res.status === 401 || res.status === 403) {
+    srv = await voiceServer(true);
+    if (!srv) return { why: 'not set up' };
+    res = await ask(srv);
+  }
   if (!res.ok) return { why: `${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}` };
   const audio = new Uint8Array(await res.arrayBuffer());
   const client = r2();
