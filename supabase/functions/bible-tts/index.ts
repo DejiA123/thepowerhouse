@@ -27,7 +27,7 @@ const KOKORO: Record<string, string> = {
   Kore: 'bf_emma', Aoede: 'af_heart', Leda: 'bf_isabella', Zephyr: 'af_bella', Callirrhoe: 'af_nicole',
 };
 /** Changing how the own voice reads (model, speed) starts a fresh set of kept pieces */
-const KEPT_VERSION = 'k1-0.95';
+const KEPT_VERSION = 'k2-0.95-loud';
 const SPEED = 0.95;
 const PROMPT = 'Read this Bible passage aloud, warmly and reverently, at a calm, steady pace: ';
 

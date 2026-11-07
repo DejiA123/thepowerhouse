@@ -270,7 +270,8 @@ def speak(body: dict):
         raise HTTPException(status_code=500, detail="No speech")
     pcm = np.concatenate([p.detach().cpu().numpy() if hasattr(p, "detach") else np.asarray(p) for p in parts]).astype(np.float32)
     mp3 = subprocess.run(
-        ["ffmpeg", "-v", "quiet", "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "-", "-codec:a", "libmp3lame", "-b:a", "48k", "-f", "mp3", "-"],
+        # Levelled to a steady, phone-friendly loudness (about -16 LUFS, peaks under -1.5 dB)
+        ["ffmpeg", "-v", "quiet", "-f", "f32le", "-ar", "24000", "-ac", "1", "-i", "-", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "24000", "-codec:a", "libmp3lame", "-b:a", "48k", "-f", "mp3", "-"],
         input=pcm.tobytes(),
         capture_output=True,
     ).stdout
