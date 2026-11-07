@@ -212,7 +212,7 @@ const ComposeSongPage = () => {
   const askedParts = useRef(new Set<string>());
   useEffect(() => {
     const d = current;
-    if (!d || d.audio_status !== 'ready' || !d.audio_url || d.audio_sections || askedParts.current.has(`${d.id}:${d.audio_url}`)) return;
+    if (!d || d.audio_status !== 'ready' || !d.audio_url || (Array.isArray(d.audio_sections) && d.audio_sections.length) || askedParts.current.has(`${d.id}:${d.audio_url}`)) return;
     askedParts.current.add(`${d.id}:${d.audio_url}`);
     setPartsLoading(true);
     void call({ action: 'sections', draftId: d.id }).then((r) => {
