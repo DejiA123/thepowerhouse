@@ -13,6 +13,7 @@ Deployed by .github/workflows/deploy-music-server.yml (needs the repo secrets
 MODAL_TOKEN_ID and MODAL_TOKEN_SECRET); that workflow also makes the key and gives
 the server's address and key to the app (Supabase Vault, platform entry).
 """
+import json
 import os
 import subprocess
 import threading
@@ -76,6 +77,32 @@ def server():
         shell=True,
     )
     threading.Thread(target=watchdog, args=(proc,), daemon=True).start()
+    threading.Thread(target=warm_up, daemon=True).start()
+
+
+def warm_up():
+    """
+    Loads the models as soon as the server answers, before any song comes. ACE-Step loads
+    them on the first song otherwise, and a song sent while they load hung for minutes
+    (Nov 2026); song-writer now waits until /health says they're loaded before sending.
+    """
+    key = os.environ.get("ACESTEP_API_KEY", "")
+    headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})}
+    for _ in range(120):  # up to 10 minutes for the API to start
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{PORT}/health", timeout=10)
+            break
+        except urllib.error.HTTPError:
+            break
+        except Exception:
+            time.sleep(5)
+    body = json.dumps({"init_llm": True, "lm_model_path": os.environ.get("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-1.7B")}).encode()
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}/v1/init", data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=1200) as res:
+            print("[warm_up] models loaded:", res.read()[:300], flush=True)
+    except Exception as e:
+        print("[warm_up] couldn't load the models:", e, flush=True)
 
 
 def watchdog(proc):
