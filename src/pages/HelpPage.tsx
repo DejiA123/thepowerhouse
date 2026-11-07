@@ -1,11 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { CircleHelp, Home, Search, Sparkles, Undo2 } from "lucide-react";
+import { Check, CircleHelp, Copy, Home, Mail, Search, Sparkles, Undo2 } from "lucide-react";
 import { ListGroup, Page, PageTitle, SectionLabel } from "@/components/page/PageKit";
 import { PlaceRow } from "@/components/nav/Places";
 import { HOW_DO_I, TILE, destination } from "@/data/appDirectory";
 import { openSearch, startTour } from "@/lib/appEvents";
 import { cn } from "@/lib/utils";
-import { hasFeature } from "@/config/church";
+import { useState } from "react";
+import { PLATFORM, church, hasFeature } from "@/config/church";
+import { useAuth } from "@/contexts/AuthContext";
+import { deviceLabel } from "@/lib/activity";
 import FeedbackCard from "@/components/feedback/FeedbackCard";
 
 const TIPS = [
@@ -69,7 +72,64 @@ const HelpPage = () => {
       >
         <Search className="h-5 w-5" /> Still can't find it? Search
       </button>
+
+      <ContactForHelp />
     </Page>
+  );
+};
+
+/**
+ * Contact us for help: an email to the app's support address (PLATFORM.supportEmail),
+ * with the church, the phone and the account already filled in, so a reply can help at
+ * once. Copy is there for phones with no mail app set up.
+ */
+const ContactForHelp = () => {
+  const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const email = PLATFORM.supportEmail;
+  const about = [
+    "",
+    "",
+    "––––",
+    `Church: ${church.name}`,
+    `Phone: ${deviceLabel()}`,
+    user?.email ? `Account: ${user.email}` : "Not signed in",
+  ].join("\n");
+  // "the Power House app", never "the The Power House app"
+  const href = `mailto:${email}?subject=${encodeURIComponent(`Help with the ${church.name.replace(/^the\s+/i, '')} app`)}&body=${encodeURIComponent(`Hi, I need help with:${about}`)}`;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* the address is shown, so it can be typed */
+    }
+  };
+  return (
+    <section aria-label="Contact us for help" className="mt-8 rounded-[22px] border border-slate-200/80 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="contact-help">
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+          <Mail className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold text-foreground">Still need help?</h2>
+          <p className="text-[13.5px] leading-snug text-muted-foreground">Email us and we'll get back to you.</p>
+        </div>
+      </div>
+      <a
+        href={href}
+        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-[15.5px] font-semibold text-white active:bg-blue-700"
+      >
+        <Mail className="h-5 w-5" /> Contact us for help
+      </a>
+      <div className="mt-2 flex items-center justify-center gap-2 text-[13.5px] text-muted-foreground">
+        <span className="select-all break-all">{email}</span>
+        <button type="button" onClick={copy} aria-label="Copy the email address" className="flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold text-blue-600 active:bg-muted dark:text-blue-400">
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </section>
   );
 };
 
