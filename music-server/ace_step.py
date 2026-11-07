@@ -186,7 +186,9 @@ def separate(body: dict):
     started = time.time()
     work = pathlib.Path(tempfile.mkdtemp())
     song = work / "song.mp3"
-    with req.urlopen(url, timeout=60) as res:
+    # The media store (Cloudflare) refuses Python's default user agent (403)
+    download = req.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; ChurchSpace-music/1.0)"})
+    with req.urlopen(download, timeout=60) as res:
         song.write_bytes(res.read(60 * 1024 * 1024))
     run = subprocess.run(
         ["python", "-m", "demucs", "--two-stems=vocals", "-n", "htdemucs", "--mp3", "--mp3-bitrate", "192", "-o", str(work / "out"), str(song)],
