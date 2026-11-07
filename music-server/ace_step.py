@@ -13,7 +13,12 @@ Deployed by .github/workflows/deploy-music-server.yml (needs the repo secrets
 MODAL_TOKEN_ID and MODAL_TOKEN_SECRET); that workflow also makes the key and gives
 the server's address and key to the app (Supabase Vault, platform entry).
 """
+import os
 import subprocess
+import threading
+import time
+import urllib.error
+import urllib.request
 
 import modal
 
@@ -66,7 +71,35 @@ app = modal.App("church-ace-step")
 @modal.concurrent(max_inputs=50)
 @modal.web_server(PORT, startup_timeout=1800)
 def server():
-    subprocess.Popen(
+    proc = subprocess.Popen(
         f"cd /opt/ace && .venv/bin/acestep-api --host 0.0.0.0 --port {PORT}",
         shell=True,
     )
+    threading.Thread(target=watchdog, args=(proc,), daemon=True).start()
+
+
+def watchdog(proc):
+    """
+    Restarts the server if it hangs. With one server allowed (max_containers=1), a hung
+    one made every new song wait behind it (Nov 2026: 30 minutes, until a redeploy). If
+    the API process dies, or stops answering /health for 8 minutes (longer than any song
+    takes), the container exits and Modal starts a fresh one; song-writer then finds the
+    song missing and sends it again.
+    """
+    time.sleep(300)  # starting up and loading the models
+    silent = 0
+    while True:
+        time.sleep(30)
+        if proc.poll() is not None:
+            print("[watchdog] the API process stopped; restarting the container", flush=True)
+            os._exit(1)
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{PORT}/health", timeout=20)
+            silent = 0
+        except urllib.error.HTTPError:
+            silent = 0  # it answered (e.g. asks for the key): alive
+        except Exception:
+            silent += 1
+            if silent >= 16:
+                print("[watchdog] no answer for 8 minutes; restarting the container", flush=True)
+                os._exit(1)
