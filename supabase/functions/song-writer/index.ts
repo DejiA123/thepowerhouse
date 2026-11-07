@@ -19,7 +19,7 @@
 //
 // Signed-in members only. A request signed like Auth's hooks (SEND_EMAIL_HOOK_SECRET)
 // may run {"action":"check"} to see which services answer, for setting up.
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.540.0';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from 'https://esm.sh/@aws-sdk/client-s3@3.540.0';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -863,6 +863,24 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
+    // {"storage": true}: how much the R2 bucket holds, by top folder (chat-media, songs, lyrics…)
+    if (input.storage && r2()) {
+      const folders: Record<string, { files: number; bytes: number }> = {};
+      let token: string | undefined;
+      let pages = 0;
+      do {
+        const page = await r2()!.send(new ListObjectsV2Command({ Bucket: R2.bucket, ContinuationToken: token, MaxKeys: 1000 }));
+        for (const o of page.Contents ?? []) {
+          const top = String(o.Key ?? '').split('/')[0] || '(top)';
+          folders[top] ??= { files: 0, bytes: 0 };
+          folders[top].files++;
+          folders[top].bytes += Number(o.Size ?? 0);
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token && ++pages < 200);
+      const total = Object.values(folders).reduce((a, f) => a + f.bytes, 0);
+      out.storage = { total_mb: Math.round(total / 1048576), free_gb: 10, folders: Object.fromEntries(Object.entries(folders).map(([k, f]) => [k, { files: f.files, mb: Math.round(f.bytes / 104857.6) / 10 }])) };
+    }
     if (input.services) {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('church_id, service, hint, updated_at');
       out.connected = rows;
