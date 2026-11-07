@@ -128,25 +128,47 @@ function validSong(x: unknown): Song | null {
   };
 }
 
-async function gemini(model: string, b: Brief): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt(b) }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.9 },
-    }),
-  });
-  if (!res.ok) return { error: `${model} ${res.status}: ${(await res.text()).slice(0, 200)}`, status: res.status };
+async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
+  const t0 = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI },
+      // Each attempt must leave time for another inside the function's limit
+      signal: AbortSignal.timeout(60_000),
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt(b) }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.9,
+          maxOutputTokens: 8192,
+          // Thinking at length makes an answer take minutes: a little is plenty for a song
+          ...(lowThinking ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+        },
+      }),
+    });
+  } catch (e) {
+    return { error: `${model} gave no answer in ${Math.round((Date.now() - t0) / 1000)}s (${String(e).slice(0, 60)})`, status: 504 };
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    // A model that doesn't take the thinking setting: ask again without it
+    if (lowThinking && res.status === 400 && /thinking/i.test(text)) return gemini(model, b, false);
+    return { error: `${model} ${res.status} after ${Math.round((Date.now() - t0) / 1000)}s: ${text.slice(0, 200)}`, status: res.status };
+  }
   const data = await res.json();
-  const text = (data?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('');
-  return parsed(text, model);
+  const text = (data?.candidates?.[0]?.content?.parts ?? []).filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text ?? '').join('');
+  const out = parsed(text, model);
+  console.log(`[song-writer] ${model} answered in ${Math.round((Date.now() - t0) / 1000)}s`);
+  return out;
 }
 
 async function openai(b: Brief): Promise<{ song?: Song; refused?: string; error?: string }> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(60_000),
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI}` },
     body: JSON.stringify({
       model: Deno.env.get('OPENAI_SONG_MODEL') ?? 'gpt-4.1',
@@ -179,13 +201,14 @@ async function writeSong(b: Brief) {
   if (GEMINI) {
     const queue = [SONG_MODEL, BACKUP_MODEL];
     const tried = new Set<string>();
-    while (queue.length && tried.size < 5) {
+    const started = Date.now();
+    while (queue.length && tried.size < 5 && Date.now() - started < 70_000) {
       const model = queue.shift()!;
       if (tried.has(model)) continue;
       tried.add(model);
       let r = await gemini(model, b);
       // Busy for a moment: one more try
-      if (r.status === 503 || r.status === 500) {
+      if ((r.status === 503 || r.status === 500) && Date.now() - started < 30_000) {
         await new Promise((res) => setTimeout(res, 2000));
         r = await gemini(model, b);
       }
@@ -197,7 +220,7 @@ async function writeSong(b: Brief) {
     }
   }
   if (OPENAI) {
-    const r = await openai(b);
+    const r = await openai(b).catch((e) => ({ error: `openai: ${String(e).slice(0, 80)}` }) as { song?: Song; refused?: string; error?: string });
     if (r.song || r.refused) return r;
     errors.push(r.error!);
   }
@@ -301,7 +324,9 @@ Deno.serve(async (req) => {
     const brief = briefFrom({ theme: 'Thanksgiving for God\'s faithfulness through a hard year', style: 'gospel_choir', feel: 'mid' })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, model: SONG_MODEL };
     if (input.write) {
+      const t0 = Date.now();
       const r = await writeSong(brief);
+      out.write_seconds = Math.round((Date.now() - t0) / 1000);
       out.write = r.song ? { ok: true, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
       if (r.song) out.song = r.song;
     }
