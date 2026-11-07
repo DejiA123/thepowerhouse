@@ -29,6 +29,9 @@ const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
 // official demo on Hugging Face (a free token gives some GPU minutes a day)
 const ACE_BASE = 'https://api.acemusic.ai';
 const HF_SPACE = Deno.env.get('HF_MUSIC_SPACE') ?? 'https://ace-step-ace-step-v1-5.hf.space';
+// The demo's generation_wrapper: its queue function number and the Generate button (from its /config, Gradio 6.2)
+const HF_FN = Number(Deno.env.get('HF_MUSIC_FN') ?? 77);
+const HF_TRIGGER = Number(Deno.env.get('HF_MUSIC_TRIGGER') ?? 147);
 type Service = 'acemusic' | 'huggingface';
 const ENV_KEYS: Record<Service, string> = { acemusic: Deno.env.get('ACEMUSIC_API_KEY') ?? '', huggingface: Deno.env.get('HF_TOKEN') ?? '' };
 // Timed on this key (Nov 2026): gemini-3.5-flash wrote a full song in ~10 s; 3.8-flash is
@@ -539,7 +542,7 @@ async function hfMusic(token: string, song: Song, brief: Brief, timeoutMs: numbe
   const t0 = Date.now();
   const headers = { 'Content-Type': 'application/json', 'x-hf-authorization': `Bearer ${token}` };
   const lang = aceLanguage(brief);
-  // The demo's generation_wrapper, every input in order (custom text-to-music, one song, the 4B model, thinking on)
+  // The demo's generation_wrapper, every named input in order (custom text-to-music, one song, the 4B model, thinking on)
   const data = [
     'acestep-v15-xl-turbo', 'custom', '', 'unknown', aceCaption(song, brief), aceLyrics(song), Math.round(song.bpm || 0), aceKey(song.key), aceTime(song.time_signature, true), lang,
     8, 7.0, true, '-1', null, aceSeconds(song), 1, null, '', 0.0, -1,
@@ -547,18 +550,41 @@ async function hfMusic(token: string, song: Song, brief: Brief, timeoutMs: numbe
     0.85, true, 2.0, 0, 0.9, 'NO USER INPUT', true, true, true, false, true, false, false, 0.5, 8, 'vocals', [], false,
   ];
   try {
-    const start = await fetch(`${HF_SPACE}/gradio_api/call/generation_wrapper`, { method: 'POST', headers, body: JSON.stringify({ data }), signal: AbortSignal.timeout(30_000) });
-    if (!start.ok) return { error: `huggingface ${start.status}: ${(await start.text()).slice(0, 200)}`, status: start.status };
-    const { event_id } = await start.json();
-    // The answer is a short event stream that ends when the song is ready
-    const res = await fetch(`${HF_SPACE}/gradio_api/call/generation_wrapper/${event_id}`, { headers, signal: AbortSignal.timeout(Math.max(10_000, timeoutMs - (Date.now() - t0))) });
-    const stream = await res.text();
-    const events = [...stream.matchAll(/event:\s*(\w+)\s*\ndata:\s*(.*)/g)];
-    const last = events[events.length - 1];
-    if (!last || last[1] !== 'complete') {
-      return { error: `huggingface: ${last ? `${last[1]} ${last[2].slice(0, 200)}` : 'no answer'} (the demo's free GPU minutes may be used up for today)`, status: 429 };
+    // The demo's queue (like the official client): it says why when it refuses, e.g. the
+    // token's free GPU minutes for today are used up. Its 54 inputs include 5 hidden ones.
+    const session = crypto.randomUUID().replace(/-/g, '').slice(0, 11);
+    const join = await fetch(`${HF_SPACE}/gradio_api/queue/join`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ data: [...data.slice(0, 40), null, ...data.slice(40), null, null, null, null], fn_index: HF_FN, trigger_id: HF_TRIGGER, session_hash: session, event_data: null }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!join.ok) return { error: `huggingface ${join.status}: ${(await join.text()).slice(0, 200)}`, status: join.status };
+    const res = await fetch(`${HF_SPACE}/gradio_api/queue/data?session_hash=${session}`, { headers, signal: AbortSignal.timeout(Math.max(10_000, timeoutMs - (Date.now() - t0))) });
+    if (!res.ok || !res.body) return { error: `huggingface ${res.status}: no stream` };
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = '';
+    let done: { success?: boolean; output?: { data?: unknown[]; error?: string | null; title?: string } } | null = null;
+    while (!done) {
+      const { value, done: ended } = await reader.read();
+      if (ended) break;
+      buf += value;
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const m = JSON.parse(line.slice(5));
+        if (m.msg === 'process_completed') done = m;
+        else if (m.msg === 'unexpected_error') done = { success: false, output: { error: m.message ?? 'unexpected error' } };
+      }
     }
-    const out = JSON.parse(last[2]) as unknown[];
+    reader.cancel().catch(() => {});
+    if (!done) return { error: 'huggingface: the demo stopped without a song' };
+    if (!done.success || !done.output?.data) {
+      const why = `${done.output?.title ? `${done.output.title}: ` : ''}${done.output?.error ?? 'failed'}`;
+      return { error: `huggingface: ${why.slice(0, 300)}`, status: /quota|limit/i.test(why) ? 429 : 500 };
+    }
+    const out = done.output.data;
     const file = out[0] as { url?: string; path?: string } | string | null;
     const url = typeof file === 'string' ? (file.startsWith('http') ? file : `${HF_SPACE}/gradio_api/file=${file}`) : file?.url ?? (file?.path ? `${HF_SPACE}/gradio_api/file=${file.path}` : '');
     if (!url) return { error: `huggingface: no song in the answer (${String(out[10] ?? '').slice(0, 160)})` };
