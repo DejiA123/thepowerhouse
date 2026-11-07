@@ -2041,3 +2041,36 @@ body.modal-open {
 @media (prefers-reduced-motion: reduce) {
   .chat-peek[data-state], .chat-peek-overlay[data-state] { animation-duration: 1ms; }
 }
+
+/* Compose a song → the live progress while the music is made (MusicProgress) */
+.music-eq span {
+  height: 30%;
+  animation: music-eq 0.9s ease-in-out infinite alternate;
+}
+@keyframes music-eq {
+  0% { height: 25%; }
+  50% { height: 100%; }
+  100% { height: 45%; }
+}
+.music-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: music-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes music-shimmer {
+  to { transform: translateX(100%); }
+}
+.music-stage {
+  animation: music-stage-in 380ms ease-out both;
+}
+@keyframes music-stage-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-eq span, .music-bar::after, .music-stage { animation: none; }
+  .music-eq span { height: 60%; }
+}
