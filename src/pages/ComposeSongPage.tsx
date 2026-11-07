@@ -475,7 +475,8 @@ const ComposeSongPage = () => {
         <p className="px-1 text-[12.5px] leading-snug text-muted-foreground">A first draft to pray over, sing through and make your own. Only Christian worship and gospel songs. Lines in another language are worth checking with a native speaker.</p>
       </div>
 
-      {service?.canManage && <MusicServiceRow service={service} onChange={setService} />}
+      {/* Nothing to set up while the church's own music server is running (only a key someone added is shown, to remove it) */}
+      {service?.canManage && (!service.platform.acestep || service.services.length > 0) && <MusicServiceRow service={service} onChange={setService} />}
 
       {!!mineList.length && (
         <>
