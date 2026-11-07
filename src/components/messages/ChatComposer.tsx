@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
-import { BarChart3, Check, ChevronLeft, FileText, Users, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from 'lucide-react';
+import { BarChart3, Check, ChevronLeft, FileText, Users, ImagePlus, Link2, Loader2, Lock, Mic, Pencil, Plus, Reply, SendHorizontal, Trash2, Video, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { nameColor } from '@/components/common/UserAvatar';
 import UserAvatar from '@/components/common/UserAvatar';
@@ -10,6 +10,24 @@ import { MAX_VOICE_SECONDS, VoiceRecorder, type VoiceRecording } from '@/lib/voi
 
 /** Documents up to this size (like WhatsApp's 100 MB … within reason for a phone) */
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
+/** How many things can be sent at once (WhatsApp allows 30) */
+const MAX_ITEMS = 30;
+
+/** One thing waiting to be sent: a photo, GIF, video or document, with its own caption */
+interface Attachment {
+  id: string;
+  file: File;
+  kind: 'photo' | 'gif' | 'video' | 'doc';
+  /** A preview address for photos and videos (revoked when removed or sent) */
+  url?: string;
+  caption: string;
+}
+let attachSeq = 0;
+const toAttachment = (file: File, asDoc: boolean): Attachment => {
+  const kind = asDoc ? 'doc' : isVideoFile(file) ? 'video' : isGifFile(file) ? 'gif' : 'photo';
+  return { id: `a${++attachSeq}`, file, kind, url: kind === 'doc' ? undefined : URL.createObjectURL(file), caption: '' };
+};
+const kindName = (k: Attachment['kind']) => (k === 'video' ? 'video' : k === 'gif' ? 'GIF' : k === 'doc' ? 'document' : 'photo');
 const URL_IN_TEXT = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/i;
 
 interface Props {
@@ -43,10 +61,17 @@ const ChatComposer = ({
   onSend, onNewPoll, onSendMedia, onSendVoice, onSendFile, onTyping, disabled, placeholder = '', editing, onSaveEdit, onCancelEdit, replyTo, onCancelReply, mentionables,
 }: Props) => {
   const [text, setText] = useState('');
-  const [photo, setPhoto] = useState<{ file: File; url: string; kind: 'photo' | 'gif' | 'video' } | null>(null);
-  const [doc, setDoc] = useState<File | null>(null);
+  // Things waiting to be sent (several at once, like WhatsApp), and the one whose caption
+  // the box is showing; each keeps its own caption
+  const [items, setItems] = useState<Attachment[]>([]);
+  const [current, setCurrent] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  /** While sending several: which one is going (1-based) */
+  const [sendingNo, setSendingNo] = useState(0);
+  const attached = items.length > 0;
+  const itemsRef = useRef<Attachment[]>([]);
+  itemsRef.current = items;
   const [menuOpen, setMenuOpen] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -112,7 +137,7 @@ const ChatComposer = ({
   // ── Link preview (made here, sent inside the message) ──────────────
   const [preview, setPreview] = useState<{ url: string; data: LinkPreview | null; loading: boolean } | null>(null);
   const dismissed = useRef(new Set<string>());
-  const link = !editing && !photo && !doc ? text.match(URL_IN_TEXT)?.[0] ?? null : null;
+  const link = !editing && !attached ? text.match(URL_IN_TEXT)?.[0] ?? null : null;
   useEffect(() => {
     if (!link || dismissed.current.has(link)) {
       setPreview(null);
@@ -172,8 +197,48 @@ const ChatComposer = ({
 
   useEffect(() => () => {
     clearTimeout(typingTimer.current);
-    if (photo) URL.revokeObjectURL(photo.url);
-  }, [photo]);
+    itemsRef.current.forEach((a) => a.url && URL.revokeObjectURL(a.url));
+  }, []);
+
+  /** Adds picked files (photos/videos, or documents) after what's already there */
+  const addFiles = (list: FileList | null, asDoc: boolean) => {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    const tooBig = asDoc ? files.filter((f) => f.size > MAX_FILE_BYTES).length : 0;
+    const fresh = files.filter((f) => !asDoc || f.size <= MAX_FILE_BYTES);
+    const room = MAX_ITEMS - itemsRef.current.length;
+    const taken = fresh.slice(0, Math.max(0, room)).map((f) => toAttachment(f, asDoc));
+    if (tooBig) setHint(tooBig === 1 ? 'Documents can be up to 100 MB' : `${tooBig} documents were over 100 MB`);
+    else if (fresh.length > room) setHint(`Up to ${MAX_ITEMS} at a time`);
+    if (!taken.length) return;
+    // Keep what was typed as the caption of the one being shown
+    const before = itemsRef.current.map((a, i) => (i === current ? { ...a, caption: text } : a));
+    const next = [...before, ...taken];
+    setItems(next);
+    // Show the first new one (its caption is empty)
+    setCurrent(before.length);
+    setText(before.length ? '' : text);
+    inputRef.current?.focus();
+  };
+
+  /** Shows another item's caption in the box (keeping what was typed for this one) */
+  const selectItem = (i: number) => {
+    if (i === current || uploading) return;
+    setItems((list) => list.map((a, j) => (j === current ? { ...a, caption: text } : a)));
+    setText(items[i]?.caption ?? '');
+    setCurrent(i);
+  };
+
+  const removeItem = (i: number) => {
+    if (uploading) return;
+    const gone = items[i];
+    if (gone?.url) URL.revokeObjectURL(gone.url);
+    const kept = items.map((a, j) => (j === current ? { ...a, caption: text } : a)).filter((_, j) => j !== i);
+    setItems(kept);
+    const nextCurrent = Math.min(i < current ? current - 1 : current, kept.length - 1);
+    setCurrent(Math.max(0, nextCurrent));
+    setText(kept.length ? kept[Math.max(0, nextCurrent)].caption : '');
+  };
 
   useEffect(() => {
     if (!hint) return;
@@ -201,22 +266,37 @@ const ChatComposer = ({
       else onSaveEdit?.(withMentions(value));
       return;
     }
-    if (photo || doc) {
+    if (attached) {
+      // Everything goes in the order it was picked, each with its own caption; one that
+      // fails stays (with the ones after it) so it can be sent again
+      const queue = items.map((a, i) => (i === current ? { ...a, caption: text } : a));
+      setItems(queue);
       setUploading(true);
-      setProgress(photo?.kind === 'video' || doc ? 0 : null);
+      let sent = 0;
       try {
-        if (photo) await onSendMedia(photo.file, withMentions(value), setProgress);
-        else if (doc) await onSendFile?.(doc, withMentions(value), setProgress);
-        if (photo) URL.revokeObjectURL(photo.url);
-        setPhoto(null);
-        setDoc(null);
+        for (const a of queue) {
+          setSendingNo(sent + 1);
+          setProgress(a.kind === 'video' || a.kind === 'doc' ? 0 : null);
+          const caption = withMentions(a.caption.trim());
+          if (a.kind === 'doc') await onSendFile?.(a.file, caption, setProgress);
+          else await onSendMedia(a.file, caption, setProgress);
+          if (a.url) URL.revokeObjectURL(a.url);
+          sent++;
+          setItems(queue.slice(sent));
+        }
         setText('');
+        setCurrent(0);
         mentioned.current.clear();
       } catch {
-        /* the conversation explains what went wrong; keep the file so it can be sent again */
+        /* the conversation explains what went wrong; what wasn't sent stays, ready to send again */
+        const left = queue.slice(sent);
+        setItems(left);
+        setCurrent(0);
+        setText(left[0]?.caption ?? '');
       } finally {
         setUploading(false);
         setProgress(null);
+        setSendingNo(0);
       }
     } else {
       if (!value) return;
@@ -318,7 +398,7 @@ const ChatComposer = ({
 
   useEffect(() => () => recorder.current?.cancel(), []);
 
-  const hasContent = text.trim().length > 0 || !!photo || !!doc;
+  const hasContent = text.trim().length > 0 || attached;
   const canSend = editing
     ? (text.trim().length > 0 || editing.caption) && !disabled
     : hasContent && !uploading && !disabled;
@@ -413,50 +493,76 @@ const ChatComposer = ({
           </button>
         </div>
       )}
-      {photo && !editing && (
-        <div className="mx-1 mb-2 flex items-center gap-3 rounded-2xl bg-muted/60 p-2">
-          {photo.kind === 'video' ? (
-            <video src={`${photo.url}#t=0.1`} muted playsInline preload="metadata" className="h-16 w-16 rounded-xl bg-black object-cover" />
-          ) : (
-            <img src={photo.url} alt="Selected" className="h-16 w-16 rounded-xl object-cover" />
-          )}
-          <p className="flex-1 text-sm text-muted-foreground">
-            {uploading
-              ? photo.kind === 'video'
-                ? `Sending video… ${progress ?? 0}%`
-                : `Sending ${photo.kind === 'gif' ? 'GIF' : 'photo'}…`
-              : `${photo.kind === 'video' ? 'Video' : photo.kind === 'gif' ? 'GIF' : 'Photo'} ready. Add a caption or tap send`}
-          </p>
-          <button
-            onClick={() => {
-              URL.revokeObjectURL(photo.url);
-              setPhoto(null);
-            }}
-            disabled={uploading}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label="Remove attachment"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-      {doc && !editing && (
-        <div className="mx-1 mb-2 flex items-center gap-3 rounded-2xl bg-muted/60 p-2">
-          <span className="flex h-14 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <FileText className="h-6 w-6" />
-          </span>
-          <div className="w-0 min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{doc.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {uploading ? `Sending… ${progress ?? 0}%` : `${formatBytes(doc.size)} · add a caption or tap send`}
-            </p>
+      {attached && !editing && (
+        <div className="mx-1 mb-2 rounded-2xl bg-muted/60 p-2" data-testid="attachments">
+          <div className="-mt-1 flex gap-2.5 overflow-x-auto px-1 pb-1 pt-2.5 [scrollbar-width:none]">
+            {items.map((a, i) => (
+              <div key={a.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => selectItem(i)}
+                  aria-label={`${kindName(a.kind)} ${i + 1} of ${items.length}${a.kind === 'doc' ? `: ${a.file.name}` : ''}`}
+                  aria-pressed={i === current}
+                  className={cn(
+                    'flex h-16 overflow-hidden rounded-xl bg-background ring-offset-1 ring-offset-muted transition',
+                    a.kind === 'doc' ? 'w-28 items-center gap-1.5 px-2 text-left' : 'w-16',
+                    i === current && items.length > 1 && 'ring-2 ring-blue-600',
+                    uploading && i > 0 && 'opacity-60',
+                  )}
+                >
+                  {a.kind === 'doc' ? (
+                    <>
+                      <span className="flex h-10 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white"><FileText className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 break-all text-[11px] font-medium leading-tight text-foreground">{a.file.name}</span>
+                        <span className="block text-[10px] text-muted-foreground">{formatBytes(a.file.size)}</span>
+                      </span>
+                    </>
+                  ) : a.kind === 'video' ? (
+                    <span className="relative h-full w-full">
+                      <video src={`${a.url}#t=0.1`} muted playsInline preload="metadata" className="h-full w-full bg-black object-cover" />
+                      <Video className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white drop-shadow" />
+                    </span>
+                  ) : (
+                    <img src={a.url} alt="" className="h-full w-full object-cover" />
+                  )}
+                  {a.caption && i !== current && <span className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-background" aria-hidden />}
+                </button>
+                {!uploading && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => removeItem(i)}
+                    className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background shadow"
+                    aria-label={`Remove ${kindName(a.kind)} ${i + 1}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {!uploading && items.length < MAX_ITEMS && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => (items[items.length - 1]?.kind === 'doc' ? docRef : fileRef).current?.click()}
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/30 text-muted-foreground"
+                aria-label="Add more"
+              >
+                <Plus className="h-6 w-6" />
+              </button>
+            )}
           </div>
-          <button onClick={() => setDoc(null)} disabled={uploading} className="rounded-full p-2 text-muted-foreground hover:bg-muted" aria-label="Remove document">
-            <X className="h-4 w-4" />
-          </button>
+          <p className="mt-1 px-1 text-[12.5px] text-muted-foreground" data-testid="attachments-status">
+            {uploading
+              ? `Sending${items.length + sendingNo - 1 > 1 ? ` ${sendingNo} of ${items.length + sendingNo - 1}` : ''}… ${progress !== null ? `${progress}%` : ''}`
+              : items.length === 1
+                ? `${items[0].kind === 'doc' ? `${items[0].file.name} · ${formatBytes(items[0].file.size)}` : `${kindName(items[0].kind)[0].toUpperCase()}${kindName(items[0].kind).slice(1)} ready`}. Add a caption or tap send`
+                : `${items.length} to send · the caption is for the one marked; tap another to give it its own`}
+          </p>
         </div>
       )}
-
       <div className="relative mx-auto flex max-w-4xl items-end gap-2">
         {recording !== 'off' ? (
           // Recording a voice message
@@ -541,35 +647,25 @@ const ChatComposer = ({
               ref={fileRef}
               type="file"
               accept="image/*,video/*"
+              multiple
               className="hidden"
+              aria-label="Choose photos or videos"
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const files = e.target.files;
+                addFiles(files, false);
                 e.target.value = '';
-                if (!file) return;
-                if (photo) URL.revokeObjectURL(photo.url);
-                setDoc(null);
-                const kind = isVideoFile(file) ? 'video' : isGifFile(file) ? 'gif' : 'photo';
-                setPhoto({ file, url: URL.createObjectURL(file), kind });
-                inputRef.current?.focus();
               }}
             />
             <input
               ref={docRef}
               type="file"
+              multiple
               className="hidden"
-              aria-label="Choose a document"
+              aria-label="Choose documents"
               onChange={(e) => {
-                const file = e.target.files?.[0];
+                const files = e.target.files;
+                addFiles(files, true);
                 e.target.value = '';
-                if (!file) return;
-                if (file.size > MAX_FILE_BYTES) {
-                  setHint('Documents can be up to 100 MB');
-                  return;
-                }
-                if (photo) URL.revokeObjectURL(photo.url);
-                setPhoto(null);
-                setDoc(file);
-                inputRef.current?.focus();
               }}
             />
             <div className="flex min-w-0 flex-1 items-end rounded-[22px] border border-border bg-muted/50 px-4 transition-colors focus-within:bg-background">
@@ -595,8 +691,8 @@ const ChatComposer = ({
                 rows={1}
                 enterKeyHint={isTouchDevice() ? 'enter' : 'send'}
                 // Blank like WhatsApp; only a photo or document asks for a caption
-                placeholder={editing ? (editing.caption ? 'Caption' : '') : photo || doc ? 'Add a caption…' : placeholder}
-                aria-label={editing ? (editing.caption ? 'Edit caption' : 'Edit message') : photo || doc ? 'Caption' : 'Message'}
+                placeholder={editing ? (editing.caption ? 'Caption' : '') : attached ? 'Add a caption…' : placeholder}
+                aria-label={editing ? (editing.caption ? 'Edit caption' : 'Edit message') : attached ? 'Caption' : 'Message'}
                 onChange={(e) => {
                   setText(e.target.value);
                   findMention(e.target.value, e.target.selectionStart ?? e.target.value.length);
