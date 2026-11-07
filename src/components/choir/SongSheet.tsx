@@ -50,6 +50,7 @@ const SongSheet = ({
   partOf,
   onPlayPart,
   playingPart,
+  nowPart,
 }: {
   song: ComposedSong;
   onRename?: (title: string) => Promise<boolean>;
@@ -58,6 +59,8 @@ const SongSheet = ({
   partOf?: number[];
   onPlayPart?: (part: number) => void;
   playingPart?: number | null;
+  /** The part being heard right now: its words light up */
+  nowPart?: number | null;
 }) => {
   const [steps, setSteps] = useState(0);
   const [naming, setNaming] = useState<string | null>(null);
@@ -154,7 +157,11 @@ const SongSheet = ({
           // The chorus and vamp stand out (a pre-chorus is not a chorus)
           const big = /chorus|vamp/i.test(sec.name) && !/pre/i.test(sec.name);
           return (
-          <section key={i}>
+          <section
+            key={i}
+            data-now={nowPart != null && partOf?.[i] === nowPart ? 'true' : undefined}
+            className={cn('-mx-2 rounded-2xl px-2 py-1 transition-colors duration-500', nowPart != null && partOf?.[i] === nowPart && 'bg-blue-50/80 dark:bg-blue-950/30')}
+          >
             <h3 className={cn('mb-1.5 flex items-center gap-2 font-sans text-[12px] font-bold uppercase tracking-[0.08em]', big ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>
               {sec.name}
               {onPlayPart && (partOf?.[i] ?? -1) >= 0 && (

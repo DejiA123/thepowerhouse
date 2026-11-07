@@ -32,6 +32,9 @@ interface Draft {
   audio_job?: { service: string; task_id?: string; submitted_at: string } | null;
   /** Where each section is in the recording (Listen by part) */
   audio_sections?: PartTime[] | null;
+  /** The same recording without the voices, and the voices alone (music server, Demucs) */
+  instrumental_url?: string | null;
+  vocals_url?: string | null;
   music_requested_at: string | null;
   created_at: string;
 }
@@ -220,6 +223,87 @@ const ComposeSongPage = () => {
       setDrafts((list) => list?.map((x) => (x.id === d.id ? { ...x, audio_sections: found } : x)) ?? list);
     });
   }, [current]);
+
+  // Full song / Music only / Voices only: the same recording, split by the music server.
+  // Songs made before the split get theirs on first open (asked again while it's busy).
+  const [version, setVersion] = useState<Version>('full');
+  useEffect(() => setVersion('full'), [current?.id, current?.audio_url]);
+  const [stemsWaiting, setStemsWaiting] = useState(false);
+  const askedStems = useRef(new Set<string>());
+  const stemsFor = current?.audio_status === 'ready' && current.audio_url && !current.instrumental_url ? { id: current.id, url: current.audio_url } : null;
+  useEffect(() => {
+    const d = stemsFor;
+    if (!d) return;
+    const asked = askedStems.current;
+    const key = `${d.id}:${d.url}`;
+    if (asked.has(key)) return;
+    asked.add(key);
+    let stop = false;
+    setStemsWaiting(true);
+    void (async () => {
+      for (let tries = 0; tries < 10 && !stop; tries++) {
+        const r = (await call({ action: 'stems', draftId: d.id })) as { state?: string; instrumental_url?: string | null; vocals_url?: string | null };
+        if (r.instrumental_url) {
+          const patch = { instrumental_url: r.instrumental_url, vocals_url: r.vocals_url ?? null };
+          setCurrent((c) => (c && c.id === d.id ? { ...c, ...patch } : c));
+          setDrafts((list) => list?.map((x) => (x.id === d.id ? { ...x, ...patch } : x)) ?? list);
+          break;
+        }
+        if (r.state !== 'busy') break;
+        await new Promise((ok) => setTimeout(ok, 15_000));
+      }
+      if (!stop) setStemsWaiting(false);
+    })();
+    return () => {
+      stop = true;
+      asked.delete(key);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per song and recording
+  }, [stemsFor?.id, stemsFor?.url]);
+  const versionUrl = current ? (version === 'music' ? current.instrumental_url : version === 'voices' ? current.vocals_url : current.audio_url) || current.audio_url : null;
+  /** Switching version carries on from the same moment (and keeps playing if it was) */
+  const resume = useRef<{ t: number; play: boolean } | null>(null);
+  const switchVersion = (v: Version) => {
+    if (v === version) return;
+    if (audioEl) {
+      resume.current = { t: audioEl.currentTime, play: !audioEl.paused };
+      audioEl.dataset.switching = '1';
+    }
+    setVersion(v);
+  };
+  useEffect(() => {
+    const el = audioEl;
+    const r = resume.current;
+    if (!el || !r) return;
+    const go = () => {
+      el.currentTime = r.t;
+      if (r.play) void el.play().catch(() => undefined);
+      resume.current = null;
+      delete el.dataset.switching;
+    };
+    if (el.readyState >= 1) go();
+    else el.addEventListener('loadedmetadata', go, { once: true });
+    return () => el.removeEventListener('loadedmetadata', go);
+  }, [audioEl, versionUrl]);
+  // The part being heard right now, to light up its words on the sheet
+  const [nowPart, setNowPart] = useState<number | null>(null);
+  useEffect(() => {
+    if (!audioEl || !parts) {
+      setNowPart(null);
+      return;
+    }
+    const tick = () => {
+      const t = audioEl.currentTime;
+      const k = audioEl.paused && t === 0 ? -1 : parts.findIndex((p) => t >= p.start - 0.5 && t < p.end);
+      setNowPart(k >= 0 ? k : null);
+    };
+    audioEl.addEventListener('timeupdate', tick);
+    audioEl.addEventListener('seeked', tick);
+    return () => {
+      audioEl.removeEventListener('timeupdate', tick);
+      audioEl.removeEventListener('seeked', tick);
+    };
+  }, [audioEl, parts]);
 
   const loadDrafts = useCallback(async () => {
     if (!user) return;
@@ -439,20 +523,27 @@ const ComposeSongPage = () => {
             partOf={parts ? partForSections(current.song.sections, parts) : undefined}
             onPlayPart={parts ? partPlayer.play : undefined}
             playingPart={partPlayer.playing}
+            nowPart={nowPart}
           />
 
           <SectionLabel>The music</SectionLabel>
           <div className="rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="song-music">
             {current.audio_status === 'ready' && current.audio_url ? (
               <>
-                <audio ref={setAudioEl} controls preload="metadata" src={current.audio_url} className="w-full" />
+                <VersionSwitch
+                  value={version}
+                  onChange={switchVersion}
+                  ready={!!current.instrumental_url && !!current.vocals_url}
+                  waiting={stemsWaiting}
+                />
+                <audio ref={setAudioEl} controls preload="metadata" src={versionUrl ?? current.audio_url} className="mt-3 w-full" />
                 <SongParts parts={parts} loading={partsLoading} player={partPlayer} />
                 {current.brief?.voice !== 'female' && current.brief?.voice !== 'male' && current.brief?.voice !== 'duet' && current.brief?.sung && (
                   <p className="mt-1.5 text-[12.5px] text-muted-foreground">Sung by a {current.brief.sung} lead (Auto)</p>
                 )}
                 {mine && <VoicePicker value={voice} onChange={setVoice} className="mt-3" note="For Make it again" />}
                 <div className="mt-3 flex gap-2">
-                  <SaveSong url={current.audio_url} title={current.title} />
+                  <SaveSong url={versionUrl ?? current.audio_url} title={`${current.title}${version === 'music' ? ' (music only)' : version === 'voices' ? ' (voices only)' : ''}`} />
                   {mine && (
                     <button type="button" onClick={makeMusic} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
                       <RotateCcw className="h-4 w-4" /> Make it again
@@ -773,6 +864,35 @@ const VoicePicker = ({ value, onChange, className, note }: { value: Voice; onCha
     {value === 'auto' && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Auto takes turns: a female lead, then a male lead.</p>}
   </div>
 );
+
+type Version = 'full' | 'music' | 'voices';
+const VERSIONS: { value: Version; label: string }[] = [
+  { value: 'full', label: 'Full song' },
+  { value: 'music', label: 'Music only' },
+  { value: 'voices', label: 'Voices only' },
+];
+const VERSION_NOTE: Record<Version, string> = {
+  full: 'The singers with the band and choir.',
+  music: 'No singing: sing or read along with the words above.',
+  voices: 'Just the singers: good for learning the parts.',
+};
+
+/** Full song / Music only / Voices only (the last two once the music server has split it) */
+const VersionSwitch = ({ value, onChange, ready, waiting }: { value: Version; onChange: (v: Version) => void; ready: boolean; waiting: boolean }) => {
+  if (!ready) {
+    return waiting ? (
+      <p className="flex items-center gap-2 text-[13px] text-muted-foreground" data-testid="versions-waiting">
+        <Loader2 className="h-4 w-4 animate-spin" /> Making the music-only and voices-only versions…
+      </p>
+    ) : null;
+  }
+  return (
+    <div data-testid="version-switch">
+      <Segmented<Version> label="Which version" compact options={VERSIONS} value={value} onChange={onChange} />
+      <p className="mt-1.5 text-[12.5px] text-muted-foreground">{VERSION_NOTE[value]}</p>
+    </div>
+  );
+};
 
 /**
  * Save the song's recording to the phone. The file is on another address (the media

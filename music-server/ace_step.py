@@ -130,3 +130,76 @@ def watchdog(proc):
             if silent >= 16:
                 print("[watchdog] no answer for 8 minutes; restarting the container", flush=True)
                 os._exit(1)
+
+
+# ── Music only / voices only (Compose a song) ─────────────────────────────
+# The finished song split in two with Demucs (htdemucs, MIT): the same recording without
+# the voices (instrumental, to sing or read along to) and the voices alone (to learn the
+# parts). ACE-Step's own track extraction needs its slower base model, so it isn't used.
+# song-writer calls this after a song is made (and for older songs on first open).
+separator_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("ffmpeg")
+    .pip_install(
+        "torch==2.5.1",
+        "torchaudio==2.5.1",
+        "demucs==4.0.1",
+        "soundfile==0.12.1",
+        "lameenc==1.7.0",
+        "fastapi[standard]==0.115.6",
+    )
+    .env({"TORCH_HOME": "/models/torch"})
+)
+
+
+@app.function(
+    image=separator_image,
+    gpu="T4",
+    volumes={"/models": models},
+    secrets=[modal.Secret.from_name("ace-step-api")],
+    timeout=600,
+    scaledown_window=120,
+    max_containers=2,
+)
+@modal.fastapi_endpoint(method="POST")
+def separate(body: dict):
+    """
+    POST {"url": "<the song's mp3>", "key": "<the server key>"}. Answers
+    {"instrumental": <base64 mp3>, "vocals": <base64 mp3>, "seconds": <time taken>}.
+    """
+    import base64
+    import hmac
+    import pathlib
+    import tempfile
+    import urllib.request as req
+
+    from fastapi import HTTPException
+
+    key = os.environ.get("ACESTEP_API_KEY", "")
+    given = str(body.get("key", ""))
+    if not key or not hmac.compare_digest(given, key):
+        raise HTTPException(status_code=401, detail="Not allowed")
+    url = str(body.get("url", ""))
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Give the song's https address")
+
+    started = time.time()
+    work = pathlib.Path(tempfile.mkdtemp())
+    song = work / "song.mp3"
+    with req.urlopen(url, timeout=60) as res:
+        song.write_bytes(res.read(60 * 1024 * 1024))
+    run = subprocess.run(
+        ["python", "-m", "demucs", "--two-stems=vocals", "-n", "htdemucs", "--mp3", "--mp3-bitrate", "192", "-o", str(work / "out"), str(song)],
+        capture_output=True,
+        text=True,
+    )
+    folder = work / "out" / "htdemucs" / "song"
+    music, voices = folder / "no_vocals.mp3", folder / "vocals.mp3"
+    if run.returncode != 0 or not music.exists() or not voices.exists():
+        raise HTTPException(status_code=500, detail=f"Couldn't split the song: {(run.stderr or run.stdout)[-400:]}")
+    models.commit()  # keep the separation model on the volume for next time
+    return {
+        "instrumental": base64.b64encode(music.read_bytes()).decode(),
+        "vocals": base64.b64encode(voices.read_bytes()).decode(),
+        "seconds": round(time.time() - started, 1),
+    }

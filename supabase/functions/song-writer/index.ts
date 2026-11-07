@@ -768,7 +768,7 @@ async function removeAudio(url: string | null | undefined) {
 
 /** Stores finished music and marks the draft ready (or failed, with the reason); the previous version's audio is removed */
 async function finish(id: string, churchId: string, m: Made) {
-  const { data: before } = await supabaseAdmin.from('song_drafts').select('audio_url, audio_status, audio_job, created_by, title, location, brief').eq('id', id).maybeSingle();
+  const { data: before } = await supabaseAdmin.from('song_drafts').select('audio_url, instrumental_url, vocals_url, audio_status, audio_job, created_by, title, location, brief').eq('id', id).maybeSingle();
   // Already finished (by the phone's check or the watcher): nothing to do twice
   if (before && before.audio_status !== 'making') return;
   let ok = false;
@@ -777,8 +777,10 @@ async function finish(id: string, churchId: string, m: Made) {
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
     const url = await storeAudio(`${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`, m.audio, mime);
-    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null, audio_sections: null }).eq('id', id);
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null, audio_sections: null, instrumental_url: null, vocals_url: null, stems_at: null }).eq('id', id);
     if (before?.audio_url && before.audio_url !== url) await removeAudio(before.audio_url);
+    await removeAudio(before?.instrumental_url);
+    await removeAudio(before?.vocals_url);
     ok = true;
     madeAudio = { bytes: m.audio, mime };
   } catch (e) {
@@ -786,8 +788,62 @@ async function finish(id: string, churchId: string, m: Made) {
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500), audio_job: null }).eq('id', id);
   }
   if (before) await tellWriter(before, id, ok);
-  // Where each part starts, for "Listen by part" (the page asks again if this doesn't finish)
-  if (madeAudio) await saveSections(id, madeAudio.bytes, madeAudio.mime, 45_000);
+  // Where each part starts (Listen by part), and the music only / voices only versions, side
+  // by side; the page asks again for either if this doesn't finish
+  if (madeAudio) await Promise.all([saveSections(id, madeAudio.bytes, madeAudio.mime, 45_000), makeStems(id, 110_000)]);
+}
+
+// ── Music only / voices only: the same recording split by the music server (Demucs) ──
+const STEMS_BUSY_MS = 4 * 60_000;
+
+/**
+ * Splits a song's recording into the music only and the voices only, and keeps both on
+ * R2 beside it. One split at a time per song (`stems_at`); 'busy' while another runs.
+ */
+async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy' | 'failed'> {
+  const { data: d } = await supabaseAdmin.from('song_drafts').select('church_id, audio_url, audio_status, instrumental_url, stems_at').eq('id', id).maybeSingle();
+  if (!d || d.audio_status !== 'ready' || !d.audio_url) return 'failed';
+  if (d.instrumental_url) return 'done';
+  if (d.stems_at && Date.now() - Date.parse(d.stems_at) < STEMS_BUSY_MS) return 'busy';
+  const srv = await musicServer();
+  if (!srv?.separate) return 'failed';
+  const started = new Date().toISOString();
+  // Claim it (only if nobody else has since)
+  const claim = supabaseAdmin.from('song_drafts').update({ stems_at: started }).eq('id', id);
+  const { data: claimed } = await (d.stems_at ? claim.eq('stems_at', d.stems_at) : claim.is('stems_at', null)).select('id');
+  if (!claimed?.length) return 'busy';
+  try {
+    const res = await fetch(srv.separate, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: d.audio_url, key: srv.key }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`music server ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const out = await res.json();
+    if (!out?.instrumental || !out?.vocals) throw new Error('music server: no versions in the answer');
+    const t = Date.now();
+    const [music, voices] = await Promise.all([
+      storeAudio(`${d.church_id}/${id}-${t}-music.mp3`, fromBase64(out.instrumental), 'audio/mpeg'),
+      storeAudio(`${d.church_id}/${id}-${t}-voices.mp3`, fromBase64(out.vocals), 'audio/mpeg'),
+    ]);
+    // Still the same recording? (Make it again may have replaced it meanwhile)
+    const { data: now } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', id).maybeSingle();
+    if (now?.audio_url !== d.audio_url) {
+      await removeAudio(music);
+      await removeAudio(voices);
+      return 'failed';
+    }
+    await supabaseAdmin.from('song_drafts').update({ instrumental_url: music, vocals_url: voices, stems_at: null }).eq('id', id);
+    console.log(`[song-writer] split ${id} in ${out.seconds}s (server)`);
+    return 'done';
+  } catch (e) {
+    const timedOut = /timeout|abort/i.test(String(e));
+    console.error('[song-writer] split failed', String(e));
+    // A timed-out split may still finish on the server: leave the claim to expire; otherwise free it
+    if (!timedOut) await supabaseAdmin.from('song_drafts').update({ stems_at: null }).eq('id', id).eq('stems_at', started);
+    return timedOut ? 'busy' : 'failed';
+  }
 }
 
 // ── Listen by part: where each section is in the recording ─────────────
@@ -913,12 +969,12 @@ async function tellWriter(d: { created_by: string; title: string; location: stri
 // ── The church's own ACE-Step server (music-server/ace_step.py on Modal) ──
 /** Its address and key, saved by the "Deploy music server" workflow (platform entry in Vault) */
 const PLATFORM_CHURCH = '00000000-0000-0000-0000-000000000000';
-interface Server { url: string; key: string }
+interface Server { url: string; key: string; separate?: string }
 async function musicServer(): Promise<Server | null> {
   const { data } = await supabaseAdmin.rpc('service_key' as never, { _church: PLATFORM_CHURCH, _service: 'acestep' } as never);
   try {
     const v = typeof data === 'string' ? JSON.parse(data) : null;
-    return v?.url && v?.key ? { url: String(v.url).replace(/\/$/, ''), key: String(v.key) } : null;
+    return v?.url && v?.key ? { url: String(v.url).replace(/\/$/, ''), key: String(v.key), separate: v.separate ? String(v.separate) : undefined } : null;
   } catch {
     return null;
   }
@@ -1170,11 +1226,18 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
-    // {"audioOf": "<draft id>"}: the recording itself, as base64 (to check timings)
+    // {"audioOf": "<draft id>", "version": "full"|"music"|"voices"}: a recording, as base64
     if (typeof input.audioOf === 'string') {
-      const { data: d } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', input.audioOf).maybeSingle();
-      if (!d?.audio_url) return json({ ...out, error: 'No music' });
-      return json({ audio: toBase64(new Uint8Array(await (await fetch(d.audio_url)).arrayBuffer())) });
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('audio_url, instrumental_url, vocals_url').eq('id', input.audioOf).maybeSingle();
+      const url = input.version === 'music' ? d?.instrumental_url : input.version === 'voices' ? d?.vocals_url : d?.audio_url;
+      if (!url) return json({ ...out, error: 'No such recording' });
+      return json({ audio: toBase64(new Uint8Array(await (await fetch(url)).arrayBuffer())) });
+    }
+    // {"stemsOf": "<draft id>"}: makes that song's music only / voices only now
+    if (typeof input.stemsOf === 'string') {
+      const t0 = Date.now();
+      out.stems = await makeStems(input.stemsOf, 130_000);
+      out.stems_seconds = Math.round((Date.now() - t0) / 1000);
     }
     // {"sectionsOf": "<draft id>"}: times that song's sections (shown, not saved)
     if (typeof input.sectionsOf === 'string') {
@@ -1206,7 +1269,10 @@ Deno.serve(async (req) => {
     if (typeof input.watchTest === 'string') {
       const { data: d } = await supabaseAdmin.from('song_drafts').select('id, audio_url, brief').eq('id', input.watchTest).maybeSingle();
       if (!(d?.brief as { check?: boolean } | null)?.check) return json({ ...out, error: 'Not a test draft' });
+      const { data: urls } = await supabaseAdmin.from('song_drafts').select('instrumental_url, vocals_url').eq('id', d!.id).maybeSingle();
       if (d!.audio_url) await removeAudio(d!.audio_url);
+      await removeAudio(urls?.instrumental_url);
+      await removeAudio(urls?.vocals_url);
       await supabaseAdmin.from('song_drafts').delete().eq('id', d!.id);
       return json({ ...out, removed: d!.id });
     }
@@ -1422,16 +1488,28 @@ Deno.serve(async (req) => {
   // Deleting a song also removes its audio (so storage never fills with songs nobody has)
   if (input.action === 'delete') {
     const id = clean(input.draftId, 40);
-    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, audio_url').eq('id', id).maybeSingle();
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, audio_url, instrumental_url, vocals_url').eq('id', id).maybeSingle();
     if (!draft || draft.created_by !== user.id) return json({ error: 'Only the song\'s writer can delete it.' }, 403);
     const { error } = await supabaseAdmin.from('song_drafts').delete().eq('id', id);
     if (error) return json({ error: "Couldn't delete it. Please try again." }, 500);
     await removeAudio(draft.audio_url);
+    await removeAudio(draft.instrumental_url);
+    await removeAudio(draft.vocals_url);
     return json({ deleted: true });
   }
 
   // The phone asks every few seconds while a song is being made: the server's task is
   // looked at (and sent again if the server was still waking up when it was first sent)
+  // Music only / voices only for a song that has none yet: makes them (or says it's busy)
+  if (input.action === 'stems') {
+    const id = clean(input.draftId, 40);
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('created_by, shared').eq('id', id).maybeSingle();
+    if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
+    const state = await makeStems(id, 130_000);
+    const { data: after } = await supabaseAdmin.from('song_drafts').select('instrumental_url, vocals_url').eq('id', id).maybeSingle();
+    return json({ state, instrumental_url: after?.instrumental_url ?? null, vocals_url: after?.vocals_url ?? null });
+  }
+
   // Listen by part: time the sections of a song whose recording has none yet
   if (input.action === 'sections') {
     const id = clean(input.draftId, 40);
