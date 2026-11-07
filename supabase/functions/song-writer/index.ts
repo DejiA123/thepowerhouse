@@ -765,18 +765,119 @@ async function finish(id: string, churchId: string, m: Made) {
   // Already finished (by the phone's check or the watcher): nothing to do twice
   if (before && before.audio_status !== 'making') return;
   let ok = false;
+  let madeAudio: { bytes: Uint8Array; mime: string } | null = null;
   try {
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
     const url = await storeAudio(`${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`, m.audio, mime);
-    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null }).eq('id', id);
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null, audio_sections: null }).eq('id', id);
     if (before?.audio_url && before.audio_url !== url) await removeAudio(before.audio_url);
     ok = true;
+    madeAudio = { bytes: m.audio, mime };
   } catch (e) {
     console.error('[song-writer] music failed', String(e));
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500), audio_job: null }).eq('id', id);
   }
   if (before) await tellWriter(before, id, ok);
+  // Where each part starts, for "Listen by part" (the page asks again if this doesn't finish)
+  if (madeAudio) await saveSections(id, madeAudio.bytes, madeAudio.mime, 45_000);
+}
+
+// ── Listen by part: where each section is in the recording ─────────────
+interface PartTime { name: string; start: number; end: number }
+
+const toBase64 = (bytes: Uint8Array) => {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+};
+
+/**
+ * Gemini listens to the recording with the words beside it and says where each section
+ * is sung (in seconds). Checked before use: in order, inside the song, at least 3 s long.
+ */
+async function timeSections(bytes: Uint8Array, mime: string, song: Song, timeoutMs: number): Promise<PartTime[] | null> {
+  if (!GEMINI) return null;
+  const parts = song.sections.map((sec, i) => `${i}. [${sec.name}]\n${sec.lines.map(plain).filter(Boolean).join('\n') || '(instrumental)'}`).join('\n\n');
+  const prompt = [
+    'This is a recording of a church song. Below are its sections in order, numbered, with their words (lines in round brackets are the choir answering).',
+    'Listen to the whole recording and say where each section starts and ends, in seconds from the beginning of the recording.',
+    'A section starts at its first sung word, or for a section with no words (Intro, Instrumental) where that music begins; it ends where the next section starts (or the music ends).',
+    'If the singers repeat or skip a section, give the first time it is sung, and null for a section that is not heard.',
+    'Reply with JSON only: {"duration": <seconds>, "sections": [{"i": <number>, "start": <seconds or null>, "end": <seconds or null>}]}',
+    '',
+    parts,
+  ].join('\n');
+  const t0 = Date.now();
+  for (const model of MODELS.slice(0, 3)) {
+    const left = timeoutMs - (Date.now() - t0);
+    if (left < 8_000) break;
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime, data: toBase64(bytes) } }, { text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        }),
+        signal: AbortSignal.timeout(left),
+      });
+      if (!res.ok) {
+        console.error('[song-writer] section timing', model, res.status, (await res.text()).slice(0, 200));
+        continue;
+      }
+      const d = await res.json();
+      const text = (d.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('');
+      const out = JSON.parse(text.replace(/^```(?:json)?|```$/g, '').trim());
+      const timed = checkTimes(out, song);
+      if (timed) return timed;
+      console.error('[song-writer] section timing unusable', model, text.slice(0, 300));
+    } catch (e) {
+      console.error('[song-writer] section timing failed', model, String(e));
+    }
+  }
+  return null;
+}
+
+/** Keeps sensible times only: in order, inside the recording, each at least 3 s */
+function checkTimes(out: { duration?: unknown; sections?: unknown }, song: Song): PartTime[] | null {
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+  const rows = Array.isArray(out?.sections) ? (out.sections as { i?: unknown; start?: unknown; end?: unknown }[]) : [];
+  const said = new Map<number, { start: number; end: number }>();
+  for (const r of rows) {
+    const i = num(r?.i);
+    const start = num(r?.start);
+    if (Number.isInteger(i) && i >= 0 && i < song.sections.length && Number.isFinite(start) && start >= 0 && !said.has(i)) said.set(i, { start, end: num(r?.end) });
+  }
+  // In the song's order; a section said to start before the one before it is left out
+  const kept: { i: number; start: number; end: number }[] = [];
+  for (let i = 0; i < song.sections.length; i++) {
+    const t = said.get(i);
+    if (t && t.start >= (kept[kept.length - 1]?.start ?? 0)) kept.push({ i, ...t });
+  }
+  const duration = num(out?.duration);
+  const total = Number.isFinite(duration) && duration > 10 ? duration : Math.max(0, ...kept.map((k) => (Number.isFinite(k.end) ? k.end : 0)));
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const list = kept.map((k, n) => {
+    const next = kept[n + 1]?.start;
+    // Ends where the next part starts (or where Gemini heard it end, if sooner); the last at the end
+    let end = next ?? (Number.isFinite(k.end) && k.end > k.start ? k.end : total);
+    if (next !== undefined && Number.isFinite(k.end) && k.end > k.start && k.end < next) end = k.end;
+    return { name: song.sections[k.i].name, start: r1(k.start), end: r1(end) };
+  });
+  const good = list.filter((p) => p.end - p.start >= 3 && (!total || p.start < total));
+  return good.length >= 2 ? good : null;
+}
+
+/** Works out and saves the parts of a song's recording; true when saved */
+async function saveSections(id: string, bytes: Uint8Array, mime: string, timeoutMs: number): Promise<boolean> {
+  const { data: d } = await supabaseAdmin.from('song_drafts').select('song').eq('id', id).maybeSingle();
+  const song = validSong(d?.song);
+  if (!song) return false;
+  const parts = await timeSections(bytes, mime, song, timeoutMs);
+  if (!parts) return false;
+  await supabaseAdmin.from('song_drafts').update({ audio_sections: parts }).eq('id', id);
+  return true;
 }
 
 /**
@@ -1038,6 +1139,18 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
+    // {"sectionsOf": "<draft id>"}: times that song's sections (shown, not saved)
+    if (typeof input.sectionsOf === 'string') {
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('song, audio_url').eq('id', input.sectionsOf).maybeSingle();
+      const song = validSong(d?.song);
+      if (!song || !d?.audio_url) return json({ ...out, error: 'No such song with music' });
+      const res = await fetch(d.audio_url);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const t0 = Date.now();
+      out.sections = await timeSections(bytes, (res.headers.get('content-type') ?? 'audio/mpeg').split(';')[0], song, 100_000);
+      out.sections_seconds = Math.round((Date.now() - t0) / 1000);
+      out.song_sections = song.sections.map((s) => `${s.name} (${s.lines.length})`);
+    }
     // {"watchTest": true, "song": …}: a hidden test draft whose music is made with nobody on
     // the page (only the server-side watcher collects it); {"watchTest": "<id>"} removes it
     if (input.watchTest === true) {
@@ -1282,6 +1395,20 @@ Deno.serve(async (req) => {
 
   // The phone asks every few seconds while a song is being made: the server's task is
   // looked at (and sent again if the server was still waking up when it was first sent)
+  // Listen by part: time the sections of a song whose recording has none yet
+  if (input.action === 'sections') {
+    const id = clean(input.draftId, 40);
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, shared, audio_url, audio_status, audio_sections').eq('id', id).maybeSingle();
+    if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
+    if (draft.audio_sections || draft.audio_status !== 'ready' || !draft.audio_url) return json({ sections: draft.audio_sections ?? null });
+    const res = await fetch(draft.audio_url, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (!res?.ok) return json({ sections: null, error: "Couldn't open the recording" });
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    await saveSections(id, bytes, (res.headers.get('content-type') ?? 'audio/mpeg').split(';')[0], 90_000);
+    const { data: after } = await supabaseAdmin.from('song_drafts').select('audio_sections').eq('id', id).maybeSingle();
+    return json({ sections: after?.audio_sections ?? null });
+  }
+
   if (input.action === 'music-check') {
     const id = clean(input.draftId, 40);
     const load = async () => (await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle()).data;
