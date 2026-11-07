@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { currentChurchId } from '@/lib/churchSpace';
 import { choirName } from '@/lib/choirChat';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
+import MusicProgress from '@/components/choir/MusicProgress';
 
 interface Draft {
   id: string;
@@ -21,6 +22,8 @@ interface Draft {
   audio_url: string | null;
   audio_status: 'none' | 'making' | 'ready' | 'failed';
   audio_error?: string | null;
+  /** The song on the church's music server, while it's made */
+  audio_job?: { service: string; task_id?: string; submitted_at: string } | null;
   music_requested_at: string | null;
   created_at: string;
 }
@@ -192,6 +195,8 @@ const ComposeSongPage = () => {
         d = (data as unknown as Draft) ?? undefined;
       }
       busy = false;
+      if (d?.audio_status === 'ready') appAlert('Your song is ready 🎶', 'Press play to hear it.', 'success');
+      else if (d?.audio_status === 'failed') appAlert("The music couldn't be made", 'Please try again in a little while.', 'error');
       if (d) {
         const next = d;
         setCurrent((c) => (c && c.id === next.id ? next : c));
@@ -313,13 +318,11 @@ const ComposeSongPage = () => {
                 </div>
               </>
             ) : current.audio_status === 'making' && !stuck ? (
-              <div className="flex items-center gap-3">
-                <Loader2 className="h-6 w-6 shrink-0 animate-spin text-blue-600" />
-                <div>
-                  <p className="text-[15px] font-semibold text-foreground">Making the music…</p>
-                  <p className="text-[13px] text-muted-foreground">Voices, choir and band. It takes a minute or two (the first song of the day can take a few minutes). You can leave this page and come back.</p>
-                </div>
-              </div>
+              <MusicProgress
+                startedAt={current.music_requested_at}
+                taskAt={current.audio_job?.task_id ? current.audio_job.submitted_at : null}
+                server={!!service?.platform.acestep}
+              />
             ) : mine ? (
               <>
                 {service && !hasService(service) && service.canManage && <MusicConnect onSaved={setService} />}
