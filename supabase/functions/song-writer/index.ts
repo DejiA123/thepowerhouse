@@ -82,7 +82,19 @@ interface Brief {
   language?: string;
   languageMode?: 'chorus' | 'all';
   notes?: string;
+  /** The lead voice for the music: auto (the music model chooses), female, male or a duet */
+  voice?: Voice;
 }
+type Voice = 'auto' | 'female' | 'male' | 'duet';
+const VOICES: Voice[] = ['auto', 'female', 'male', 'duet'];
+const voiceOf = (v: unknown): Voice => (VOICES.includes(v as Voice) ? (v as Voice) : 'auto');
+/** The lead singer, as the music models are asked for it */
+const LEAD: Record<Voice, string> = {
+  auto: 'strong expressive lead vocal',
+  female: 'powerful expressive female lead vocalist',
+  male: 'powerful expressive male lead vocalist',
+  duet: 'male and female lead vocal duet, trading lines and joining in harmony on the chorus',
+};
 
 interface Song {
   title: string;
@@ -111,6 +123,7 @@ function briefFrom(input: Record<string, unknown>): Brief | null {
     key: /^[A-G](b|#)?m?$/.test(String(input.key ?? '')) ? String(input.key) : '',
     language: /^english$/i.test(language) ? '' : language,
     languageMode: input.languageMode === 'all' ? 'all' : 'chorus',
+    voice: voiceOf(input.voice),
     notes: clean(input.notes, 600),
   };
 }
@@ -375,7 +388,7 @@ function lyriaPrompt(song: Song, brief: Brief) {
     `Sound: ${style.sound}.`,
     song.music_style ? `Production: ${song.music_style}` : '',
     `Tempo ${song.bpm} BPM, ${song.time_signature}, key of ${song.key}.`,
-    `Voices: a strong, expressive lead singer with a full choir singing harmonies and answering lines in the choruses${style.vamp ? ' and the vamp' : ''}. Clear diction: every word must be understood.`,
+    `Voices: ${voiceOf(brief.voice) === 'auto' ? 'a strong, expressive lead singer' : `a ${LEAD[voiceOf(brief.voice)]}`} with a full choir singing harmonies and answering lines in the choruses${style.vamp ? ' and the vamp' : ''}. Clear diction: every word must be understood.`,
     song.arrangement.choir ? `Choir arrangement: ${song.arrangement.choir}` : '',
     song.arrangement.band ? `Band arrangement: ${song.arrangement.band}` : '',
     `Sing exactly these lyrics, in this order (lines in round brackets are the choir's answers):`,
@@ -430,7 +443,7 @@ function aceCaption(song: Song, brief: Brief) {
   return [
     `Christian ${genre.trim().toLowerCase()}`,
     sound?.trim(),
-    'strong expressive lead vocal, full church choir singing harmonies and answering lines',
+    `${LEAD[voiceOf(brief.voice)]}, full church choir singing harmonies and answering lines`,
     song.music_style ? song.music_style.slice(0, 260) : '',
     'live church session, warm professional mix, clear vocals, every word understood',
   ].filter(Boolean).join(', ').slice(0, 900);
@@ -1041,12 +1054,15 @@ Deno.serve(async (req) => {
     if (draft.audio_status === 'making' && draft.music_requested_at && Date.now() - Date.parse(draft.music_requested_at) < MAKING_LIMIT_MS) {
       return json({ error: 'The music is already being made.' }, 409);
     }
+    // The lead voice chosen for this music is kept with the song (so a retry, or making it
+    // again, uses the same voice)
+    const brief: Brief = { ...(draft.brief as Brief), voice: input.voice === undefined ? voiceOf((draft.brief as Brief)?.voice) : voiceOf(input.voice) };
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
-      .update({ audio_status: 'making', audio_error: null, audio_job: null, music_requested_at: new Date().toISOString() })
+      .update({ brief, audio_status: 'making', audio_error: null, audio_job: null, music_requested_at: new Date().toISOString() })
       .eq('id', id).select('*').single();
     // Made in the background: the phone gets an answer at once and watches the draft
-    const work = produce(id, draft.church_id as string, draft.song as Song, draft.brief as Brief);
+    const work = produce(id, draft.church_id as string, draft.song as Song, brief);
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
     else await work;
     return json({ draft: making });
