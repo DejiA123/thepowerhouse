@@ -115,6 +115,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { church } from '@/config/church';
 import { useIsAdmin } from '@/lib/admin';
+import { songKey } from "@/lib/choirChat";
 import { choirUnlocked, lockChoir, unlockChoir } from '@/lib/choirKey';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { libraryMatcher, notesLines } from '@/lib/songImport';
@@ -184,7 +185,7 @@ const BandSongCard = ({ song, allLibrarySongs, onUpdate, isAdmin }: { song: Week
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500 font-bold shrink-0 text-xs">
-                        {song.key}
+                        {songKey(song.key) || <Music className="h-4 w-4" />}
                     </div>
                     <div>
                         <h4 className="font-bold text-slate-800 dark:text-slate-100 group-hover/card:text-blue-600 transition-colors uppercase tracking-tight">{song.title}</h4>
@@ -338,9 +339,9 @@ const SetSongCard = ({
                 </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                {song.key && song.key.trim() && song.key !== '??' && (
+                {songKey(song.key) && (
                     <Badge variant="secondary" className="bg-blue-100/50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-[10px] sm:text-xs font-black px-1.5 sm:px-2.5 rounded-lg border-blue-200/50">
-                        {song.key}
+                        {songKey(song.key)}
                     </Badge>
                 )}
                 {!isOverlay && !isLocked && (
