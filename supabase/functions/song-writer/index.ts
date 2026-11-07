@@ -3,8 +3,8 @@
 // write  — a full Christian / gospel song from a brief (theme, scripture, style, feel,
 //          key): title, key, tempo, sections with chords over the words, and notes for
 //          the choir parts and the band. Gemini (GEMINI_API_KEY; SONG_MODEL, default
-//          gemini-3.1-pro-preview, then gemini-3.8-flash, and any
-//          replacement Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
+//          gemini-3.5-flash, then 3.8-flash, 3.1-flash-lite, 3.1-pro, and any replacement
+//          Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
 //          Saved as the writer's draft (song_drafts). 25 a day per person.
 // music  — the draft as a full produced song (vocals, choir, band) through ElevenLabs
 //          music (ELEVENLABS_API_KEY), stored in the public 'song-drafts' bucket.
@@ -18,10 +18,10 @@ import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 const GEMINI = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI = Deno.env.get('OPENAI_API_KEY') ?? '';
 const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
-// Fast first (generous free allowance, answers in seconds); the stronger model as backup
-const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.8-flash';
-const BACKUP_MODEL = Deno.env.get('SONG_BACKUP_MODEL') ?? 'gemini-3.1-pro-preview';
-const MODELS = [SONG_MODEL, BACKUP_MODEL];
+// Timed on this key (Nov 2026): gemini-3.5-flash wrote a full song in ~10 s; 3.8-flash is
+// often overloaded on the free tier; flash-lite ~9 s; pro is beyond the free allowance
+const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.5-flash';
+const MODELS = [...new Set([SONG_MODEL, 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.1-pro-preview'])];
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 const WRITES_PER_DAY = 25;
@@ -86,7 +86,7 @@ Write like a real songwriter, not a machine:
 - Original: never copy or closely echo lines from existing songs or hymns. Quote Scripture only briefly and naturally.
 - Easy for a congregation and a choir: comfortable range, words that fit the mouth.
 
-Chords: write each line in ChordPro style with chords in square brackets right before the syllable they land on, e.g. "[G]Holy is the [D/F#]Lamb who [Em]reigns". Use the song's key; diatonic chords with tasteful colour (sus, add9, slash chords, a borrowed IV minor or passing chord where it serves). Every line has at least one chord. Use # and b for sharps and flats.
+Chords: write each line in ChordPro style with chords in square brackets right before the syllable they land on, e.g. "[G]Holy is the [D/F#]Lamb who [Em]reigns". Use the song's key; diatonic chords with tasteful colour (sus, add9, slash chords, a borrowed IV minor or passing chord where it serves). Every sung line has at least one chord; an intro or turnaround may be a line of chords only. Square brackets hold chords ONLY: write choir answers, ad-libs and directions in round brackets, e.g. "[Eb]He carried me (Choir: He carried me!)". Use # and b for sharps and flats.
 
 Also give: arrangement.choir (SATB or SAT parts: who sings what, call-and-response, harmonies, where the choir enters, ad-libs) and arrangement.band (groove, drum pattern, bass, keys/organ, guitar, dynamics section by section), each under 700 characters; music_style: one sentence describing the genre, instruments, vocal delivery and mood for a music producer (never name a real artist or existing song).
 
@@ -208,7 +208,7 @@ async function writeSong(b: Brief, only?: string) {
       const model = queue.shift()!;
       if (tried.has(model)) continue;
       tried.add(model);
-      const budget = () => Math.max(5_000, Math.min(110_000, 130_000 - (Date.now() - started)));
+      const budget = () => Math.max(5_000, Math.min(50_000, 130_000 - (Date.now() - started)));
       let r = await gemini(model, b, budget());
       // Busy for a moment: one more try
       if ((r.status === 503 || r.status === 500) && Date.now() - started < 30_000) {
@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
   if (input.action === 'check') {
     if (!admin) return json({ error: 'Not allowed' }, 403);
     const brief = briefFrom({ theme: 'Thanksgiving for God\'s faithfulness through a hard year', style: 'gospel_choir', feel: 'mid' })!;
-    const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, model: SONG_MODEL };
+    const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, models_in_order: MODELS };
     if (input.models && GEMINI) {
       const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': GEMINI } });
       const d = await r.json().catch(() => ({}));

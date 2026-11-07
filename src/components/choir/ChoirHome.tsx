@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, PenTool, UsersRound, Wallet } from "lucide-react";
+import { ArrowLeftRight, Clock, GraduationCap, Guitar, ListMusic, Mic, Music2, PenLine, PenTool, UsersRound, Wallet } from "lucide-react";
 import { PictureTile } from "@/components/page/PageKit";
 import { TILE } from "@/data/appDirectory";
 import { church } from "@/config/church";
@@ -18,6 +18,7 @@ const ChoirHome = ({
   onSongwriting,
   onContributions,
   onSwitch,
+  onCompose,
 }: {
   locationId?: string;
   onOpen: (section: ChoirSection) => void;
@@ -27,6 +28,8 @@ const ChoirHome = ({
   onContributions: () => void;
   /** Go to the list of every choir (National and the branches) */
   onSwitch: () => void;
+  /** Compose a song (words, chords and music) */
+  onCompose: () => void;
 }) => (
   <div className="mx-auto max-w-4xl">
     <ChoirChatCard locationId={locationId} />
@@ -38,6 +41,7 @@ const ChoirHome = ({
       <PictureTile icon={Guitar} tint={TILE.violet} title="Band" subtitle="Tracks and charts for players" onClick={() => onOpen("band")} />
       <PictureTile icon={Music2} tint={TILE.sky} title="Instrument lessons" subtitle="Piano, drums, guitar, bass, sax" onClick={() => onOpen("instruments")} />
       <PictureTile icon={GraduationCap} tint={TILE.teal} title="Music basics" subtitle="Notes, chords and rhythm" onClick={() => onOpen("basics")} />
+      <PictureTile icon={PenLine} tint={TILE.violet} title="Compose a song" subtitle="Words, chords and music" onClick={onCompose} />
       <PictureTile icon={UsersRound} tint={TILE.green} title="Team" subtitle="Who's in the choir" onClick={onTeam} />
       {locationId === church.choir.songwritingBranch && (
         <PictureTile icon={PenTool} tint={TILE.pink} title="Songwriting" subtitle="Write songs together" onClick={onSongwriting} />

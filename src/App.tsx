@@ -88,6 +88,7 @@ const NewHerePage = lazyPage(() => import("@/pages/NewHerePage"));
 const ServePage = lazyPage(() => import("@/pages/ServePage"));
 const BuildingCampaignPage = lazyPage(() => import("@/pages/BuildingCampaignPage"));
 const ChoirPage = lazyPage(() => import("@/pages/ChoirPage"));
+const ComposeSongPage = lazyPage(() => import("@/pages/ComposeSongPage"));
 const ChoirPortalPage = lazyPage(() => import("@/pages/ChoirPortalPage"));
 const ContributionTrackerPage = lazyPage(() => import("@/pages/ContributionTrackerPage"));
 const ManagementTeamPage = lazyPage(() => import("@/pages/ManagementTeamPage"));
@@ -380,6 +381,7 @@ const AppRoutes = () => {
             <Route path="/groups/choir" element={<ChoirPortalPage />} />
             <Route path="/groups/choir/contributions" element={<ContributionTrackerPage />} />
             <Route path="/groups/choir/:locationId" element={<ChoirPage />} />
+            <Route path="/groups/choir/:locationId/compose" element={<ComposeSongPage />} />
             <Route path="/groups/management" element={<ManagementTeamPage />} />
             <Route path="/groups/ushering" element={<UsheringPage />} />
             <Route path="/groups/evangelism" element={<EvangelismPage />} />
