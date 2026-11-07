@@ -28,7 +28,7 @@ export const NARRATED: Record<string, NarratedBible> = {
     ot: 'ENGESVO1DA',
     nt: 'ENGESVN1DA',
     downloadable: true,
-    narrator: 'Narrated',
+    narrator: 'Narrator',
     credit: 'ESV® © 2001 Crossway. Audio ℗ 2009 Hosanna, via Faith Comes By Hearing.',
   },
   NLT: {
@@ -48,7 +48,7 @@ export const NARRATED: Record<string, NarratedBible> = {
   NKJV: {
     nt: 'ENGNKJN1DA',
     downloadable: false,
-    narrator: 'Narrated',
+    narrator: 'Narrator',
     credit: 'NKJV® © 1982 Thomas Nelson. Audio ℗ 1985 Hosanna, via Faith Comes By Hearing.',
   },
 };
@@ -105,7 +105,7 @@ export function downloadSourceFor(version: string, book: string): string | null 
 
 /** A short line for the player: who is reading. */
 export function voiceLabel(plan: ChapterAudioPlan): string {
-  if (plan.kind === 'recording') return 'Narrated';
+  if (plan.kind === 'recording') return 'Narrator';
   if (plan.kind === 'narrated') return plan.bible.narrator;
-  return 'Read aloud';
+  return 'Reading voice';
 }

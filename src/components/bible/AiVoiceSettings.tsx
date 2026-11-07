@@ -26,11 +26,14 @@ export function useVoiceSample() {
   return { playing, toggle };
 }
 
-/** Which translations have a narrator, and which are read aloud in the voice chosen here */
+/**
+ * Which translations are read by a recorded narrator, and which by the reading voice chosen
+ * here (members found "narrated / non-narrated" confusing: it didn't say the rest have a voice too)
+ */
 const VOICE_SUMMARY = [
-  { label: 'KJV, NIV, ESV, NLT', how: 'Narrated' },
-  { label: 'NKJV', how: 'New Testament narrated, Old Testament non-narrated' },
-  { label: 'NASB, AMP, MSG, ASV', how: 'Non-narrated' },
+  { label: 'KJV, NIV, ESV, NLT', how: 'Read by a narrator' },
+  { label: 'NKJV', how: 'New Testament: narrator · Old Testament: reading voice' },
+  { label: 'NASB, AMP, MSG, ASV', how: 'Read by the reading voice you choose below' },
 ];
 
 /** "Audio Bible voices": which translations are narrated, and the voice that reads the rest. */
@@ -45,8 +48,8 @@ const AiVoiceSettings = () => {
         <div>
           <span className="block font-medium text-slate-800 dark:text-slate-200">Audio Bible voices</span>
           <span className="block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Translations without a narrator are read aloud in the voice you choose below. Chapters you listen to are kept on
-            this phone for offline listening.
+            Every translation can be listened to. Some are read by a recorded narrator; the others are read by the reading
+            voice you choose below. Chapters you listen to are kept on this phone for offline listening.
           </span>
         </div>
       </div>
