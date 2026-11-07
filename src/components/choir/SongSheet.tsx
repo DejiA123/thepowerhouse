@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, Copy, Minus, PenLine, Pencil, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, Minus, Pause, PenLine, Pencil, Play, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { chordSheetText, pieces, prefersFlats, transposeKey, transposeLine } from '@/lib/chordSheet';
@@ -43,7 +43,22 @@ const ChordLine = ({ line, steps, flats, showChords }: { line: string; steps: nu
  * over the words; change key, hide the chords, copy it; the choir's and the
  * band's notes underneath.
  */
-const SongSheet = ({ song, onRename, onEdit }: { song: ComposedSong; onRename?: (title: string) => Promise<boolean>; onEdit?: () => void }) => {
+const SongSheet = ({
+  song,
+  onRename,
+  onEdit,
+  partOf,
+  onPlayPart,
+  playingPart,
+}: {
+  song: ComposedSong;
+  onRename?: (title: string) => Promise<boolean>;
+  onEdit?: () => void;
+  /** For each section, its part in the recording (-1: none), for a ▶ beside its name */
+  partOf?: number[];
+  onPlayPart?: (part: number) => void;
+  playingPart?: number | null;
+}) => {
   const [steps, setSteps] = useState(0);
   const [naming, setNaming] = useState<string | null>(null);
   const saveName = async () => {
@@ -140,7 +155,24 @@ const SongSheet = ({ song, onRename, onEdit }: { song: ComposedSong; onRename?: 
           const big = /chorus|vamp/i.test(sec.name) && !/pre/i.test(sec.name);
           return (
           <section key={i}>
-            <h3 className={cn('mb-1.5 font-sans text-[12px] font-bold uppercase tracking-[0.08em]', big ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>{sec.name}</h3>
+            <h3 className={cn('mb-1.5 flex items-center gap-2 font-sans text-[12px] font-bold uppercase tracking-[0.08em]', big ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground')}>
+              {sec.name}
+              {onPlayPart && (partOf?.[i] ?? -1) >= 0 && (
+                <button
+                  type="button"
+                  onClick={() => onPlayPart(partOf![i])}
+                  aria-label={`${playingPart === partOf![i] ? 'Pause' : 'Play'} ${sec.name}`}
+                  data-testid="section-play"
+                  className={cn(
+                    'flex h-7 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold normal-case tracking-normal',
+                    playingPart === partOf![i] ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+                  )}
+                >
+                  {playingPart === partOf![i] ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                  {playingPart === partOf![i] ? 'Playing' : 'Play'}
+                </button>
+              )}
+            </h3>
             <div className={cn('space-y-1.5', big && 'border-l-2 border-blue-200 pl-3 dark:border-blue-900')}>
               {sec.lines.map((line, j) => (
                 <ChordLine key={j} line={line} steps={steps} flats={flats} showChords={showChords} />

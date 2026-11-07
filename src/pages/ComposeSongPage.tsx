@@ -12,6 +12,8 @@ import { choirName } from '@/lib/choirChat';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
 import MusicProgress from '@/components/choir/MusicProgress';
 import SongWordsEditor from '@/components/choir/SongWordsEditor';
+import { SongParts } from '@/components/choir/SongParts';
+import { partForSections, usePartPlayer, type PartTime } from '@/lib/songParts';
 import LiveProgress, { type Stage } from '@/components/choir/LiveProgress';
 import { FieldLabel, FormCard, KeyGrid, Segmented, StylePicker, type SegmentOption, type StyleFamily } from '@/components/choir/ComposeControls';
 
@@ -28,6 +30,8 @@ interface Draft {
   audio_error?: string | null;
   /** The song on the church's music server, while it's made */
   audio_job?: { service: string; task_id?: string; submitted_at: string } | null;
+  /** Where each section is in the recording (Listen by part) */
+  audio_sections?: PartTime[] | null;
   music_requested_at: string | null;
   created_at: string;
 }
@@ -194,6 +198,27 @@ const ComposeSongPage = () => {
     setUndoWords((u) => (u && u.id === current?.id ? u : null));
   }, [current?.id]);
   useEffect(() => setVoice(current?.brief?.voice ?? 'auto'), [current?.id, current?.brief?.voice]);
+
+  // Listen by part: the recording's sections (worked out once by the function for songs
+  // made before it did so automatically)
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+  const parts = current?.audio_status === 'ready' && Array.isArray(current.audio_sections) && current.audio_sections.length ? current.audio_sections : null;
+  const partPlayer = usePartPlayer(audioEl, parts);
+  const [partsLoading, setPartsLoading] = useState(false);
+  const askedParts = useRef(new Set<string>());
+  useEffect(() => {
+    const d = current;
+    if (!d || d.audio_status !== 'ready' || !d.audio_url || d.audio_sections || askedParts.current.has(`${d.id}:${d.audio_url}`)) return;
+    askedParts.current.add(`${d.id}:${d.audio_url}`);
+    setPartsLoading(true);
+    void call({ action: 'sections', draftId: d.id }).then((r) => {
+      setPartsLoading(false);
+      const found = (r as { sections?: PartTime[] | null }).sections;
+      if (!found?.length) return;
+      setCurrent((c) => (c && c.id === d.id ? { ...c, audio_sections: found } : c));
+      setDrafts((list) => list?.map((x) => (x.id === d.id ? { ...x, audio_sections: found } : x)) ?? list);
+    });
+  }, [current]);
 
   const loadDrafts = useCallback(async () => {
     if (!user) return;
@@ -406,13 +431,21 @@ const ComposeSongPage = () => {
               </button>
             </div>
           )}
-          <SongSheet song={current.song} onRename={mine ? rename : undefined} onEdit={mine ? () => { setEditing(true); window.scrollTo({ top: 0 }); } : undefined} />
+          <SongSheet
+            song={current.song}
+            onRename={mine ? rename : undefined}
+            onEdit={mine ? () => { setEditing(true); window.scrollTo({ top: 0 }); } : undefined}
+            partOf={parts ? partForSections(current.song.sections, parts) : undefined}
+            onPlayPart={parts ? partPlayer.play : undefined}
+            playingPart={partPlayer.playing}
+          />
 
           <SectionLabel>The music</SectionLabel>
           <div className="rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="song-music">
             {current.audio_status === 'ready' && current.audio_url ? (
               <>
-                <audio controls preload="metadata" src={current.audio_url} className="w-full" />
+                <audio ref={setAudioEl} controls preload="metadata" src={current.audio_url} className="w-full" />
+                <SongParts parts={parts} loading={partsLoading} player={partPlayer} />
                 {current.brief?.voice !== 'female' && current.brief?.voice !== 'male' && current.brief?.voice !== 'duet' && current.brief?.sung && (
                   <p className="mt-1.5 text-[12.5px] text-muted-foreground">Sung by a {current.brief.sung} lead (Auto)</p>
                 )}
