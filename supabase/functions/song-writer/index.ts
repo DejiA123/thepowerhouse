@@ -840,8 +840,9 @@ async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy'
   } catch (e) {
     const timedOut = /timeout|abort/i.test(String(e));
     console.error('[song-writer] split failed', String(e));
-    // A timed-out split may still finish on the server: leave the claim to expire; otherwise free it
-    if (!timedOut) await supabaseAdmin.from('song_drafts').update({ stems_at: null }).eq('id', id).eq('stems_at', started);
+    // A timed-out split may still finish on the server: leave the claim to expire (4 minutes);
+    // a failed one is tried again in half an hour (the claim is moved on 26 minutes)
+    if (!timedOut) await supabaseAdmin.from('song_drafts').update({ stems_at: new Date(Date.now() + 26 * 60_000).toISOString() }).eq('id', id).eq('stems_at', started);
     return timedOut ? 'busy' : 'failed';
   }
 }
@@ -930,6 +931,20 @@ function checkTimes(out: { duration?: unknown; sections?: unknown }, song: Song)
   });
   const good = list.filter((p) => p.end - p.start >= 3 && (!total || p.start < total));
   return good.length >= 2 ? good : null;
+}
+
+/**
+ * Times the parts of a song's stored recording (downloads it first). A song that can't be
+ * timed is marked tried (`[]`) so the minute-by-minute safety net doesn't keep asking;
+ * opening the song asks once more.
+ */
+async function sectionsFor(id: string, timeoutMs: number): Promise<boolean> {
+  const { data: d } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', id).maybeSingle();
+  if (!d?.audio_url) return false;
+  const res = await fetch(d.audio_url, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+  const ok = !!res?.ok && (await saveSections(id, new Uint8Array(await res.arrayBuffer()), (res.headers.get('content-type') ?? 'audio/mpeg').split(';')[0], timeoutMs));
+  if (!ok) await supabaseAdmin.from('song_drafts').update({ audio_sections: [] }).eq('id', id).is('audio_sections', null);
+  return ok;
 }
 
 /** Works out and saves the parts of a song's recording; true when saved */
@@ -1378,6 +1393,41 @@ Deno.serve(async (req) => {
     return json(out);
   }
 
+  // The database's minute-by-minute safety net (cron job song-music-watch): carries on every
+  // song being made whose watcher has stopped, and gives new songs their music-only /
+  // voices-only versions and part times if those didn't finish. Only moves songs along
+  // that are already under way, so it needs no account.
+  if (input.action === 'watch-all') {
+    const work = (async () => {
+      const runs: Promise<unknown>[] = [];
+      const { data: making } = await supabaseAdmin.from('song_drafts').select('id, audio_job').eq('audio_status', 'making').limit(10);
+      for (const d of making ?? []) {
+        const job = d.audio_job as Job | null;
+        const watched = Date.parse(job?.watched_at ?? '');
+        if (job?.service !== 'acestep' || (watched && Date.now() - watched < 30_000)) continue;
+        await touchJob(d.id, { watched_at: new Date().toISOString() });
+        runs.push(watch(d.id));
+      }
+      const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+      const { data: ready } = await supabaseAdmin
+        .from('song_drafts')
+        .select('id, instrumental_url, audio_sections')
+        .eq('audio_status', 'ready')
+        .not('audio_url', 'is', null)
+        .gt('updated_at', dayAgo)
+        .or('instrumental_url.is.null,audio_sections.is.null')
+        .limit(4);
+      for (const d of ready ?? []) {
+        if (!d.instrumental_url) runs.push(makeStems(d.id, 110_000));
+        if (d.audio_sections === null) runs.push(sectionsFor(d.id, 90_000));
+      }
+      await Promise.all(runs);
+    })();
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+    else await work;
+    return json({ ok: true });
+  }
+
   // A fresh run carrying on watching a song's music (from relay(); service key only)
   if (input.action === 'watch') {
     if (!SERVICE_KEY || req.headers.get('x-watch-key') !== SERVICE_KEY) return json({ error: 'Not allowed' }, 403);
@@ -1530,13 +1580,11 @@ Deno.serve(async (req) => {
     const id = clean(input.draftId, 40);
     const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, shared, audio_url, audio_status, audio_sections').eq('id', id).maybeSingle();
     if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
-    if (draft.audio_sections || draft.audio_status !== 'ready' || !draft.audio_url) return json({ sections: draft.audio_sections ?? null });
-    const res = await fetch(draft.audio_url, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
-    if (!res?.ok) return json({ sections: null, error: "Couldn't open the recording" });
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    await saveSections(id, bytes, (res.headers.get('content-type') ?? 'audio/mpeg').split(';')[0], 90_000);
+    const has = Array.isArray(draft.audio_sections) && draft.audio_sections.length > 0;
+    if (has || draft.audio_status !== 'ready' || !draft.audio_url) return json({ sections: has ? draft.audio_sections : null });
+    await sectionsFor(id, 90_000);
     const { data: after } = await supabaseAdmin.from('song_drafts').select('audio_sections').eq('id', id).maybeSingle();
-    return json({ sections: after?.audio_sections ?? null });
+    return json({ sections: Array.isArray(after?.audio_sections) && after.audio_sections.length ? after.audio_sections : null });
   }
 
   if (input.action === 'music-check') {
