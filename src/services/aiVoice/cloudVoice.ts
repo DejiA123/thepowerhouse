@@ -2,8 +2,8 @@
  * The cloud voice: chapters read in the cloud instead of by a voice model on the phone
  * (which is too big for many phones and froze them). The bible-tts function answers each
  * piece with the address of an MP3 in the media store (the church's own voice, read once
- * and kept for everybody), or, from the backup voices, the speech itself (WAV). Either
- * way it's turned into numbers here and joined into the chapter's MP3 in a small helper.
+ * and kept for everybody; WAV is still understood). It's turned into numbers here and
+ * joined into the chapter's MP3 in a small helper.
  *
  * Pieces are asked for a few at a time ahead of where the chapter is up to
  * (each takes several seconds to make), and joined in order, so a chapter is
