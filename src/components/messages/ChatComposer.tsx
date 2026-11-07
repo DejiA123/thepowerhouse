@@ -370,7 +370,7 @@ const ChatComposer = ({
           <span className={cn('w-1 shrink-0 bg-current', nameColor(replyTo.userId))} />
           <Reply className="mt-2.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="w-0 min-w-0 flex-1 py-2">
-            <p className={cn('truncate text-[13px] font-semibold', nameColor(replyTo.userId))}>Replying to {replyTo.name}</p>
+            <p className={cn('truncate text-[13px] font-semibold', nameColor(replyTo.userId))}>{replyTo.name === 'You' ? 'You' : `Replying to ${replyTo.name}`}</p>
             <p className="truncate text-[13px] text-muted-foreground">{replyTo.text || 'Message'}</p>
           </div>
           {replyTo.image && <SecureImg url={replyTo.image} className="h-14 w-14 shrink-0 object-cover" />}
