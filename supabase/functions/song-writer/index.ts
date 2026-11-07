@@ -1009,6 +1009,17 @@ async function musicServer(): Promise<Server | null> {
 const serverFor = (srv: Server, studio: boolean): Server => (studio && srv.studio ? { ...srv, url: srv.studio } : srv);
 const wantsStudio = (srv: Server, brief: Brief) => brief.quality === 'studio' && !!srv.studio;
 
+/**
+ * Does this church make its music in studio quality? On unless a church admin switched it
+ * off in Compose a song → Advanced settings (church_compose_settings; no row = on).
+ */
+async function churchStudio(churchId: string | null | undefined): Promise<boolean> {
+  if (!churchId) return true;
+  const { data, error } = await supabaseAdmin.from('church_compose_settings' as never).select('studio').eq('church_id', churchId).maybeSingle();
+  if (error || !data) return true;
+  return (data as { studio: boolean }).studio !== false;
+}
+
 /** Sends the song to the server (it answers at once with a task; asleep, it first wakes up) */
 async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number, studio = false): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
   const body: Record<string, unknown> = {
@@ -1499,7 +1510,7 @@ Deno.serve(async (req) => {
   }
 
   // ── The church's music service (church admins connect it once) ──
-  if (input.action === 'music-service' || input.action === 'connect-music' || input.action === 'disconnect-music') {
+  if (input.action === 'music-service' || input.action === 'connect-music' || input.action === 'disconnect-music' || input.action === 'compose-settings') {
     const churchId = clean(input.churchId, 40);
     if (!/^[0-9a-f-]{36}$/i.test(churchId)) return json({ error: 'Open the app for your church first.' }, 400);
     const [{ data: member }, { data: roles }] = await Promise.all([
@@ -1512,10 +1523,19 @@ Deno.serve(async (req) => {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('service, hint, updated_at').eq('church_id', churchId);
       const services = ((rows ?? []) as { service: Service; hint: string | null; updated_at: string }[]).map((r) => ({ service: r.service, hint: canManage ? r.hint : null, updated_at: r.updated_at }));
       const own = await musicServer();
-      return { services, canManage, platform: { acestep: !!own, studio: !!own?.studio, acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
+      return { services, canManage, studio: await churchStudio(churchId), platform: { acestep: !!own, studio: !!own?.studio, acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
     };
     if (input.action === 'music-service') return json(await status());
     if (!canManage) return json({ error: 'Only a church admin can change the music service.' }, 403);
+
+    // Advanced settings → Studio quality music, for everyone composing at this church
+    if (input.action === 'compose-settings') {
+      const { error } = await supabaseAdmin
+        .from('church_compose_settings' as never)
+        .upsert({ church_id: churchId, studio: input.studio !== false, updated_by: user.id, updated_at: new Date().toISOString() } as never, { onConflict: 'church_id' });
+      if (error) return json({ error: "Couldn't save that. Please try again." }, 500);
+      return json(await status());
+    }
 
     if (input.action === 'disconnect-music') {
       const service = input.service === 'huggingface' ? 'huggingface' : 'acemusic';
@@ -1558,8 +1578,9 @@ Deno.serve(async (req) => {
     const before = (draft.brief ?? {}) as Brief;
     const voice = input.voice === undefined ? voiceOf(before.voice) : voiceOf(input.voice);
     // Auto takes turns between a female and a male lead (music models otherwise mostly pick a man)
-    // Studio quality (Advanced settings) is chosen per song too; kept for retries and resends
-    const quality = input.quality === undefined ? qualityOf(before.quality) : qualityOf(input.quality);
+    // Studio quality is the church's choice (an admin's Advanced settings; on by default),
+    // not the phone's; kept in the brief for retries and resends
+    const quality = (await churchStudio(draft.church_id as string)) ? 'studio' : undefined;
     const brief: Brief = { ...before, voice, sung: voice === 'auto' ? autoPick(before.sung) : undefined, quality };
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
