@@ -503,7 +503,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading: !!aiRef,
         isBibleMode: true,
         trackTitle: `${displayBookName} ${chapter}`,
-        trackArtist: `${plan.translation} · ${voice}`,
+        // Just the translation: who reads it (narrator or reading voice) isn't shown to members
+        trackArtist: plan.translation,
         trackImage: church.brand.artwork,
         currentTime: 0,
         duration: 0,
@@ -518,7 +519,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: `${displayBookName} ${chapter}`,
-          artist: `Bible Audio · ${voice}`,
+          artist: `Bible Audio · ${plan.translation}`,
           album: plan.translation,
           artwork: [
             { src: church.brand.artwork, sizes: '512x512', type: 'image/png' },

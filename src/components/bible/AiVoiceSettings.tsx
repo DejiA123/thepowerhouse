@@ -26,17 +26,7 @@ export function useVoiceSample() {
   return { playing, toggle };
 }
 
-/**
- * Which translations are read by a recorded narrator, and which by the reading voice chosen
- * here (members found "narrated / non-narrated" confusing: it didn't say the rest have a voice too)
- */
-const VOICE_SUMMARY = [
-  { label: 'KJV, NIV, ESV, NLT', how: 'Read by a narrator' },
-  { label: 'NKJV', how: 'New Testament: narrator · Old Testament: reading voice' },
-  { label: 'NASB, AMP, MSG, ASV', how: 'Read by the reading voice you choose below' },
-];
-
-/** "Audio Bible voices": which translations are narrated, and the voice that reads the rest. */
+/** "Audio Bible voices": the voice that reads the Bible (no talk of which translations are recorded: members found it confusing). */
 const AiVoiceSettings = () => {
   const ai = useAiVoice();
   const sample = useVoiceSample();
@@ -48,19 +38,9 @@ const AiVoiceSettings = () => {
         <div>
           <span className="block font-medium text-slate-800 dark:text-slate-200">Audio Bible voices</span>
           <span className="block text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Every translation can be listened to. Some are read by a recorded narrator; the others are read by the reading
-            voice you choose below. Chapters you listen to are kept on this phone for offline listening.
+            Choose the voice that reads the Bible to you. Chapters you listen to are kept on this phone for offline listening.
           </span>
         </div>
-      </div>
-
-      <div className="divide-y divide-slate-100 rounded-lg bg-slate-50 text-[13px] dark:divide-slate-700 dark:bg-slate-900/40">
-        {VOICE_SUMMARY.map((row) => (
-          <div key={row.label} className="flex justify-between gap-3 px-3 py-2">
-            <span className="font-semibold text-slate-700 dark:text-slate-200">{row.label}</span>
-            <span className="text-right text-slate-500 dark:text-slate-400">{row.how}</span>
-          </div>
-        ))}
       </div>
 
       <div>
@@ -100,7 +80,7 @@ const AiVoiceSettings = () => {
       </div>
 
       <p className="text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-        Narrated audio by Faith Comes By Hearing, and The Listener's Bible (NIV, read by Max McLean).
+        Audio recordings by Faith Comes By Hearing, and The Listener's Bible (NIV, read by Max McLean).
       </p>
     </div>
   );

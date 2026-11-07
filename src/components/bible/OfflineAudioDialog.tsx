@@ -443,7 +443,7 @@ const OfflineAudioDialog = ({ open, onOpenChange, book, chapter, version }: Prop
               </div>
 
               <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-                {source ? `Audio is the ${recordingName}, narrated. ` : ''}Downloads stay on this device until you remove them. On iPhone, open the
+                {source ? `Audio is the ${recordingName}. ` : ''}Downloads stay on this device until you remove them. On iPhone, open the
                 app from your Home Screen so downloads are kept.
               </p>
             </>
@@ -585,13 +585,11 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
       {plan.kind === 'narrated' ? (
         <p className="text-[14px] leading-relaxed text-foreground">
-          The {plan.translation} {testament} narration can only be streamed: the publisher doesn't allow downloads. With no
-          connection, the chapters you save here are read by the reading voice instead.
+          The {plan.translation} {testament} can only be played online here. Save chapters below to listen with no connection too.
         </p>
       ) : (
         <p className="text-[14px] leading-relaxed text-foreground">
-          The {plan.translation} is read by the reading voice you choose in Settings. Chapters you listen to stay
-          on this phone, or save the whole book to listen with no connection.
+          Chapters you listen to stay on this phone, or save the whole book to listen with no connection.
         </p>
       )}
 
