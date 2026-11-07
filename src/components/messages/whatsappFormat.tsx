@@ -170,3 +170,91 @@ export function renderFormatted(text: string, leaf: (text: string, key: string) 
   return out;
 }
 
+
+// ── The message box, formatted as you type (like WhatsApp) ─────────────────
+type Marked =
+  | { kind: 'text'; text: string }
+  | { kind: 'bold' | 'italic' | 'strike'; mark: string; children: Marked[] }
+  | { kind: 'code'; mark: string; text: string };
+
+/** Like parseInline, but keeps the marks themselves (the box still shows *bold*) */
+function parseMarked(s: string): Marked[] {
+  const out: Marked[] = [];
+  let text = '';
+  let i = 0;
+  while (i < s.length) {
+    ATOMIC.lastIndex = i;
+    const atomic = isEdge(s[i - 1]) ? ATOMIC.exec(s) : null;
+    if (atomic) {
+      text += atomic[0];
+      i += atomic[0].length;
+      continue;
+    }
+    const ch = s[i];
+    const kind = MARKS[ch];
+    if (kind && isEdge(s[i - 1]) && s[i - 1] !== ch && s[i + 1] !== undefined && !/\s/.test(s[i + 1]) && s[i + 1] !== ch) {
+      const end = closing(s, i);
+      if (end > i) {
+        if (text) out.push({ kind: 'text', text });
+        text = '';
+        const inner = s.slice(i + 1, end);
+        out.push(kind === 'code' ? { kind: 'code', mark: ch, text: inner } : { kind, mark: ch, children: parseMarked(inner) });
+        i = end + 1;
+        continue;
+      }
+    }
+    text += ch;
+    i++;
+  }
+  if (text) out.push({ kind: 'text', text });
+  return out;
+}
+
+// Only effects that keep every letter's width, so the formatted copy lines up exactly with
+// the text box's own (see-through) text and its cursor: bold is drawn with a thin outline
+// (real bold letters are wider), italic is the browser's slant of the regular face (this
+// Inter has no italic face), code is a tint with no padding. Kerning is off in both the box
+// and the copy (BOX_TEXT): a slanted word is shaped on its own, so pairs like "_O" lost their
+// kerning in the copy only and the text drifted ~2 px a word.
+export const BOX_TEXT = '[font-kerning:none] [font-variant-ligatures:none]';
+const BOX_BOLD = '[-webkit-text-stroke:0.55px_currentColor]';
+const BOX_CODE = 'rounded-[4px] bg-black/[0.07] dark:bg-white/15';
+const BOX_MARK = 'text-muted-foreground';
+
+function renderMarked(nodes: Marked[], key: string): ReactNode[] {
+  return nodes.map((n, i) => {
+    const k = `${key}.${i}`;
+    if (n.kind === 'text') return <Fragment key={k}>{n.text}</Fragment>;
+    const mark = <span className={BOX_MARK}>{n.mark}</span>;
+    if (n.kind === 'code') return <span key={k}>{mark}<span className={BOX_CODE}>{n.text}</span>{mark}</span>;
+    const inner = renderMarked(n.children, k);
+    const cls = n.kind === 'bold' ? BOX_BOLD : n.kind === 'italic' ? 'box-italic italic' : 'line-through';
+    return <span key={k}>{mark}<span className={cls}>{inner}</span>{mark}</span>;
+  });
+}
+
+/** Is there anything the box would format? (Plain text keeps the ordinary text box) */
+export const hasFormatting = (text: string) => /[*_~`]/.test(text) && (/```[\s\S]*?```/.test(text) || text.split('\n').some((line) => parseMarked(line).some((n) => n.kind !== 'text')));
+
+/**
+ * The message box's text, formatted as WhatsApp shows it while typing: the same characters
+ * (marks included, a little lighter) with *bold*, _italic_, ~strike~ and `code` applied.
+ */
+export function composerFormatted(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  text.split(/(```[\s\S]*?```)/g).forEach((part, p) => {
+    if (!part) return;
+    if (part.startsWith('```') && part.endsWith('```') && part.length >= 6) {
+      out.push(
+        <span key={`m${p}`}>
+          <span className={BOX_MARK}>```</span>
+          <span className={BOX_CODE}>{part.slice(3, -3)}</span>
+          <span className={BOX_MARK}>```</span>
+        </span>,
+      );
+      return;
+    }
+    out.push(<Fragment key={`t${p}`}>{renderMarked(parseMarked(part), `t${p}`)}</Fragment>);
+  });
+  return out;
+}
