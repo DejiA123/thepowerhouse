@@ -358,9 +358,7 @@ const ComposeSongPage = () => {
               </button>
             </div>
           )}
-          <p className="mt-4 px-1 text-[12.5px] leading-snug text-muted-foreground">
-            A first draft: pray over it, sing it through, and change anything until it's yours.
-          </p>
+          <MakeItYours className="mt-5" />
         </div>
       </Page>
     );
@@ -472,7 +470,8 @@ const ComposeSongPage = () => {
             </>
           )}
         </button>
-        <p className="px-1 text-[12.5px] leading-snug text-muted-foreground">A first draft to pray over, sing through and make your own. Only Christian worship and gospel songs. Lines in another language are worth checking with a native speaker.</p>
+        <MakeItYours />
+        <p className="px-1 text-[12.5px] leading-snug text-muted-foreground">Only Christian worship and gospel songs. Lines in another language are worth checking with a native speaker.</p>
       </div>
 
       {/* Nothing to set up while the church's own music server is running (only a key someone added is shown, to remove it) */}
@@ -598,6 +597,22 @@ const MusicServiceRow = ({ service, onChange }: { service: MusicService; onChang
     </>
   );
 };
+
+/**
+ * What the song helper is and isn't: a starting point (words, chords, choir parts, a
+ * recording); the songwriters pray, rework and make it theirs; how a song is introduced
+ * is the church's choice, and the app never claims a song was given by God.
+ */
+const MakeItYours = ({ className }: { className?: string }) => (
+  <div className={cn('rounded-2xl bg-amber-50/80 px-4 py-3.5 dark:bg-amber-950/30', className)} data-testid="make-it-yours">
+    <p className="text-[14px] font-semibold text-foreground">A starting point for your songwriters</p>
+    <ul className="mt-1.5 space-y-1.5 text-[13px] leading-snug text-muted-foreground">
+      <li><span className="font-semibold text-foreground">In seconds:</span> words, chords, choir parts and a full recording to start from.</li>
+      <li><span className="font-semibold text-foreground">Then the real ministry:</span> pray over it, change the words, sing it with the choir and make it yours. Then the song you bring to church is truly yours to offer.</li>
+      <li><span className="font-semibold text-foreground">Your choice:</span> how you introduce a song to the church is up to you. The app never says a song was given by God.</li>
+    </ul>
+  </div>
+);
 
 const DraftRow = ({ d, onOpen }: { d: Draft; onOpen: () => void }) => (
   <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted">
