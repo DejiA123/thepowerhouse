@@ -1459,7 +1459,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onNewPoll={privateChat ? undefined : () => setNewPoll(true)}
         mentionables={mentionables}
         onTyping={onTyping}
-        replyTo={replyTo ? { ...quoteOf(replyTo, replyTo.id), name: replyTo.user_id === me.id ? 'yourself' : senderName(replyTo) } : null}
+        replyTo={replyTo ? quoteOf(replyTo, replyTo.id) : null}
         onCancelReply={() => setReplyTo(null)}
         editing={editing ? { id: editing.id, text: plainMentions(editableText(editing.content)), caption: editableText(editing.content) !== editing.content } : null}
         onSaveEdit={saveEdit}
