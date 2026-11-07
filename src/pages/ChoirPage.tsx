@@ -5118,6 +5118,7 @@ const ChoirPage = () => {
                         onSongwriting={() => setIsSongwritingOpen(true)}
                         onContributions={() => navigate('/groups/choir/contributions')}
                         onSwitch={() => navigate('/groups/choir?pick=1')}
+                        onCompose={() => navigate(`/groups/choir/${locationId}/compose`)}
                     />
                 )}
                 {view === 'singing' && (
