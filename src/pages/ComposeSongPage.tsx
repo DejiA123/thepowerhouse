@@ -5,6 +5,7 @@ import { Page, PageTitle, SectionLabel, ListGroup } from '@/components/page/Page
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { appAlert } from '@/lib/appAlert';
+import { prepareSave, saveToPhone } from '@/lib/saveMedia';
 import { cn } from '@/lib/utils';
 import { currentChurchId } from '@/lib/churchSpace';
 import { choirName } from '@/lib/choirChat';
@@ -40,8 +41,10 @@ interface Brief {
   language?: string;
   languageMode?: 'chorus' | 'all';
   notes?: string;
-  /** The lead singer for the music: auto (the music chooses), female, male or a duet */
+  /** The lead singer for the music: auto, female, male or a duet */
   voice?: Voice;
+  /** Who Auto picked for the last music (it takes turns: female, male) */
+  sung?: 'female' | 'male';
 }
 
 type Voice = 'auto' | 'female' | 'male' | 'duet';
@@ -410,11 +413,12 @@ const ComposeSongPage = () => {
             {current.audio_status === 'ready' && current.audio_url ? (
               <>
                 <audio controls preload="metadata" src={current.audio_url} className="w-full" />
+                {current.brief?.voice !== 'female' && current.brief?.voice !== 'male' && current.brief?.voice !== 'duet' && current.brief?.sung && (
+                  <p className="mt-1.5 text-[12.5px] text-muted-foreground">Sung by a {current.brief.sung} lead (Auto)</p>
+                )}
                 {mine && <VoicePicker value={voice} onChange={setVoice} className="mt-3" note="For Make it again" />}
                 <div className="mt-3 flex gap-2">
-                  <a href={current.audio_url} download={`${current.title}.${current.audio_url.split('?')[0].split('.').pop() || 'mp3'}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
-                    <Download className="h-4 w-4" /> Save
-                  </a>
+                  <SaveSong url={current.audio_url} title={current.title} />
                   {mine && (
                     <button type="button" onClick={makeMusic} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
                       <RotateCcw className="h-4 w-4" /> Make it again
@@ -562,7 +566,15 @@ const ComposeSongPage = () => {
         <FormCard step={5} title="Finishing touches">
           <div>
             <FieldLabel htmlFor="song-notes" optional>Anything else</FieldLabel>
-            <input id="song-notes" value={brief.notes} onChange={(e) => setBrief({ ...brief, notes: e.target.value.slice(0, 600) })} placeholder="A line you want in it, for Easter…" className={field} />
+            <textarea
+              id="song-notes"
+              rows={3}
+              value={brief.notes}
+              onChange={(e) => setBrief({ ...brief, notes: e.target.value.slice(0, 600) })}
+              placeholder={'e.g. Use the line "You turned my mourning into dancing". For Easter Sunday, no bridge.'}
+              className={cn(field, 'resize-none leading-snug')}
+            />
+            <p className="mt-1.5 text-[12.5px] leading-snug text-muted-foreground">The song helper follows these first. Put a line in quotes to have it in the song word for word.</p>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[15px] font-semibold text-foreground">How many songs</span>
@@ -724,9 +736,47 @@ const VoicePicker = ({ value, onChange, className, note }: { value: Voice; onCha
       Lead voice {note && <span className="font-normal text-muted-foreground">({note.toLowerCase()})</span>}
     </FieldLabel>
     <Segmented label="Lead voice" compact options={VOICES.map((v) => ({ value: v.id, label: v.label }))} value={value} onChange={onChange} />
-    {value === 'auto' && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Auto lets the music choose the singer.</p>}
+    {value === 'auto' && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Auto takes turns: a female lead, then a male lead.</p>}
   </div>
 );
+
+/**
+ * Save the song's recording to the phone. The file is on another address (the media
+ * store), where a plain download link only opens it in a player, so it's fetched first
+ * (as soon as the song shows) and then shared (iPhone: Save to Files) or downloaded.
+ */
+const SaveSong = ({ url, title }: { url: string; title: string }) => {
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase() || 'mp3';
+  const name = `${title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Song'}.${/^[a-z0-9]{2,4}$/.test(ext) ? ext : 'mp3'}`;
+  const [state, setState] = useState<'idle' | 'getting' | 'failed'>('idle');
+  useEffect(() => {
+    prepareSave(url, 'voice', name).catch(() => setState('failed'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per recording
+  }, [url]);
+  const save = async () => {
+    if (state === 'failed') {
+      // Couldn't fetch it here: open it, so the phone's own player can save it
+      window.open(url, '_blank', 'noopener');
+      return;
+    }
+    const r = await saveToPhone(url, 'voice', name);
+    if (r === 'not-ready') {
+      setState('getting');
+      prepareSave(url, 'voice', name).then(
+        () => {
+          setState('idle');
+          appAlert('Ready to save', 'Tap Save again.', 'success');
+        },
+        () => setState('failed'),
+      );
+    }
+  };
+  return (
+    <button type="button" onClick={() => void save()} disabled={state === 'getting'} data-testid="save-song" className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60">
+      {state === 'getting' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {state === 'getting' ? 'Getting it ready…' : 'Save'}
+    </button>
+  );
+};
 
 const WritingProgress = ({ run, className }: { run: { at: number; count: number; done: boolean }; className?: string }) => (
   <LiveProgress

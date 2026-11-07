@@ -82,12 +82,21 @@ interface Brief {
   language?: string;
   languageMode?: 'chorus' | 'all';
   notes?: string;
-  /** The lead voice for the music: auto (the music model chooses), female, male or a duet */
+  /** The lead voice for the music: auto, female, male or a duet */
   voice?: Voice;
+  /** Who Auto picked for the last music: female or male (alternating), so it isn't always a man */
+  sung?: 'female' | 'male';
 }
 type Voice = 'auto' | 'female' | 'male' | 'duet';
 const VOICES: Voice[] = ['auto', 'female', 'male', 'duet'];
 const voiceOf = (v: unknown): Voice => (VOICES.includes(v as Voice) ? (v as Voice) : 'auto');
+/** The voice the music is sung with: the chosen one, or Auto's pick */
+const sungVoice = (b: Brief): Voice => {
+  const v = voiceOf(b.voice);
+  return v === 'auto' ? (b.sung === 'female' || b.sung === 'male' ? b.sung : 'auto') : v;
+};
+/** Auto's pick for the next music: the other one from last time (the first time, either) */
+const autoPick = (last?: string): 'female' | 'male' => (last === 'female' ? 'male' : last === 'male' ? 'female' : Math.random() < 0.5 ? 'female' : 'male');
 /** The lead singer, as the music models are asked for it */
 const LEAD: Record<Voice, string> = {
   auto: 'strong expressive lead vocal',
@@ -110,6 +119,9 @@ interface Song {
 }
 
 const clean = (s: unknown, max: number) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+/** Like clean, but keeps line breaks (a writer's notes may hold lines they want in the song) */
+const cleanLines = (s: unknown, max: number) =>
+  typeof s === 'string' ? s.split(/\r?\n|\u2028/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 12).join('\n').slice(0, max) : '';
 
 function briefFrom(input: Record<string, unknown>): Brief | null {
   const theme = clean(input.theme, 600);
@@ -124,7 +136,7 @@ function briefFrom(input: Record<string, unknown>): Brief | null {
     language: /^english$/i.test(language) ? '' : language,
     languageMode: input.languageMode === 'all' ? 'all' : 'chorus',
     voice: voiceOf(input.voice),
-    notes: clean(input.notes, 600),
+    notes: cleanLines(input.notes, 600),
   };
 }
 
@@ -163,8 +175,10 @@ const userPrompt = (b: Brief) =>
     `Tempo: ${FEELS[b.feel!]}`,
     b.key ? `Key: ${b.key}` : 'Pick a key that suits a church choir (e.g. C, D, Eb, F, G, Ab or Bb).',
     languageLine(b),
-    b.notes ? `Writer's notes: ${b.notes}` : '',
-    `Structure: Verse 1, (Pre-Chorus), Chorus, Verse 2, Chorus, Bridge, Chorus${STYLES[b.style!].vamp ? ', Vamp' : ''}. Repeat the chorus in full each time it appears.`,
+    b.notes
+      ? `The writer's own requests. Follow every one of them exactly; they come before anything else in this brief except the Christian rules. Any line, phrase or title in quotes must appear in the song word for word (put a line meant for the chorus in the chorus). A requested change to the structure replaces the structure below.\n<<<\n${b.notes}\n>>>`
+      : '',
+    `Structure${b.notes ? ' (unless the writer asked otherwise)' : ''}: Verse 1, (Pre-Chorus), Chorus, Verse 2, Chorus, Bridge, Chorus${STYLES[b.style!].vamp ? ', Vamp' : ''}. Repeat the chorus in full each time it appears.`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -178,6 +192,7 @@ const EDITOR = `You are the producer and editor a church choir trusts with every
 - Truth: keep it faithful to Scripture and Christ-centred; fix anything doctrinally loose.
 - Style: keep it true to the brief's style and language.
 - Chords: keep them valid for the key and on stressed syllables; square brackets hold chords only, choir answers in round brackets.
+- The writer's requests (in the brief, between <<< and >>>) come first: every line, phrase, title, structure or instruction they asked for stays exactly as they asked, even where you would otherwise change it.
 Keep the same structure and the same JSON shape and fields. Reply with the revised song as JSON only.`;
 
 const editorPrompt = (song: Song, b: Brief) =>
@@ -318,6 +333,18 @@ const tiredWords = (song: Song) => {
   return TIRED.filter((w) => text.includes(w));
 };
 
+/** The words in quotes in the writer's notes, which must be in the song word for word */
+const quotesIn = (notes?: string) =>
+  [...(notes ?? '').matchAll(/["“”]([^"“”]{3,200})["“”]/g)].map((m) => norm(m[1])).filter(Boolean);
+const norm = (t: string) => t.toLowerCase().replace(/\[[^\]]*\]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+/** How many of those the song has (the editor's pass is kept only if it loses none) */
+function keptQuotes(song: Song, b: Brief) {
+  const quotes = quotesIn(b.notes);
+  if (!quotes.length) return 0;
+  const text = ` ${norm([song.title, ...song.sections.flatMap((s) => s.lines)].join(' '))} `;
+  return quotes.filter((q) => text.includes(` ${q} `)).length;
+}
+
 /**
  * Write the song, then revise it as an experienced editor would (meter, fresh
  * words, a stronger chorus). The revision is kept only if it comes back whole
@@ -330,7 +357,11 @@ async function writeSong(b: Brief, only?: string) {
   const left = 128_000 - (Date.now() - started);
   if (left < 15_000) return { ...first, revised: false };
   const second = await generate({ system: EDITOR, prompt: editorPrompt(first.song, b), temperature: 0.5 }, left, only);
-  const good = second.song && second.song.sections.length >= Math.max(3, first.song.sections.length - 2) && tiredWords(second.song).length <= tiredWords(first.song).length;
+  const good =
+    second.song &&
+    second.song.sections.length >= Math.max(3, first.song.sections.length - 2) &&
+    tiredWords(second.song).length <= tiredWords(first.song).length &&
+    keptQuotes(second.song, b) >= keptQuotes(first.song, b);
   console.log(`[song-writer] revised: ${good ? 'yes' : 'no'} (${Math.round((Date.now() - started) / 1000)}s, tired words ${tiredWords(first.song).length}→${second.song ? tiredWords(second.song).length : '-'})`);
   return good ? { song: second.song, revised: true } : { ...first, revised: false };
 }
@@ -388,7 +419,7 @@ function lyriaPrompt(song: Song, brief: Brief) {
     `Sound: ${style.sound}.`,
     song.music_style ? `Production: ${song.music_style}` : '',
     `Tempo ${song.bpm} BPM, ${song.time_signature}, key of ${song.key}.`,
-    `Voices: ${voiceOf(brief.voice) === 'auto' ? 'a strong, expressive lead singer' : `a ${LEAD[voiceOf(brief.voice)]}`} with a full choir singing harmonies and answering lines in the choruses${style.vamp ? ' and the vamp' : ''}. Clear diction: every word must be understood.`,
+    `Voices: ${sungVoice(brief) === 'auto' ? 'a strong, expressive lead singer' : `a ${LEAD[sungVoice(brief)]}`} with a full choir singing harmonies and answering lines in the choruses${style.vamp ? ' and the vamp' : ''}. Clear diction: every word must be understood.`,
     song.arrangement.choir ? `Choir arrangement: ${song.arrangement.choir}` : '',
     song.arrangement.band ? `Band arrangement: ${song.arrangement.band}` : '',
     `Sing exactly these lyrics, in this order (lines in round brackets are the choir's answers):`,
@@ -443,7 +474,7 @@ function aceCaption(song: Song, brief: Brief) {
   return [
     `Christian ${genre.trim().toLowerCase()}`,
     sound?.trim(),
-    `${LEAD[voiceOf(brief.voice)]}, full church choir singing harmonies and answering lines`,
+    `${LEAD[sungVoice(brief)]}, full church choir singing harmonies and answering lines`,
     song.music_style ? song.music_style.slice(0, 260) : '',
     'live church session, warm professional mix, clear vocals, every word understood',
   ].filter(Boolean).join(', ').slice(0, 900);
@@ -895,6 +926,15 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
+    // {"cors": "<app address>"}: can the app fetch a song file from R2 (needed to save it on iPhone)?
+    if (typeof input.cors === 'string' && R2.domain) {
+      const { data: row } = await supabaseAdmin.from('song_drafts').select('audio_url').like('audio_url', `${R2.domain}%`).limit(1).maybeSingle();
+      if (row?.audio_url) {
+        const r = await fetch(row.audio_url, { method: 'GET', headers: { Origin: input.cors, Range: 'bytes=0-15' } });
+        out.cors = { status: r.status, allow_origin: r.headers.get('access-control-allow-origin'), type: r.headers.get('content-type') };
+        await r.body?.cancel();
+      }
+    }
     // {"storage": true}: how much the R2 bucket holds, by top folder (chat-media, songs, lyrics…)
     if (input.storage && r2()) {
       const u = await r2Usage();
@@ -1056,7 +1096,10 @@ Deno.serve(async (req) => {
     }
     // The lead voice chosen for this music is kept with the song (so a retry, or making it
     // again, uses the same voice)
-    const brief: Brief = { ...(draft.brief as Brief), voice: input.voice === undefined ? voiceOf((draft.brief as Brief)?.voice) : voiceOf(input.voice) };
+    const before = (draft.brief ?? {}) as Brief;
+    const voice = input.voice === undefined ? voiceOf(before.voice) : voiceOf(input.voice);
+    // Auto takes turns between a female and a male lead (music models otherwise mostly pick a man)
+    const brief: Brief = { ...before, voice, sung: voice === 'auto' ? autoPick(before.sung) : undefined };
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
       .update({ brief, audio_status: 'making', audio_error: null, audio_job: null, music_requested_at: new Date().toISOString() })
