@@ -916,7 +916,7 @@ Deno.serve(async (req) => {
 
   if (input.action === 'check') {
     if (!admin) return json({ error: 'Not allowed' }, 403);
-    const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode })!;
+    const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode, notes: input.notes, voice: input.voice })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, acemusic_env: !!ENV_KEYS.acemusic, huggingface_env: !!ENV_KEYS.huggingface, models_in_order: MODELS };
     // {"cleanChecks": true}: removes the test songs kept by earlier checks (app storage)
     if (input.cleanChecks) {
