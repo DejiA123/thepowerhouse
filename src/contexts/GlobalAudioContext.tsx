@@ -197,7 +197,7 @@ interface GlobalAudioState {
   isMiniPlayerHidden: boolean;
   duration: number;
   currentTime: number;
-  /** Who is reading: "Narrated", "Read aloud"… */
+  /** Who is reading: "Narrator", "Reading voice"… */
   voice?: string;
   /** Which verse timings match this audio (see verseTimingService) */
   timingSource?: string;

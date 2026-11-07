@@ -586,11 +586,11 @@ const NotDownloadable = ({ version, book, chapter }: { version: string; book: st
       {plan.kind === 'narrated' ? (
         <p className="text-[14px] leading-relaxed text-foreground">
           The {plan.translation} {testament} narration can only be streamed: the publisher doesn't allow downloads. With no
-          connection, the chapters you save here are read aloud instead.
+          connection, the chapters you save here are read by the reading voice instead.
         </p>
       ) : (
         <p className="text-[14px] leading-relaxed text-foreground">
-          The {plan.translation} is non-narrated: it's read aloud in the voice chosen in Settings. Chapters you listen to stay
+          The {plan.translation} is read by the reading voice you choose in Settings. Chapters you listen to stay
           on this phone, or save the whole book to listen with no connection.
         </p>
       )}
