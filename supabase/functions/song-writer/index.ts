@@ -22,6 +22,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from 'https://esm.sh/@aws-sdk/client-s3@3.540.0';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
+import { pushConfigured, sendToSubscriptions, subscriptionsForUsers } from '../_shared/webpush.ts';
 
 const GEMINI = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI = Deno.env.get('OPENAI_API_KEY') ?? '';
@@ -760,16 +761,44 @@ async function removeAudio(url: string | null | undefined) {
 
 /** Stores finished music and marks the draft ready (or failed, with the reason); the previous version's audio is removed */
 async function finish(id: string, churchId: string, m: Made) {
+  const { data: before } = await supabaseAdmin.from('song_drafts').select('audio_url, audio_status, audio_job, created_by, title, location, brief').eq('id', id).maybeSingle();
+  // Already finished (by the phone's check or the watcher): nothing to do twice
+  if (before && before.audio_status !== 'making') return;
+  let ok = false;
   try {
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
-    const { data: before } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', id).maybeSingle();
     const url = await storeAudio(`${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`, m.audio, mime);
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null }).eq('id', id);
     if (before?.audio_url && before.audio_url !== url) await removeAudio(before.audio_url);
+    ok = true;
   } catch (e) {
     console.error('[song-writer] music failed', String(e));
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500), audio_job: null }).eq('id', id);
+  }
+  if (before) await tellWriter(before, id, ok);
+}
+
+/**
+ * "Your song is ready 🎶" on the writer's phone, unless they're watching the page right
+ * now (its checks came in the last 20 seconds: the page tells them itself)
+ */
+async function tellWriter(d: { created_by: string; title: string; location: string | null; audio_job?: unknown }, id: string, ok: boolean) {
+  try {
+    const seen = Date.parse(String((d.audio_job as Job | null)?.seen_at ?? ''));
+    if (!pushConfigured || (seen && Date.now() - seen < 20_000) || (d as { brief?: { check?: boolean } }).brief?.check) return;
+    const subs = await subscriptionsForUsers([d.created_by]);
+    if (!subs.length) return;
+    await sendToSubscriptions(subs, {
+      kind: 'general',
+      title: ok ? 'Your song is ready 🎶' : "The music couldn't be made",
+      body: ok ? `“${d.title}” has its full recording. Tap to listen.` : `“${d.title}”: please try Make the full song again in a little while.`,
+      url: `/groups/choir/${encodeURIComponent(d.location ?? 'national')}/compose?song=${id}`,
+      tag: `song-${id}`,
+      data: { songId: id },
+    }, { ttl: 60 * 60 * 24, urgency: 'normal' });
+  } catch (e) {
+    console.error('[song-writer] notify failed', String(e));
   }
 }
 
@@ -846,7 +875,21 @@ async function serverQuery(srv: Server, taskId: string): Promise<{ state: 'makin
   }
 }
 
-interface Job { service: 'acestep'; task_id?: string; submitted_at: string }
+interface Job {
+  service: 'acestep';
+  task_id?: string;
+  submitted_at: string;
+  /** Last time the server-side watcher looked (it keeps going with nobody on the page) */
+  watched_at?: string;
+  /** Last time the writer's page asked (they're looking at it) */
+  seen_at?: string;
+}
+/** Adds fields to the draft's job, keeping the rest */
+async function touchJob(id: string, patch: Partial<Job>) {
+  const { data } = await supabaseAdmin.from('song_drafts').select('audio_job, audio_status').eq('id', id).maybeSingle();
+  if (data?.audio_status !== 'making' || !data.audio_job) return;
+  await supabaseAdmin.from('song_drafts').update({ audio_job: { ...(data.audio_job as Job), ...patch } }).eq('id', id);
+}
 const setJob = (id: string, job: Job | null) => supabaseAdmin.from('song_drafts').update({ audio_job: job }).eq('id', id);
 
 /** Looks at the draft's task once; stores the song when it's ready. True when finished either way. */
@@ -865,6 +908,74 @@ async function collect(id: string, churchId: string, srv: Server, taskId: string
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * One step for a song on the music server: store it if it's ready, send it again if the
+ * server was waking up (no task after 2 minutes) or lost it, give up after 25 minutes.
+ * True when the music is finished (ready or failed).
+ */
+async function advance(id: string): Promise<boolean> {
+  const { data: draft } = await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle();
+  if (!draft || draft.audio_status !== 'making') return true;
+  const job = draft.audio_job as Job | null;
+  const age = Date.now() - Date.parse(draft.music_requested_at ?? draft.updated_at);
+  if (age > MAKING_LIMIT_MS || (!job && age > 5 * 60_000)) {
+    await finish(id, draft.church_id, { error: 'The music took too long. Please try again.' });
+    return true;
+  }
+  if (job?.service !== 'acestep') return false;
+  const srv = await musicServer();
+  if (!srv) {
+    await finish(id, draft.church_id, { error: NOT_SET_UP });
+    return true;
+  }
+  if (job.task_id) return collect(id, draft.church_id, srv, job.task_id);
+  if (Date.now() - Date.parse(job.submitted_at) > 120_000) {
+    await setJob(id, { ...job, service: 'acestep', submitted_at: new Date().toISOString() });
+    const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 60_000);
+    if (sub.taskId) await setJob(id, { ...job, service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
+    else if (!sub.timedOut) {
+      await finish(id, draft.church_id, { error: sub.error });
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Keeps an eye on the song from the server, so it's finished and stored even with nobody
+ * on the page (the phone's checks used to be the only thing collecting it, and the music
+ * server sleeps 5 minutes after the last request, losing the song). Each run watches for
+ * about two minutes, then hands over to a fresh run of this function (`watch` action),
+ * until the song is ready, failed, or 25 minutes old.
+ */
+async function watch(id: string, started = Date.now()) {
+  while (Date.now() - started < 100_000) {
+    if (await advance(id)) return;
+    await touchJob(id, { watched_at: new Date().toISOString() });
+    await pause(5_000);
+  }
+  if (await advance(id)) return;
+  await relay(id);
+}
+
+const FUNCTION_URL = `${(Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '')}/functions/v1/song-writer`;
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+/** Hands the watching over to a fresh run (the watch action answers at once, then watches) */
+async function relay(id: string) {
+  try {
+    const r = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY, 'x-watch-key': SERVICE_KEY },
+      body: JSON.stringify({ action: 'watch', draftId: id }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!r.ok) console.error('[song-writer] watch hand-over refused', r.status);
+  } catch (e) {
+    console.error('[song-writer] watch hand-over failed', String(e));
+  }
+}
+
+/**
  * Makes the music in the background. The church's own server first: the song is sent,
  * then watched while the function has time; the phone's checks (music-check) carry on
  * after that, and send it again if the server was still waking up. Otherwise the other
@@ -878,13 +989,10 @@ async function produce(id: string, churchId: string, song: Song, brief: Brief) {
     const sub = await serverSubmit(srv, song, brief, 110_000);
     if (sub.taskId) {
       await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
-      while (Date.now() - started < 135_000) {
-        await pause(4_000);
-        if (await collect(id, churchId, srv, sub.taskId)) return;
-      }
-      return;
+      return watch(id, started);
     }
-    if (sub.timedOut) return;
+    // Still waking up: the watcher sends it again
+    if (sub.timedOut) return watch(id, started);
     console.error('[song-writer] music server refused', sub.error);
     await setJob(id, null);
     if (Date.now() - started > 20_000) return finish(id, churchId, { error: sub.error });
@@ -930,6 +1038,28 @@ Deno.serve(async (req) => {
       out.cleaned = paths.length;
     }
     out.r2 = !!r2();
+    // {"watchTest": true, "song": …}: a hidden test draft whose music is made with nobody on
+    // the page (only the server-side watcher collects it); {"watchTest": "<id>"} removes it
+    if (input.watchTest === true) {
+      const song = validSong(input.song);
+      const { data: owner } = await supabaseAdmin.from('user_roles').select('user_id, church_id').eq('is_active', true).in('role', ['administrator', 'pastor']).limit(1).maybeSingle();
+      if (!song || !owner) return json({ ...out, error: 'Give a song' });
+      const { data: d, error } = await supabaseAdmin.from('song_drafts').insert({
+        created_by: owner.user_id, church_id: owner.church_id, location: null, title: `Check: ${song.title}`, song,
+        brief: { ...brief, check: true }, shared: false, audio_status: 'making', music_requested_at: new Date().toISOString(),
+      }).select('id').single();
+      if (error || !d) return json({ ...out, error: error?.message });
+      const work = produce(d.id, owner.church_id, song, brief);
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+      return json({ ...out, watchTest: d.id });
+    }
+    if (typeof input.watchTest === 'string') {
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('id, audio_url, brief').eq('id', input.watchTest).maybeSingle();
+      if (!(d?.brief as { check?: boolean } | null)?.check) return json({ ...out, error: 'Not a test draft' });
+      if (d!.audio_url) await removeAudio(d!.audio_url);
+      await supabaseAdmin.from('song_drafts').delete().eq('id', d!.id);
+      return json({ ...out, removed: d!.id });
+    }
     // {"cors": "<app address>"}: can the app fetch a song file from R2 (needed to save it on iPhone)?
     if (typeof input.cors === 'string' && R2.domain) {
       const { data: row } = await supabaseAdmin.from('song_drafts').select('audio_url').like('audio_url', `${R2.domain}%`).limit(1).maybeSingle();
@@ -1015,6 +1145,16 @@ Deno.serve(async (req) => {
       } else out.music = m;
     }
     return json(out);
+  }
+
+  // A fresh run carrying on watching a song's music (from relay(); service key only)
+  if (input.action === 'watch') {
+    if (!SERVICE_KEY || req.headers.get('x-watch-key') !== SERVICE_KEY) return json({ error: 'Not allowed' }, 403);
+    const id = clean(input.draftId, 40);
+    const work = watch(id);
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+    else await work;
+    return json({ ok: true });
   }
 
   const user = await getRequestUser(req);
@@ -1149,18 +1289,14 @@ Deno.serve(async (req) => {
     if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
     if (draft.audio_status !== 'making') return json({ draft });
     const job = draft.audio_job as Job | null;
-    const age = Date.now() - Date.parse(draft.music_requested_at ?? draft.updated_at);
-    if (age > MAKING_LIMIT_MS || (!job && age > 5 * 60_000)) {
-      await finish(id, draft.church_id, { error: 'The music took too long. Please try again.' });
-    } else if (job?.service === 'acestep') {
-      const srv = await musicServer();
-      if (!srv) await finish(id, draft.church_id, { error: NOT_SET_UP });
-      else if (job.task_id) await collect(id, draft.church_id, srv, job.task_id);
-      else if (Date.now() - Date.parse(job.submitted_at) > 120_000) {
-        await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString() });
-        const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 30_000);
-        if (sub.taskId) await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
-        else if (!sub.timedOut) await finish(id, draft.church_id, { error: sub.error });
+    if (draft.created_by === user.id) await touchJob(id, { seen_at: new Date().toISOString() });
+    // The server-side watcher does the work while it's alive; the page's checks take over
+    // (and start a new watcher) only if it stopped
+    const watched = Date.parse(job?.watched_at ?? '');
+    if (!(watched && Date.now() - watched < 30_000)) {
+      if (!(await advance(id)) && typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+        await touchJob(id, { watched_at: new Date().toISOString() });
+        EdgeRuntime.waitUntil(watch(id));
       }
     }
     return json({ draft: await load() });
