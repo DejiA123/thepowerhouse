@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Download, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Users } from 'lucide-react';
+import { Check, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Users } from 'lucide-react';
 import { Page, PageTitle, SectionLabel, ListGroup } from '@/components/page/PageKit';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +20,7 @@ interface Draft {
   shared: boolean;
   audio_url: string | null;
   audio_status: 'none' | 'making' | 'ready' | 'failed';
+  audio_error?: string | null;
   music_requested_at: string | null;
   created_at: string;
 }
@@ -90,10 +91,21 @@ const KEYS = ['', 'C', 'D', 'Eb', 'E', 'F', 'G', 'Ab', 'A', 'Bb'];
 const WRITING = ['Reading the Scripture…', 'Finding the words…', 'Shaping the chorus…', 'Setting the chords…', 'Writing the choir parts…'];
 const MAKING_MAX_MS = 5 * 60_000;
 
+/** The church's music service: which one is connected (the key itself never leaves the server) */
+interface MusicService {
+  services: { service: 'acemusic' | 'huggingface'; hint: string | null; updated_at: string }[];
+  canManage: boolean;
+  platform: { acemusic: boolean; huggingface: boolean; lyria: boolean; elevenlabs: boolean };
+}
+const SERVICE_NAME = { acemusic: 'ACE Music', huggingface: 'Hugging Face' } as const;
+const hasService = (m: MusicService | null) => !!m && (m.services.length > 0 || m.platform.acemusic || m.platform.huggingface);
+
+type Answer = { draft?: Draft; refused?: string; error?: string } & Partial<MusicService>;
+
 /** The function's own message for an error (it answers JSON with "error") */
-async function call(body: Record<string, unknown>): Promise<{ draft?: Draft; refused?: string; error?: string }> {
+async function call(body: Record<string, unknown>): Promise<Answer> {
   const { data, error } = await supabase.functions.invoke('song-writer', { body });
-  if (!error) return data as { draft?: Draft; refused?: string };
+  if (!error) return data as Answer;
   try {
     const ctx = (error as { context?: Response }).context;
     const j = ctx ? await ctx.json() : null;
@@ -134,6 +146,7 @@ const ComposeSongPage = () => {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [current, setCurrent] = useState<Draft | null>(null);
   const poll = useRef<number | null>(null);
+  const [service, setService] = useState<MusicService | null>(null);
 
   const loadDrafts = useCallback(async () => {
     if (!user) return;
@@ -143,6 +156,14 @@ const ComposeSongPage = () => {
   useEffect(() => {
     void loadDrafts();
   }, [loadDrafts]);
+
+  // Which music service the church has connected (church admins can connect one here)
+  useEffect(() => {
+    if (!user) return;
+    call({ action: 'music-service', churchId: currentChurchId }).then((r) => {
+      if (r.services) setService(r as MusicService);
+    });
+  }, [user]);
 
   // The song open in the address (?song=<id>), so Back returns to the list
   useEffect(() => {
@@ -290,8 +311,15 @@ const ComposeSongPage = () => {
               </div>
             ) : mine ? (
               <>
-                {(current.audio_status === 'failed' || stuck) && (
-                  <p className="mb-3 text-[13.5px] text-red-600 dark:text-red-400">The music couldn't be made last time. Try again in a little while.</p>
+                {service && !hasService(service) && service.canManage && <MusicConnect onSaved={setService} />}
+                {(current.audio_status === 'failed' || stuck) && !(/isn't set up/.test(current.audio_error ?? '') && hasService(service)) && (
+                  <p className="mb-3 text-[13.5px] text-red-600 dark:text-red-400">
+                    {/isn't set up/.test(current.audio_error ?? '')
+                      ? service?.canManage
+                        ? 'Connect the music service above first.'
+                        : "The church's music service isn't connected yet. Ask a church admin to connect it (it's free)."
+                      : "The music couldn't be made last time. Try again in a little while."}
+                  </p>
                 )}
                 <button type="button" onClick={makeMusic} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[15px] font-semibold text-white">
                   <Music2 className="h-5 w-5" /> Make the full song
@@ -433,6 +461,8 @@ const ComposeSongPage = () => {
         <p className="px-1 text-[12.5px] leading-snug text-muted-foreground">A first draft to pray over, sing through and make your own. Only Christian worship and gospel songs. Lines in another language are worth checking with a native speaker.</p>
       </div>
 
+      {service?.canManage && <MusicServiceRow service={service} onChange={setService} />}
+
       {!!mineList.length && (
         <>
           <SectionLabel>My songs</SectionLabel>
@@ -454,6 +484,103 @@ const ComposeSongPage = () => {
         </>
       )}
     </Page>
+  );
+};
+
+/**
+ * Church admins connect the music service once: a free ACE Music key (ACE-Step songs, no
+ * limits) or a Hugging Face token. The song-writer function checks it with the service and
+ * keeps it on the server; phones only ever see its last four characters.
+ */
+const MusicConnect = ({ onSaved, onCancel }: { onSaved: (m: MusicService) => void; onCancel?: () => void }) => {
+  const [key, setKey] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    const r = await call({ action: 'connect-music', churchId: currentChurchId, key: key.trim() });
+    setSaving(false);
+    if (!r.services) return appAlert("Couldn't connect it", r.error ?? 'Please try again.', 'error');
+    setKey('');
+    onSaved(r as MusicService);
+    appAlert('Music service connected', 'Songs can now be made with full music.', 'success');
+  };
+  return (
+    <div className="mb-4 rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-950/40" data-testid="music-connect">
+      <p className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+        <KeyRound className="h-4 w-4 text-indigo-600 dark:text-indigo-300" /> Connect the free music service
+      </p>
+      <p className="mt-1 text-[13px] leading-snug text-muted-foreground">Full songs are produced with ACE-Step, free and with no limits. A church admin connects it once for everyone:</p>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-[13.5px] leading-snug text-foreground">
+        <li>
+          <a href="https://acemusic.ai/account/" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 underline dark:text-blue-400">Open ACE Music</a> and sign up free (Google works).
+        </li>
+        <li>In your account, find the <span className="font-semibold">API key</span> and copy it.</li>
+        <li>Paste it here.</li>
+      </ol>
+      <div className="mt-3 flex gap-2">
+        <input
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="Paste the key"
+          aria-label="Music service key"
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="h-11 min-w-0 flex-1 rounded-full border border-border bg-card px-4 text-[16px] text-foreground outline-none placeholder:text-muted-foreground focus:border-blue-500"
+        />
+        <button type="button" onClick={save} disabled={saving || key.trim().length < 8} className="flex h-11 items-center justify-center rounded-full bg-blue-600 px-4 text-[15px] font-semibold text-white disabled:opacity-50">
+          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Connect'}
+        </button>
+      </div>
+      <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
+        A Hugging Face token (it starts hf_) works too. The key is kept safely on the server, never on anyone's phone.
+        {onCancel && (
+          <>
+            {' '}
+            <button type="button" onClick={onCancel} className="font-semibold text-blue-600 dark:text-blue-400">Cancel</button>
+          </>
+        )}
+      </p>
+    </div>
+  );
+};
+
+/** Church admins: which music service is connected, with Change and Remove */
+const MusicServiceRow = ({ service, onChange }: { service: MusicService; onChange: (m: MusicService) => void }) => {
+  const [changing, setChanging] = useState(false);
+  const own = service.services[0];
+  if (!hasService(service) || changing) {
+    return (
+      <>
+        <SectionLabel>Music service</SectionLabel>
+        <MusicConnect onSaved={(m) => { setChanging(false); onChange(m); }} onCancel={changing ? () => setChanging(false) : undefined} />
+      </>
+    );
+  }
+  const remove = async () => {
+    if (!own || !window.confirm(`Remove the ${SERVICE_NAME[own.service]} key? Songs can't get music until a service is connected again.`)) return;
+    const r = await call({ action: 'disconnect-music', churchId: currentChurchId, service: own.service });
+    if (!r.services) return appAlert("Couldn't remove it", r.error ?? 'Please try again.', 'error');
+    onChange(r as MusicService);
+  };
+  return (
+    <>
+      <SectionLabel>Music service</SectionLabel>
+      <div className="flex items-center gap-3 rounded-[22px] border border-slate-200/70 bg-card px-4 py-3 shadow-sm dark:border-slate-800" data-testid="music-service">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
+          <Check className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-foreground">{own ? `${SERVICE_NAME[own.service]} connected` : 'Connected for all churches'}</span>
+          <span className="block truncate text-[12.5px] text-muted-foreground">{own?.hint ? `Key ending ${own.hint}` : 'Full songs with music are on'}</span>
+        </span>
+        <button type="button" onClick={() => setChanging(true)} className="text-[14px] font-semibold text-blue-600 dark:text-blue-400">Change</button>
+        {own && (
+          <button type="button" onClick={remove} className="text-[14px] font-semibold text-red-600 dark:text-red-400">Remove</button>
+        )}
+      </div>
+    </>
   );
 };
 
