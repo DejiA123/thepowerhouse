@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Check, ChevronDown, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Users } from 'lucide-react';
+import { Check, ChevronDown, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Undo2, Users } from 'lucide-react';
 import { Page, PageTitle, SectionLabel, ListGroup } from '@/components/page/PageKit';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -184,7 +184,12 @@ const ComposeSongPage = () => {
   const [voice, setVoice] = useState<Voice>('auto');
   /** Editing the words of the open song */
   const [editing, setEditing] = useState(false);
-  useEffect(() => setEditing(false), [current?.id]);
+  /** The words before the last save, so it can be undone (this song, this visit) */
+  const [undoWords, setUndoWords] = useState<{ id: string; song: ComposedSong } | null>(null);
+  useEffect(() => {
+    setEditing(false);
+    setUndoWords((u) => (u && u.id === current?.id ? u : null));
+  }, [current?.id]);
   useEffect(() => setVoice(current?.brief?.voice ?? 'auto'), [current?.id, current?.brief?.voice]);
 
   const loadDrafts = useCallback(async () => {
@@ -311,9 +316,11 @@ const ComposeSongPage = () => {
   };
 
   /** The writer's own words (after praying over it and singing it through) */
-  const saveWords = async (song: ComposedSong) => {
+  const saveWords = async (words: ComposedSong, undoing = false) => {
     if (!current) return false;
     const before = current;
+    // The song helper's first draft is always kept, even when a save is undone
+    const song: ComposedSong = { ...words, first_draft: words.first_draft ?? current.song.first_draft };
     const next = { ...current, song };
     setCurrent(next);
     setDrafts((list) => list?.map((x) => (x.id === next.id ? next : x)) ?? list);
@@ -326,7 +333,13 @@ const ComposeSongPage = () => {
     }
     setEditing(false);
     window.scrollTo({ top: 0 });
-    appAlert('Words saved', current.audio_status === 'ready' ? 'Use Make it again to hear the music with your words.' : 'The song now has your words.', 'success');
+    if (undoing) {
+      setUndoWords(null);
+      appAlert('Change undone', 'The song has its earlier words again.', 'success');
+    } else {
+      setUndoWords({ id: before.id, song: before.song });
+      appAlert('Words saved', current.audio_status === 'ready' ? 'Use Make it again to hear the music with your words.' : 'The song now has your words.', 'success');
+    }
     return true;
   };
 
@@ -381,6 +394,15 @@ const ComposeSongPage = () => {
             <SongWordsEditor song={current.song} onSave={saveWords} onCancel={() => setEditing(false)} hasMusic={current.audio_status === 'ready'} />
           ) : (
           <>
+          {mine && undoWords?.id === current.id && (
+            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-2.5 dark:bg-emerald-950/40" data-testid="words-saved">
+              <Check className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">Your words are saved</span>
+              <button type="button" onClick={() => void saveWords(undoWords.song, true)} className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[14px] font-semibold text-foreground shadow-sm dark:bg-slate-900">
+                <Undo2 className="h-4 w-4" /> Undo
+              </button>
+            </div>
+          )}
           <SongSheet song={current.song} onRename={mine ? rename : undefined} onEdit={mine ? () => { setEditing(true); window.scrollTo({ top: 0 }); } : undefined} />
 
           <SectionLabel>The music</SectionLabel>
