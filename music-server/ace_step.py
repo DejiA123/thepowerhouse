@@ -80,6 +80,42 @@ def server():
     threading.Thread(target=warm_up, daemon=True).start()
 
 
+# ── Studio quality (Compose a song → Advanced settings → Studio quality music) ──
+# A second server for songs where the writer asks for the best music: ACE-Step's full XL
+# model (xl-sft, 50 steps with guidance, instead of the fast 8-step turbo) with the 4B
+# planner, which composes the melody and arrangement ("Strong" composition in ACE-Step's
+# own model table, against "Medium" for the 1.7B planner). The two need ~20 GB, more than
+# the L4 holds next to everything else, so it runs on an L40S (48 GB) and sleeps after 3
+# idle minutes (it costs more of the free credit per minute than the everyday server).
+studio_image = image.env(
+    {
+        "ACESTEP_CONFIG_PATH": "acestep-v15-xl-sft",
+        "ACESTEP_LM_MODEL_PATH": "acestep-5Hz-lm-4B",
+    }
+)
+
+
+@app.function(
+    image=studio_image,
+    gpu="L40S",
+    volumes={"/models": models},
+    secrets=[modal.Secret.from_name("ace-step-api")],
+    timeout=3600,
+    scaledown_window=180,
+    min_containers=0,
+    max_containers=1,
+)
+@modal.concurrent(max_inputs=50)
+@modal.web_server(PORT, startup_timeout=1800)
+def studio():
+    proc = subprocess.Popen(
+        f"cd /opt/ace && .venv/bin/acestep-api --host 0.0.0.0 --port {PORT}",
+        shell=True,
+    )
+    threading.Thread(target=watchdog, args=(proc,), daemon=True).start()
+    threading.Thread(target=warm_up, daemon=True).start()
+
+
 def warm_up():
     """
     Loads the models as soon as the server answers, before any song comes. ACE-Step loads

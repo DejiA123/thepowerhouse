@@ -88,7 +88,10 @@ interface Brief {
   voice?: Voice;
   /** Who Auto picked for the last music: female or male (alternating), so it isn't always a man */
   sung?: 'female' | 'male';
+  /** Advanced settings → Studio quality music: the studio server (slower, the best ACE-Step makes) */
+  quality?: 'studio';
 }
+const qualityOf = (q: unknown): 'studio' | undefined => (q === 'studio' ? 'studio' : undefined);
 type Voice = 'auto' | 'female' | 'male' | 'duet';
 const VOICES: Voice[] = ['auto', 'female', 'male', 'duet'];
 const voiceOf = (v: unknown): Voice => (VOICES.includes(v as Voice) ? (v as Voice) : 'auto');
@@ -139,6 +142,7 @@ function briefFrom(input: Record<string, unknown>): Brief | null {
     languageMode: input.languageMode === 'all' ? 'all' : 'chorus',
     voice: voiceOf(input.voice),
     notes: cleanLines(input.notes, 600),
+    quality: qualityOf(input.quality),
   };
 }
 
@@ -984,19 +988,29 @@ async function tellWriter(d: { created_by: string; title: string; location: stri
 // ── The church's own ACE-Step server (music-server/ace_step.py on Modal) ──
 /** Its address and key, saved by the "Deploy music server" workflow (platform entry in Vault) */
 const PLATFORM_CHURCH = '00000000-0000-0000-0000-000000000000';
-interface Server { url: string; key: string; separate?: string }
+interface Server { url: string; key: string; separate?: string; studio?: string }
 async function musicServer(): Promise<Server | null> {
   const { data } = await supabaseAdmin.rpc('service_key' as never, { _church: PLATFORM_CHURCH, _service: 'acestep' } as never);
   try {
     const v = typeof data === 'string' ? JSON.parse(data) : null;
-    return v?.url && v?.key ? { url: String(v.url).replace(/\/$/, ''), key: String(v.key), separate: v.separate ? String(v.separate) : undefined } : null;
+    return v?.url && v?.key
+      ? { url: String(v.url).replace(/\/$/, ''), key: String(v.key), separate: v.separate ? String(v.separate) : undefined, studio: v.studio ? String(v.studio).replace(/\/$/, '') : undefined }
+      : null;
   } catch {
     return null;
   }
 }
 
+/**
+ * The server a song is made on: the studio one (music-server/ace_step.py `studio`: the full
+ * XL model at 50 steps with the 4B planner) for Studio quality songs, when it's set up;
+ * otherwise the everyday one. Same key for both.
+ */
+const serverFor = (srv: Server, studio: boolean): Server => (studio && srv.studio ? { ...srv, url: srv.studio } : srv);
+const wantsStudio = (srv: Server, brief: Brief) => brief.quality === 'studio' && !!srv.studio;
+
 /** Sends the song to the server (it answers at once with a task; asleep, it first wakes up) */
-async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
+async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number, studio = false): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
   const body: Record<string, unknown> = {
     prompt: aceCaption(song, brief),
     lyrics: aceLyrics(song),
@@ -1007,6 +1021,8 @@ async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: nu
     audio_format: 'mp3',
     use_random_seed: true,
   };
+  // The full (non-turbo) model needs its proper number of steps (its default is the turbo's 8)
+  if (studio) body.inference_steps = 50;
   if (song.bpm) body.bpm = Math.round(song.bpm);
   if (aceKey(song.key)) body.key_scale = aceKey(song.key);
   if (aceTime(song.time_signature)) body.time_signature = aceTime(song.time_signature);
@@ -1080,6 +1096,8 @@ interface Job {
   seen_at?: string;
   /** When the song was last sent (sent again only 2 minutes later, never twice at once) */
   sent_at?: string;
+  /** Made on the studio server (Studio quality): every look and resend goes there too */
+  studio?: boolean;
 }
 /** Adds fields to the draft's job, keeping the rest */
 async function touchJob(id: string, patch: Partial<Job>) {
@@ -1090,14 +1108,14 @@ async function touchJob(id: string, patch: Partial<Job>) {
 const setJob = (id: string, job: Job | null) => supabaseAdmin.from('song_drafts').update({ audio_job: job }).eq('id', id);
 
 /** Looks at the draft's task once; stores the song when it's ready. True when finished either way. */
-async function collect(id: string, churchId: string, srv: Server, taskId: string): Promise<boolean> {
+async function collect(id: string, churchId: string, srv: Server, taskId: string, studio = false): Promise<boolean> {
   const r = await serverQuery(srv, taskId);
   if (r.state === 'making') return false;
   if (r.state === 'lost') {
     // The server restarted (e.g. it hung and its watchdog restarted it): send the song
     // again on the phone's next check (no task id, and "sent" long enough ago)
     console.log('[song-writer] music server lost the song; sending it again');
-    await setJob(id, { service: 'acestep', submitted_at: new Date(0).toISOString() });
+    await setJob(id, { service: 'acestep', submitted_at: new Date(0).toISOString(), ...(studio && { studio }) });
   } else await finish(id, churchId, r.made!);
   return true;
 }
@@ -1119,18 +1137,20 @@ async function advance(id: string): Promise<boolean> {
     return true;
   }
   if (job?.service !== 'acestep') return false;
-  const srv = await musicServer();
-  if (!srv) {
+  const main = await musicServer();
+  if (!main) {
     await finish(id, draft.church_id, { error: NOT_SET_UP });
     return true;
   }
-  if (job.task_id) return collect(id, draft.church_id, srv, job.task_id);
+  const studio = !!job.studio && !!main.studio;
+  const srv = serverFor(main, studio);
+  if (job.task_id) return collect(id, draft.church_id, srv, job.task_id, studio);
   // Not sent yet (or a send got no answer 2 minutes ago): send it once the server is ready
   if (job.sent_at && Date.now() - Date.parse(job.sent_at) < 120_000) return false;
   if ((await serverReady(srv)) !== 'ready') return false;
   const sent = new Date().toISOString();
   await setJob(id, { ...job, service: 'acestep', sent_at: sent });
-  const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 60_000);
+  const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 60_000, studio);
   if (sub.taskId) await setJob(id, { ...job, service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString(), sent_at: sent });
   else if (!sub.timedOut) {
     await finish(id, draft.church_id, { error: sub.error });
@@ -1183,16 +1203,20 @@ async function relay(id: string) {
  */
 async function produce(id: string, churchId: string, song: Song, brief: Brief) {
   const started = Date.now();
-  const srv = await musicServer();
-  if (srv) {
-    await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString() });
+  const main = await musicServer();
+  if (main) {
+    // Studio quality goes to the studio server (and stays there: the job remembers it)
+    const studio = wantsStudio(main, brief);
+    const srv = serverFor(main, studio);
+    const on = studio ? { studio } : {};
+    await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString(), ...on });
     // Waking up or still loading its models: the watcher sends it as soon as it's ready
     if ((await serverReady(srv)) !== 'ready') return watch(id, started);
     const sent = new Date().toISOString();
-    await setJob(id, { service: 'acestep', submitted_at: sent, sent_at: sent });
-    const sub = await serverSubmit(srv, song, brief, 60_000);
+    await setJob(id, { service: 'acestep', submitted_at: sent, sent_at: sent, ...on });
+    const sub = await serverSubmit(srv, song, brief, 60_000, studio);
     if (sub.taskId) {
-      await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString(), sent_at: sent });
+      await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString(), sent_at: sent, ...on });
       return watch(id, started);
     }
     // Still waking up: the watcher sends it again
@@ -1232,7 +1256,7 @@ Deno.serve(async (req) => {
 
   if (input.action === 'check') {
     if (!admin) return json({ error: 'Not allowed' }, 403);
-    const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode, notes: input.notes, voice: input.voice })!;
+    const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode, notes: input.notes, voice: input.voice, quality: input.studio ? 'studio' : undefined })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, acemusic_env: !!ENV_KEYS.acemusic, huggingface_env: !!ENV_KEYS.huggingface, models_in_order: MODELS };
     // {"cleanChecks": true}: removes the test songs kept by earlier checks (app storage)
     if (input.cleanChecks) {
@@ -1251,7 +1275,9 @@ Deno.serve(async (req) => {
     }
     // {"health": true}: what the music server says right now, and how long it took
     if (input.health) {
-      const srv = await musicServer();
+      // {"health": true, "studio": true} asks the studio server
+      const main = await musicServer();
+      const srv = main && serverFor(main, !!input.studio);
       if (srv) {
         const t0 = Date.now();
         try {
@@ -1342,15 +1368,17 @@ Deno.serve(async (req) => {
     // The church's own server: {"server": true} sends a song (input.song, or the last one
     // written above), {"server": true, "taskId": "…"} looks at it again and stores it when ready
     if (input.server) {
-      const srv = await musicServer();
-      out.server = srv ? { url: srv.url } : null;
+      const main = await musicServer();
+      const studio = !!input.studio && !!main?.studio;
+      const srv = main && serverFor(main, studio);
+      out.server = srv ? { url: srv.url, studio } : null;
       if (srv) {
         const t0 = Date.now();
         let taskId = typeof input.taskId === 'string' ? input.taskId : '';
         if (!taskId) {
           const song = validSong(input.song) ?? (out.song as Song | undefined);
           if (!song) return json({ ...out, error: 'Give a song (or write one with "write": true).' });
-          const sub = await serverSubmit(srv, song, brief, 100_000);
+          const sub = await serverSubmit(srv, song, brief, 100_000, studio);
           out.submit = { ...sub, seconds: Math.round((Date.now() - t0) / 1000) };
           taskId = sub.taskId ?? '';
         }
@@ -1478,7 +1506,8 @@ Deno.serve(async (req) => {
     const status = async () => {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('service, hint, updated_at').eq('church_id', churchId);
       const services = ((rows ?? []) as { service: Service; hint: string | null; updated_at: string }[]).map((r) => ({ service: r.service, hint: canManage ? r.hint : null, updated_at: r.updated_at }));
-      return { services, canManage, platform: { acestep: !!(await musicServer()), acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
+      const own = await musicServer();
+      return { services, canManage, platform: { acestep: !!own, studio: !!own?.studio, acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
     };
     if (input.action === 'music-service') return json(await status());
     if (!canManage) return json({ error: 'Only a church admin can change the music service.' }, 403);
@@ -1524,7 +1553,9 @@ Deno.serve(async (req) => {
     const before = (draft.brief ?? {}) as Brief;
     const voice = input.voice === undefined ? voiceOf(before.voice) : voiceOf(input.voice);
     // Auto takes turns between a female and a male lead (music models otherwise mostly pick a man)
-    const brief: Brief = { ...before, voice, sung: voice === 'auto' ? autoPick(before.sung) : undefined };
+    // Studio quality (Advanced settings) is chosen per song too; kept for retries and resends
+    const quality = input.quality === undefined ? qualityOf(before.quality) : qualityOf(input.quality);
+    const brief: Brief = { ...before, voice, sung: voice === 'auto' ? autoPick(before.sung) : undefined, quality };
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
       .update({ brief, audio_status: 'making', audio_error: null, audio_job: null, music_requested_at: new Date().toISOString() })

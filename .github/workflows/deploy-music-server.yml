@@ -81,14 +81,17 @@ jobs:
           URL="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'server').get_web_url())")"
           SEP="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'separate').get_web_url())")"
           SPEAK="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'speak').get_web_url())")"
+          STUDIO="$(python -c "import modal; print(modal.Function.from_name('church-ace-step', 'studio').get_web_url())")"
           echo "ACE_URL=$URL" >> "$GITHUB_ENV"
-          export ACE_URL="$URL" ACE_SEPARATE="$SEP" ACE_SPEAK="$SPEAK"
+          echo "ACE_STUDIO=$STUDIO" >> "$GITHUB_ENV"
+          export ACE_URL="$URL" ACE_SEPARATE="$SEP" ACE_SPEAK="$SPEAK" ACE_STUDIO="$STUDIO"
           echo "Server address: $URL"
           echo "Music-only / voices-only address: $SEP"
           echo "Read-aloud voice address: $SPEAK"
+          echo "Studio quality server address: $STUDIO"
           python - <<'PY' > body.json
           import json, os
-          value = json.dumps({"url": os.environ["ACE_URL"], "key": os.environ["ACE_KEY"], "separate": os.environ["ACE_SEPARATE"], "speak": os.environ["ACE_SPEAK"]})
+          value = json.dumps({"url": os.environ["ACE_URL"], "key": os.environ["ACE_KEY"], "separate": os.environ["ACE_SEPARATE"], "speak": os.environ["ACE_SPEAK"], "studio": os.environ["ACE_STUDIO"]})
           sql = "select public.put_service_key('00000000-0000-0000-0000-000000000000'::uuid, 'acestep', $v$" + value + "$v$, null)"
           print(json.dumps({"query": sql}))
           PY
@@ -111,3 +114,20 @@ jobs:
           if [ "$code" != "200" ]; then
             echo "::warning::The music server didn't answer yet ($code). The first song will wake it."
           fi
+
+      - name: Wake the studio server (downloads its bigger models the first time)
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          # Asked every 20 s until its models are loaded: a server with no requests goes back
+          # to sleep after 3 minutes, which could cut the first download short
+          start=$(date +%s)
+          while [ $(( $(date +%s) - start )) -lt 2400 ]; do
+            code=$(curl -sS -o studio.json -w "%{http_code}" --max-time 600 -H "Authorization: Bearer $ACE_KEY" "$ACE_STUDIO/health" || echo "000")
+            if [ "$code" = "200" ] && grep -q '"models_initialized": *true' studio.json && grep -q '"llm_initialized": *true' studio.json; then
+              echo "Studio server ready after $(( $(date +%s) - start ))s: $(head -c 300 studio.json)"
+              exit 0
+            fi
+            echo "…$(( $(date +%s) - start ))s: $code $(head -c 160 studio.json 2>/dev/null)"
+            sleep 20
+          done
+          echo "::warning::The studio server didn't finish loading in 40 minutes. The first studio song will wake it."
