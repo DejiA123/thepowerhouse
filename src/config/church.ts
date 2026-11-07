@@ -24,6 +24,8 @@ export const PLATFORM = {
   icon192: '/space/icon-192.png',
   icon512: '/space/icon-512.png',
   themeColor: '#2563eb',
+  /** Where anyone using the app can write for help (Help → Contact us for help) */
+  supportEmail: 'churchspace7@gmail.com',
 };
 
 /** Words a church's link can't be, because they're pages of the app (the database has the same list) */
