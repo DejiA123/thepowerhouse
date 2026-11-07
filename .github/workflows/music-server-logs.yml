@@ -1,0 +1,27 @@
+name: Music server logs
+
+# Actions → Music server logs → Run workflow: shows the church music server's recent logs
+# (Modal), e.g. to see why a song or the start-up model load failed.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: 'How long to listen for new lines (seconds)'
+        default: '60'
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet modal
+      - name: Containers
+        run: modal container list || true
+      - name: Logs
+        run: timeout "${{ inputs.seconds || 60 }}" modal app logs church-ace-step 2>&1 | grep -v -i "authorization\|bearer" | tail -400 || true
