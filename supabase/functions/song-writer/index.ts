@@ -381,7 +381,7 @@ async function lyria(model: string, song: Song, brief: Brief, timeoutMs: number)
   } catch (e) {
     return { error: `${model}: no answer in ${Math.round((Date.now() - t0) / 1000)}s (${String(e).slice(0, 60)})`, status: 504 };
   }
-  if (!res.ok) return { error: `${model} ${res.status}: ${(await res.text()).slice(0, 300)}`, status: res.status };
+  if (!res.ok) return { error: `${model} ${res.status}: ${(await res.text()).replace(/\s+/g, " ").slice(0, 900)}`, status: res.status };
   const data = await res.json();
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
   const audio = parts.find((p: { inlineData?: { mimeType?: string; data?: string } }) => p.inlineData?.data && /audio/.test(p.inlineData.mimeType ?? ''));
