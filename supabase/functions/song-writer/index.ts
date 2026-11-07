@@ -7,8 +7,9 @@
 //          Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
 //          A second pass revises it like an editor (meter, fresh words, the chorus).
 //          Saved as the writer's draft (song_drafts). No daily limits.
-// music  — the draft as a full produced song (vocals, choir, band) through ElevenLabs
-//          music (ELEVENLABS_API_KEY), stored in the public 'song-drafts' bucket.
+// music  — the draft as a full produced song (vocals, choir, band): Google's Lyria
+//          (lyria-3-pro-preview, lyria-3.5, lyria-3-clip-preview on GEMINI_API_KEY; MUSIC_MODEL),
+//          then ElevenLabs if ELEVENLABS_API_KEY works; stored in the public 'song-drafts' bucket.
 //          No daily limits.
 //
 // Signed-in members only. A request signed like Auth's hooks (SEND_EMAIL_HOOK_SECRET)
@@ -344,24 +345,92 @@ function compositionPlan(song: Song, brief: Brief) {
   };
 }
 
-async function makeMusic(song: Song, brief: Brief): Promise<{ audio?: Uint8Array; error?: string }> {
-  if (!ELEVEN) return { error: 'The music service isn\'t set up.' };
-  const res = await fetch('https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'xi-api-key': ELEVEN },
-    body: JSON.stringify({ composition_plan: compositionPlan(song, brief), model_id: 'music_v1' }),
-  });
-  if (!res.ok) return { error: `music ${res.status}: ${(await res.text()).slice(0, 400)}` };
-  return { audio: new Uint8Array(await res.arrayBuffer()) };
+/** Google's Lyria music models on the same Gemini key (full songs with voices from words and a description) */
+const LYRIA = [...new Set([Deno.env.get('MUSIC_MODEL') ?? 'lyria-3-pro-preview', 'lyria-3-pro-preview', 'lyria-3.5', 'lyria-3-clip-preview'])];
+
+/** What Lyria is asked for: the sound, the voices and the exact words, section by section */
+function lyriaPrompt(song: Song, brief: Brief) {
+  const style = STYLES[brief.style ?? 'gospel_choir'] ?? STYLES.gospel_choir;
+  const words = song.sections
+    .map((sec) => `[${sec.name}]\n${sec.lines.map(plain).filter(Boolean).join('\n')}`)
+    .filter((block) => block.split('\n').length > 1)
+    .join('\n\n');
+  return [
+    `A complete Christian ${style.sound.split(':')[0].toLowerCase()} song for a church choir, about three minutes long, recorded like a professional live church session.`,
+    `Sound: ${style.sound}.`,
+    song.music_style ? `Production: ${song.music_style}` : '',
+    `Tempo ${song.bpm} BPM, ${song.time_signature}, key of ${song.key}.`,
+    `Voices: a strong, expressive lead singer with a full choir singing harmonies and answering lines in the choruses${style.vamp ? ' and the vamp' : ''}. Clear diction: every word must be understood.`,
+    song.arrangement.choir ? `Choir arrangement: ${song.arrangement.choir}` : '',
+    song.arrangement.band ? `Band arrangement: ${song.arrangement.band}` : '',
+    `Sing exactly these lyrics, in this order (lines in round brackets are the choir's answers):`,
+    words,
+  ].filter(Boolean).join('\n');
 }
+
+async function lyria(model: string, song: Song, brief: Brief, timeoutMs: number): Promise<{ audio?: Uint8Array; mime?: string; error?: string; status?: number }> {
+  const t0 = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: lyriaPrompt(song, brief) }] }] }),
+    });
+  } catch (e) {
+    return { error: `${model}: no answer in ${Math.round((Date.now() - t0) / 1000)}s (${String(e).slice(0, 60)})`, status: 504 };
+  }
+  if (!res.ok) return { error: `${model} ${res.status}: ${(await res.text()).slice(0, 300)}`, status: res.status };
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  const audio = parts.find((p: { inlineData?: { mimeType?: string; data?: string } }) => p.inlineData?.data && /audio/.test(p.inlineData.mimeType ?? ''));
+  if (!audio) {
+    const said = parts.map((p: { text?: string }) => p.text ?? '').join(' ').slice(0, 200);
+    return { error: `${model}: no audio in the answer${said ? ` (it said: ${said})` : ''} ${JSON.stringify(data?.promptFeedback ?? data?.candidates?.[0]?.finishReason ?? '').slice(0, 120)}` };
+  }
+  const bin = atob(audio.inlineData.data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  console.log(`[song-writer] ${model} made ${Math.round(bytes.length / 1024)} KB of ${audio.inlineData.mimeType} in ${Math.round((Date.now() - t0) / 1000)}s`);
+  return { audio: bytes, mime: audio.inlineData.mimeType };
+}
+
+/** The full song: Google's Lyria first (on the Gemini key), then ElevenLabs if it has a key */
+async function makeMusic(song: Song, brief: Brief, only?: string): Promise<{ audio?: Uint8Array; mime?: string; error?: string }> {
+  const errors: string[] = [];
+  const started = Date.now();
+  const left = () => 135_000 - (Date.now() - started);
+  if (GEMINI) {
+    for (const model of only ? [only] : LYRIA) {
+      if (left() < 15_000) break;
+      const r = await lyria(model, song, brief, left() - 5_000);
+      if (r.audio) return r;
+      errors.push(r.error!);
+    }
+  }
+  if (ELEVEN && !only && left() > 30_000) {
+    const res = await fetch('https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'xi-api-key': ELEVEN },
+      body: JSON.stringify({ composition_plan: compositionPlan(song, brief), model_id: 'music_v1' }),
+    });
+    if (res.ok) return { audio: new Uint8Array(await res.arrayBuffer()), mime: 'audio/mpeg' };
+    errors.push(`elevenlabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+  return { error: errors.join(' · ') || "The music service isn't set up." };
+}
+
+const EXT: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/flac': 'flac', 'audio/webm': 'webm' };
 
 /** Makes the music, stores it and marks the draft ready (or failed, with the reason) */
 async function produce(id: string, churchId: string, song: Song, brief: Brief) {
   try {
     const m = await makeMusic(song, brief);
     if (!m.audio) throw new Error(m.error ?? 'no audio');
-    const path = `${churchId}/${id}-${Date.now()}.mp3`;
-    const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: 'audio/mpeg', upsert: true });
+    const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
+    const path = `${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`;
+    const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: mime, upsert: true });
     if (up.error) throw new Error(up.error.message);
     const url = supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url }).eq('id', id);
@@ -423,8 +492,13 @@ Deno.serve(async (req) => {
         { name: 'Verse', lines: ['[G]You were faithful in the [C]morning', '[Em]You were faithful through the [D]night'] },
         { name: 'Chorus', lines: ['[G]Great is Your [D]faithfulness', '[C]Lord, I will [G]sing'] },
       ], arrangement: { choir: '', band: '' }, music_style: 'warm gospel choir with piano and organ' };
-      const m = await makeMusic(test, brief);
-      out.music = m.audio ? { ok: true, bytes: m.audio.length, seconds: Math.round((Date.now() - t0) / 1000) } : m;
+      const m = await makeMusic(input.song ? (validSong(input.song) ?? test) : test, brief, typeof input.musicModel === 'string' ? input.musicModel : undefined);
+      if (m.audio) {
+        const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
+        const path = `checks/${Date.now()}.${EXT[mime] ?? 'mp3'}`;
+        await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: mime, upsert: true });
+        out.music = { ok: true, mime, kb: Math.round(m.audio.length / 1024), seconds: Math.round((Date.now() - t0) / 1000), url: supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl };
+      } else out.music = m;
     }
     return json(out);
   }
