@@ -325,6 +325,13 @@ Deno.serve(async (req) => {
     if (!admin) return json({ error: 'Not allowed' }, 403);
     const brief = briefFrom({ theme: 'Thanksgiving for God\'s faithfulness through a hard year', style: 'gospel_choir', feel: 'mid' })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, model: SONG_MODEL };
+    if (input.models && GEMINI) {
+      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': GEMINI } });
+      const d = await r.json().catch(() => ({}));
+      out.models = (d.models ?? [])
+        .filter((m: { supportedGenerationMethods?: string[] }) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m: { name: string }) => m.name.replace('models/', ''));
+    }
     if (input.write) {
       const t0 = Date.now();
       const r = await writeSong(brief);
