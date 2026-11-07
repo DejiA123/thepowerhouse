@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Check, ChevronDown, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Undo2, Users } from 'lucide-react';
+import { Check, ChevronDown, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Settings2, Share2, Trash2, Undo2, Users } from 'lucide-react';
 import { Page, PageTitle, SectionLabel, ListGroup } from '@/components/page/PageKit';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { currentChurchId } from '@/lib/churchSpace';
 import { choirName, songKey } from '@/lib/choirChat';
 import HoldButton from '@/components/common/HoldButton';
+import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
@@ -33,7 +34,7 @@ interface Draft {
   audio_status: 'none' | 'making' | 'ready' | 'failed';
   audio_error?: string | null;
   /** The song on the church's music server, while it's made */
-  audio_job?: { service: string; task_id?: string; submitted_at: string } | null;
+  audio_job?: { service: string; task_id?: string; submitted_at: string; studio?: boolean } | null;
   /** Where each section is in the recording (Listen by part) */
   audio_sections?: PartTime[] | null;
   /** The same recording without the voices, and the voices alone (music server, Demucs) */
@@ -56,6 +57,8 @@ interface Brief {
   voice?: Voice;
   /** Who Auto picked for the last music (it takes turns: female, male) */
   sung?: 'female' | 'male';
+  /** Made on the studio server (Advanced settings → Studio quality music) */
+  quality?: 'studio';
 }
 
 type Voice = 'auto' | 'female' | 'male' | 'duet';
@@ -153,7 +156,7 @@ const MAKING_MAX_MS = 26 * 60_000;
 interface MusicService {
   services: { service: 'acemusic' | 'huggingface'; hint: string | null; updated_at: string }[];
   canManage: boolean;
-  platform: { acestep?: boolean; acemusic: boolean; huggingface: boolean; lyria: boolean; elevenlabs: boolean };
+  platform: { acestep?: boolean; studio?: boolean; acemusic: boolean; huggingface: boolean; lyria: boolean; elevenlabs: boolean };
 }
 const SERVICE_NAME = { acemusic: 'ACE Music', huggingface: 'Hugging Face' } as const;
 const hasService = (m: MusicService | null) => !!m && (m.services.length > 0 || !!m.platform.acestep || m.platform.acemusic || m.platform.huggingface);
@@ -197,6 +200,18 @@ const ComposeSongPage = () => {
   const [service, setService] = useState<MusicService | null>(null);
   /** The lead voice for this song's music (its own saved choice, Auto until changed) */
   const [voice, setVoice] = useState<Voice>('auto');
+  // Advanced settings → Studio quality music: off unless switched on (kept on this phone)
+  const [studio, setStudioState] = useState(() => readStudio());
+  const setStudio = (on: boolean) => {
+    setStudioState(on);
+    try {
+      localStorage.setItem(STUDIO_KEY, on ? '1' : '0');
+    } catch {
+      /* private mode: just for this visit */
+    }
+  };
+  const studioReady = !!service?.platform.studio;
+  const useStudio = studio && studioReady;
   /** Editing the words of the open song */
   const [editing, setEditing] = useState(false);
   /** The words before the last save, so it can be undone (this song, this visit) */
@@ -403,7 +418,7 @@ const ComposeSongPage = () => {
   const makeMusic = async () => {
     if (!current) return;
     setCurrent({ ...current, audio_status: 'making', music_requested_at: new Date().toISOString() });
-    const r = await call({ action: 'music', draftId: current.id, voice });
+    const r = await call({ action: 'music', draftId: current.id, voice, quality: useStudio ? 'studio' : 'standard' });
     if (!r.draft) {
       appAlert("Couldn't make the music", r.error ?? 'Please try again later.', 'error');
       const { data } = await supabase.from('song_drafts' as never).select('*').eq('id', current.id).maybeSingle();
@@ -601,6 +616,7 @@ const ComposeSongPage = () => {
                 startedAt={current.music_requested_at}
                 taskAt={current.audio_job?.task_id ? current.audio_job.submitted_at : null}
                 server={!!service?.platform.acestep}
+                studio={!!current.audio_job?.studio || current.brief?.quality === 'studio'}
               />
             ) : mine ? (
               <>
@@ -618,7 +634,10 @@ const ComposeSongPage = () => {
                 <button type="button" onClick={makeMusic} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[15px] font-semibold text-white">
                   <Music2 className="h-5 w-5" /> Make the full song
                 </button>
-                <p className="mt-2 text-[12.5px] text-muted-foreground">A produced version with a lead voice, the choir and the band, about three minutes long.</p>
+                <p className="mt-2 text-[12.5px] text-muted-foreground">
+                  A produced version with a lead voice, the choir and the band, about three minutes long.
+                  {useStudio && <span className="font-medium text-indigo-600 dark:text-indigo-300" data-testid="studio-on"> Studio quality is on (Advanced settings): it takes {STUDIO_MINUTES}.</span>}
+                </p>
               </>
             ) : (
               <p className="text-[14px] text-muted-foreground">No music for this song yet.</p>
@@ -800,6 +819,8 @@ const ComposeSongPage = () => {
           </ListGroup>
         </>
       )}
+
+      {studioReady && <AdvancedSettings studio={studio} onStudio={setStudio} />}
       {deletePrompt}
     </Page>
   );
@@ -1007,6 +1028,55 @@ const MakeItYours = ({ className }: { className?: string }) => (
     </ul>
   </div>
 );
+
+/** Advanced settings → Studio quality music (kept on this phone) */
+const STUDIO_KEY = 'compose_studio_quality_v1';
+const readStudio = () => {
+  try {
+    return localStorage.getItem(STUDIO_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+/** Measured through the app's own path (Nov 2026): 131 s with the studio awake, 261 s when it had to wake and load */
+const STUDIO_MINUTES = 'about 2 minutes, or about 4½ when the studio has to wake up first';
+
+/**
+ * The very bottom of Compose a song: settings most writers never need, folded away. Opens
+ * by itself while something in it is switched on, so it's never on without showing.
+ */
+const AdvancedSettings = ({ studio, onStudio }: { studio: boolean; onStudio: (on: boolean) => void }) => {
+  const [open, setOpen] = useState(studio);
+  return (
+    <div className="mt-8" data-testid="advanced-settings">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between rounded-2xl px-1 py-2 text-left"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <Settings2 className="h-4 w-4" /> Advanced settings
+          {studio && !open && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] normal-case tracking-normal text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">Studio quality on</span>}
+        </span>
+        <ChevronDown className={cn('h-5 w-5 text-muted-foreground transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="mt-2 rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800">
+          <label className="flex items-start gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold text-foreground">Studio quality music</span>
+              <span className="mt-1 block text-[13px] leading-snug text-muted-foreground">
+                A bigger composer plans the melody and arrangement, and the full music model makes it (50 steps instead of 8), on a faster machine. It takes {STUDIO_MINUTES}. For new music from now on, on this phone.
+              </span>
+            </span>
+            <Switch checked={studio} onCheckedChange={onStudio} aria-label="Studio quality music" className="mt-0.5 shrink-0 data-[state=checked]:bg-indigo-600" />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** A song in the list: tap opens it; my own can be held to delete (like WhatsApp) */
 const DraftRow = ({ d, onOpen, onHold }: { d: Draft; onOpen: () => void; onHold?: () => void }) => (
