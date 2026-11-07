@@ -2,13 +2,14 @@
 import type { BibleVersion, BibleChapter, BibleVerse } from '@/types/bible';
 import { isBookDownloaded, offlineBibleText } from './offlineTextStore';
 import { API_BIBLE_BASE_URL, API_BIBLE_KEY, API_NIV_TEXT_ID } from './apiBible';
+import { DEFAULT_OPEN_BIBLE, OPEN_BIBLES, OPEN_SEARCH_CODE, openBibleFor, openBiblesOnly } from '@/lib/openBibles';
 
 // Cache for API.Bible data to reduce requests
 const cache = new Map<string, any>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Popular Bible version mappings - we'll fetch these dynamically but these are common ones
-let versionMappings: Record<string, string> = {};
+const versionMappings: Record<string, string> = {};
 
 // Book name mappings to API.Bible format
 const BOOK_MAPPINGS: Record<string, string> = {
@@ -165,6 +166,10 @@ function normalizeBookName(bookName: string): string {
 export const enhancedApiBibleService = {
   // Get all available Bible versions
   async getVersions(): Promise<BibleVersion[]> {
+    // Church Space churches: only Bibles whose licences allow a paid product (lib/openBibles)
+    if (openBiblesOnly) {
+      return OPEN_BIBLES.map((b) => ({ id: b.id, version: b.id, name: b.name, abbreviation: b.abbreviation, language: b.language, source: 'free-use' as const }));
+    }
     // The list rarely changes: kept for a day, which saves the API.Bible allowance
     try {
       const kept = JSON.parse(localStorage.getItem(VERSIONS_KEY) || 'null');
@@ -410,10 +415,16 @@ export const enhancedApiBibleService = {
 
   /** The Bolls.life code for translations it serves (NIV, NLT…), otherwise null. */
   bollsCodeFor(version: string): string | null {
+    if (openBiblesOnly) return null;
     return restrictedMappings[this.normalizeVersionId(version)] || restrictedMappings[version] || null;
   },
 
   async getChapterOnline(version: string, book: string, chapter: number): Promise<BibleChapter | null> {
+    // Church Space churches: the open Bible's text from the Free Use Bible API, nothing else
+    if (openBiblesOnly) {
+      const open = openBibleFor(version) ?? DEFAULT_OPEN_BIBLE;
+      return fetchFreeUseChapter(open.source, normalizeBookName(book), book, chapter, open.id).catch(() => null);
+    }
     try {
       console.log(`🔍 Enhanced API.Bible Service: Fetching ${book} chapter ${chapter} (version: ${version})`);
 
@@ -757,6 +768,11 @@ export const enhancedApiBibleService = {
 
   // Search functionality
   async search(version: string, query: string): Promise<BibleVerse[]> {
+    // Church Space churches: the public-domain English text (other open Bibles search the KJV)
+    if (openBiblesOnly) {
+      const open = openBibleFor(version) ?? DEFAULT_OPEN_BIBLE;
+      return this.searchBollsLife(OPEN_SEARCH_CODE[open.id] ?? 'KJV', query);
+    }
     try {
       console.log(`🔍 Enhanced API.Bible Service: Searching for "${query}" in ${version}`);
 
