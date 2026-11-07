@@ -8,7 +8,11 @@ import { appAlert } from '@/lib/appAlert';
 import { prepareSave, saveToPhone } from '@/lib/saveMedia';
 import { cn } from '@/lib/utils';
 import { currentChurchId } from '@/lib/churchSpace';
-import { choirName } from '@/lib/choirChat';
+import { choirName, songKey } from '@/lib/choirChat';
+import HoldButton from '@/components/common/HoldButton';
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
 import MusicProgress from '@/components/choir/MusicProgress';
 import SongWordsEditor from '@/components/choir/SongWordsEditor';
@@ -470,17 +474,58 @@ const ComposeSongPage = () => {
     appAlert(shared ? 'Shared with the choir' : 'Only you can see it now');
   };
 
-  const remove = async () => {
-    if (!current || !window.confirm(`Delete "${current.title}"?`)) return;
+  /** The song waiting for "Delete?" (the song's Delete button, or holding it in My songs) */
+  const [toDelete, setToDelete] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // The finger lifting after a hold lands on the prompt (maybe on Delete): ignore taps for a moment
+  const [promptReady, setPromptReady] = useState(false);
+  useEffect(() => {
+    if (!toDelete) return setPromptReady(false);
+    const t = setTimeout(() => setPromptReady(true), 700);
+    return () => clearTimeout(t);
+  }, [toDelete]);
+  const remove = () => current && setToDelete(current);
+  const deleteSong = async (d: Draft) => {
+    setDeleting(true);
     // Through the song helper, which also removes the song's audio; directly if it can't be reached
-    const r = (await call({ action: 'delete', draftId: current.id })) as Answer & { deleted?: boolean };
+    const r = (await call({ action: 'delete', draftId: d.id })) as Answer & { deleted?: boolean };
     if (!r.deleted) {
-      const { error } = await supabase.from('song_drafts' as never).delete().eq('id', current.id);
-      if (error) return appAlert("Couldn't delete it", 'Please try again.', 'error');
+      const { error } = await supabase.from('song_drafts' as never).delete().eq('id', d.id);
+      if (error) {
+        setDeleting(false);
+        return appAlert("Couldn't delete it", 'Please try again.', 'error');
+      }
     }
-    setDrafts((list) => list?.filter((x) => x.id !== current.id) ?? list);
-    setParams({});
+    setDeleting(false);
+    setToDelete(null);
+    setDrafts((list) => list?.filter((x) => x.id !== d.id) ?? list);
+    if (current?.id === d.id) setParams({});
+    appAlert('Song deleted');
   };
+  const deletePrompt = (
+    <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && !deleting && setToDelete(null)}>
+      <AlertDialogContent className={cn('max-w-[340px] rounded-3xl', !promptReady && 'pointer-events-none')} data-testid="delete-song">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete “{toDelete?.title}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {toDelete?.audio_status === 'ready' ? 'The words, chords and recording will be gone for good.' : 'The words and chords will be gone for good.'}
+            {toDelete?.shared ? ' The choir won’t see it any more.' : ''}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="gap-2">
+          <AlertDialogCancel disabled={deleting} className="rounded-full">Cancel</AlertDialogCancel>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={() => promptReady && toDelete && deleteSong(toDelete)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-red-600 px-4 text-[15px] font-semibold text-white disabled:opacity-60"
+          >
+            {deleting && <Loader2 className="h-4 w-4 animate-spin" />} Delete
+          </button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
   const back = { label: current ? 'Compose a song' : choirName(locationId), onClick: () => (current ? setParams({}) : navigate(`/groups/choir/${locationId}`)) };
 
@@ -598,6 +643,7 @@ const ComposeSongPage = () => {
           </>
           )}
         </div>
+      {deletePrompt}
       </Page>
     );
   }
@@ -738,9 +784,10 @@ const ComposeSongPage = () => {
           <SectionLabel>My songs</SectionLabel>
           <ListGroup>
             {mineList.map((d) => (
-              <DraftRow key={d.id} d={d} onOpen={() => open(d)} />
+              <DraftRow key={d.id} d={d} onOpen={() => open(d)} onHold={() => setToDelete(d)} />
             ))}
           </ListGroup>
+          <p className="mt-1.5 px-1 text-[12.5px] text-muted-foreground">Hold a song to delete it.</p>
         </>
       )}
       {!!shared.length && (
@@ -753,6 +800,7 @@ const ComposeSongPage = () => {
           </ListGroup>
         </>
       )}
+      {deletePrompt}
     </Page>
   );
 };
@@ -960,18 +1008,24 @@ const MakeItYours = ({ className }: { className?: string }) => (
   </div>
 );
 
-const DraftRow = ({ d, onOpen }: { d: Draft; onOpen: () => void }) => (
-  <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted">
+/** A song in the list: tap opens it; my own can be held to delete (like WhatsApp) */
+const DraftRow = ({ d, onOpen, onHold }: { d: Draft; onOpen: () => void; onHold?: () => void }) => (
+  <HoldButton type="button" onClick={onOpen} onHold={onHold} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted" data-testid="draft-row">
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
       {d.audio_status === 'ready' ? <Music2 className="h-5 w-5" /> : <PenLine className="h-5 w-5" />}
     </span>
     <span className="min-w-0 flex-1">
       <span className="block truncate text-[15px] font-semibold text-foreground">{d.title}</span>
       <span className="block truncate text-[12.5px] text-muted-foreground">
-        Key {d.song.key} · {d.song.bpm} BPM{d.audio_status === 'ready' ? ' · with music' : d.audio_status === 'making' ? ' · making the music…' : ''}{d.shared ? ' · shared' : ''}
+        {[
+          songKey(d.song.key) && `Key ${songKey(d.song.key)}`,
+          d.song.bpm && `${d.song.bpm} BPM`,
+          d.audio_status === 'ready' ? 'with music' : d.audio_status === 'making' ? 'making the music…' : '',
+          d.shared && 'shared',
+        ].filter(Boolean).join(' · ')}
       </span>
     </span>
-  </button>
+  </HoldButton>
 );
 
 export default ComposeSongPage;
