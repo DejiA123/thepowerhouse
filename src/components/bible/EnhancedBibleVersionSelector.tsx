@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { enhancedBibleBrainService, type EnhancedBibleVersion } from "@/services/enhancedBibleBrainService";
+import { OPEN_BIBLES, openBiblesOnly } from "@/lib/openBibles";
 
 interface EnhancedBibleVersionSelectorProps {
   selectedVersion: string;
@@ -37,7 +38,10 @@ export const EnhancedBibleVersionSelector = ({
   const loadAllVersions = async () => {
     try {
       setLoading(true);
-      const allVersions = await enhancedBibleBrainService.getAllEnglishVersions();
+      // Church Space churches: only Bibles whose licences allow a paid product (lib/openBibles)
+      const allVersions = openBiblesOnly
+        ? OPEN_BIBLES.map((b) => ({ id: b.id, version: b.id, name: b.name, abbreviation: b.abbreviation, language: b.language, source: 'free-use' as const }))
+        : await enhancedBibleBrainService.getAllEnglishVersions();
       setVersions(allVersions);
     } catch (error) {
       console.error('Error loading Bible versions:', error);

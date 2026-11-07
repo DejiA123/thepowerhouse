@@ -8,6 +8,7 @@ import { normalizeBookApiName } from "./bookUtils";
 import { estimateVerseTimings, getVerseTimings, TIMINGS_EVENT, verseAt, type VerseTimings } from "@/services/verseTimingService";
 import { translationCode } from "@/services/audioBible/catalog";
 import { NIV_COPYRIGHT, reportView } from "@/services/apiBible";
+import { openBibleFor, openBiblesOnly } from "@/lib/openBibles";
 import { useToast } from "@/hooks/use-toast";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1188,6 +1189,10 @@ export const BibleChapterContent = ({
             </div>
 
             {/* The NIV's copyright notice, as its licence asks */}
+            {/* An open Bible whose licence asks for credit (Church Space churches, lib/openBibles) */}
+            {openBiblesOnly && openBibleFor(selectedVersion)?.credit && (
+              <p className="mt-10 px-1 font-sans text-[11.5px] leading-relaxed text-muted-foreground" data-testid="bible-credit">{openBibleFor(selectedVersion)!.credit}</p>
+            )}
             {translationCode(selectedVersion || '') === 'NIV' && (
               <p className="mt-10 px-1 font-sans text-[11.5px] leading-relaxed text-muted-foreground">{NIV_COPYRIGHT}</p>
             )}

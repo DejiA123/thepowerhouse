@@ -8,6 +8,7 @@
  * - NIV, NLT, ESV, NKJV, NASB, AMP and MSG from Bolls.life, where the app reads them
  * Anything else downloads a book at a time.
  */
+import { openBibleFor, openBiblesOnly } from '@/lib/openBibles';
 import { strFromU8, unzipSync } from 'fflate';
 import { getAllBooksFlat } from '@/components/bible/bookUtils';
 import type { BibleChapter } from '@/types/bible';
@@ -178,6 +179,10 @@ async function fetchWholeBible(version: string, source: WholeBibleSource, signal
 export const offlineBibleService = {
   /** Where a translation's whole-Bible file comes from, or null if it downloads book by book. */
   wholeBibleSource(version: string): WholeBibleSource | null {
+    if (openBiblesOnly) {
+      const open = openBibleFor(version);
+      return open ? { kind: 'free-use', id: open.source } : null;
+    }
     const bolls = enhancedApiBibleService.bollsCodeFor(version);
     if (bolls) return { kind: 'bolls', code: bolls };
     const id = FREE_USE_IDS[version.split('-')[0]];

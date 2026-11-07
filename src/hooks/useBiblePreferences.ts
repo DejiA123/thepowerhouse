@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { allowedVersion, openBiblesOnly } from '@/lib/openBibles';
 
 export interface BiblePreferences {
   preferredTranslation: string;
@@ -269,8 +270,15 @@ export const useBiblePreferences = () => {
     setPreferences(prev => ({ ...prev, ...updates }));
   };
 
+  // Church Space churches only ever read open Bibles (lib/openBibles); The Power House as saved
+  const shown = useMemo(
+    () => (openBiblesOnly && allowedVersion(preferences.preferredTranslation) !== preferences.preferredTranslation
+      ? { ...preferences, preferredTranslation: allowedVersion(preferences.preferredTranslation) }
+      : preferences),
+    [preferences],
+  );
   return {
-    preferences,
+    preferences: shown,
     isLoaded,
     setPreferredTranslation,
     setPreferredBook,

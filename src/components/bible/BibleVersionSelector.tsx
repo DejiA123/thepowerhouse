@@ -87,7 +87,7 @@ export const BibleVersionSelector = ({ versions, selectedVersion, onVersionChang
                       {version.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      English
+                      {typeof version.language === 'string' ? version.language || 'English' : version.language?.name || 'English'}
                     </span>
                   </div>
                 </div>

@@ -12,6 +12,7 @@
  */
 import { bibleBooks } from '@/components/bible/BibleBookList';
 import { API_NIV_AUDIO_ID, NIV_AUDIO_COPYRIGHT } from '@/services/apiBible';
+import { openBibleFor, openBiblesOnly } from '@/lib/openBibles';
 
 export interface NarratedBible {
   /** Bible Brain fileset for each testament (missing = not recorded) */
@@ -83,6 +84,9 @@ export type ChapterAudioPlan =
 
 /** How this chapter of this translation is listened to. */
 export function audioPlanFor(version: string, book: string): ChapterAudioPlan {
+  // Church Space churches: the recordings need publishers' permission for a paid product,
+  // so every chapter is read by the app's own reading voice
+  if (openBiblesOnly) return { kind: 'ai', translation: openBibleFor(version)?.abbreviation ?? translationCode(version) };
   const translation = translationCode(version);
   if (translation === 'KJV') return { kind: 'recording', translation };
   const narrated = NARRATED[translation];

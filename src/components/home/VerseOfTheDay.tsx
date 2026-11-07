@@ -10,9 +10,10 @@ import { scriptureForDaysAgo } from '@/utils/dailyScriptureUtils';
 import { appAlert } from '@/lib/appAlert';
 import { reportView } from '@/services/apiBible';
 import { cn } from '@/lib/utils';
+import { OPEN_BIBLES, openBiblesOnly } from '@/lib/openBibles';
 
 /** Translations the verse of the day can be shown in (KJV is built in, so it shows instantly and offline) */
-const TRANSLATIONS = [
+const ALL_TRANSLATIONS = [
   { code: 'KJV', id: 'KJV', name: 'King James Version' },
   { code: 'NIV', id: 'NIV', name: 'New International Version' },
   { code: 'NKJV', id: 'NKJV', name: 'New King James Version' },
@@ -23,6 +24,10 @@ const TRANSLATIONS = [
   { code: 'MSG', id: 'MSG', name: 'The Message' },
   { code: 'ASV', id: '06125adad2d5898a-01', name: 'American Standard Version' },
 ];
+/** Church Space churches: only Bibles whose licences allow a paid product (lib/openBibles) */
+const TRANSLATIONS = openBiblesOnly
+  ? [{ code: 'KJV', id: 'KJV', name: 'King James Version' }, ...OPEN_BIBLES.filter((b) => b.language === 'English' && b.id !== 'KJV').map((b) => ({ code: b.id, id: b.id, name: b.name }))]
+  : ALL_TRANSLATIONS;
 
 /** The Bible's translation setting as a short code ("KJV", "NKJV"…) */
 const readingCode = (version: string) =>
