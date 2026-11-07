@@ -33,6 +33,8 @@ import { useChatPeers } from '@/lib/chatPhotos';
 import { cachedChoirLink, getChoirLink, getCurrentSetlist, getSongsAddedSince, groupSongCards, type ChoirLink, type ChoirSongRow } from '@/lib/choirChat';
 import { getPollVotes, nextVotes, setMyVotes, votesByPoll, type PollVote } from '@/lib/polls';
 import { ChoirSongCard, SetlistBanner, SetlistSheet, SongSheet, useSongPlayer, type SongView } from './ChoirChat';
+import { ReminderCard } from './ChatReminders';
+import { listSends, type ReminderSend } from '@/lib/chatReminders';
 import { NewPollSheet } from './PollCard';
 
 interface Me {
@@ -363,6 +365,23 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     refreshChoir();
   }, [refreshChoir]);
   useLiveRefresh(choirLocation ? [{ table: 'choir_weekly_set_songs', filter: `location=eq.${choirLocation}` }] : [], refreshChoir, { enabled: !!choirLocation });
+
+  // ── Group reminders the app posted here (cards among the messages, live) ──
+  const [reminderSends, setReminderSends] = useState<ReminderSend[]>([]);
+  const refreshReminders = useCallback(() => {
+    if (isPrivateChat(chat)) return;
+    listSends(chat.id).then(setReminderSends).catch(() => undefined);
+  }, [chat]);
+  useEffect(() => {
+    setReminderSends([]);
+    refreshReminders();
+  }, [refreshReminders]);
+  useLiveRefresh([{ table: 'chat_reminder_sends', filter: `chat_id=eq.${chat.id}` }], refreshReminders, { enabled: !isPrivateChat(chat) });
+  // A new reminder while reading the latest messages: show it, like a new message
+  const lastReminder = reminderSends[reminderSends.length - 1]?.id;
+  useEffect(() => {
+    if (lastReminder && atBottomRef.current) requestAnimationFrame(() => scrollToBottom(true));
+  }, [lastReminder, scrollToBottom]);
 
   // ── Polls ─────────────────────────────────────────────────────────
   const refreshVotes = useCallback(() => {
@@ -1124,6 +1143,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   // A choir's chat: song cards sit among the messages by time (not before the oldest loaded message, while older ones can load)
   const oldestShown = hasMore && visible.length ? timeMs(visible[0].created_at) : 0;
   const songCards = choirLocation ? groupSongCards(songRows).filter((g) => timeMs(g.at) >= oldestShown) : [];
+  // Song cards and reminder cards, in time order, placed among the messages
+  const timelineCards: { id: string; at: string; node: React.ReactNode }[] = [
+    ...songCards.map((card) => ({ id: card.id, at: card.at, node: <ChoirSongCard key={card.id} group={card} location={choirLocation!} onView={setSongView} onPlay={playSong} /> })),
+    ...reminderSends.filter((r) => timeMs(r.sent_at) >= oldestShown).map((r) => ({ id: `reminder-${r.id}`, at: r.sent_at, node: <ReminderCard key={`reminder-${r.id}`} send={r} /> })),
+  ].sort((a, b) => timeMs(a.at) - timeMs(b.at));
   let cardAt = 0;
   const rendered: React.ReactNode[] = [];
   let lastDay = '';
@@ -1139,10 +1163,10 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   };
   const cardsUntil = (ms: number) => {
     let placed = false;
-    while (cardAt < songCards.length && timeMs(songCards[cardAt].at) <= ms) {
-      const card = songCards[cardAt++];
+    while (cardAt < timelineCards.length && timeMs(timelineCards[cardAt].at) <= ms) {
+      const card = timelineCards[cardAt++];
       if (dayKey(card.at) !== lastDay) dayChip(card.id, card.at);
-      rendered.push(<ChoirSongCard key={card.id} group={card} location={choirLocation!} onView={setSongView} onPlay={playSong} />);
+      rendered.push(card.node);
       placed = true;
     }
     return placed;
@@ -1412,7 +1436,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
                   </div>
                 ))}
               </div>
-            ) : messages.length === 0 && songCards.length === 0 ? (
+            ) : messages.length === 0 && timelineCards.length === 0 ? (
               <div className="mx-auto my-10 flex max-w-sm flex-col items-center rounded-3xl bg-background/90 px-6 py-8 text-center shadow-sm">
                 <UserAvatar name={title} src={chatPhoto} seed={chat.id} className="h-20 w-20 text-2xl" />
                 <p className="mt-4 text-lg font-semibold text-foreground">Say hello to {title} 👋</p>

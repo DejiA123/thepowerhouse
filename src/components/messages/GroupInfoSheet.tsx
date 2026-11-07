@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2, ShieldCheck, ShieldOff, UserMinus, Globe, Check } from 'lucide-react';
+import { AlarmClock, Archive, ArchiveRestore, Bell, BellOff, Eraser, Camera, ChevronRight, FileUp, Loader2, Lock, LogOut, MoreVertical, Pencil, Phone, Search, Star, Trash2, UserPlus, Video, Wallpaper, Link2, Music2, ShieldCheck, ShieldOff, UserMinus, Globe, Check } from 'lucide-react';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import {
@@ -20,6 +20,8 @@ import { WallpaperSheet } from './ChatWallpaper';
 import InviteLinkSheet from './InviteLinkSheet';
 import AddMembersSheet from './AddMembersSheet';
 import { ChoirPickerSheet } from './ChoirChat';
+import { RemindersSheet } from './ChatReminders';
+import { listReminders } from '@/lib/chatReminders';
 import { cachedChoirLink, choirLocations, choirName, getChoirLink } from '@/lib/choirChat';
 
 interface Props {
@@ -180,6 +182,17 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
   // A choir's chat: its songs and setlist show in the chat
   const [choir, setChoir] = useState<string | null>(() => cachedChoirLink(chat.id)?.location ?? null);
   const [choirOpen, setChoirOpen] = useState(false);
+  // Reminders (automations) the app posts into this group
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [reminderCount, setReminderCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || isPrivateChat(chat)) return;
+    let stale = false;
+    listReminders(chat.id).then((l) => !stale && setReminderCount(l.length)).catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [open, chat]);
   useEffect(() => {
     if (!open || isPrivateChat(chat) || !choirLocations().length) return;
     let stale = false;
@@ -530,6 +543,18 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
+              {!editing && !isPrivateChat(chat) && (canManage || (reminderCount ?? 0) > 0) && (
+                <button onClick={() => setRemindersOpen(true)} data-testid="reminders-row" className="mt-2 flex w-full max-w-sm items-center gap-3 rounded-2xl bg-muted/60 px-4 py-3 text-left transition hover:bg-muted">
+                  <AlarmClock className="h-5 w-5 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-medium text-foreground">Reminders</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {reminderCount ? `${reminderCount} ${reminderCount === 1 ? 'reminder' : 'reminders'} posted here automatically` : 'Post meeting days and times here automatically'}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
               {!editing && onStarred && <StarredRow onClick={onStarred} />}
               {!editing && <MoreRows onImport={onImport} encrypted={encrypted} settings={settings} onMute={onMute} onArchive={onArchive} onClear={onClear} />}
             </div>
@@ -662,6 +687,16 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
         onAdded={() => void load()}
       />
       <ChoirPickerSheet open={choirOpen} onOpenChange={setChoirOpen} chatId={chat.id} current={choir} canChange={canInvite} />
+      <RemindersSheet
+        open={remindersOpen}
+        onOpenChange={(o) => {
+          setRemindersOpen(o);
+          if (!o) listReminders(chat.id).then((l) => setReminderCount(l.length)).catch(() => undefined);
+        }}
+        chatId={chat.id}
+        chatName={chat.name}
+        canManage={canManage}
+      />
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
