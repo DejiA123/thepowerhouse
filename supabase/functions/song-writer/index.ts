@@ -19,6 +19,7 @@
 //
 // Signed-in members only. A request signed like Auth's hooks (SEND_EMAIL_HOOK_SECRET)
 // may run {"action":"check"} to see which services answer, for setting up.
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.540.0';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 
@@ -643,16 +644,66 @@ const NOT_SET_UP = "The music service isn't set up.";
 
 const EXT: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/flac': 'flac', 'audio/webm': 'webm' };
 
-/** Stores finished music and marks the draft ready (or failed, with the reason) */
+// ── Where the songs are kept ──────────────────────────────────────────
+// Cloudflare R2 (the same bucket as chat videos: 10 GB free, nothing charged when the
+// choir plays or downloads them), under songs/; the app's own storage (Supabase, 1 GB
+// shared with photos and backing tracks) only if R2 isn't set up or fails.
+const R2 = {
+  endpoint: Deno.env.get('R2_ENDPOINT') ?? '',
+  accessKeyId: Deno.env.get('R2_ACCESS_KEY_ID') ?? '',
+  secretAccessKey: Deno.env.get('R2_SECRET_ACCESS_KEY') ?? '',
+  bucket: Deno.env.get('R2_BUCKET_NAME') ?? '',
+  domain: (Deno.env.get('R2_PUBLIC_DOMAIN') ?? '').replace(/\/$/, ''),
+};
+let s3: S3Client | null = null;
+const r2 = () => {
+  if (!R2.endpoint || !R2.accessKeyId || !R2.secretAccessKey || !R2.bucket || !R2.domain) return null;
+  s3 ??= new S3Client({ region: 'auto', endpoint: R2.endpoint, credentials: { accessKeyId: R2.accessKeyId, secretAccessKey: R2.secretAccessKey } });
+  return s3;
+};
+
+/** Keeps a song's audio and gives its public link */
+async function storeAudio(path: string, bytes: Uint8Array, mime: string): Promise<string> {
+  const client = r2();
+  if (client) {
+    try {
+      await client.send(new PutObjectCommand({ Bucket: R2.bucket, Key: `songs/${path}`, Body: bytes, ContentType: mime, CacheControl: 'public, max-age=31536000, immutable' }));
+      return `${R2.domain}/songs/${path}`;
+    } catch (e) {
+      console.error('[song-writer] R2 upload failed, using the app storage', String(e).slice(0, 200));
+    }
+  }
+  const up = await supabaseAdmin.storage.from('song-drafts').upload(path, bytes, { contentType: mime, upsert: true });
+  if (up.error) throw new Error(up.error.message);
+  return supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
+}
+
+/** Removes a song's old audio (made again, or the song deleted), wherever it was kept */
+async function removeAudio(url: string | null | undefined) {
+  if (!url) return;
+  try {
+    const client = r2();
+    if (client && R2.domain && url.startsWith(`${R2.domain}/songs/`)) {
+      await client.send(new DeleteObjectCommand({ Bucket: R2.bucket, Key: decodeURIComponent(url.slice(R2.domain.length + 1)) }));
+      return;
+    }
+    const marker = '/storage/v1/object/public/song-drafts/';
+    const at = url.indexOf(marker);
+    if (at >= 0) await supabaseAdmin.storage.from('song-drafts').remove([decodeURIComponent(url.slice(at + marker.length).split('?')[0])]);
+  } catch (e) {
+    console.error('[song-writer] removing old audio failed', String(e).slice(0, 200));
+  }
+}
+
+/** Stores finished music and marks the draft ready (or failed, with the reason); the previous version's audio is removed */
 async function finish(id: string, churchId: string, m: Made) {
   try {
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
-    const path = `${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`;
-    const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: mime, upsert: true });
-    if (up.error) throw new Error(up.error.message);
-    const url = supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
+    const { data: before } = await supabaseAdmin.from('song_drafts').select('audio_url').eq('id', id).maybeSingle();
+    const url = await storeAudio(`${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`, m.audio, mime);
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null }).eq('id', id);
+    if (before?.audio_url && before.audio_url !== url) await removeAudio(before.audio_url);
   } catch (e) {
     console.error('[song-writer] music failed', String(e));
     await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500), audio_job: null }).eq('id', id);
@@ -804,6 +855,14 @@ Deno.serve(async (req) => {
     if (!admin) return json({ error: 'Not allowed' }, 403);
     const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, acemusic_env: !!ENV_KEYS.acemusic, huggingface_env: !!ENV_KEYS.huggingface, models_in_order: MODELS };
+    // {"cleanChecks": true}: removes the test songs kept by earlier checks (app storage)
+    if (input.cleanChecks) {
+      const { data: files } = await supabaseAdmin.storage.from('song-drafts').list('checks', { limit: 1000 });
+      const paths = (files ?? []).map((f: { name: string }) => `checks/${f.name}`);
+      if (paths.length) await supabaseAdmin.storage.from('song-drafts').remove(paths);
+      out.cleaned = paths.length;
+    }
+    out.r2 = !!r2();
     if (input.services) {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('church_id, service, hint, updated_at');
       out.connected = rows;
@@ -842,9 +901,8 @@ Deno.serve(async (req) => {
           const r = await serverQuery(srv, taskId);
           if (r.state !== 'making') {
             if (r.made?.audio) {
-              const path = `checks/${Date.now()}.mp3`;
-              await supabaseAdmin.storage.from('song-drafts').upload(path, r.made.audio, { contentType: r.made.mime ?? 'audio/mpeg', upsert: true });
-              out.music = { ok: true, kb: Math.round(r.made.audio.length / 1024), url: supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl };
+              const url = await storeAudio(`checks/${Date.now()}.mp3`, r.made.audio, r.made.mime ?? 'audio/mpeg');
+              out.music = { ok: true, kb: Math.round(r.made.audio.length / 1024), url };
             } else out.music = { state: r.state, ...r.made };
             break;
           }
@@ -871,9 +929,8 @@ Deno.serve(async (req) => {
       const m = await makeMusic(input.song ? (validSong(input.song) ?? test) : test, brief, churchId || null, only);
       if (m.audio) {
         const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
-        const path = `checks/${Date.now()}.${EXT[mime] ?? 'mp3'}`;
-        await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: mime, upsert: true });
-        out.music = { ok: true, mime, kb: Math.round(m.audio.length / 1024), seconds: Math.round((Date.now() - t0) / 1000), url: supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl };
+        const url = await storeAudio(`checks/${Date.now()}.${EXT[mime] ?? 'mp3'}`, m.audio, mime);
+        out.music = { ok: true, mime, kb: Math.round(m.audio.length / 1024), seconds: Math.round((Date.now() - t0) / 1000), url };
       } else out.music = m;
     }
     return json(out);
@@ -969,6 +1026,17 @@ Deno.serve(async (req) => {
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
     else await work;
     return json({ draft: making });
+  }
+
+  // Deleting a song also removes its audio (so storage never fills with songs nobody has)
+  if (input.action === 'delete') {
+    const id = clean(input.draftId, 40);
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, audio_url').eq('id', id).maybeSingle();
+    if (!draft || draft.created_by !== user.id) return json({ error: 'Only the song\'s writer can delete it.' }, 403);
+    const { error } = await supabaseAdmin.from('song_drafts').delete().eq('id', id);
+    if (error) return json({ error: "Couldn't delete it. Please try again." }, 500);
+    await removeAudio(draft.audio_url);
+    return json({ deleted: true });
   }
 
   // The phone asks every few seconds while a song is being made: the server's task is

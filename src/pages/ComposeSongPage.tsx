@@ -284,8 +284,12 @@ const ComposeSongPage = () => {
 
   const remove = async () => {
     if (!current || !window.confirm(`Delete "${current.title}"?`)) return;
-    const { error } = await supabase.from('song_drafts' as never).delete().eq('id', current.id);
-    if (error) return appAlert("Couldn't delete it", 'Please try again.', 'error');
+    // Through the song helper, which also removes the song's audio; directly if it can't be reached
+    const r = (await call({ action: 'delete', draftId: current.id })) as Answer & { deleted?: boolean };
+    if (!r.deleted) {
+      const { error } = await supabase.from('song_drafts' as never).delete().eq('id', current.id);
+      if (error) return appAlert("Couldn't delete it", 'Please try again.', 'error');
+    }
     setDrafts((list) => list?.filter((x) => x.id !== current.id) ?? list);
     setParams({});
   };
