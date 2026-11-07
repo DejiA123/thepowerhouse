@@ -21,6 +21,7 @@ const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
 // Fast first (generous free allowance, answers in seconds); the stronger model as backup
 const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.8-flash';
 const BACKUP_MODEL = Deno.env.get('SONG_BACKUP_MODEL') ?? 'gemini-3.1-pro-preview';
+const MODELS = [SONG_MODEL, BACKUP_MODEL];
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 const WRITES_PER_DAY = 25;
@@ -196,11 +197,11 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
   }
 }
 
-async function writeSong(b: Brief) {
+async function writeSong(b: Brief, only?: string) {
   const errors: string[] = [];
   const started = Date.now();
   if (GEMINI) {
-    const queue = [SONG_MODEL, BACKUP_MODEL];
+    const queue = only ? [only] : [...MODELS];
     const tried = new Set<string>();
     // The function has ~150 s in all: the first model gets most of it, any others what's left
     while (queue.length && tried.size < 5 && Date.now() - started < 125_000) {
@@ -334,7 +335,7 @@ Deno.serve(async (req) => {
     }
     if (input.write) {
       const t0 = Date.now();
-      const r = await writeSong(brief);
+      const r = await writeSong(brief, typeof input.model === 'string' ? input.model : undefined);
       out.write_seconds = Math.round((Date.now() - t0) / 1000);
       out.write = r.song ? { ok: true, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
       if (r.song) out.song = r.song;
