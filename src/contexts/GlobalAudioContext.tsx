@@ -72,6 +72,37 @@ if (typeof window !== 'undefined') {
   aiChapterAudio.setPlayerClock(() => audio.currentTime);
 }
 
+// ── iPhone: let the player start later, from the tap that asked for it ──
+// A read-aloud chapter is only ready a few seconds after the tap (about 30 s when the reading
+// voice is waking up), and iPhone refuses audio.play() that late unless that same element
+// played during a tap: the chapter then sat on "Loading…" (or needed a second tap). So, in the
+// tap itself, the player plays a fifth of a second of silence and pauses: iPhone then lets it
+// play the chapter whenever it's ready. While the silence plays, the player's own handlers
+// ignore it (`priming`), and setPlayerSource ends it.
+const SILENCE = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//OEwAAAAAAAAAAAAEluZm8AAAAPAAAACwAABOAAOzs7Ozs7Ozs7Tk5OTk5OTk5OYmJiYmJiYmJidnZ2dnZ2dnZ2iYmJiYmJiYmJnZ2dnZ2dnZ2dsbGxsbGxsbGxxMTExMTExMTE2NjY2NjY2NjY7Ozs7Ozs7Ozs////////////AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQDwAAAAAAAAATgJ4flhgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//NExAAAAANIAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExFMAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKYAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMu//NExKwAAANIAAAAADEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NExKwAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NExKwAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+const isIPhone = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+let primingTimer: ReturnType<typeof setTimeout> | undefined;
+const priming = () => audio?.dataset.priming === '1';
+function endPriming() {
+  clearTimeout(primingTimer);
+  if (audio) delete audio.dataset.priming;
+}
+function primeForTap() {
+  if (!audio || !isIPhone || !audio.paused) return;
+  try {
+    audio.dataset.priming = '1';
+    audio.src = SILENCE;
+    const started = audio.play();
+    const stop = () => {
+      if (priming()) audio.pause();
+    };
+    if (started && typeof started.then === 'function') started.then(stop, stop);
+    primingTimer = setTimeout(endPriming, 1500);
+  } catch {
+    endPriming();
+  }
+}
+
 // ── Next chapter ready in memory (Android, tablets and computers) ──
 // With the screen off, Android pulls the media notification a moment after the
 // sound stops and then freezes the app, and archive.org often takes several
@@ -139,6 +170,7 @@ function takePreloaded(remoteUrl: string): string | null {
 
 /** Point the player at a new file and let go of the previous memory copy. */
 function setPlayerSource(src: string, ownedLocalUrl: string | null = null) {
+  endPriming();
   const previous = playingLocalUrl;
   audio.src = src;
   playingLocalUrl = ownedLocalUrl;
@@ -375,6 +407,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     pendingPlayRef.current = false;
     errorRetriesRef.current = 0;
     clearTimeout(preloadTimerRef.current);
+    // Read aloud on iPhone: unlock the player now, while this is still the tap (see primeForTap)
+    if (audioPlanFor(version, normalizedBook).kind === 'ai') primeForTap();
     setAudioState(prev => ({ ...prev, isLoading: true }));
 
 
@@ -965,6 +999,7 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let lastTime = -1;
       let stuckSince = Date.now();
       const watchdogTimer = setInterval(() => {
+        if (priming()) return; // the unlocking silence, not the chapter
         const { autoPlayNext } = audioStateRef.current;
         // iPhone: move on just before the end, while the sound is still going
         // (keeps the lock-screen audio alive). Elsewhere the chapter plays to the
@@ -1094,14 +1129,26 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     };
 
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('playing', handlePlaying);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('durationchange', handleDurationChange);
+    // The unlocking silence (primeForTap) isn't the chapter: its events are ignored
+    const skipPriming = <E extends Event>(fn: (e: E) => void) => (e: E) => {
+      if (!priming()) fn(e);
+    };
+    const onPlay = skipPriming(handlePlay);
+    const onPlaying = skipPriming(handlePlaying);
+    const onPause = skipPriming(handlePause);
+    const onEnded = skipPriming(handleEnded);
+    const onError = skipPriming(handleError);
+    const onTimeUpdate = skipPriming(handleTimeUpdate);
+    const onLoadedMetadata = skipPriming(handleLoadedMetadata);
+    const onDurationChange = skipPriming(handleDurationChange);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('durationchange', onDurationChange);
     const watchdogTimer = startWatchdog();
 
     bindMediaSession();
@@ -1203,14 +1250,14 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     return () => {
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('playing', handlePlaying);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
       window.removeEventListener(AI_PROGRESS_EVENT, handleAiProgress);
       clearInterval(watchdogTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);

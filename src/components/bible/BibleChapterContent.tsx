@@ -1398,6 +1398,21 @@ const BibleAudioBar = ({
   const a = globalAudio?.audioState;
   const active = !!a?.hasAudio && !!a.isBibleMode;
   const frame = { bottom: box.bottom, left: box.left, right: box.right };
+  // How long it has been getting ready, so a slow start says what's happening instead of
+  // just "Loading…" (the reading voice takes about 30 s the first time after it sleeps)
+  const waiting = !!a && active && (a.isLoading || a.preparing != null);
+  const [waitedS, setWaitedS] = useState(0);
+  useEffect(() => {
+    if (!waiting) {
+      setWaitedS(0);
+      return;
+    }
+    const since = Date.now();
+    const t = window.setInterval(() => setWaitedS(Math.floor((Date.now() - since) / 1000)), 1000);
+    return () => window.clearInterval(t);
+  }, [waiting, a?.currentBook, a?.currentChapter]);
+  const readAloud = !!a?.timingSource?.startsWith('ai:');
+  const waitingText = !readAloud ? 'Loading…' : waitedS >= 6 ? 'Waking up the reader… about 30 seconds the first time' : 'Getting the reading ready…';
 
   if (!active) {
     // Chapter arrows + Listen in one capsule
@@ -1439,10 +1454,10 @@ const BibleAudioBar = ({
   const downloadable = !!offlineAudioService.sourceFor(a.currentVersion, playingBook);
   const saved = !downloadable || offlineAudioService.isDownloaded(playingBook, a.currentChapter, a.currentVersion);
   const progress = a.duration ? Math.min(100, (100 * a.currentTime) / a.duration) : 0;
-  const left = a.duration ? `${formatClock(a.duration - a.currentTime)} left` : a.isLoading ? 'Loading…' : '';
+  const left = a.duration ? `${formatClock(a.duration - a.currentTime)} left` : a.isLoading ? waitingText : '';
   const detail =
     a.preparing != null || a.isLoading
-      ? 'Loading…'
+      ? waitingText
       : [playingHere && readingVerse ? `Verse ${readingVerse}` : null, left].filter(Boolean).join(' · ');
 
   return (

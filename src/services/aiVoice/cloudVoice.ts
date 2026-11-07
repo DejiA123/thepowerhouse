@@ -99,7 +99,9 @@ export function parseWav(buf: ArrayBuffer): { pcm: Float32Array; sampleRate: num
  * A piece normally takes 2–8 seconds: one that hangs is asked for again,
  * waiting a little longer each time (and longer for long pieces).
  */
-const pieceTimeout = (text: string, attempt: number) => (15_000 + 30 * text.length) * attempt;
+// The first try waits at least 45 s: the reading voice takes ~25 s to wake after it sleeps,
+// and giving up sooner only sent the same piece again
+const pieceTimeout = (text: string, attempt: number) => Math.max(45_000, 15_000 + 30 * text.length) * attempt;
 
 /** A piece's sound, from wherever it came (an MP3 in the media store, or WAV) */
 interface Spoken {
