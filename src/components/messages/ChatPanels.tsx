@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, CheckCheck, Forward, Loader2, Lock, Phone, Search, Send, Smartphone, Star, X } from 'lucide-react';
+import { Check, Forward, Loader2, Lock, Phone, Search, Send, Smartphone, Star, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { church } from '@/config/church';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -279,69 +279,6 @@ export const StarredSheet = ({ open, chatId, myId, onOpenChange, onOpenMessage, 
           list.map((m) => <MessageRow key={m.id} message={m} myId={myId} onOpen={onOpenMessage} starred />)
         )}
       </div>
-    </Panel>
-  );
-};
-
-// ── Message info ────────────────────────────────────────────────────
-
-/** For my message: who has read it, and who hasn't yet */
-export const MessageInfoSheet = ({ message, chatId, myId, readMarks, onClose }: {
-  message: ChatMessage | null;
-  chatId: string;
-  myId: string;
-  /** Each member's "read up to" time */
-  readMarks: Record<string, string>;
-  onClose: () => void;
-}) => {
-  const [people, setPeople] = useState<{ id: string; name: string; avatar: string | null }[] | null>(null);
-  const open = !!message;
-
-  useEffect(() => {
-    if (!open) return;
-    setPeople(null);
-    GroupChatService.getParticipants(chatId)
-      .then((list) => setPeople(list.filter((p) => p.user_id !== myId).map((p) => ({ id: p.user_id, name: p.user?.full_name || 'Member', avatar: p.user?.avatar_url ?? null }))))
-      .catch(() => setPeople([]));
-  }, [open, chatId, myId]);
-
-  const read = (people || []).filter((p) => message && readMarks[p.id] && readMarks[p.id] >= message.created_at);
-  const unread = (people || []).filter((p) => !read.includes(p));
-
-  const Person = ({ p, seen }: { p: { id: string; name: string; avatar: string | null }; seen: boolean }) => (
-    <div className="flex items-center gap-3 px-4 py-2">
-      <UserAvatar name={p.name} src={p.avatar} seed={p.id} className="h-9 w-9" />
-      <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{p.name}</span>
-      {seen ? <CheckCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" /> : <Check className="h-4 w-4 text-muted-foreground" />}
-    </div>
-  );
-
-  return (
-    <Panel open={open} onOpenChange={(o) => !o && onClose()} title="Message info">
-      {message && (
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+0.75rem)]">
-          <div className="mx-4 mt-4 rounded-2xl bg-blue-600 px-4 py-3 text-[15px] text-white">
-            <p className="line-clamp-4 whitespace-pre-wrap break-words">{previewText(message.content, true)}</p>
-            <p className="mt-1 text-right text-xs text-white/75">
-              {message.edited_at ? 'Edited · ' : ''}Sent {formatDayLabel(message.created_at).toLowerCase()} at {formatClock(message.created_at)}
-            </p>
-          </div>
-          {people === null ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : (
-            <>
-              <p className="px-4 pb-1 pt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Read by {read.length ? `(${read.length})` : ''}</p>
-              {read.length ? read.map((p) => <Person key={p.id} p={p} seen />) : <p className="px-4 py-2 text-sm text-muted-foreground">No one yet</p>}
-              {unread.length > 0 && (
-                <>
-                  <p className="px-4 pb-1 pt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Not read yet ({unread.length})</p>
-                  {unread.map((p) => <Person key={p.id} p={p} seen={false} />)}
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
     </Panel>
   );
 };

@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { AlertCircle, Ban, Check, CheckCheck, Clock, Forward, ImageOff, Loader2, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
+import { AlertCircle, Ban, Check, CheckCheck, Clock, Forward, ImageOff, Info, Loader2, PhoneIncoming, PhoneMissed, PhoneOutgoing, Reply, SmilePlus, Star, Video } from 'lucide-react';
 import SecureImg, { useOpenedImage } from './SecureImg';
 import { isEncryptedFile } from '@/lib/chatCrypto';
 import { cn } from '@/lib/utils';
@@ -129,6 +129,8 @@ interface Props {
   onQuoteTap?: (messageId: string) => void;
   /** Swipe right (or the menu) to reply */
   onReply?: (message: ChatMessage) => void;
+  /** My own message: swipe left to open Message info (who has seen it), like WhatsApp */
+  onInfo?: (message: ChatMessage) => void;
   starred?: boolean;
   /** Just jumped to: flashes */
   highlighted?: boolean;
@@ -157,7 +159,7 @@ const SWIPE_MAX_PX = 84;
 
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
-  quote, onQuoteTap, onReply, starred, highlighted, myId, selecting, selected, onToggleSelect, pollVotes, onVote,
+  quote, onQuoteTap, onReply, onInfo, starred, highlighted, myId, selecting, selected, onToggleSelect, pollVotes, onVote,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
   const call = parseCall(message.content);
@@ -176,11 +178,15 @@ const MessageBubble = ({
   const name = senderName(message);
   // Who to show it from (an imported message: the WhatsApp sender)
   const who = message.user?.id || message.user_id;
-  // Swipe right to reply, like WhatsApp: the message follows the finger and a reply arrow appears
+  // Swipe right to reply, like WhatsApp: the message follows the finger and a reply arrow appears.
+  // My own messages also swipe left: an info sign appears and letting go opens Message info.
   const slideRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
-  const swipe = useRef<{ x: number; y: number; dx: number; active: boolean; armed: boolean } | null>(null);
-  const canSwipe = !!onReply && !message.pending && !message.failed && !gone;
+  const infoRef = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{ x: number; y: number; dx: number; active: boolean; armed: boolean; dir: 1 | -1 } | null>(null);
+  const sent = !message.pending && !message.failed && !gone;
+  const canSwipe = !!onReply && sent;
+  const canInfo = !!onInfo && isOwn && sent && !call && !message.imported_from;
 
   const cancelPress = () => {
     clearTimeout(timer.current);
@@ -195,8 +201,15 @@ const MessageBubble = ({
       slide.style.transform = dx ? `translateX(${dx}px)` : '';
     }
     if (arrow) {
-      arrow.style.opacity = String(Math.min(1, dx / SWIPE_REPLY_PX));
-      arrow.style.transform = `scale(${0.6 + 0.4 * Math.min(1, dx / SWIPE_REPLY_PX)})`;
+      const k = Math.min(1, Math.max(0, dx) / SWIPE_REPLY_PX);
+      arrow.style.opacity = String(k);
+      arrow.style.transform = `scale(${0.6 + 0.4 * k})`;
+    }
+    const info = infoRef.current;
+    if (info) {
+      const k = Math.min(1, Math.max(0, -dx) / SWIPE_REPLY_PX);
+      info.style.opacity = String(k);
+      info.style.transform = `scale(${0.6 + 0.4 * k})`;
     }
   };
 
@@ -206,7 +219,9 @@ const MessageBubble = ({
     if (!s?.active) return;
     fired.current = true; // not a tap
     place(0, true);
-    if (reply && s.dx >= SWIPE_REPLY_PX) onReply?.(message);
+    if (!reply) return;
+    if (s.dx >= SWIPE_REPLY_PX) onReply?.(message);
+    else if (s.dx <= -SWIPE_REPLY_PX) onInfo?.(message);
   };
 
   const pressHandlers = {
@@ -214,7 +229,7 @@ const MessageBubble = ({
       if (selecting || (e.pointerType === 'mouse' && e.button !== 0)) return;
       start.current = { x: e.clientX, y: e.clientY };
       fired.current = false;
-      swipe.current = canSwipe && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY, dx: 0, active: false, armed: false } : null;
+      swipe.current = (canSwipe || canInfo) && e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY, dx: 0, active: false, armed: false, dir: 1 } : null;
       timer.current = setTimeout(() => {
         fired.current = true;
         swipe.current = null;
@@ -234,16 +249,20 @@ const MessageBubble = ({
           swipe.current = null; // scrolling the chat
           return;
         }
-        if (dx > 10 && dx > Math.abs(dy) * 1.5) {
-          s.active = true;
-          (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-        } else return;
+        const sideways = Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5;
+        if (sideways && dx > 0 && canSwipe) s.dir = 1;
+        else if (sideways && dx < 0 && canInfo) s.dir = -1;
+        else return;
+        s.active = true;
+        (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
       }
-      s.dx = Math.max(0, Math.min(dx - 10, SWIPE_MAX_PX));
-      if (s.dx >= SWIPE_REPLY_PX && !s.armed) {
+      // Right to reply, left (my own) for Message info: only the way it started
+      s.dx = s.dir === 1 ? Math.max(0, Math.min(dx - 10, SWIPE_MAX_PX)) : Math.min(0, Math.max(dx + 10, -SWIPE_MAX_PX));
+      const far = Math.abs(s.dx) >= SWIPE_REPLY_PX;
+      if (far && !s.armed) {
         s.armed = true;
         if ('vibrate' in navigator) navigator.vibrate?.(10);
-      } else if (s.dx < SWIPE_REPLY_PX) s.armed = false;
+      } else if (!far) s.armed = false;
       place(s.dx, false);
     },
     onPointerUp: () => {
@@ -327,6 +346,11 @@ const MessageBubble = ({
       {canSwipe && (
         <div ref={arrowRef} aria-hidden className="pointer-events-none absolute left-1 top-1/2 -mt-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0">
           <Reply className="h-4 w-4" />
+        </div>
+      )}
+      {canInfo && (
+        <div ref={infoRef} aria-hidden className="pointer-events-none absolute right-1 top-1/2 -mt-4 flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0">
+          <Info className="h-4 w-4" />
         </div>
       )}
       {!isOwn && (

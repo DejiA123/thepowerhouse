@@ -1081,6 +1081,17 @@ export class GroupChatService {
     }
 
     /** The chat's pinned message, if any */
+    /**
+     * Message info: when each person first saw my message (user id → time, or null when
+     * they saw it before times were kept). Only the sender gets anything back
+     * (chat_message_reads, migration 20261107260000); {} until that exists.
+     */
+    static async getMessageReads(messageId: string): Promise<Record<string, string | null>> {
+        const { data, error } = await supabase.rpc('chat_message_reads' as never, { _message_id: messageId } as never);
+        if (error || !Array.isArray(data)) return {};
+        return Object.fromEntries((data as { user_id: string; read_at: string | null }[]).map((r) => [r.user_id, r.read_at]));
+    }
+
     static async getPin(chatId: string): Promise<ChatPin | null> {
         const { data, error } = await supabase.from('chat_pins' as never).select('chat_id, message_id, pinned_by, pinned_at').eq('chat_id', chatId).maybeSingle();
         if (error) return null;
