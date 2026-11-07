@@ -25,6 +25,7 @@ const R2_NAMES: Record<string, string> = {
   lyrics: 'Choir lyric sheets',
   uploads: 'Uploaded files',
   checks: 'Test songs',
+  tts: 'Read-aloud Bible (kept chapters)',
 };
 const BUCKET_NAMES: Record<string, string> = {
   avatars: 'Profile and group photos',
