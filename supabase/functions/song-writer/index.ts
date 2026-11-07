@@ -636,26 +636,142 @@ async function makeMusic(song: Song, brief: Brief, churchId?: string | null, onl
   }
   return { error: errors.join(' · ') || NOT_SET_UP };
 }
+/** A song still "making" after this is given up (the first song wakes the server, which can take minutes) */
+const MAKING_LIMIT_MS = 25 * 60_000;
 /** The phone shows "Connect the music service" when it sees this */
 const NOT_SET_UP = "The music service isn't set up.";
 
 const EXT: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/flac': 'flac', 'audio/webm': 'webm' };
 
-/** Makes the music, stores it and marks the draft ready (or failed, with the reason) */
-async function produce(id: string, churchId: string, song: Song, brief: Brief) {
+/** Stores finished music and marks the draft ready (or failed, with the reason) */
+async function finish(id: string, churchId: string, m: Made) {
   try {
-    const m = await makeMusic(song, brief, churchId);
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
     const path = `${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`;
     const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: mime, upsert: true });
     if (up.error) throw new Error(up.error.message);
     const url = supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
-    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url }).eq('id', id);
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url, audio_job: null }).eq('id', id);
   } catch (e) {
     console.error('[song-writer] music failed', String(e));
-    await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500) }).eq('id', id);
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500), audio_job: null }).eq('id', id);
   }
+}
+
+// ── The church's own ACE-Step server (music-server/ace_step.py on Modal) ──
+/** Its address and key, saved by the "Deploy music server" workflow (platform entry in Vault) */
+const PLATFORM_CHURCH = '00000000-0000-0000-0000-000000000000';
+interface Server { url: string; key: string }
+async function musicServer(): Promise<Server | null> {
+  const { data } = await supabaseAdmin.rpc('service_key' as never, { _church: PLATFORM_CHURCH, _service: 'acestep' } as never);
+  try {
+    const v = typeof data === 'string' ? JSON.parse(data) : null;
+    return v?.url && v?.key ? { url: String(v.url).replace(/\/$/, ''), key: String(v.key) } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sends the song to the server (it answers at once with a task; asleep, it first wakes up) */
+async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
+  const body: Record<string, unknown> = {
+    prompt: aceCaption(song, brief),
+    lyrics: aceLyrics(song),
+    thinking: true,
+    vocal_language: aceLanguage(brief),
+    audio_duration: aceSeconds(song),
+    batch_size: 1,
+    audio_format: 'mp3',
+    use_random_seed: true,
+  };
+  if (song.bpm) body.bpm = Math.round(song.bpm);
+  if (aceKey(song.key)) body.key_scale = aceKey(song.key);
+  if (aceTime(song.time_signature)) body.time_signature = aceTime(song.time_signature);
+  try {
+    const res = await fetch(`${srv.url}/release_task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${srv.key}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const text = await res.text();
+    if (!res.ok) return { error: `music server ${res.status}: ${text.slice(0, 200)}` };
+    const taskId = JSON.parse(text)?.data?.task_id;
+    return taskId ? { taskId: String(taskId) } : { error: `music server: no task (${text.slice(0, 160)})` };
+  } catch (e) {
+    const timedOut = /timeout|abort/i.test(String(e));
+    return timedOut ? { timedOut: true } : { error: `music server: ${String(e).slice(0, 120)}` };
+  }
+}
+
+/** One look at a task: still making (0), done (1, with the song), failed (2), or unknown to the server */
+async function serverQuery(srv: Server, taskId: string): Promise<{ state: 'making' | 'done' | 'failed' | 'lost'; made?: Made }> {
+  try {
+    const res = await fetch(`${srv.url}/query_result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${srv.key}` },
+      body: JSON.stringify({ task_id_list: [taskId] }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return { state: 'making' };
+    const row = (await res.json())?.data?.[0];
+    if (!row) return { state: 'lost' };
+    if (row.status === 0) return { state: 'making' };
+    if (row.status !== 1) return { state: 'failed', made: { error: `music server: ${String(row.error ?? row.result ?? 'failed').slice(0, 300)}` } };
+    const results = typeof row.result === 'string' ? JSON.parse(row.result) : row.result;
+    const file = (Array.isArray(results) ? results : []).find((r: { file?: string }) => r?.file)?.file as string | undefined;
+    if (!file) return { state: 'failed', made: { error: 'music server: no song in the result' } };
+    const audio = await fetch(file.startsWith('http') ? file : `${srv.url}${file}`, { headers: { Authorization: `Bearer ${srv.key}` }, signal: AbortSignal.timeout(60_000) });
+    if (!audio.ok) return { state: 'making' };
+    const bytes = new Uint8Array(await audio.arrayBuffer());
+    console.log(`[song-writer] music server made ${Math.round(bytes.length / 1024)} KB`);
+    return { state: 'done', made: { audio: bytes, mime: (audio.headers.get('content-type') ?? 'audio/mpeg').split(';')[0] } };
+  } catch {
+    return { state: 'making' };
+  }
+}
+
+interface Job { service: 'acestep'; task_id?: string; submitted_at: string }
+const setJob = (id: string, job: Job | null) => supabaseAdmin.from('song_drafts').update({ audio_job: job }).eq('id', id);
+
+/** Looks at the draft's task once; stores the song when it's ready. True when finished either way. */
+async function collect(id: string, churchId: string, srv: Server, taskId: string): Promise<boolean> {
+  const r = await serverQuery(srv, taskId);
+  if (r.state === 'making') return false;
+  if (r.state === 'lost') await finish(id, churchId, { error: 'The music server restarted before the song was ready. Please try again.' });
+  else await finish(id, churchId, r.made!);
+  return true;
+}
+
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Makes the music in the background. The church's own server first: the song is sent,
+ * then watched while the function has time; the phone's checks (music-check) carry on
+ * after that, and send it again if the server was still waking up. Otherwise the other
+ * services, all at once.
+ */
+async function produce(id: string, churchId: string, song: Song, brief: Brief) {
+  const started = Date.now();
+  const srv = await musicServer();
+  if (srv) {
+    await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString() });
+    const sub = await serverSubmit(srv, song, brief, 110_000);
+    if (sub.taskId) {
+      await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
+      while (Date.now() - started < 135_000) {
+        await pause(4_000);
+        if (await collect(id, churchId, srv, sub.taskId)) return;
+      }
+      return;
+    }
+    if (sub.timedOut) return;
+    console.error('[song-writer] music server refused', sub.error);
+    await setJob(id, null);
+    if (Date.now() - started > 20_000) return finish(id, churchId, { error: sub.error });
+  }
+  await finish(id, churchId, await makeMusic(song, brief, churchId));
 }
 
 // ── Requests ──────────────────────────────────────────────────────────
@@ -706,6 +822,37 @@ Deno.serve(async (req) => {
       out.write_seconds = Math.round((Date.now() - t0) / 1000);
       out.write = r.song ? { ok: true, revised: (r as { revised?: boolean }).revised, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
       if (r.song) out.song = r.song;
+    }
+    // The church's own server: {"server": true} sends a song (input.song, or the last one
+    // written above), {"server": true, "taskId": "…"} looks at it again and stores it when ready
+    if (input.server) {
+      const srv = await musicServer();
+      out.server = srv ? { url: srv.url } : null;
+      if (srv) {
+        const t0 = Date.now();
+        let taskId = typeof input.taskId === 'string' ? input.taskId : '';
+        if (!taskId) {
+          const song = validSong(input.song) ?? (out.song as Song | undefined);
+          if (!song) return json({ ...out, error: 'Give a song (or write one with "write": true).' });
+          const sub = await serverSubmit(srv, song, brief, 100_000);
+          out.submit = { ...sub, seconds: Math.round((Date.now() - t0) / 1000) };
+          taskId = sub.taskId ?? '';
+        }
+        while (taskId && Date.now() - t0 < 130_000) {
+          const r = await serverQuery(srv, taskId);
+          if (r.state !== 'making') {
+            if (r.made?.audio) {
+              const path = `checks/${Date.now()}.mp3`;
+              await supabaseAdmin.storage.from('song-drafts').upload(path, r.made.audio, { contentType: r.made.mime ?? 'audio/mpeg', upsert: true });
+              out.music = { ok: true, kb: Math.round(r.made.audio.length / 1024), url: supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl };
+            } else out.music = { state: r.state, ...r.made };
+            break;
+          }
+          await pause(4_000);
+        }
+        out.task_id = taskId;
+        out.seconds = Math.round((Date.now() - t0) / 1000);
+      }
     }
     if (input.music) {
       // A short two-section test (about half a minute)
@@ -772,7 +919,7 @@ Deno.serve(async (req) => {
     const status = async () => {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('service, hint, updated_at').eq('church_id', churchId);
       const services = ((rows ?? []) as { service: Service; hint: string | null; updated_at: string }[]).map((r) => ({ service: r.service, hint: canManage ? r.hint : null, updated_at: r.updated_at }));
-      return { services, canManage, platform: { acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
+      return { services, canManage, platform: { acestep: !!(await musicServer()), acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
     };
     if (input.action === 'music-service') return json(await status());
     if (!canManage) return json({ error: 'Only a church admin can change the music service.' }, 403);
@@ -810,18 +957,44 @@ Deno.serve(async (req) => {
     const id = clean(input.draftId, 40);
     const { data: draft } = await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle();
     if (!draft || draft.created_by !== user.id) return json({ error: 'Only the song\'s writer can make its music.' }, 403);
-    if (draft.audio_status === 'making' && draft.music_requested_at && Date.now() - Date.parse(draft.music_requested_at) < 5 * 60_000) {
+    if (draft.audio_status === 'making' && draft.music_requested_at && Date.now() - Date.parse(draft.music_requested_at) < MAKING_LIMIT_MS) {
       return json({ error: 'The music is already being made.' }, 409);
     }
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
-      .update({ audio_status: 'making', audio_error: null, music_requested_at: new Date().toISOString() })
+      .update({ audio_status: 'making', audio_error: null, audio_job: null, music_requested_at: new Date().toISOString() })
       .eq('id', id).select('*').single();
     // Made in the background: the phone gets an answer at once and watches the draft
     const work = produce(id, draft.church_id as string, draft.song as Song, draft.brief as Brief);
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
     else await work;
     return json({ draft: making });
+  }
+
+  // The phone asks every few seconds while a song is being made: the server's task is
+  // looked at (and sent again if the server was still waking up when it was first sent)
+  if (input.action === 'music-check') {
+    const id = clean(input.draftId, 40);
+    const load = async () => (await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle()).data;
+    const draft = await load();
+    if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
+    if (draft.audio_status !== 'making') return json({ draft });
+    const job = draft.audio_job as Job | null;
+    const age = Date.now() - Date.parse(draft.music_requested_at ?? draft.updated_at);
+    if (age > MAKING_LIMIT_MS || (!job && age > 5 * 60_000)) {
+      await finish(id, draft.church_id, { error: 'The music took too long. Please try again.' });
+    } else if (job?.service === 'acestep') {
+      const srv = await musicServer();
+      if (!srv) await finish(id, draft.church_id, { error: NOT_SET_UP });
+      else if (job.task_id) await collect(id, draft.church_id, srv, job.task_id);
+      else if (Date.now() - Date.parse(job.submitted_at) > 120_000) {
+        await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString() });
+        const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 30_000);
+        if (sub.taskId) await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
+        else if (!sub.timedOut) await finish(id, draft.church_id, { error: sub.error });
+      }
+    }
+    return json({ draft: await load() });
   }
 
   return json({ error: 'Unknown action' }, 400);
