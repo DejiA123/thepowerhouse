@@ -7,10 +7,15 @@
 //          Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
 //          A second pass revises it like an editor (meter, fresh words, the chorus).
 //          Saved as the writer's draft (song_drafts). No daily limits.
-// music  — the draft as a full produced song (vocals, choir, band): Google's Lyria
-//          (lyria-3-pro-preview, lyria-3.5, lyria-3-clip-preview on GEMINI_API_KEY; MUSIC_MODEL),
-//          then ElevenLabs if ELEVENLABS_API_KEY works; stored in the public 'song-drafts' bucket.
+// music  — the draft as a full produced song (vocals, choir, band). In order: ACE-Step 1.5
+//          (open source) through ACE Music's free cloud (the church's key, connected in the app,
+//          or ACEMUSIC_API_KEY), then the official ACE-Step demo on Hugging Face (the church's
+//          token or HF_TOKEN), then Google's Lyria (GEMINI_API_KEY, needs billing), then
+//          ElevenLabs (ELEVENLABS_API_KEY); stored in the public 'song-drafts' bucket.
 //          No daily limits.
+// music-service / connect-music / disconnect-music — which music service the church has
+//          connected; church admins paste a key once (checked with the service first, kept in
+//          Supabase Vault, migration 20261107120000), and can remove it.
 //
 // Signed-in members only. A request signed like Auth's hooks (SEND_EMAIL_HOOK_SECRET)
 // may run {"action":"check"} to see which services answer, for setting up.
@@ -20,6 +25,12 @@ import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 const GEMINI = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI = Deno.env.get('OPENAI_API_KEY') ?? '';
 const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
+// ACE-Step 1.5 (open source): ACE Music's cloud (free keys, unlimited ACE-Step songs) and the
+// official demo on Hugging Face (a free token gives some GPU minutes a day)
+const ACE_BASE = 'https://api.acemusic.ai';
+const HF_SPACE = Deno.env.get('HF_MUSIC_SPACE') ?? 'https://ace-step-ace-step-v1-5.hf.space';
+type Service = 'acemusic' | 'huggingface';
+const ENV_KEYS: Record<Service, string> = { acemusic: Deno.env.get('ACEMUSIC_API_KEY') ?? '', huggingface: Deno.env.get('HF_TOKEN') ?? '' };
 // Timed on this key (Nov 2026): gemini-3.5-flash wrote a full song in ~10 s; 3.8-flash is
 // often overloaded on the free tier; flash-lite ~9 s; pro is beyond the free allowance
 const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.5-flash';
@@ -396,20 +407,199 @@ async function lyria(model: string, song: Song, brief: Brief, timeoutMs: number)
   return { audio: bytes, mime: audio.inlineData.mimeType };
 }
 
-/** The full song: Google's Lyria first (on the Gemini key), then ElevenLabs if it has a key */
-async function makeMusic(song: Song, brief: Brief, only?: string): Promise<{ audio?: Uint8Array; mime?: string; error?: string }> {
+// ── ACE-Step 1.5 ──────────────────────────────────────────────────────
+interface Made { audio?: Uint8Array; mime?: string; error?: string; status?: number }
+
+/** The church's own key for a music service (kept in Vault), else the platform's */
+async function keyFor(churchId: string | null | undefined, service: Service): Promise<string> {
+  if (churchId) {
+    const { data } = await supabaseAdmin.rpc('service_key' as never, { _church: churchId, _service: service } as never);
+    if (typeof data === 'string' && data) return data;
+  }
+  return ENV_KEYS[service];
+}
+
+/** The style as ACE-Step's description: genre, instruments, voices, production */
+function aceCaption(song: Song, brief: Brief) {
+  const style = STYLES[brief.style ?? 'gospel_choir'] ?? STYLES.gospel_choir;
+  const [genre, sound] = style.sound.split(':');
+  return [
+    `Christian ${genre.trim().toLowerCase()}`,
+    sound?.trim(),
+    'strong expressive lead vocal, full church choir singing harmonies and answering lines',
+    song.music_style ? song.music_style.slice(0, 260) : '',
+    'live church session, warm professional mix, clear vocals, every word understood',
+  ].filter(Boolean).join(', ').slice(0, 900);
+}
+
+/** The words with ACE-Step's section tags ([Verse 1], [Chorus] …); round brackets stay as the choir's answers */
+function aceLyrics(song: Song) {
+  return song.sections
+    .map((sec) => {
+      const lines = sec.lines.map(plain).filter(Boolean);
+      if (!lines.length) return '';
+      const tag = /vamp/i.test(sec.name) ? 'Outro' : sec.name.replace(/[[\]]/g, '').slice(0, 40);
+      return `[${tag}]\n${lines.join('\n')}`;
+    })
+    .filter(Boolean)
+    .join('\n\n')
+    .slice(0, 4000);
+}
+
+/** How long the song should run: about two bars a line, a vamp repeated, 1½ to 4 minutes */
+function aceSeconds(song: Song) {
+  const beats = Number(song.time_signature.split('/')[0]) || 4;
+  const barS = (60 / Math.min(200, Math.max(40, song.bpm || 84))) * beats;
+  const bars = song.sections.reduce((a, sec) => a + Math.max(4, sec.lines.filter((l) => plain(l)).length * 2 + 1) * (/vamp/i.test(sec.name) ? 2 : 1), 0);
+  return Math.round(Math.min(240, Math.max(90, bars * barS + 10)));
+}
+
+const aceKey = (key: string) => {
+  const m = key.trim().match(/^([A-G][#b]?)(m?)$/);
+  return m ? `${m[1]} ${m[2] ? 'Minor' : 'Major'}` : '';
+};
+/** Beats in a bar as ACE-Step takes it (the demo has no 6) */
+const aceTime = (sig: string, demo = false) => {
+  const top = sig.split('/')[0];
+  return ['2', '3', '4'].includes(top) ? top : top === '6' && !demo ? '6' : '';
+};
+/** The singing language: a whole song in a language ACE-Step knows, else English, else mixed */
+const VOCAL: Record<string, string> = { french: 'fr', spanish: 'es', portuguese: 'pt', swahili: 'sw', polish: 'pl', romanian: 'ro', tagalog: 'tl' };
+const aceLanguage = (b: Brief) => (!b.language ? 'en' : b.languageMode === 'all' && VOCAL[b.language.toLowerCase()] ? VOCAL[b.language.toLowerCase()] : 'unknown');
+
+function fromBase64(b64: string) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/** ACE Music's models (the 4B "xl" one sounds best when offered) */
+async function aceModels(key: string): Promise<{ ok: boolean; status: number; models: string[] }> {
+  try {
+    const res = await fetch(`${ACE_BASE}/v1/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) });
+    const d = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, models: ((d?.data ?? []) as { id?: string }[]).map((m) => m.id ?? '').filter(Boolean) };
+  } catch {
+    return { ok: false, status: 0, models: [] };
+  }
+}
+
+/** ACE Music's cloud: one request, the finished song comes back inline */
+async function aceMusic(key: string, song: Song, brief: Brief, timeoutMs: number): Promise<Made> {
+  const t0 = Date.now();
+  const { models } = await aceModels(key);
+  const model = Deno.env.get('ACE_MODEL') ?? models.find((m) => /xl/i.test(m) && /turbo/i.test(m)) ?? models.find((m) => /xl/i.test(m)) ?? models[0] ?? 'acemusic/acestep-v15-turbo';
+  const config: Record<string, unknown> = { format: 'mp3', vocal_language: aceLanguage(brief), duration: aceSeconds(song) };
+  if (song.bpm) config.bpm = Math.round(song.bpm);
+  if (aceKey(song.key)) config.key_scale = aceKey(song.key);
+  if (aceTime(song.time_signature)) config.time_signature = aceTime(song.time_signature);
+  let res: Response;
+  try {
+    res = await fetch(`${ACE_BASE}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8', Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(Math.max(10_000, timeoutMs - (Date.now() - t0))),
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: `<prompt>${aceCaption(song, brief)}</prompt><lyrics>${aceLyrics(song)}</lyrics>` }],
+        stream: false,
+        thinking: true,
+        use_format: false,
+        sample_mode: false,
+        use_cot_caption: false,
+        use_cot_language: false,
+        batch_size: 1,
+        audio_config: config,
+      }),
+    });
+  } catch (e) {
+    return { error: `acemusic: no answer in ${Math.round((Date.now() - t0) / 1000)}s (${String(e).slice(0, 60)})`, status: 504 };
+  }
+  const text = await res.text();
+  if (!res.ok) return { error: `acemusic ${res.status}: ${text.replace(/\s+/g, ' ').slice(0, 400)}`, status: res.status };
+  let data: { choices?: { finish_reason?: string; message?: { content?: string; audio?: { audio_url?: { url?: string } }[] } }[] };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { error: `acemusic: not JSON (${text.slice(0, 120)})` };
+  }
+  const choice = data.choices?.[0];
+  if (choice?.finish_reason === 'error') return { error: `acemusic: ${(choice.message?.content ?? 'failed').slice(0, 300)}` };
+  const url = choice?.message?.audio?.find((a) => a.audio_url?.url)?.audio_url?.url ?? '';
+  const m = url.match(/^data:([^;,]+)(?:;[^,]*)?;base64,(.+)$/s);
+  if (!m) return { error: `acemusic (${model}): no audio in the answer ${(choice?.message?.content ?? '').slice(0, 160)}` };
+  const audio = fromBase64(m[2]);
+  console.log(`[song-writer] acemusic ${model} made ${Math.round(audio.length / 1024)} KB of ${m[1]} in ${Math.round((Date.now() - t0) / 1000)}s`);
+  return { audio, mime: m[1] };
+}
+
+/** The official ACE-Step demo on Hugging Face (Gradio), counted against the token's free GPU minutes */
+async function hfMusic(token: string, song: Song, brief: Brief, timeoutMs: number): Promise<Made> {
+  const t0 = Date.now();
+  const headers = { 'Content-Type': 'application/json', 'x-hf-authorization': `Bearer ${token}` };
+  const lang = aceLanguage(brief);
+  // The demo's generation_wrapper, every input in order (custom text-to-music, one song, the 4B model, thinking on)
+  const data = [
+    'acestep-v15-xl-turbo', 'custom', '', 'unknown', aceCaption(song, brief), aceLyrics(song), Math.round(song.bpm || 0), aceKey(song.key), aceTime(song.time_signature, true), lang,
+    8, 7.0, true, '-1', null, aceSeconds(song), 1, null, '', 0.0, -1,
+    'Fill the audio semantic mask based on the given conditions:', 1.0, 'text2music', false, 0.0, 1.0, 3.0, 'ode', '', 'mp3',
+    0.85, true, 2.0, 0, 0.9, 'NO USER INPUT', true, true, true, false, true, false, false, 0.5, 8, 'vocals', [], false,
+  ];
+  try {
+    const start = await fetch(`${HF_SPACE}/gradio_api/call/generation_wrapper`, { method: 'POST', headers, body: JSON.stringify({ data }), signal: AbortSignal.timeout(30_000) });
+    if (!start.ok) return { error: `huggingface ${start.status}: ${(await start.text()).slice(0, 200)}`, status: start.status };
+    const { event_id } = await start.json();
+    // The answer is a short event stream that ends when the song is ready
+    const res = await fetch(`${HF_SPACE}/gradio_api/call/generation_wrapper/${event_id}`, { headers, signal: AbortSignal.timeout(Math.max(10_000, timeoutMs - (Date.now() - t0))) });
+    const stream = await res.text();
+    const events = [...stream.matchAll(/event:\s*(\w+)\s*\ndata:\s*(.*)/g)];
+    const last = events[events.length - 1];
+    if (!last || last[1] !== 'complete') {
+      return { error: `huggingface: ${last ? `${last[1]} ${last[2].slice(0, 200)}` : 'no answer'} (the demo's free GPU minutes may be used up for today)`, status: 429 };
+    }
+    const out = JSON.parse(last[2]) as unknown[];
+    const file = out[0] as { url?: string; path?: string } | string | null;
+    const url = typeof file === 'string' ? (file.startsWith('http') ? file : `${HF_SPACE}/gradio_api/file=${file}`) : file?.url ?? (file?.path ? `${HF_SPACE}/gradio_api/file=${file.path}` : '');
+    if (!url) return { error: `huggingface: no song in the answer (${String(out[10] ?? '').slice(0, 160)})` };
+    const audio = await fetch(url, { headers: { 'x-hf-authorization': `Bearer ${token}` } });
+    if (!audio.ok) return { error: `huggingface: couldn't fetch the song (${audio.status})` };
+    const bytes = new Uint8Array(await audio.arrayBuffer());
+    console.log(`[song-writer] huggingface made ${Math.round(bytes.length / 1024)} KB in ${Math.round((Date.now() - t0) / 1000)}s`);
+    return { audio: bytes, mime: (audio.headers.get('content-type') ?? 'audio/mpeg').split(';')[0] };
+  } catch (e) {
+    return { error: `huggingface: no answer in ${Math.round((Date.now() - t0) / 1000)}s (${String(e).slice(0, 80)})`, status: 504 };
+  }
+}
+
+/**
+ * The full song. ACE-Step through ACE Music's cloud, then the ACE-Step demo on Hugging Face,
+ * then Google's Lyria (on the Gemini key), then ElevenLabs. `only` picks one service
+ * ('acemusic', 'huggingface', 'elevenlabs') or one Lyria model, for testing.
+ */
+async function makeMusic(song: Song, brief: Brief, churchId?: string | null, only?: string): Promise<Made> {
   const errors: string[] = [];
   const started = Date.now();
-  const left = () => 135_000 - (Date.now() - started);
+  const left = () => 140_000 - (Date.now() - started);
+  const wants = (s: string) => !only || only === s;
+  for (const service of ['acemusic', 'huggingface'] as Service[]) {
+    if (!wants(service) || left() < 30_000) continue;
+    const key = await keyFor(churchId, service);
+    if (!key) continue;
+    const r = service === 'acemusic' ? await aceMusic(key, song, brief, left() - 3_000) : await hfMusic(key, song, brief, left() - 3_000);
+    if (r.audio) return r;
+    errors.push(r.error!);
+  }
+  const lyriaModels = !only ? LYRIA : only.startsWith('lyria') ? [only] : [];
   if (GEMINI) {
-    for (const model of only ? [only] : LYRIA) {
+    for (const model of lyriaModels) {
       if (left() < 15_000) break;
       const r = await lyria(model, song, brief, left() - 5_000);
       if (r.audio) return r;
       errors.push(r.error!);
     }
   }
-  if (ELEVEN && !only && left() > 30_000) {
+  if (ELEVEN && wants('elevenlabs') && left() > 30_000) {
     const res = await fetch('https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'xi-api-key': ELEVEN },
@@ -418,15 +608,17 @@ async function makeMusic(song: Song, brief: Brief, only?: string): Promise<{ aud
     if (res.ok) return { audio: new Uint8Array(await res.arrayBuffer()), mime: 'audio/mpeg' };
     errors.push(`elevenlabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
-  return { error: errors.join(' · ') || "The music service isn't set up." };
+  return { error: errors.join(' · ') || NOT_SET_UP };
 }
+/** The phone shows "Connect the music service" when it sees this */
+const NOT_SET_UP = "The music service isn't set up.";
 
 const EXT: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/flac': 'flac', 'audio/webm': 'webm' };
 
 /** Makes the music, stores it and marks the draft ready (or failed, with the reason) */
 async function produce(id: string, churchId: string, song: Song, brief: Brief) {
   try {
-    const m = await makeMusic(song, brief);
+    const m = await makeMusic(song, brief, churchId);
     if (!m.audio) throw new Error(m.error ?? 'no audio');
     const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
     const path = `${churchId}/${id}-${Date.now()}.${EXT[mime] ?? 'mp3'}`;
@@ -469,7 +661,11 @@ Deno.serve(async (req) => {
   if (input.action === 'check') {
     if (!admin) return json({ error: 'Not allowed' }, 403);
     const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode })!;
-    const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, models_in_order: MODELS };
+    const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, acemusic_env: !!ENV_KEYS.acemusic, huggingface_env: !!ENV_KEYS.huggingface, models_in_order: MODELS };
+    if (input.services) {
+      const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('church_id, service, hint, updated_at');
+      out.connected = rows;
+    }
     if (input.models && GEMINI) {
       const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': GEMINI } });
       const d = await r.json().catch(() => ({}));
@@ -492,7 +688,14 @@ Deno.serve(async (req) => {
         { name: 'Verse', lines: ['[G]You were faithful in the [C]morning', '[Em]You were faithful through the [D]night'] },
         { name: 'Chorus', lines: ['[G]Great is Your [D]faithfulness', '[C]Lord, I will [G]sing'] },
       ], arrangement: { choir: '', band: '' }, music_style: 'warm gospel choir with piano and organ' };
-      const m = await makeMusic(input.song ? (validSong(input.song) ?? test) : test, brief, typeof input.musicModel === 'string' ? input.musicModel : undefined);
+      // The church's connected service (the one given, else any church that connected one)
+      let churchId = clean(input.churchId, 40);
+      if (!churchId) {
+        const { data: anyKey } = await supabaseAdmin.from('church_service_keys' as never).select('church_id').limit(1).maybeSingle();
+        churchId = (anyKey as { church_id?: string } | null)?.church_id ?? '';
+      }
+      const only = typeof input.service === 'string' ? input.service : typeof input.musicModel === 'string' ? input.musicModel : undefined;
+      const m = await makeMusic(input.song ? (validSong(input.song) ?? test) : test, brief, churchId || null, only);
       if (m.audio) {
         const mime = (m.mime ?? 'audio/mpeg').split(';')[0];
         const path = `checks/${Date.now()}.${EXT[mime] ?? 'mp3'}`;
@@ -528,6 +731,53 @@ Deno.serve(async (req) => {
       .select('*').single();
     if (error) return json({ error: 'Couldn\'t save the song. Please try again.' }, 500);
     return json({ draft: data });
+  }
+
+  // ── The church's music service (church admins connect it once) ──
+  if (input.action === 'music-service' || input.action === 'connect-music' || input.action === 'disconnect-music') {
+    const churchId = clean(input.churchId, 40);
+    if (!/^[0-9a-f-]{36}$/i.test(churchId)) return json({ error: 'Open the app for your church first.' }, 400);
+    const [{ data: member }, { data: roles }] = await Promise.all([
+      supabaseAdmin.from('church_members').select('church_id').eq('church_id', churchId).eq('user_id', user.id).eq('status', 'active').maybeSingle(),
+      supabaseAdmin.from('user_roles').select('id').eq('user_id', user.id).eq('church_id', churchId).eq('is_active', true).in('role', ['administrator', 'pastor']).limit(1),
+    ]);
+    const canManage = Array.isArray(roles) && roles.length > 0;
+    if (!member && !canManage) return json({ error: 'Only members of this church can see this.' }, 403);
+    const status = async () => {
+      const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('service, hint, updated_at').eq('church_id', churchId);
+      const services = ((rows ?? []) as { service: Service; hint: string | null; updated_at: string }[]).map((r) => ({ service: r.service, hint: canManage ? r.hint : null, updated_at: r.updated_at }));
+      return { services, canManage, platform: { acemusic: !!ENV_KEYS.acemusic, huggingface: !!ENV_KEYS.huggingface, lyria: !!GEMINI, elevenlabs: !!ELEVEN } };
+    };
+    if (input.action === 'music-service') return json(await status());
+    if (!canManage) return json({ error: 'Only a church admin can change the music service.' }, 403);
+
+    if (input.action === 'disconnect-music') {
+      const service = input.service === 'huggingface' ? 'huggingface' : 'acemusic';
+      const { error } = await supabaseAdmin.rpc('remove_service_key' as never, { _church: churchId, _service: service } as never);
+      if (error) return json({ error: "Couldn't remove it. Please try again." }, 500);
+      return json(await status());
+    }
+
+    // A key is checked with its service before it's kept (a Hugging Face token starts hf_)
+    const key = String(input.key ?? '').trim().replace(/^Bearer\s+/i, '');
+    if (key.length < 8 || key.length > 400 || /\s/.test(key)) return json({ error: 'Paste the whole key, with nothing else.' }, 400);
+    const service: Service = key.startsWith('hf_') ? 'huggingface' : 'acemusic';
+    if (service === 'acemusic') {
+      const r = await aceModels(key);
+      if (r.status === 401 || r.status === 403) return json({ error: "ACE Music didn't accept that key. Copy it again from your ACE Music account." }, 400);
+      if (!r.ok) return json({ error: "Couldn't reach ACE Music just now. Please try again in a minute." }, 503);
+      console.log(`[song-writer] ACE Music key connected for ${churchId}; models: ${r.models.join(', ')}`);
+    } else {
+      const r = await fetch('https://huggingface.co/api/whoami-v2', { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+      if (r && (r.status === 401 || r.status === 403)) return json({ error: "Hugging Face didn't accept that token. Make a new one and copy it again." }, 400);
+      if (!r?.ok) return json({ error: "Couldn't reach Hugging Face just now. Please try again in a minute." }, 503);
+    }
+    const { error } = await supabaseAdmin.rpc('put_service_key' as never, { _church: churchId, _service: service, _key: key, _by: user.id } as never);
+    if (error) {
+      console.error('[song-writer] saving the key failed', error.message);
+      return json({ error: "Couldn't save it. Please try again." }, 500);
+    }
+    return json({ ...(await status()), connected: service });
   }
 
   if (input.action === 'music') {
