@@ -64,6 +64,7 @@ const STYLE_FAMILIES: StyleFamily[] = [
   { name: 'Gospel', tab: 'Gospel', styles: [
     { id: 'gospel_choir', label: 'Gospel choir', hint: 'Mass choir, Hammond, a shouting vamp' },
     { id: 'contemporary_gospel', label: 'Contemporary', hint: 'Modern grooves, lush choir stacks' },
+    { id: 'christian_rnb', label: 'Christian R&B', hint: 'Smooth, soulful, Rhodes and runs' },
     { id: 'traditional_gospel', label: 'Traditional', hint: 'Organ, shuffle, call and response' },
     { id: 'praise', label: 'Upbeat praise', hint: 'Fast, brass stabs, the choir shouts back' },
     { id: 'ballad', label: 'Gospel ballad', hint: 'Tender, piano and strings' },
