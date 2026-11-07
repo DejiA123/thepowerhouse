@@ -662,6 +662,25 @@ const r2 = () => {
   return s3;
 };
 
+/** What the R2 bucket holds, by top folder (chat-media, songs, lyrics, uploads…) */
+async function r2Usage() {
+  const folders: Record<string, { files: number; bytes: number }> = {};
+  let token: string | undefined;
+  let pages = 0;
+  do {
+    const page = await r2()!.send(new ListObjectsV2Command({ Bucket: R2.bucket, ContinuationToken: token, MaxKeys: 1000 }));
+    for (const o of page.Contents ?? []) {
+      const top = String(o.Key ?? '').split('/')[0] || '(top)';
+      folders[top] ??= { files: 0, bytes: 0 };
+      folders[top].files++;
+      folders[top].bytes += Number(o.Size ?? 0);
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token && ++pages < 200);
+  const list = Object.entries(folders).map(([folder, f]) => ({ folder, ...f })).sort((a, b) => b.bytes - a.bytes);
+  return { bytes: list.reduce((a, f) => a + f.bytes, 0), folders: list };
+}
+
 /** Keeps a song's audio and gives its public link */
 async function storeAudio(path: string, bytes: Uint8Array, mime: string): Promise<string> {
   const client = r2();
@@ -865,21 +884,8 @@ Deno.serve(async (req) => {
     out.r2 = !!r2();
     // {"storage": true}: how much the R2 bucket holds, by top folder (chat-media, songs, lyrics…)
     if (input.storage && r2()) {
-      const folders: Record<string, { files: number; bytes: number }> = {};
-      let token: string | undefined;
-      let pages = 0;
-      do {
-        const page = await r2()!.send(new ListObjectsV2Command({ Bucket: R2.bucket, ContinuationToken: token, MaxKeys: 1000 }));
-        for (const o of page.Contents ?? []) {
-          const top = String(o.Key ?? '').split('/')[0] || '(top)';
-          folders[top] ??= { files: 0, bytes: 0 };
-          folders[top].files++;
-          folders[top].bytes += Number(o.Size ?? 0);
-        }
-        token = page.IsTruncated ? page.NextContinuationToken : undefined;
-      } while (token && ++pages < 200);
-      const total = Object.values(folders).reduce((a, f) => a + f.bytes, 0);
-      out.storage = { total_mb: Math.round(total / 1048576), free_gb: 10, folders: Object.fromEntries(Object.entries(folders).map(([k, f]) => [k, { files: f.files, mb: Math.round(f.bytes / 104857.6) / 10 }])) };
+      const u = await r2Usage();
+      out.storage = { total_mb: Math.round(u.bytes / 1048576), free_gb: 10, folders: Object.fromEntries(u.folders.map((f) => [f.folder, { files: f.files, mb: Math.round(f.bytes / 104857.6) / 10 }])) };
     }
     if (input.services) {
       const { data: rows } = await supabaseAdmin.from('church_service_keys' as never).select('church_id, service, hint, updated_at');
@@ -1044,6 +1050,20 @@ Deno.serve(async (req) => {
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
     else await work;
     return json({ draft: making });
+  }
+
+  // Me → Admin → Storage: how full the media store (R2) is. Church admins only.
+  if (input.action === 'storage') {
+    const churchId = clean(input.churchId, 40);
+    const { data: roles } = await supabaseAdmin.from('user_roles').select('id').eq('user_id', user.id).eq('church_id', churchId).eq('is_active', true).in('role', ['administrator', 'pastor']).limit(1);
+    if (!Array.isArray(roles) || !roles.length) return json({ error: 'Only church admins can see this.' }, 403);
+    if (!r2()) return json({ r2: null });
+    try {
+      return json({ r2: { ...(await r2Usage()), limit_bytes: 10 * 1024 ** 3 } });
+    } catch (e) {
+      console.error('[song-writer] storage listing failed', String(e).slice(0, 200));
+      return json({ error: "Couldn't read the media store just now." }, 503);
+    }
   }
 
   // Deleting a song also removes its audio (so storage never fills with songs nobody has)

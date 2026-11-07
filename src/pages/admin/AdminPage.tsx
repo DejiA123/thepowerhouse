@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { duration, notSetUp, shortDuration } from '@/lib/admin';
 import AdminGate, { NotSetUp } from './AdminGate';
 import ChurchAdminSection from './ChurchAdminSection';
+import StorageSection from './StorageSection';
 
 interface Overview {
   active_today: number;
@@ -150,6 +151,8 @@ const AdminPage = () => {
           </ListGroup>
         </>
       )}
+
+      <StorageSection />
     </Page>
   );
 };
