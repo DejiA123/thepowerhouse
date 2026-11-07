@@ -956,6 +956,22 @@ async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: nu
   }
 }
 
+/**
+ * Is the server up with its models loaded? A song sent while they were still loading hung
+ * for minutes, so songs are only sent once /health says both are loaded ('ready'); the
+ * server loads them itself as soon as it starts (warm_up in music-server/ace_step.py).
+ */
+async function serverReady(srv: Server): Promise<'ready' | 'loading' | 'waking'> {
+  try {
+    const res = await fetch(`${srv.url}/health`, { headers: { Authorization: `Bearer ${srv.key}` }, signal: AbortSignal.timeout(25_000) });
+    if (!res.ok) return 'waking';
+    const d = (await res.json())?.data ?? {};
+    return d.models_initialized && d.llm_initialized ? 'ready' : 'loading';
+  } catch {
+    return 'waking';
+  }
+}
+
 /** One look at a task: still making (0), done (1, with the song), failed (2), or unknown to the server */
 async function serverQuery(srv: Server, taskId: string): Promise<{ state: 'making' | 'done' | 'failed' | 'lost'; made?: Made }> {
   try {
@@ -991,6 +1007,8 @@ interface Job {
   watched_at?: string;
   /** Last time the writer's page asked (they're looking at it) */
   seen_at?: string;
+  /** When the song was last sent (sent again only 2 minutes later, never twice at once) */
+  sent_at?: string;
 }
 /** Adds fields to the draft's job, keeping the rest */
 async function touchJob(id: string, patch: Partial<Job>) {
@@ -1036,14 +1054,16 @@ async function advance(id: string): Promise<boolean> {
     return true;
   }
   if (job.task_id) return collect(id, draft.church_id, srv, job.task_id);
-  if (Date.now() - Date.parse(job.submitted_at) > 120_000) {
-    await setJob(id, { ...job, service: 'acestep', submitted_at: new Date().toISOString() });
-    const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 60_000);
-    if (sub.taskId) await setJob(id, { ...job, service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
-    else if (!sub.timedOut) {
-      await finish(id, draft.church_id, { error: sub.error });
-      return true;
-    }
+  // Not sent yet (or a send got no answer 2 minutes ago): send it once the server is ready
+  if (job.sent_at && Date.now() - Date.parse(job.sent_at) < 120_000) return false;
+  if ((await serverReady(srv)) !== 'ready') return false;
+  const sent = new Date().toISOString();
+  await setJob(id, { ...job, service: 'acestep', sent_at: sent });
+  const sub = await serverSubmit(srv, draft.song as Song, draft.brief as Brief, 60_000);
+  if (sub.taskId) await setJob(id, { ...job, service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString(), sent_at: sent });
+  else if (!sub.timedOut) {
+    await finish(id, draft.church_id, { error: sub.error });
+    return true;
   }
   return false;
 }
@@ -1094,9 +1114,13 @@ async function produce(id: string, churchId: string, song: Song, brief: Brief) {
   const srv = await musicServer();
   if (srv) {
     await setJob(id, { service: 'acestep', submitted_at: new Date().toISOString() });
-    const sub = await serverSubmit(srv, song, brief, 110_000);
+    // Waking up or still loading its models: the watcher sends it as soon as it's ready
+    if ((await serverReady(srv)) !== 'ready') return watch(id, started);
+    const sent = new Date().toISOString();
+    await setJob(id, { service: 'acestep', submitted_at: sent, sent_at: sent });
+    const sub = await serverSubmit(srv, song, brief, 60_000);
     if (sub.taskId) {
-      await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString() });
+      await setJob(id, { service: 'acestep', task_id: sub.taskId, submitted_at: new Date().toISOString(), sent_at: sent });
       return watch(id, started);
     }
     // Still waking up: the watcher sends it again
