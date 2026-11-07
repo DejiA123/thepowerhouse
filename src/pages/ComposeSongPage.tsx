@@ -1000,7 +1000,7 @@ const WritingProgress = ({ run, className }: { run: { at: number; count: number;
  */
 const MakeItYours = ({ className }: { className?: string }) => (
   <div className={cn('rounded-2xl bg-amber-50/80 px-4 py-3.5 dark:bg-amber-950/30', className)} data-testid="make-it-yours">
-    <p className="text-[14px] font-semibold text-foreground">A starting point for your songwriters</p>
+    <p className="text-[14px] font-semibold text-foreground">A starting point for songwriters</p>
     <ul className="mt-1.5 space-y-1.5 text-[13px] leading-snug text-muted-foreground">
       <li><span className="font-semibold text-foreground">In seconds:</span> words, chords, choir parts and a full recording to start from.</li>
       <li><span className="font-semibold text-foreground">Then the real ministry:</span> pray over it, change the words (Edit the words), sing it with the choir and make it yours. Then the song you bring to church is truly yours to offer.</li>
