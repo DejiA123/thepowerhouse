@@ -1019,7 +1019,7 @@ async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: nu
  */
 async function serverReady(srv: Server): Promise<'ready' | 'loading' | 'waking'> {
   try {
-    const res = await fetch(`${srv.url}/health`, { headers: { Authorization: `Bearer ${srv.key}` }, signal: AbortSignal.timeout(25_000) });
+    const res = await fetch(`${srv.url}/health`, { headers: { Authorization: `Bearer ${srv.key}` }, signal: AbortSignal.timeout(15_000), redirect: 'manual' });
     if (!res.ok) return 'waking';
     const d = (await res.json())?.data ?? {};
     return d.models_initialized && d.llm_initialized ? 'ready' : 'loading';
@@ -1132,12 +1132,13 @@ async function advance(id: string): Promise<boolean> {
  * until the song is ready, failed, or 25 minutes old.
  */
 async function watch(id: string, started = Date.now()) {
-  while (Date.now() - started < 100_000) {
+  // A run may last ~150 s in all; a step can take ~20 s (a server check, or storing a song),
+  // so hand over to a fresh run in good time (a run cut off mid-step never handed over)
+  while (Date.now() - started < 85_000) {
     if (await advance(id)) return;
     await touchJob(id, { watched_at: new Date().toISOString() });
     await pause(5_000);
   }
-  if (await advance(id)) return;
   await relay(id);
 }
 
@@ -1232,6 +1233,20 @@ Deno.serve(async (req) => {
       const url = input.version === 'music' ? d?.instrumental_url : input.version === 'voices' ? d?.vocals_url : d?.audio_url;
       if (!url) return json({ ...out, error: 'No such recording' });
       return json({ audio: toBase64(new Uint8Array(await (await fetch(url)).arrayBuffer())) });
+    }
+    // {"health": true}: what the music server says right now, and how long it took
+    if (input.health) {
+      const srv = await musicServer();
+      if (srv) {
+        const t0 = Date.now();
+        try {
+          const res = await fetch(`${srv.url}/health`, { headers: { Authorization: `Bearer ${srv.key}` }, signal: AbortSignal.timeout(100_000), redirect: 'manual' });
+          out.health = { status: res.status, seconds: Math.round((Date.now() - t0) / 1000), body: (await res.text()).slice(0, 400), ready: await serverReady(srv) };
+        } catch (e) {
+          out.health = { error: String(e).slice(0, 200), seconds: Math.round((Date.now() - t0) / 1000) };
+        }
+        out.separate_url = !!srv.separate;
+      }
     }
     // {"stemsOf": "<draft id>"}: makes that song's music only / voices only now
     if (typeof input.stemsOf === 'string') {
