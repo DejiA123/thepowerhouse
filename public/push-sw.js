@@ -209,31 +209,33 @@ function logPush(entry) {
   }
 }
 
-let lastHow = '';
-
+/*
+ * Opens an encrypted chat notification: { text, how } (text null when it can't, and how
+ * says why, for the Notification report). Each call keeps its own outcome, so two
+ * notifications arriving together never log each other's.
+ */
 async function openEncrypted(chatId, content, sealed) {
-  lastHow = '';
+  let how = '';
   try {
     const parts = content.slice(E2E_PREFIX.length).split(':');
     const found = await readChatKey(chatId, parts[0]);
     let key = found ? found.key : null;
-    lastHow = found ? found.from : '';
+    how = found ? found.from : '';
     if (!key) {
       key = await unsealChatKey(chatId, parts[0], sealed);
-      lastHow = key
+      how = key
         ? 'opened the copy in the notification'
         : (keyStoreError ? 'key store failed (' + keyStoreError + ') and ' : '') + (Array.isArray(sealed) && sealed.length ? 'no copy for this phone' : 'no key on this phone, no copy sent');
     }
-    if (!key) return null;
+    if (!key) return { text: null, how };
     const plain = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: fromBase64(parts[1]), additionalData: new TextEncoder().encode(chatId) },
       key,
       fromBase64(parts[2]),
     );
-    return new TextDecoder().decode(plain);
+    return { text: new TextDecoder().decode(plain), how };
   } catch (e) {
-    lastHow = 'could not open: ' + ((e && e.name) || e);
-    return null;
+    return { text: null, how: 'could not open: ' + ((e && e.name) || e) };
   }
 }
 
@@ -297,9 +299,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     // An encrypted chat message: open it on this phone (the scrambled text never shows)
     if (data.e2e) {
-      const text = await openEncrypted(data.chatId, data.e2e, data.sealed);
+      const { text, how } = await openEncrypted(data.chatId, data.e2e, data.sealed);
       if (text !== null) payload = Object.assign({}, payload, { body: (data.e2ePrefix || '') + chatPreview(text) });
-      logPush({ title, shown: text !== null ? 'the message' : '🔒 New message', how: lastHow, copies: Array.isArray(data.sealed) ? data.sealed.length : 0 });
+      logPush({ title, shown: text !== null ? 'the message' : '🔒 New message', how, copies: Array.isArray(data.sealed) ? data.sealed.length : 0 });
     } else if (payload.kind === 'chat') {
       logPush({ title, shown: payload.body || '', how: 'nothing to open (not encrypted, or the server sent no text)' });
     }
