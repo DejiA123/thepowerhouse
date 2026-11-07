@@ -7,7 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
 import {
-  choirLocations, choirName, hasLyrics, parseLyrics, setChoirLink, setLabel, setlistSections, splitSetType, youTubeId,
+  choirLocations, choirName, hasLyrics, parseLyrics, setChoirLink, setLabel, setlistSections, songKey, splitSetType, youTubeId,
   NATIONAL, type ChoirSongRow, type SongCardGroup,
 } from '@/lib/choirChat';
 import { formatClock } from './chatUtils';
@@ -39,7 +39,7 @@ export const SongSheet = ({ view, onClose }: { view: SongView; onClose: () => vo
   const song = shown?.song;
   const video = youTubeId(song?.url);
   const lyrics = parseLyrics(song?.lyrics);
-  const sub = song ? [song.key && `Key ${song.key}`, song.artist, setLabel(song.set_type)].filter(Boolean).join(' · ') : '';
+  const sub = song ? [songKey(song.key) && `Key ${songKey(song.key)}`, song.artist, setLabel(song.set_type)].filter(Boolean).join(' · ') : '';
 
   return (
     <Sheet open={!!view} onOpenChange={(open) => !open && onClose()}>
@@ -105,7 +105,7 @@ const SongRow = ({ song, onPlay, onLyrics, compact = false }: { song: ChoirSongR
     </button>
     <div className="min-w-0 flex-1">
       <p className="truncate text-[15px] font-semibold leading-tight text-foreground">{song.title}</p>
-      <p className="truncate text-[12.5px] text-muted-foreground">{[song.key && `Key ${song.key}`, song.artist].filter(Boolean).join(' · ') || setLabel(song.set_type)}</p>
+      <p className="truncate text-[12.5px] text-muted-foreground">{[songKey(song.key) && `Key ${songKey(song.key)}`, song.artist].filter(Boolean).join(' · ') || setLabel(song.set_type)}</p>
     </div>
     <button
       type="button"

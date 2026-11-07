@@ -57,6 +57,12 @@ const SET_NAMES: Record<string, string> = {
   thanksgiving: 'Thanksgiving',
   offering: 'Offering',
 };
+/** A song's key worth showing ("G", "Bb", "F#m"); '' for blanks and placeholders like "??" */
+export const songKey = (key?: string | null) => {
+  const k = (key ?? '').trim();
+  return /^[A-Ga-g]/.test(k) ? k : '';
+};
+
 export const SET_ORDER = ['praise', 'worship', 'special', 'hymns', 'thanksgiving', 'offering'];
 
 /** "praise_d2" → { base: 'praise', day: 2 } */
