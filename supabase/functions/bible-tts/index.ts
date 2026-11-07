@@ -1,16 +1,17 @@
 // Reads a short piece of Bible text aloud (the cloud voice for phones).
 // Returns a complete WAV file (24 kHz, 16-bit mono).
 //
-// Uses whichever voice service has a key, in this order, and moves on to the
-// next if one fails (no credit left, too busy, down):
-//   1. GOOGLE_TTS_API_KEY: Google Cloud Text-to-Speech, Chirp 3 HD voices (the
-//      same voices: Charon, Kore, …). Free for the first million characters a
-//      month, then paid. GOOGLE_TTS_LANGUAGE picks the accent (default en-GB).
-//   2. GEMINI_API_KEY: Google's Gemini speech model directly (aistudio.google.com).
-//   3. LOVABLE_API_KEY: the same model through Lovable AI (uses Lovable credits).
+// Google only (Lovable AI was removed, Nov 2026, at the church's request), in this order,
+// moving on to the next if one fails (not switched on, allowance used up, too busy, down):
+//   1. Google Cloud Text-to-Speech, Chirp 3 HD voices (the same voices: Charon, Kore, …),
+//      with GOOGLE_TTS_API_KEY, or else the GEMINI_API_KEY (a Google Cloud key too: it
+//      works here once the Text-to-Speech API is enabled on its project, with billing).
+//      Far higher limits than Gemini's free tier. GOOGLE_TTS_LANGUAGE picks the accent
+//      (default en-GB).
+//   2. GEMINI_API_KEY: Google's Gemini speech model (aistudio.google.com; the free tier
+//      has a small daily allowance).
+// A signed {"check": true} (SEND_EMAIL_HOOK_SECRET) tries each and reports why one fails.
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-
-const LOVABLE_MODEL = 'google/gemini-3.1-flash-tts-preview';
 const VOICES = new Set(['Charon', 'Orus', 'Iapetus', 'Fenrir', 'Puck', 'Kore', 'Aoede', 'Leda', 'Zephyr', 'Callirrhoe']);
 const PROMPT = 'Read this Bible passage aloud, warmly and reverently, at a calm, steady pace: ';
 
@@ -52,7 +53,7 @@ export function wavFromPcm(pcm: Uint8Array, sampleRate = 24000): Uint8Array {
 async function failed(service: string, res: Response): Promise<Result> {
   const detail = await res.text().catch(() => '');
   console.error(`bible-tts ${service}`, res.status, detail.slice(0, 600));
-  const result: Result = { ok: false, status: res.status, why: detail.slice(0, 200) };
+  const result: Result = { ok: false, status: res.status, why: detail.slice(0, 500) };
   if (res.status === 429) {
     // Google says how long to wait ("retryDelay": "37s"), and whether the day's allowance is used up
     const delay = Number(detail.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/)?.[1]);
@@ -112,23 +113,26 @@ async function gemini(text: string, voice: string, key: string): Promise<Result>
   return { ok: true, audio: wavFromPcm(fromBase64(part.inlineData.data), rate), type: 'audio/wav' };
 }
 
-/** The same model through Lovable AI */
-async function lovable(text: string, voice: string, key: string): Promise<Result> {
-  const res = await fetch('https://ai.gateway.lovable.dev/v1/audio/speech', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: LOVABLE_MODEL,
-      contents: [{ role: 'user', parts: [{ text: PROMPT + text }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-      },
-      stream_format: 'audio',
-    }),
-  });
-  if (!res.ok || !res.body) return failed('lovable', res);
-  return { ok: true, audio: res.body, type: res.headers.get('Content-Type') || 'audio/wav' };
+async function signedByAdmin(req: Request, body: string): Promise<boolean> {
+  const secret = env('SEND_EMAIL_HOOK_SECRET');
+  const id = req.headers.get('webhook-id');
+  const ts = req.headers.get('webhook-timestamp');
+  const sigs = req.headers.get('webhook-signature');
+  if (!id || !ts || !sigs || !secret || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  const raw = secret.replace(/^v1,/, '').replace(/^whsec_/, '');
+  const key = await crypto.subtle.importKey('raw', Uint8Array.from(atob(raw), (c) => c.charCodeAt(0)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${id}.${ts}.${body}`)));
+  const expected = btoa(String.fromCharCode(...mac));
+  return sigs.split(' ').some((x) => x.replace(/^v1,/, '') === expected);
+}
+
+/** The voice services in order, with the key each uses (Google Cloud takes the Gemini key too) */
+function services(): [string, string, (t: string, v: string, k: string) => Promise<Result>][] {
+  const cloudKey = env('GOOGLE_TTS_API_KEY') || env('GEMINI_API_KEY');
+  return [
+    ['google-cloud', cloudKey, googleCloud],
+    ['gemini', env('GEMINI_API_KEY'), gemini],
+  ];
 }
 
 Deno.serve(async (req) => {
@@ -136,21 +140,38 @@ Deno.serve(async (req) => {
   const json = (body: unknown, status: number) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   try {
-    const body = await req.json().catch(() => null);
+    const raw = await req.text();
+    const body = (() => {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    })();
+    // {"check": true}, signed: try each service with a few words and say what happened
+    if (body?.check === true) {
+      if (!(await signedByAdmin(req, raw))) return json({ error: 'Not allowed' }, 403);
+      const out: Record<string, unknown> = {};
+      for (const [name, key, speak] of services()) {
+        if (!key) {
+          out[name] = 'no key';
+          continue;
+        }
+        const t0 = Date.now();
+        const r = await speak('In the beginning God created the heavens and the earth.', 'Charon', key).catch((e) => ({ ok: false, status: 0, why: String(e) }) as Result);
+        out[name] = r.ok ? { ok: true, ms: Date.now() - t0, bytes: r.audio instanceof Uint8Array ? r.audio.length : null } : { ok: false, status: r.status, why: r.why, daily: r.daily };
+      }
+      out.google_tts_key = !!env('GOOGLE_TTS_API_KEY');
+      return json(out, 200);
+    }
     const text = typeof body?.text === 'string' ? body.text.trim() : '';
     const voice = typeof body?.voice === 'string' && VOICES.has(body.voice) ? body.voice : 'Charon';
     if (!text || text.length > 2000) return json({ error: 'Text must be 1–2000 characters' }, 400);
 
-    const services: [string, (t: string, v: string, k: string) => Promise<Result>][] = [
-      ['GOOGLE_TTS_API_KEY', googleCloud],
-      ['GEMINI_API_KEY', gemini],
-      ['LOVABLE_API_KEY', lovable],
-    ];
     const statuses: number[] = [];
     let retryAfter = 0;
     let daily = false;
-    for (const [name, speak] of services) {
-      const key = env(name);
+    for (const [name, key, speak] of services()) {
       if (!key) continue;
       const result = await speak(text, voice, key).catch((e) => {
         console.error(`bible-tts ${name}`, e);
@@ -159,7 +180,7 @@ Deno.serve(async (req) => {
       if (result.ok) {
         return new Response(result.audio, {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': result.type, 'Cache-Control': 'no-cache', 'X-Voice-Service': name.split('_')[0].toLowerCase() },
+          headers: { ...corsHeaders, 'Content-Type': result.type, 'Cache-Control': 'no-cache', 'X-Voice-Service': name },
         });
       }
       statuses.push(result.status);
@@ -175,7 +196,7 @@ Deno.serve(async (req) => {
     }
     const status = statuses.includes(429) ? 429 : statuses.every((s) => s === 402 || s === 401 || s === 403) ? 402 : statuses[statuses.length - 1];
     const message =
-      status === 402 ? 'AI credits have run out.' :
+      status === 402 ? 'The voice service isn’t available right now.' :
       status === 429 ? 'Too many requests, please wait a moment.' :
       'The voice could not read this.';
     const res = json({ error: message }, status >= 400 && status < 600 ? status : 502);
