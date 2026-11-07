@@ -37,7 +37,9 @@ export const manifest = () => ({
   scope: '/',
   display: 'standalone',
   display_override: ['standalone', 'minimal-ui'],
-  orientation: 'portrait',
+  // Any way up: tablets turn to landscape and get the wide (computer) layout; phones keep
+  // themselves upright from inside the app (lib/orientation.ts)
+  orientation: 'any',
   background_color: church.brand.backgroundColor,
   theme_color: church.brand.themeColor,
   lang: 'en',
