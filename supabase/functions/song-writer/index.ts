@@ -853,8 +853,12 @@ const setJob = (id: string, job: Job | null) => supabaseAdmin.from('song_drafts'
 async function collect(id: string, churchId: string, srv: Server, taskId: string): Promise<boolean> {
   const r = await serverQuery(srv, taskId);
   if (r.state === 'making') return false;
-  if (r.state === 'lost') await finish(id, churchId, { error: 'The music server restarted before the song was ready. Please try again.' });
-  else await finish(id, churchId, r.made!);
+  if (r.state === 'lost') {
+    // The server restarted (e.g. it hung and its watchdog restarted it): send the song
+    // again on the phone's next check (no task id, and "sent" long enough ago)
+    console.log('[song-writer] music server lost the song; sending it again');
+    await setJob(id, { service: 'acestep', submitted_at: new Date(0).toISOString() });
+  } else await finish(id, churchId, r.made!);
   return true;
 }
 
