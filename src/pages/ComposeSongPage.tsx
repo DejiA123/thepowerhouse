@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Check, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Users } from 'lucide-react';
+import { Check, ChevronDown, Download, KeyRound, Loader2, Music2, PenLine, RotateCcw, Share2, Trash2, Users } from 'lucide-react';
 import { Page, PageTitle, SectionLabel, ListGroup } from '@/components/page/PageKit';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +10,9 @@ import { currentChurchId } from '@/lib/churchSpace';
 import { choirName } from '@/lib/choirChat';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
 import MusicProgress from '@/components/choir/MusicProgress';
+import SongWordsEditor from '@/components/choir/SongWordsEditor';
 import LiveProgress, { type Stage } from '@/components/choir/LiveProgress';
+import { FieldLabel, FormCard, KeyGrid, Segmented, StylePicker, type SegmentOption, type StyleFamily } from '@/components/choir/ComposeControls';
 
 interface Draft {
   id: string;
@@ -50,22 +52,38 @@ const VOICES: { id: Voice; label: string }[] = [
   { id: 'duet', label: 'Duet' },
 ];
 
-/** The styles the song helper writes in (ids match the song-writer function) */
-const STYLE_GROUPS: { name: string; styles: { id: string; label: string }[] }[] = [
-  { name: 'Gospel', styles: [
-    { id: 'gospel_choir', label: 'Gospel choir' }, { id: 'contemporary_gospel', label: 'Contemporary gospel' }, { id: 'traditional_gospel', label: 'Traditional gospel' },
-    { id: 'praise', label: 'Upbeat praise' }, { id: 'ballad', label: 'Gospel ballad' }, { id: 'gospel_rap', label: 'Gospel hip hop' },
+/** The styles the song helper writes in (ids match the song-writer function), by family, each with what it sounds like */
+const STYLE_FAMILIES: StyleFamily[] = [
+  { name: 'Gospel', tab: 'Gospel', styles: [
+    { id: 'gospel_choir', label: 'Gospel choir', hint: 'Mass choir, Hammond, a shouting vamp' },
+    { id: 'contemporary_gospel', label: 'Contemporary', hint: 'Modern grooves, lush choir stacks' },
+    { id: 'traditional_gospel', label: 'Traditional', hint: 'Organ, shuffle, call and response' },
+    { id: 'praise', label: 'Upbeat praise', hint: 'Fast, brass stabs, the choir shouts back' },
+    { id: 'ballad', label: 'Gospel ballad', hint: 'Tender, piano and strings' },
+    { id: 'gospel_rap', label: 'Gospel hip hop', hint: 'Sung chorus, rapped verses' },
   ] },
-  { name: 'Worship', styles: [
-    { id: 'worship', label: 'Worship' }, { id: 'acoustic_worship', label: 'Acoustic worship' }, { id: 'anthem', label: 'Choir anthem' }, { id: 'celtic_worship', label: 'Celtic worship' },
+  { name: 'Worship', tab: 'Worship', styles: [
+    { id: 'worship', label: 'Worship', hint: 'Pads and guitars, builds to an anthem' },
+    { id: 'acoustic_worship', label: 'Acoustic', hint: 'Guitar and piano, close and prayerful' },
+    { id: 'anthem', label: 'Choir anthem', hint: 'Orchestra, timpani, a key change' },
+    { id: 'celtic_worship', label: 'Celtic worship', hint: 'Whistle, fiddle and bodhrán' },
   ] },
-  { name: 'African', styles: [
-    { id: 'afro_gospel', label: 'Afro gospel' }, { id: 'highlife', label: 'Highlife praise' }, { id: 'afrobeats_worship', label: 'Afrobeats worship' },
-    { id: 'amapiano_gospel', label: 'Amapiano gospel' }, { id: 'naija_praise', label: 'Naija praise' }, { id: 'south_african_choir', label: 'South African choir' },
+  { name: 'African', tab: 'African', styles: [
+    { id: 'afro_gospel', label: 'Afro gospel', hint: 'Talking drums, highlife guitar, horns' },
+    { id: 'highlife', label: 'Highlife praise', hint: 'Palm-wine guitar, a church dance' },
+    { id: 'afrobeats_worship', label: 'Afrobeats worship', hint: 'Log drums, warm keys, choir on the hook' },
+    { id: 'amapiano_gospel', label: 'Amapiano gospel', hint: 'Log-drum bass, a laid-back groove' },
+    { id: 'naija_praise', label: 'Naija praise', hint: 'Fast, talking drum, everyone sings' },
+    { id: 'south_african_choir', label: 'South African choir', hint: 'A cappella harmony, stomps and claps' },
   ] },
-  { name: 'Hymns and more', styles: [
-    { id: 'hymn', label: 'Modern hymn' }, { id: 'traditional_hymn', label: 'Traditional hymn' }, { id: 'southern_gospel', label: 'Southern gospel' },
-    { id: 'reggae_gospel', label: 'Reggae gospel' }, { id: 'children', label: "Children's praise" }, { id: 'christmas', label: 'Christmas' }, { id: 'easter', label: 'Easter' },
+  { name: 'Hymns and more', tab: 'Hymns', styles: [
+    { id: 'hymn', label: 'Modern hymn', hint: 'Singable melody, piano and strings' },
+    { id: 'traditional_hymn', label: 'Traditional hymn', hint: 'Organ, four-part harmony' },
+    { id: 'southern_gospel', label: 'Southern gospel', hint: 'Piano and quartet harmony' },
+    { id: 'reggae_gospel', label: 'Reggae gospel', hint: 'One-drop rhythm, joyful and relaxed' },
+    { id: 'children', label: "Children's praise", hint: 'Simple words and actions' },
+    { id: 'christmas', label: 'Christmas', hint: 'Bells, strings and choir' },
+    { id: 'easter', label: 'Easter', hint: 'From the cross to the empty tomb' },
   ] },
 ];
 const LANGUAGES = ['English', 'Yoruba', 'Igbo', 'Nigerian Pidgin', 'Hausa', 'Twi', 'Swahili', 'Zulu', 'Lingala', 'Shona', 'French', 'Spanish', 'Portuguese', 'Irish', 'Polish', 'Romanian', 'Tagalog'];
@@ -96,10 +114,10 @@ const IDEAS: { theme: string; scripture: string }[] = [
   { theme: 'Victory in Jesus over fear', scripture: '2 Timothy 1:7' },
   { theme: 'The wedding feast and the new wine', scripture: 'John 2:1-11' },
 ];
-const FEELS = [
-  { id: 'slow', label: 'Slow' },
-  { id: 'mid', label: 'Mid' },
-  { id: 'fast', label: 'Fast' },
+const FEELS: SegmentOption<string>[] = [
+  { value: 'slow', label: 'Slow', sub: '60–72' },
+  { value: 'mid', label: 'Mid', sub: '76–96' },
+  { value: 'fast', label: 'Fast', sub: '110–132' },
 ];
 const KEYS = ['', 'C', 'D', 'Eb', 'E', 'F', 'G', 'Ab', 'A', 'Bb'];
 /** What the song helper is doing while it writes (a first draft, then an editor's pass: ~10–16 s, measured Nov 2026) */
@@ -140,17 +158,6 @@ async function call(body: Record<string, unknown>): Promise<Answer> {
   }
 }
 
-const Chip = ({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={on}
-    className={cn('rounded-full px-3.5 py-2 text-[14px] font-semibold transition', on ? 'bg-blue-600 text-white shadow-sm' : 'bg-muted text-foreground')}
-  >
-    {children}
-  </button>
-);
-
 /**
  * Choir page → Compose a song. Say what the song is about; the song helper writes a
  * full Christian song (words, chords, choir and band notes) as the writer's draft;
@@ -175,6 +182,9 @@ const ComposeSongPage = () => {
   const [service, setService] = useState<MusicService | null>(null);
   /** The lead voice for this song's music (its own saved choice, Auto until changed) */
   const [voice, setVoice] = useState<Voice>('auto');
+  /** Editing the words of the open song */
+  const [editing, setEditing] = useState(false);
+  useEffect(() => setEditing(false), [current?.id]);
   useEffect(() => setVoice(current?.brief?.voice ?? 'auto'), [current?.id, current?.brief?.voice]);
 
   const loadDrafts = useCallback(async () => {
@@ -300,6 +310,26 @@ const ComposeSongPage = () => {
     return true;
   };
 
+  /** The writer's own words (after praying over it and singing it through) */
+  const saveWords = async (song: ComposedSong) => {
+    if (!current) return false;
+    const before = current;
+    const next = { ...current, song };
+    setCurrent(next);
+    setDrafts((list) => list?.map((x) => (x.id === next.id ? next : x)) ?? list);
+    const { error } = await supabase.from('song_drafts' as never).update({ song } as never).eq('id', current.id);
+    if (error) {
+      setCurrent(before);
+      setDrafts((list) => list?.map((x) => (x.id === before.id ? before : x)) ?? list);
+      appAlert("Couldn't save the words", 'Please try again.', 'error');
+      return false;
+    }
+    setEditing(false);
+    window.scrollTo({ top: 0 });
+    appAlert('Words saved', current.audio_status === 'ready' ? 'Use Make it again to hear the music with your words.' : 'The song now has your words.', 'success');
+    return true;
+  };
+
   const toggleShare = async () => {
     if (!current) return;
     const shared = !current.shared;
@@ -347,7 +377,11 @@ const ComposeSongPage = () => {
       <Page>
         <PageTitle title="" back={back} />
         <div className="-mt-4">
-          <SongSheet song={current.song} onRename={mine ? rename : undefined} />
+          {editing && mine ? (
+            <SongWordsEditor song={current.song} onSave={saveWords} onCancel={() => setEditing(false)} hasMusic={current.audio_status === 'ready'} />
+          ) : (
+          <>
+          <SongSheet song={current.song} onRename={mine ? rename : undefined} onEdit={mine ? () => { setEditing(true); window.scrollTo({ top: 0 }); } : undefined} />
 
           <SectionLabel>The music</SectionLabel>
           <div className="rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="song-music">
@@ -410,6 +444,8 @@ const ComposeSongPage = () => {
           )}
           {writeRun && <WritingProgress run={writeRun} className="mt-4 rounded-2xl border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" />}
           <MakeItYours className="mt-5" />
+          </>
+          )}
         </div>
       </Page>
     );
@@ -423,95 +459,103 @@ const ComposeSongPage = () => {
     <Page>
       <PageTitle icon={PenLine} tint="bg-gradient-to-br from-indigo-500 to-purple-600" title="Compose a song" subtitle={`For ${choirName(locationId)}: words, chords and music`} back={back} />
 
-      <div className="space-y-4" data-testid="compose-form">
-        <label className="block">
-          <span className="mb-1.5 block text-[14px] font-semibold text-foreground">What is the song about?</span>
-          <textarea
-            value={brief.theme}
-            onChange={(e) => setBrief({ ...brief, theme: e.target.value.slice(0, 600) })}
-            rows={3}
-            placeholder="A testimony, a prayer, a theme from Sunday's message…"
-            className={`${field} resize-none`}
-          />
-        </label>
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-muted-foreground">Ideas</span>
-            <button type="button" onClick={() => setIdeas([...IDEAS].sort(() => Math.random() - 0.5).slice(0, 4))} className="text-[13px] font-semibold text-blue-600 dark:text-blue-400">More ideas</button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {ideas.map((i) => (
-              <button key={i.theme} type="button" onClick={() => setBrief({ ...brief, theme: i.theme, scripture: i.scripture })} className="rounded-2xl border border-border bg-card px-3 py-2 text-left text-[13px] leading-snug text-foreground active:bg-muted">
-                {i.theme} <span className="text-muted-foreground">· {i.scripture}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <label className="block">
-          <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Scripture <span className="font-normal text-muted-foreground">(optional)</span></span>
-          <input value={brief.scripture} onChange={(e) => setBrief({ ...brief, scripture: e.target.value.slice(0, 200) })} placeholder="e.g. Psalm 23, Isaiah 40:31" className={field} />
-        </label>
-        <div>
-          <span className="mb-1 block text-[14px] font-semibold text-foreground">Style</span>
-          <div className="space-y-2.5">
-            {STYLE_GROUPS.map((g) => (
-              <div key={g.name}>
-                <span className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">{g.name}</span>
-                <div className="flex flex-wrap gap-2">
-                  {g.styles.map((st) => (
-                    <Chip key={st.id} on={brief.style === st.id} onClick={() => setBrief({ ...brief, style: st.id })}>{st.label}</Chip>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-4">
+      <div className="space-y-3.5" data-testid="compose-form">
+        <FormCard step={1} title="The song">
           <div>
-            <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Tempo</span>
-            <div className="flex gap-2">
-              {FEELS.map((f) => (
-                <Chip key={f.id} on={brief.feel === f.id} onClick={() => setBrief({ ...brief, feel: f.id })}>{f.label}</Chip>
+            <FieldLabel htmlFor="song-theme">What is the song about?</FieldLabel>
+            <textarea
+              id="song-theme"
+              value={brief.theme}
+              onChange={(e) => setBrief({ ...brief, theme: e.target.value.slice(0, 600) })}
+              rows={3}
+              placeholder="A testimony, a prayer, a theme from Sunday's message…"
+              className={`${field} resize-none`}
+            />
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-muted-foreground">Ideas</span>
+              <button type="button" onClick={() => setIdeas([...IDEAS].sort(() => Math.random() - 0.5).slice(0, 4))} className="text-[13px] font-semibold text-blue-600 dark:text-blue-400">More ideas</button>
+            </div>
+            <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+              {ideas.map((i) => (
+                <button key={i.theme} type="button" onClick={() => setBrief({ ...brief, theme: i.theme, scripture: i.scripture })} className="w-[168px] shrink-0 snap-start rounded-[14px] border border-slate-200 bg-card px-3 py-2.5 text-left text-[13px] leading-snug text-foreground active:bg-muted dark:border-slate-700">
+                  <span className="line-clamp-2 font-medium">{i.theme}</span>
+                  <span className="mt-0.5 block text-muted-foreground">{i.scripture}</span>
+                </button>
               ))}
             </div>
           </div>
-          <label className="block">
-            <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Key</span>
-            <select value={brief.key} onChange={(e) => setBrief({ ...brief, key: e.target.value })} className="h-10 rounded-full border border-border bg-card px-3 text-[15px] text-foreground">
-              {KEYS.map((k) => (
-                <option key={k} value={k}>{k || 'Any key'}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div>
-          <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Language</span>
-          <div className="flex flex-wrap items-center gap-2">
-            <select value={brief.language} onChange={(e) => setBrief({ ...brief, language: e.target.value })} className="h-10 rounded-full border border-border bg-card px-3 text-[15px] text-foreground" aria-label="Language">
-              {LANGUAGES.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+          <div>
+            <FieldLabel htmlFor="song-scripture" optional>Scripture</FieldLabel>
+            <input id="song-scripture" value={brief.scripture} onChange={(e) => setBrief({ ...brief, scripture: e.target.value.slice(0, 200) })} placeholder="e.g. Psalm 23, Isaiah 40:31" className={field} />
+          </div>
+        </FormCard>
+
+        <FormCard step={2} title="Style">
+          <StylePicker families={STYLE_FAMILIES} value={brief.style ?? 'gospel_choir'} onChange={(id) => setBrief({ ...brief, style: id })} />
+        </FormCard>
+
+        <FormCard step={3} title="Sound">
+          <div>
+            <FieldLabel>Tempo</FieldLabel>
+            <Segmented label="Tempo" options={FEELS} value={brief.feel ?? 'mid'} onChange={(v) => setBrief({ ...brief, feel: v })} testId="tempo" />
+          </div>
+          <div>
+            <FieldLabel>Key</FieldLabel>
+            <KeyGrid keys={KEYS} value={brief.key ?? ''} onChange={(k) => setBrief({ ...brief, key: k })} />
+          </div>
+        </FormCard>
+
+        <FormCard step={4} title="Voice and language">
+          <VoicePicker value={brief.voice ?? 'auto'} onChange={(v) => setBrief({ ...brief, voice: v })} />
+          <div>
+            <FieldLabel htmlFor="song-language">Language</FieldLabel>
+            <div className="relative">
+              <select
+                id="song-language"
+                value={brief.language}
+                onChange={(e) => setBrief({ ...brief, language: e.target.value })}
+                className="h-12 w-full appearance-none rounded-[14px] border border-slate-300 bg-card px-3.5 pr-10 text-[16px] font-medium text-foreground outline-none focus:border-blue-500 dark:border-slate-700"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
+            </div>
             {brief.language !== 'English' && (
-              <>
-                <Chip on={brief.languageMode === 'chorus'} onClick={() => setBrief({ ...brief, languageMode: 'chorus' })}>Chorus only</Chip>
-                <Chip on={brief.languageMode === 'all'} onClick={() => setBrief({ ...brief, languageMode: 'all' })}>Whole song</Chip>
-              </>
+              <Segmented
+                className="mt-2"
+                label="How much of the song"
+                compact
+                options={[{ value: 'chorus', label: 'Chorus only' }, { value: 'all', label: 'Whole song' }]}
+                value={brief.languageMode ?? 'chorus'}
+                onChange={(v) => setBrief({ ...brief, languageMode: v as 'chorus' | 'all' })}
+              />
             )}
           </div>
-        </div>
-        <VoicePicker value={brief.voice ?? 'auto'} onChange={(v) => setBrief({ ...brief, voice: v })} />
-        <label className="block">
-          <span className="mb-1.5 block text-[14px] font-semibold text-foreground">Anything else <span className="font-normal text-muted-foreground">(optional)</span></span>
-          <input value={brief.notes} onChange={(e) => setBrief({ ...brief, notes: e.target.value.slice(0, 600) })} placeholder="A line you want in it, a Yoruba chorus, for Easter…" className={field} />
-        </label>
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold text-foreground">How many songs</span>
-          {[1, 2, 3].map((n) => (
-            <Chip key={n} on={count === n} onClick={() => setCount(n)}>{n}</Chip>
-          ))}
-        </div>
-        <button type="button" onClick={() => write(undefined, count)} disabled={writing} className="flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[16px] font-semibold text-white shadow-sm disabled:opacity-80">
+        </FormCard>
+
+        <FormCard step={5} title="Finishing touches">
+          <div>
+            <FieldLabel htmlFor="song-notes" optional>Anything else</FieldLabel>
+            <input id="song-notes" value={brief.notes} onChange={(e) => setBrief({ ...brief, notes: e.target.value.slice(0, 600) })} placeholder="A line you want in it, for Easter…" className={field} />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[15px] font-semibold text-foreground">How many songs</span>
+            <Segmented<number>
+              className="w-[156px]"
+              label="How many songs"
+              compact
+              options={[{ value: 1, label: '1' }, { value: 2, label: '2' }, { value: 3, label: '3' }]}
+              value={count}
+              onChange={setCount}
+            />
+          </div>
+        </FormCard>
+
+        <button type="button" onClick={() => write(undefined, count)} disabled={writing} className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-gradient-to-r from-indigo-600 to-purple-600 text-[17px] font-semibold text-white shadow-[0_6px_18px_rgba(79,70,229,0.28)] disabled:opacity-80">
           {writing ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" /> {writeRun && writeRun.count > 1 ? `Writing ${writeRun.count} songs…` : 'Writing the song…'}
@@ -654,14 +698,10 @@ const MusicServiceRow = ({ service, onChange }: { service: MusicService; onChang
 /** Lead voice for the music: Auto (as before: the music chooses) or a female, male or duet lead */
 const VoicePicker = ({ value, onChange, className, note }: { value: Voice; onChange: (v: Voice) => void; className?: string; note?: string }) => (
   <div className={className} data-testid="voice-picker">
-    <span className="mb-1.5 block text-[14px] font-semibold text-foreground">
+    <FieldLabel>
       Lead voice {note && <span className="font-normal text-muted-foreground">({note.toLowerCase()})</span>}
-    </span>
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Lead voice">
-      {VOICES.map((v) => (
-        <Chip key={v.id} on={value === v.id} onClick={() => onChange(v.id)}>{v.label}</Chip>
-      ))}
-    </div>
+    </FieldLabel>
+    <Segmented label="Lead voice" compact options={VOICES.map((v) => ({ value: v.id, label: v.label }))} value={value} onChange={onChange} />
     {value === 'auto' && <p className="mt-1.5 text-[12.5px] text-muted-foreground">Auto lets the music choose the singer.</p>}
   </div>
 );
@@ -689,7 +729,7 @@ const MakeItYours = ({ className }: { className?: string }) => (
     <p className="text-[14px] font-semibold text-foreground">A starting point for your songwriters</p>
     <ul className="mt-1.5 space-y-1.5 text-[13px] leading-snug text-muted-foreground">
       <li><span className="font-semibold text-foreground">In seconds:</span> words, chords, choir parts and a full recording to start from.</li>
-      <li><span className="font-semibold text-foreground">Then the real ministry:</span> pray over it, change the words, sing it with the choir and make it yours. Then the song you bring to church is truly yours to offer.</li>
+      <li><span className="font-semibold text-foreground">Then the real ministry:</span> pray over it, change the words (Edit the words), sing it with the choir and make it yours. Then the song you bring to church is truly yours to offer.</li>
     </ul>
   </div>
 );
