@@ -128,7 +128,7 @@ function validSong(x: unknown): Song | null {
   };
 }
 
-async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
+async function gemini(model: string, b: Brief, timeoutMs: number, lowThinking = true): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
   const t0 = Date.now();
   let res: Response;
   try {
@@ -136,7 +136,7 @@ async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ so
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI },
       // Each attempt must leave time for another inside the function's limit
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: 'user', parts: [{ text: userPrompt(b) }] }],
@@ -145,7 +145,7 @@ async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ so
           temperature: 0.9,
           maxOutputTokens: 8192,
           // Thinking at length makes an answer take minutes: a little is plenty for a song
-          ...(lowThinking ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+          ...(lowThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
         },
       }),
     });
@@ -155,7 +155,7 @@ async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ so
   if (!res.ok) {
     const text = await res.text();
     // A model that doesn't take the thinking setting: ask again without it
-    if (lowThinking && res.status === 400 && /thinking/i.test(text)) return gemini(model, b, false);
+    if (lowThinking && res.status === 400 && /thinking/i.test(text)) return gemini(model, b, Math.max(5_000, timeoutMs - (Date.now() - t0)), false);
     return { error: `${model} ${res.status} after ${Math.round((Date.now() - t0) / 1000)}s: ${text.slice(0, 200)}`, status: res.status };
   }
   const data = await res.json();
@@ -168,7 +168,7 @@ async function gemini(model: string, b: Brief, lowThinking = true): Promise<{ so
 async function openai(b: Brief): Promise<{ song?: Song; refused?: string; error?: string }> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(20_000),
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI}` },
     body: JSON.stringify({
       model: Deno.env.get('OPENAI_SONG_MODEL') ?? 'gpt-4.1',
@@ -198,19 +198,21 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
 
 async function writeSong(b: Brief) {
   const errors: string[] = [];
+  const started = Date.now();
   if (GEMINI) {
     const queue = [SONG_MODEL, BACKUP_MODEL];
     const tried = new Set<string>();
-    const started = Date.now();
-    while (queue.length && tried.size < 5 && Date.now() - started < 70_000) {
+    // The function has ~150 s in all: the first model gets most of it, any others what's left
+    while (queue.length && tried.size < 5 && Date.now() - started < 125_000) {
       const model = queue.shift()!;
       if (tried.has(model)) continue;
       tried.add(model);
-      let r = await gemini(model, b);
+      const budget = () => Math.max(5_000, Math.min(110_000, 130_000 - (Date.now() - started)));
+      let r = await gemini(model, b, budget());
       // Busy for a moment: one more try
       if ((r.status === 503 || r.status === 500) && Date.now() - started < 30_000) {
         await new Promise((res) => setTimeout(res, 2000));
-        r = await gemini(model, b);
+        r = await gemini(model, b, budget());
       }
       if (r.song || r.refused) return r;
       errors.push(r.error!);
@@ -219,7 +221,7 @@ async function writeSong(b: Brief) {
       if (next && !tried.has(next)) queue.unshift(next);
     }
   }
-  if (OPENAI) {
+  if (OPENAI && Date.now() - started < 120_000) {
     const r = await openai(b).catch((e) => ({ error: `openai: ${String(e).slice(0, 80)}` }) as { song?: Song; refused?: string; error?: string });
     if (r.song || r.refused) return r;
     errors.push(r.error!);
