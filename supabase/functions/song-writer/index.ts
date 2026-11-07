@@ -5,10 +5,11 @@
 //          the choir parts and the band. Gemini (GEMINI_API_KEY; SONG_MODEL, default
 //          gemini-3.5-flash, then 3.8-flash, 3.1-flash-lite, 3.1-pro, and any replacement
 //          Gemini names when it retires a model), then OpenAI (OPENAI_API_KEY).
-//          Saved as the writer's draft (song_drafts). 25 a day per person.
+//          A second pass revises it like an editor (meter, fresh words, the chorus).
+//          Saved as the writer's draft (song_drafts). No daily limits.
 // music  — the draft as a full produced song (vocals, choir, band) through ElevenLabs
 //          music (ELEVENLABS_API_KEY), stored in the public 'song-drafts' bucket.
-//          4 a day per person.
+//          No daily limits.
 //
 // Signed-in members only. A request signed like Auth's hooks (SEND_EMAIL_HOOK_SECRET)
 // may run {"action":"check"} to see which services answer, for setting up.
@@ -24,17 +25,34 @@ const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.5-flash';
 const MODELS = [...new Set([SONG_MODEL, 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.1-pro-preview'])];
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
-const WRITES_PER_DAY = 25;
-const SONGS_PER_DAY = 4;
+// No daily limits (the church's choice): only the services' own allowances apply
 
 // ── The brief and the song ─────────────────────────────────────────────
-const STYLES: Record<string, string> = {
-  gospel_choir: 'Gospel choir: soulful lead with a full choir answering, Hammond organ, piano, bass, drums, claps; builds to a vamp',
-  worship: 'Contemporary worship: congregational, piano and pads, electric guitars, drums build from soft verses to a big chorus',
-  afro_gospel: 'Afro gospel praise: joyful, danceable, talking drums and percussion, highlife guitar, bright horns, choir call-and-response',
-  ballad: 'Gospel ballad: tender and slow, piano-led with strings, a soloist with choir harmonies swelling in the chorus',
-  hymn: 'Modern hymn: strong singable melody, verses that tell the story, piano and strings, a full choir on the last verse',
-  praise: 'Upbeat praise: fast, celebratory, bass-driven groove, drums, brass stabs, the choir shouting back lines',
+/** Each style: how it's written and how it should sound (also the music producer's brief) */
+const STYLES: Record<string, { sound: string; vamp: boolean }> = {
+  gospel_choir: { sound: 'Black gospel choir: soulful lead, full SATB choir answering, Hammond organ with Leslie, gospel piano, bass, drums, claps; builds to a shouting vamp', vamp: true },
+  contemporary_gospel: { sound: 'Contemporary urban gospel: modern R&B-flavoured grooves, lush choir stacks, synth bass, crisp programmed and live drums, keys, polished vocal runs', vamp: true },
+  traditional_gospel: { sound: 'Traditional church gospel: shuffle or 6/8 feel, organ and piano, walking bass, tambourine and claps, call-and-response with the congregation', vamp: true },
+  worship: { sound: 'Contemporary worship: congregational, piano and ambient pads, electric guitars with delay, drums building from intimate verses to an anthemic chorus', vamp: false },
+  acoustic_worship: { sound: 'Acoustic worship: intimate, acoustic guitar and piano, light percussion, warm close harmonies, unhurried and prayerful', vamp: false },
+  anthem: { sound: 'Choir anthem: majestic and building, orchestral strings and brass, timpani, full choir in rich harmony, a key change for the last chorus', vamp: false },
+  ballad: { sound: 'Gospel ballad: tender and slow, piano-led with strings, a soloist with choir harmonies swelling in the chorus', vamp: false },
+  praise: { sound: 'Upbeat praise: fast and celebratory, bass-driven groove, tight drums, brass stabs, the choir shouting back lines', vamp: true },
+  afro_gospel: { sound: 'Afro gospel praise: joyful and danceable, talking drums and shakers, highlife guitar, bright horns, choir call-and-response', vamp: true },
+  highlife: { sound: 'Highlife praise: bright palm-wine guitar lines, horns, congas and cowbell, swinging bass, a celebratory church dance feel', vamp: true },
+  afrobeats_worship: { sound: 'Afrobeats worship: modern Afrobeats rhythm with log drums and percussion, warm keys and pads, smooth lead vocal, the choir on the hook', vamp: true },
+  amapiano_gospel: { sound: 'Amapiano gospel: log-drum basslines, shakers and soft piano chords, airy pads, a laid-back groove with a choir chant on the hook', vamp: true },
+  naija_praise: { sound: 'Nigerian Pentecostal praise: fast high-energy praise with talking drum, agogo, bass and keys, short repeated lines the whole church sings', vamp: true },
+  south_african_choir: { sound: 'South African choir: rich a cappella-led harmonies, stomping and clapping, call-and-response, building into drums and bass', vamp: true },
+  reggae_gospel: { sound: 'Reggae gospel: one-drop rhythm, skanking guitar, deep bass, organ bubble, relaxed joyful vocals', vamp: false },
+  southern_gospel: { sound: 'Southern gospel: piano-led, four-part quartet harmony, steady country-gospel rhythm, warm and joyful', vamp: false },
+  celtic_worship: { sound: 'Celtic worship: tin whistle and fiddle, bodhrán, acoustic guitar, lilting melody in the Irish tradition', vamp: false },
+  hymn: { sound: 'Modern hymn: strong singable melody, verses that tell the story, piano and strings, a full choir on the last verse', vamp: false },
+  traditional_hymn: { sound: 'Traditional hymn: stately four-part harmony, organ, regular metre, verses that build doctrine line by line', vamp: false },
+  gospel_rap: { sound: 'Gospel hip hop: a sung chorus with rapped verses, punchy drums, deep bass, piano or choir samples, clear Christ-centred lyrics', vamp: false },
+  children: { sound: "Children's praise: simple, joyful, easy words and actions, bright piano and percussion, a catchy chorus", vamp: false },
+  christmas: { sound: 'Christmas: carol-like melody, bells, strings and choir, warm and celebratory, the birth of Christ', vamp: false },
+  easter: { sound: 'Easter: from the cross to the empty tomb, building from reflective to triumphant, choir and full band', vamp: true },
 };
 const FEELS: Record<string, string> = { slow: '60–72 BPM', mid: '76–96 BPM', fast: '110–132 BPM' };
 
@@ -44,7 +62,9 @@ interface Brief {
   style?: string;
   feel?: string;
   key?: string;
+  /** Another language, for the chorus or the whole song */
   language?: string;
+  languageMode?: 'chorus' | 'all';
   notes?: string;
 }
 
@@ -66,46 +86,72 @@ const clean = (s: unknown, max: number) => (typeof s === 'string' ? s.replace(/\
 function briefFrom(input: Record<string, unknown>): Brief | null {
   const theme = clean(input.theme, 600);
   if (theme.length < 3) return null;
+  const language = clean(input.language, 40);
   return {
     theme,
     scripture: clean(input.scripture, 200),
     style: STYLES[String(input.style)] ? String(input.style) : 'gospel_choir',
     feel: FEELS[String(input.feel)] ? String(input.feel) : 'mid',
     key: /^[A-G](b|#)?m?$/.test(String(input.key ?? '')) ? String(input.key) : '',
-    language: clean(input.language, 60),
+    language: /^english$/i.test(language) ? '' : language,
+    languageMode: input.languageMode === 'all' ? 'all' : 'chorus',
     notes: clean(input.notes, 600),
   };
 }
 
-const SYSTEM = `You are a seasoned gospel and worship songwriter and arranger who writes for a church choir and band. You write ONLY Christian worship, praise and gospel songs: Christ-centred, faithful to Scripture and historic Christian belief (the Trinity, salvation by grace through faith in Jesus, His death and resurrection, the work of the Holy Spirit). Never promise wealth or guaranteed outcomes, never put words in God's mouth beyond what Scripture says, never write anything secular, romantic, political or about other religions. If the brief asks for anything else, reply with {"refused": true, "reason": "<one short sentence>"}.
+/** Words that give a machine away (or are just tired); the editor removes them */
+const TIRED = ['tapestry', 'symphony', 'embrace', 'journey', 'soar', 'ignite', 'unleash', 'realm', 'testament', 'in this moment', 'heart and soul', 'echoes', 'whispers', 'beacon', 'unwavering', 'boundless', 'transcend', 'vibrant', 'resonate', 'navigate', 'tapestries', 'kaleidoscope', 'embers', 'shattered chains'];
+
+const SYSTEM = `You are a seasoned gospel and worship songwriter and arranger who has written for church choirs and bands for thirty years, across gospel, worship, African and traditional styles. You write ONLY Christian worship, praise and gospel songs: Christ-centred, faithful to Scripture and historic Christian belief (the Trinity, salvation by grace through faith in Jesus, His death and resurrection, the work of the Holy Spirit). Never promise wealth or guaranteed outcomes, never put words in God's mouth beyond what Scripture says, never write anything secular, romantic, political or about other religions. If the brief asks for anything else, reply with {"refused": true, "reason": "<one short sentence>"}.
 
 Write like a real songwriter, not a machine:
-- Concrete pictures and verbs drawn from Scripture and everyday life, not abstractions. Avoid tired filler: "tapestry", "symphony", "embrace", "journey", "soar", "ignite", "unleash", "realm", "testament to", "in this moment", "heart and soul", "rise up" (unless the text demands it).
-- Natural, singable English with steady meter: lines in a section have matching syllable counts and stresses. Rhyme where it falls naturally (near rhymes are fine); never force a rhyme or twist word order to get one.
-- One clear idea per song. Verses tell it; the chorus is short, memorable and repeated exactly; the bridge turns or lifts it. Gospel styles end with a vamp of 1–3 short repeated lines the choir can build on.
+- Concrete pictures and verbs from Scripture and everyday life (a kitchen table, a hospital corridor, the Jordan, a shepherd's staff), not abstractions. Never use: ${TIRED.map((w) => `"${w}"`).join(', ')}, "rise up" (unless the text demands it).
+- Natural, singable words with steady meter: lines in a section have matching syllable counts and stresses, so one melody fits every line. Rhyme where it falls naturally (near rhymes are fine); never force a rhyme or twist word order to get one.
+- Sound like the style: the idioms, the phrasing, the call-and-response or the congregational simplicity that style really uses.
+- One clear idea per song. Verses tell it; the chorus is short, memorable and repeated exactly; the bridge turns or lifts it. Styles with a vamp end with 1–3 short repeated lines the choir can build on.
 - Original: never copy or closely echo lines from existing songs or hymns. Quote Scripture only briefly and naturally.
 - Easy for a congregation and a choir: comfortable range, words that fit the mouth.
 
-Chords: write each line in ChordPro style with chords in square brackets right before the syllable they land on, e.g. "[G]Holy is the [D/F#]Lamb who [Em]reigns". Use the song's key; diatonic chords with tasteful colour (sus, add9, slash chords, a borrowed IV minor or passing chord where it serves). Every sung line has at least one chord; an intro or turnaround may be a line of chords only. Square brackets hold chords ONLY: write choir answers, ad-libs and directions in round brackets, e.g. "[Eb]He carried me (Choir: He carried me!)". Use # and b for sharps and flats.
+Chords: write each line in ChordPro style with chords in square brackets right before the syllable they land on, e.g. "[G]Holy is the [D/F#]Lamb who [Em]reigns". Use the song's key; chords true to the style (gospel: 7ths, 9ths, passing diminished and slash chords; worship: open sus and add9; hymn: plain triads), placed on stressed syllables. Every sung line has at least one chord; an intro or turnaround may be a line of chords only. Square brackets hold chords ONLY: write choir answers, ad-libs and directions in round brackets, e.g. "[Eb]He carried me (Choir: He carried me!)". Use # and b for sharps and flats.
 
 Also give: arrangement.choir (SATB or SAT parts: who sings what, call-and-response, harmonies, where the choir enters, ad-libs) and arrangement.band (groove, drum pattern, bass, keys/organ, guitar, dynamics section by section), each under 700 characters; music_style: one sentence describing the genre, instruments, vocal delivery and mood for a music producer (never name a real artist or existing song).
 
 Reply with JSON only, exactly: {"title": string, "key": string, "bpm": number, "time_signature": string, "feel": string, "scripture": string[], "summary": string (one sentence), "sections": [{"name": "Verse 1" | "Pre-Chorus" | "Chorus" | "Verse 2" | "Bridge" | "Vamp" | "Intro" | "Outro" | ..., "lines": string[]}], "arrangement": {"choir": string, "band": string}, "music_style": string}.`;
+
+const languageLine = (b: Brief) =>
+  !b.language
+    ? 'Language: English.'
+    : b.languageMode === 'all'
+      ? `Language: write the whole song in ${b.language}, as native ${b.language}-speaking church choirs really sing (natural idiom, not a translation). Keep the section names in English.`
+      : `Language: English verses, with the chorus (and the vamp, if any) in ${b.language}, as native speakers sing it in church; you may add the English meaning in round brackets after a line.`;
 
 const userPrompt = (b: Brief) =>
   [
     `Write a complete song.`,
     `What it's about: ${b.theme}`,
     b.scripture ? `Scripture to draw from: ${b.scripture}` : 'Choose fitting Scripture yourself.',
-    `Style: ${STYLES[b.style!]}`,
+    `Style: ${STYLES[b.style!].sound}`,
     `Tempo: ${FEELS[b.feel!]}`,
     b.key ? `Key: ${b.key}` : 'Pick a key that suits a church choir (e.g. C, D, Eb, F, G, Ab or Bb).',
-    b.language ? `Language: mostly English, with ${b.language} where it fits naturally (give the line in that language as it is sung).` : 'Language: English.',
+    languageLine(b),
     b.notes ? `Writer's notes: ${b.notes}` : '',
-    `Structure: Verse 1, (Pre-Chorus), Chorus, Verse 2, Chorus, Bridge, Chorus${b.style === 'gospel_choir' || b.style === 'afro_gospel' || b.style === 'praise' ? ', Vamp' : ''}. Repeat the chorus in full each time it appears.`,
+    `Structure: Verse 1, (Pre-Chorus), Chorus, Verse 2, Chorus, Bridge, Chorus${STYLES[b.style!].vamp ? ', Vamp' : ''}. Repeat the chorus in full each time it appears.`,
   ]
     .filter(Boolean)
     .join('\n');
+
+const EDITOR = `You are the producer and editor a church choir trusts with every new song. You receive a draft song as JSON. Make it the best version of itself, the way an experienced songwriter would revise before the first rehearsal:
+- Meter: make every line in a section scan the same (same syllable count and stress pattern), so one melody fits all of them. Read each line aloud in your head.
+- Words: replace anything generic, abstract, clichéd or that sounds machine-written with concrete, fresh images from Scripture and real life. Remove every one of these words: ${TIRED.map((w) => `"${w}"`).join(', ')}.
+- Chorus: make it short, singable and memorable on first hearing; the title should sit in it. Repeat it identically every time.
+- Rhyme: natural only; fix any forced rhyme or twisted word order.
+- Truth: keep it faithful to Scripture and Christ-centred; fix anything doctrinally loose.
+- Style: keep it true to the brief's style and language.
+- Chords: keep them valid for the key and on stressed syllables; square brackets hold chords only, choir answers in round brackets.
+Keep the same structure and the same JSON shape and fields. Reply with the revised song as JSON only.`;
+
+const editorPrompt = (song: Song, b: Brief) =>
+  `The brief: ${userPrompt(b)}\n\nThe draft:\n${JSON.stringify(song)}`;
 
 function validSong(x: unknown): Song | null {
   const s = x as Song;
@@ -129,7 +175,13 @@ function validSong(x: unknown): Song | null {
   };
 }
 
-async function gemini(model: string, b: Brief, timeoutMs: number, lowThinking = true): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
+interface Ask {
+  system: string;
+  prompt: string;
+  temperature: number;
+}
+
+async function gemini(model: string, ask: Ask, timeoutMs: number, lowThinking = true): Promise<{ song?: Song; refused?: string; error?: string; status?: number }> {
   const t0 = Date.now();
   let res: Response;
   try {
@@ -139,11 +191,11 @@ async function gemini(model: string, b: Brief, timeoutMs: number, lowThinking = 
       // Each attempt must leave time for another inside the function's limit
       signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: 'user', parts: [{ text: userPrompt(b) }] }],
+        systemInstruction: { parts: [{ text: ask.system }] },
+        contents: [{ role: 'user', parts: [{ text: ask.prompt }] }],
         generationConfig: {
           responseMimeType: 'application/json',
-          temperature: 0.9,
+          temperature: ask.temperature,
           maxOutputTokens: 8192,
           // Thinking at length makes an answer take minutes: a little is plenty for a song
           ...(lowThinking ? { thinkingConfig: { thinkingLevel: 'minimal' } } : {}),
@@ -156,7 +208,7 @@ async function gemini(model: string, b: Brief, timeoutMs: number, lowThinking = 
   if (!res.ok) {
     const text = await res.text();
     // A model that doesn't take the thinking setting: ask again without it
-    if (lowThinking && res.status === 400 && /thinking/i.test(text)) return gemini(model, b, Math.max(5_000, timeoutMs - (Date.now() - t0)), false);
+    if (lowThinking && res.status === 400 && /thinking/i.test(text)) return gemini(model, ask, Math.max(5_000, timeoutMs - (Date.now() - t0)), false);
     return { error: `${model} ${res.status} after ${Math.round((Date.now() - t0) / 1000)}s: ${text.slice(0, 200)}`, status: res.status };
   }
   const data = await res.json();
@@ -166,18 +218,18 @@ async function gemini(model: string, b: Brief, timeoutMs: number, lowThinking = 
   return out;
 }
 
-async function openai(b: Brief): Promise<{ song?: Song; refused?: string; error?: string }> {
+async function openai(ask: Ask): Promise<{ song?: Song; refused?: string; error?: string }> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     signal: AbortSignal.timeout(20_000),
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI}` },
     body: JSON.stringify({
       model: Deno.env.get('OPENAI_SONG_MODEL') ?? 'gpt-4.1',
-      temperature: 0.9,
+      temperature: ask.temperature,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: userPrompt(b) },
+        { role: 'system', content: ask.system },
+        { role: 'user', content: ask.prompt },
       ],
     }),
   });
@@ -197,23 +249,24 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
   }
 }
 
-async function writeSong(b: Brief, only?: string) {
+/** Ask the models in order until one answers, within `limitMs` of the function's time */
+async function generate(ask: Ask, limitMs: number, only?: string) {
   const errors: string[] = [];
   const started = Date.now();
+  const left = () => limitMs - (Date.now() - started);
   if (GEMINI) {
     const queue = only ? [only] : [...MODELS];
     const tried = new Set<string>();
-    // The function has ~150 s in all: the first model gets most of it, any others what's left
-    while (queue.length && tried.size < 5 && Date.now() - started < 125_000) {
+    while (queue.length && tried.size < 5 && left() > 8_000) {
       const model = queue.shift()!;
       if (tried.has(model)) continue;
       tried.add(model);
-      const budget = () => Math.max(5_000, Math.min(50_000, 130_000 - (Date.now() - started)));
-      let r = await gemini(model, b, budget());
+      const budget = () => Math.max(5_000, Math.min(50_000, left() - 3_000));
+      let r = await gemini(model, ask, budget());
       // Busy for a moment: one more try
-      if ((r.status === 503 || r.status === 500) && Date.now() - started < 30_000) {
+      if ((r.status === 503 || r.status === 500) && left() > 20_000) {
         await new Promise((res) => setTimeout(res, 2000));
-        r = await gemini(model, b, budget());
+        r = await gemini(model, ask, budget());
       }
       if (r.song || r.refused) return r;
       errors.push(r.error!);
@@ -222,12 +275,34 @@ async function writeSong(b: Brief, only?: string) {
       if (next && !tried.has(next)) queue.unshift(next);
     }
   }
-  if (OPENAI && Date.now() - started < 120_000) {
-    const r = await openai(b).catch((e) => ({ error: `openai: ${String(e).slice(0, 80)}` }) as { song?: Song; refused?: string; error?: string });
+  if (OPENAI && left() > 10_000) {
+    const r = await openai(ask).catch((e) => ({ error: `openai: ${String(e).slice(0, 80)}` }) as { song?: Song; refused?: string; error?: string });
     if (r.song || r.refused) return r;
     errors.push(r.error!);
   }
   return { error: errors.join(' · ') || 'No song service is set up.' };
+}
+
+const tiredWords = (song: Song) => {
+  const text = song.sections.flatMap((s) => s.lines).join(' ').toLowerCase();
+  return TIRED.filter((w) => text.includes(w));
+};
+
+/**
+ * Write the song, then revise it as an experienced editor would (meter, fresh
+ * words, a stronger chorus). The revision is kept only if it comes back whole
+ * and keeps the song's shape; otherwise the first draft stands.
+ */
+async function writeSong(b: Brief, only?: string) {
+  const started = Date.now();
+  const first = await generate({ system: SYSTEM, prompt: userPrompt(b), temperature: 0.95 }, 95_000, only);
+  if (!first.song) return first;
+  const left = 128_000 - (Date.now() - started);
+  if (left < 15_000) return { ...first, revised: false };
+  const second = await generate({ system: EDITOR, prompt: editorPrompt(first.song, b), temperature: 0.5 }, left, only);
+  const good = second.song && second.song.sections.length >= Math.max(3, first.song.sections.length - 2) && tiredWords(second.song).length <= tiredWords(first.song).length;
+  console.log(`[song-writer] revised: ${good ? 'yes' : 'no'} (${Math.round((Date.now() - started) / 1000)}s, tired words ${tiredWords(first.song).length}→${second.song ? tiredWords(second.song).length : '-'})`);
+  return good ? { song: second.song, revised: true } : { ...first, revised: false };
 }
 
 // ── The music ─────────────────────────────────────────────────────────
@@ -260,7 +335,7 @@ function compositionPlan(song: Song, brief: Brief) {
     positive_global_styles: [
       'christian gospel', 'church choir', 'live band', 'uplifting', 'reverent',
       ...(song.music_style ? [song.music_style.slice(0, 200)] : []),
-      ...(STYLES[brief.style ?? 'gospel_choir'] ? [STYLES[brief.style ?? 'gospel_choir'].split(':')[0]] : []),
+      ...(STYLES[brief.style ?? 'gospel_choir'] ? [STYLES[brief.style ?? 'gospel_choir'].sound.split(':')[0]] : []),
       `${song.bpm} bpm`, `key of ${song.key}`,
     ],
     negative_global_styles: ['explicit', 'secular', 'distorted', 'lo-fi', 'spoken word'],
@@ -308,7 +383,6 @@ async function signedByAdmin(req: Request, body: string): Promise<boolean> {
   return sigs.split(' ').some((s) => s.replace(/^v1,/, '') === expected);
 }
 
-const startOfDay = () => new Date(Date.now() - 24 * 3600_000).toISOString();
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -324,7 +398,7 @@ Deno.serve(async (req) => {
 
   if (input.action === 'check') {
     if (!admin) return json({ error: 'Not allowed' }, 403);
-    const brief = briefFrom({ theme: 'Thanksgiving for God\'s faithfulness through a hard year', style: 'gospel_choir', feel: 'mid' })!;
+    const brief = briefFrom({ theme: typeof input.theme === 'string' ? input.theme : 'Thanksgiving for God\'s faithfulness through a hard year', style: typeof input.style === 'string' ? input.style : 'gospel_choir', feel: 'mid', language: input.language, languageMode: input.languageMode })!;
     const out: Record<string, unknown> = { gemini: !!GEMINI, openai: !!OPENAI, elevenlabs: !!ELEVEN, models_in_order: MODELS };
     if (input.models && GEMINI) {
       const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': GEMINI } });
@@ -337,7 +411,7 @@ Deno.serve(async (req) => {
       const t0 = Date.now();
       const r = await writeSong(brief, typeof input.model === 'string' ? input.model : undefined);
       out.write_seconds = Math.round((Date.now() - t0) / 1000);
-      out.write = r.song ? { ok: true, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
+      out.write = r.song ? { ok: true, revised: (r as { revised?: boolean }).revised, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
       if (r.song) out.song = r.song;
     }
     if (input.music) {
@@ -359,10 +433,6 @@ Deno.serve(async (req) => {
   if (input.action === 'write') {
     const brief = briefFrom(input);
     if (!brief) return json({ error: 'Say what the song is about.' }, 400);
-    const { count } = await supabaseAdmin
-      .from('song_drafts').select('id', { count: 'exact', head: true })
-      .eq('created_by', user.id).gte('created_at', startOfDay());
-    if ((count ?? 0) >= WRITES_PER_DAY) return json({ error: `You've written ${WRITES_PER_DAY} songs today. Try again tomorrow.` }, 429);
     const r = await writeSong(brief);
     if (r.refused) return json({ refused: r.refused }, 200);
     if (!r.song) {
@@ -391,10 +461,6 @@ Deno.serve(async (req) => {
     if (draft.audio_status === 'making' && draft.music_requested_at && Date.now() - Date.parse(draft.music_requested_at) < 5 * 60_000) {
       return json({ error: 'The music is already being made.' }, 409);
     }
-    const { count } = await supabaseAdmin
-      .from('song_drafts').select('id', { count: 'exact', head: true })
-      .eq('created_by', user.id).gte('music_requested_at', startOfDay());
-    if ((count ?? 0) >= SONGS_PER_DAY) return json({ error: `You've made ${SONGS_PER_DAY} songs' music today. Try again tomorrow.` }, 429);
     const { data: making } = await supabaseAdmin
       .from('song_drafts')
       .update({ audio_status: 'making', audio_error: null, music_requested_at: new Date().toISOString() })
