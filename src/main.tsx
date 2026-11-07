@@ -1,6 +1,6 @@
 // First: which church this is (before anything reads its name, colours or parts)
 import '@/lib/churchSpace';
-import { isChunkError, reloadForUpdate } from '@/lib/lazyLoad';
+import { freshReload, isChunkError, isUpdating, reloadForUpdate } from '@/lib/lazyLoad';
 import { track } from '@/lib/activity';
 import React from 'react'
 import ReactDOM from 'react-dom/client'
@@ -98,7 +98,7 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('App crashed:', error, info.componentStack);
     // The app was updated while open: reload into the new version (no error screen)
-    if (isChunkError(error) && reloadForUpdate()) {
+    if (isUpdating() || (isChunkError(error) && reloadForUpdate())) {
       this.setState({ reloading: true });
       return;
     }
@@ -124,7 +124,7 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
             Sorry about that. Reloading usually fixes it.
           </p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => freshReload()}
             style={{ background: '#2563eb', color: 'white', border: 0, borderRadius: 999, padding: '12px 28px', fontWeight: 600, fontSize: 16 }}
           >
             Reload app

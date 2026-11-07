@@ -10,6 +10,7 @@ import { currentChurchId } from '@/lib/churchSpace';
 import { choirName } from '@/lib/choirChat';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
 import MusicProgress from '@/components/choir/MusicProgress';
+import LiveProgress, { type Stage } from '@/components/choir/LiveProgress';
 
 interface Draft {
   id: string;
@@ -91,7 +92,17 @@ const FEELS = [
   { id: 'fast', label: 'Fast' },
 ];
 const KEYS = ['', 'C', 'D', 'Eb', 'E', 'F', 'G', 'Ab', 'A', 'Bb'];
-const WRITING = ['Reading the Scripture…', 'Finding the words…', 'Shaping the chorus…', 'Setting the chords…', 'Writing the choir parts…'];
+/** What the song helper is doing while it writes (a first draft, then an editor's pass: ~10–16 s, measured Nov 2026) */
+const WRITING: Stage[] = [
+  { from: 0, text: 'Reading the Scripture' },
+  { from: 0.1, text: 'Finding the words' },
+  { from: 0.26, text: 'Shaping the chorus' },
+  { from: 0.42, text: 'Setting the chords' },
+  { from: 0.56, text: 'Writing the choir and band parts' },
+  { from: 0.68, text: "Editor's pass: tightening every line" },
+  { from: 0.86, text: 'Final polish' },
+];
+const writeSeconds = (n: number) => 15 + 4 * (n - 1);
 /** The function gives a song up after 25 minutes (the first song wakes the music server) */
 const MAKING_MAX_MS = 26 * 60_000;
 
@@ -146,7 +157,8 @@ const ComposeSongPage = () => {
   const [count, setCount] = useState(1);
   const [ideas, setIdeas] = useState(() => [...IDEAS].sort(() => Math.random() - 0.5).slice(0, 4));
   const [writing, setWriting] = useState(false);
-  const [step, setStep] = useState(0);
+  /** The live progress while writing: when it started, how many songs, finished */
+  const [writeRun, setWriteRun] = useState<{ at: number; count: number; done: boolean } | null>(null);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [current, setCurrent] = useState<Draft | null>(null);
   const poll = useRef<number | null>(null);
@@ -208,12 +220,6 @@ const ComposeSongPage = () => {
     };
   }, [current?.id, current?.audio_status]);
 
-  useEffect(() => {
-    if (!writing) return;
-    const t = window.setInterval(() => setStep((s) => (s + 1) % WRITING.length), 4000);
-    return () => window.clearInterval(t);
-  }, [writing]);
-
   const open = (d: Draft) => setParams({ song: d.id });
 
   const write = async (from?: Brief, howMany = 1) => {
@@ -223,14 +229,20 @@ const ComposeSongPage = () => {
       return;
     }
     setWriting(true);
-    setStep(0);
+    setWriteRun({ at: Date.now(), count: howMany, done: false });
     // Several songs from one brief: each is written separately, so they all differ
     const results = await Promise.all(
       Array.from({ length: howMany }, () => call({ action: 'write', ...b, language: b.language === 'English' ? '' : b.language, location: locationId, churchId: currentChurchId })),
     );
-    setWriting(false);
     const written = results.flatMap((r) => (r.draft ? [r.draft] : []));
     const refused = results.find((r) => r.refused)?.refused;
+    // A written song shows 100% for a moment before it opens
+    if (written.length) {
+      setWriteRun((r) => (r ? { ...r, done: true } : r));
+      await new Promise((res) => setTimeout(res, 700));
+    }
+    setWriting(false);
+    setWriteRun(null);
     if (!written.length) {
       if (refused) appAlert("That one isn't for the song helper", refused, 'info');
       else appAlert("Couldn't write the song", results.find((r) => r.error)?.error ?? 'Please try again.', 'error');
@@ -358,6 +370,7 @@ const ComposeSongPage = () => {
               </button>
             </div>
           )}
+          {writeRun && <WritingProgress run={writeRun} className="mt-4 rounded-2xl border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" />}
           <MakeItYours className="mt-5" />
         </div>
       </Page>
@@ -462,7 +475,7 @@ const ComposeSongPage = () => {
         <button type="button" onClick={() => write(undefined, count)} disabled={writing} className="flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[16px] font-semibold text-white shadow-sm disabled:opacity-80">
           {writing ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" /> {WRITING[step]}
+              <Loader2 className="h-5 w-5 animate-spin" /> {writeRun && writeRun.count > 1 ? `Writing ${writeRun.count} songs…` : 'Writing the song…'}
             </>
           ) : (
             <>
@@ -470,6 +483,7 @@ const ComposeSongPage = () => {
             </>
           )}
         </button>
+        {writeRun && <WritingProgress run={writeRun} className="rounded-2xl border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" />}
         <MakeItYours />
         <p className="px-1 text-[12.5px] leading-snug text-muted-foreground">Only Christian worship and gospel songs. Lines in another language are worth checking with a native speaker.</p>
       </div>
@@ -597,6 +611,19 @@ const MusicServiceRow = ({ service, onChange }: { service: MusicService; onChang
     </>
   );
 };
+
+const WritingProgress = ({ run, className }: { run: { at: number; count: number; done: boolean }; className?: string }) => (
+  <LiveProgress
+    testId="writing-progress"
+    className={className}
+    title={run.count > 1 ? `Writing ${run.count} songs` : 'Writing the song'}
+    startedAt={run.at}
+    expectedS={writeSeconds(run.count)}
+    stages={WRITING}
+    done={run.done}
+    note="Words, chords, choir and band notes. Each song gets a second pass, like an editor would give it."
+  />
+);
 
 /**
  * What the song helper is and isn't: a starting point (words, chords, choir parts, a
