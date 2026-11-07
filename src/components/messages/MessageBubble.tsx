@@ -343,13 +343,24 @@ const MessageBubble = ({
         <div className="relative flex min-w-0 max-w-full items-center gap-1">
           {/* Desktop quick-react button */}
           {isOwn && !message.pending && !gone && (
-            <button
-              onClick={() => onOpenActions(message)}
-              className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
-              aria-label="React"
-            >
-              <SmilePlus className="h-4 w-4" />
-            </button>
+            <>
+              {canSwipe && (
+                <button
+                  onClick={() => onReply?.(message)}
+                  className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
+                  aria-label="Reply"
+                >
+                  <Reply className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                onClick={() => onOpenActions(message)}
+                className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
+                aria-label="React"
+              >
+                <SmilePlus className="h-4 w-4" />
+              </button>
+            </>
           )}
 
           <div
@@ -466,13 +477,24 @@ const MessageBubble = ({
           </div>
 
           {!isOwn && !gone && (
-            <button
-              onClick={() => onOpenActions(message)}
-              className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
-              aria-label="React"
-            >
-              <SmilePlus className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => onOpenActions(message)}
+                className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
+                aria-label="React"
+              >
+                <SmilePlus className="h-4 w-4" />
+              </button>
+              {canSwipe && (
+                <button
+                  onClick={() => onReply?.(message)}
+                  className="hidden h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-0 transition hover:bg-muted group-hover/msg:opacity-100 md:flex"
+                  aria-label="Reply"
+                >
+                  <Reply className="h-4 w-4" />
+                </button>
+              )}
+            </>
           )}
         </div>
 
