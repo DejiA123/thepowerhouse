@@ -405,8 +405,9 @@ Deno.serve(async (req) => {
       const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': GEMINI } });
       const d = await r.json().catch(() => ({}));
       out.models = (d.models ?? [])
-        .filter((m: { supportedGenerationMethods?: string[] }) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m: { name: string }) => m.name.replace('models/', ''));
+        .filter((m: { supportedGenerationMethods?: string[] }) => input.models === 'all' || m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m: { name: string; supportedGenerationMethods?: string[]; description?: string }) =>
+          input.models === 'all' ? `${m.name.replace('models/', '')} [${(m.supportedGenerationMethods ?? []).join(',')}]${/music|lyria|song|audio/i.test(`${m.name} ${m.description ?? ''}`) ? ' — ' + (m.description ?? '').slice(0, 160) : ''}` : m.name.replace('models/', ''));
     }
     if (input.write) {
       const t0 = Date.now();
