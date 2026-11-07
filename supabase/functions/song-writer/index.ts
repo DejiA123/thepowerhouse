@@ -48,6 +48,7 @@ const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 /** Each style: how it's written and how it should sound (also the music producer's brief) */
 const STYLES: Record<string, { sound: string; vamp: boolean }> = {
   gospel_choir: { sound: 'Black gospel choir: soulful lead, full SATB choir answering, Hammond organ with Leslie, gospel piano, bass, drums, claps; builds to a shouting vamp', vamp: true },
+  christian_rnb: { sound: 'Christian R&B: smooth slow-to-mid neo-soul groove (around 65–90 BPM, laid-back swung sixteenths), warm Rhodes and electric piano with rich extended chords (maj9, min11, 13ths), deep round bass, soft crisp drums with finger snaps, subtle guitar licks; an intimate, soulful lead with melismatic runs, close layered background harmonies and ad-libs; worshipful and personal, sung to Jesus', vamp: true },
   contemporary_gospel: { sound: 'Contemporary urban gospel: modern R&B-flavoured grooves, lush choir stacks, synth bass, crisp programmed and live drums, keys, polished vocal runs', vamp: true },
   traditional_gospel: { sound: 'Traditional church gospel: shuffle or 6/8 feel, organ and piano, walking bass, tambourine and claps, call-and-response with the congregation', vamp: true },
   worship: { sound: 'Contemporary worship: congregational, piano and ambient pads, electric guitars with delay, drums building from intimate verses to an anthemic chorus', vamp: false },
@@ -416,7 +417,7 @@ function lyriaPrompt(song: Song, brief: Brief) {
     .filter((block) => block.split('\n').length > 1)
     .join('\n\n');
   return [
-    `A complete Christian ${style.sound.split(':')[0].toLowerCase()} song for a church choir, about three minutes long, recorded like a professional live church session.`,
+    `A complete ${christianGenre(style.sound)} song for a church choir, about three minutes long, recorded like a professional live church session.`,
     `Sound: ${style.sound}.`,
     song.music_style ? `Production: ${song.music_style}` : '',
     `Tempo ${song.bpm} BPM, ${song.time_signature}, key of ${song.key}.`,
@@ -468,12 +469,18 @@ async function keyFor(churchId: string | null | undefined, service: Service): Pr
   return ENV_KEYS[service];
 }
 
+/** "Christian gospel choir", "Christian R&B" (never "Christian christian …") */
+const christianGenre = (sound: string) => {
+  const g = sound.split(':')[0].trim();
+  return /^christian\b/i.test(g) ? g : `Christian ${g.toLowerCase()}`;
+};
+
 /** The style as ACE-Step's description: genre, instruments, voices, production */
 function aceCaption(song: Song, brief: Brief) {
   const style = STYLES[brief.style ?? 'gospel_choir'] ?? STYLES.gospel_choir;
   const [genre, sound] = style.sound.split(':');
   return [
-    `Christian ${genre.trim().toLowerCase()}`,
+    christianGenre(genre),
     sound?.trim(),
     `${LEAD[sungVoice(brief)]}, full church choir singing harmonies and answering lines`,
     song.music_style ? song.music_style.slice(0, 260) : '',
