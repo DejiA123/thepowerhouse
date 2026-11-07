@@ -295,12 +295,15 @@ export async function shareKeys(userId: string, chatId: string): Promise<void> {
   if (!device) return;
   const keys = await loadKeys(userId, chatId);
   if (!keys.size) return;
-  const [{ members, devices: targets }, have] = await Promise.all([memberDevices(chatId), holders(chatId)]);
+  const [{ devices: targets }, have] = await Promise.all([memberDevices(chatId), holders(chatId)]);
   const has = new Set(have.map((h) => `${h.key_id}|${h.device_id}`));
+  // Every key goes to every current member's device, including keys someone who has since
+  // left also holds: they're the keys of past messages, which today's members may read (new
+  // members see the history) and which tell the former member nothing new. Only sending
+  // stops using such a key (sendingKey picks a fresh one). Skipping them here left the
+  // Choir group's imported history "Waiting for this message" for everyone added after
+  // a member left (Nov 2026).
   for (const [keyId, key] of keys) {
-    // A key someone who has left still holds stays theirs: it isn't given out any more
-    const leaked = have.some((h) => h.key_id === keyId && !members.has(h.user_id));
-    if (leaked) continue;
     await sealFor(device, chatId, keyId, key, targets.filter((t) => !has.has(`${keyId}|${t.id}`)));
   }
 }
