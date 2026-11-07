@@ -15,6 +15,8 @@ export interface ComposedSong {
   sections: { name: string; lines: string[] }[];
   arrangement: { choir: string; band: string };
   music_style: string;
+  /** The song helper's own words, kept the first time the writer saves their edits (Back to the first draft) */
+  first_draft?: { name: string; lines: string[] }[];
 }
 
 /** A sung line with each chord sitting above the word it falls on */
