@@ -15,21 +15,115 @@ const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(self.navigato
  */
 const E2E_PREFIX = '::e2e::1:';
 
+/*
+ * iPhone (WebKit) sometimes loses its IndexedDB connection while the app is in the
+ * background, and every request then fails: notifications said "🔒 New message" now and
+ * then though the phone had the key (Nov 2026). So each use of the key store opens a fresh
+ * connection, closes it afterwards, gives up after 2 s, and is tried up to 3 times; and the
+ * app keeps a second copy of each chat key in Cache Storage (readCachedKey) for when
+ * IndexedDB fails altogether.
+ */
+let keyStoreError = '';
+
 function openKeyStore() {
   return new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) {
+        done = true;
+        reject(new Error('timed out'));
+      }
+    }, 2000);
     const req = indexedDB.open('ph-chat-keys', 1);
     req.onupgradeneeded = () => req.result.createObjectStore('kv');
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      clearTimeout(timer);
+      if (done) {
+        req.result.close();
+        return;
+      }
+      done = true;
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      clearTimeout(timer);
+      if (!done) {
+        done = true;
+        reject(req.error);
+      }
+    };
+    req.onblocked = () => {
+      /* another connection is upgrading: the timer gives up if it takes too long */
+    };
   });
 }
 
-function readChatKey(chatId, keyId) {
-  return openKeyStore().then((db) => new Promise((resolve) => {
-    const req = db.transaction('kv').objectStore('kv').get('chatkey:' + chatId + ':' + keyId);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => resolve(null);
-  })).catch(() => null);
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Runs one request on a fresh connection (closed after), up to 3 tries */
+async function withKeyStore(run) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let db;
+    try {
+      db = await openKeyStore();
+      const result = await run(db);
+      keyStoreError = '';
+      return result;
+    } catch (e) {
+      last = e;
+      keyStoreError = (e && (e.name || e.message)) || String(e);
+      await pause(attempt === 0 ? 120 : 400);
+    } finally {
+      try {
+        if (db) db.close();
+      } catch (e) {
+        /* already closed */
+      }
+    }
+  }
+  throw last;
+}
+
+const request = (req) => new Promise((resolve, reject) => {
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+
+/** The second copy of a chat key the app keeps in Cache Storage (raw bytes, base64) */
+const KEY_CACHE = 'ph-chat-keys-v1';
+const keyCacheUrl = (chatId, keyId) => '/__chatkey/' + encodeURIComponent(chatId) + '/' + encodeURIComponent(keyId);
+async function readCachedKey(chatId, keyId) {
+  try {
+    const hit = await (await caches.open(KEY_CACHE)).match(keyCacheUrl(chatId, keyId));
+    if (!hit) return null;
+    return await crypto.subtle.importKey('raw', fromBase64((await hit.text()).trim()), { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+  } catch (e) {
+    return null;
+  }
+}
+async function cacheKeyCopy(chatId, keyId, key) {
+  try {
+    const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+    let bin = '';
+    raw.forEach((b) => (bin += String.fromCharCode(b)));
+    await (await caches.open(KEY_CACHE)).put(keyCacheUrl(chatId, keyId), new Response(btoa(bin), { headers: { 'Content-Type': 'text/plain' } }));
+  } catch (e) {
+    /* best effort */
+  }
+}
+
+/** This phone's chat key: from IndexedDB, or else the Cache Storage copy */
+async function readChatKey(chatId, keyId) {
+  let key = null;
+  try {
+    key = await withKeyStore((db) => request(db.transaction('kv').objectStore('kv').get('chatkey:' + chatId + ':' + keyId)));
+  } catch (e) {
+    key = null;
+  }
+  if (key) return { key, from: 'key on this phone' };
+  const copy = await readCachedKey(chatId, keyId);
+  return copy ? { key: copy, from: keyStoreError ? 'key copy (key store failed: ' + keyStoreError + ')' : 'key copy on this phone' } : null;
 }
 
 function fromBase64(text) {
@@ -40,21 +134,21 @@ function fromBase64(text) {
 }
 
 function storeChatKey(chatId, keyId, key) {
-  return openKeyStore().then((db) => new Promise((resolve) => {
+  const idb = withKeyStore((db) => new Promise((resolve, reject) => {
     const tx = db.transaction('kv', 'readwrite');
     tx.objectStore('kv').put(key, 'chatkey:' + chatId + ':' + keyId);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   })).catch(() => undefined);
+  return Promise.all([idb, cacheKeyCopy(chatId, keyId, key)]);
 }
 
 /** This phone's own devices (one per account signed in here), kept by the app: device:<user id> */
 function readDevices() {
-  return openKeyStore().then((db) => new Promise((resolve) => {
-    const req = db.transaction('kv').objectStore('kv').getAll(IDBKeyRange.bound('device:', 'device:\uffff'));
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => resolve([]);
-  }));
+  return withKeyStore((db) => request(db.transaction('kv').objectStore('kv').getAll(IDBKeyRange.bound('device:', 'device:\uffff'))))
+    .then((all) => all || [])
+    .catch(() => []);
 }
 
 /*
@@ -121,11 +215,14 @@ async function openEncrypted(chatId, content, sealed) {
   lastHow = '';
   try {
     const parts = content.slice(E2E_PREFIX.length).split(':');
-    let key = await readChatKey(chatId, parts[0]);
-    lastHow = key ? 'key on this phone' : '';
+    const found = await readChatKey(chatId, parts[0]);
+    let key = found ? found.key : null;
+    lastHow = found ? found.from : '';
     if (!key) {
       key = await unsealChatKey(chatId, parts[0], sealed);
-      lastHow = key ? 'opened the copy in the notification' : (Array.isArray(sealed) && sealed.length ? 'no copy for this phone' : 'no key on this phone, no copy sent');
+      lastHow = key
+        ? 'opened the copy in the notification'
+        : (keyStoreError ? 'key store failed (' + keyStoreError + ') and ' : '') + (Array.isArray(sealed) && sealed.length ? 'no copy for this phone' : 'no key on this phone, no copy sent');
     }
     if (!key) return null;
     const plain = await crypto.subtle.decrypt(

@@ -76,22 +76,65 @@ function openDb(): Promise<IDBDatabase> {
   }
   return dbPromise;
 }
+/**
+ * iPhone (WebKit) can lose its IndexedDB connection while the app is in the background
+ * ("Connection to Indexed Database server lost"); every request on it then fails. So a
+ * failed request drops the cached connection and is tried once more on a fresh one.
+ */
+async function withRetry<T>(run: (db: IDBDatabase) => Promise<T>): Promise<T> {
+  try {
+    return await run(await openDb());
+  } catch {
+    dbPromise = null;
+    return run(await openDb());
+  }
+}
 async function idbGet<T>(key: string): Promise<T | undefined> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
+  return withRetry((db) => new Promise<T | undefined>((resolve, reject) => {
     const req = db.transaction(STORE).objectStore(STORE).get(key);
     req.onsuccess = () => resolve(req.result as T | undefined);
     req.onerror = () => reject(req.error);
-  });
+  }));
 }
 async function idbSet(key: string, value: unknown): Promise<void> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
+  return withRetry((db) => new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put(value, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
-  });
+    tx.onabort = () => reject(tx.error);
+  }));
+}
+
+/*
+ * A second copy of each chat key for the notification helper (push-sw.js), in Cache Storage
+ * (raw bytes, base64): when iPhone's IndexedDB fails in the background, notifications fell
+ * back to "🔒 New message" now and then even though the phone had the key. Same phone, same
+ * origin as the IndexedDB copy (which holds the same, exportable, keys). Read by push-sw.js
+ * `readCachedKey`; the address is the same there.
+ */
+const KEY_CACHE = 'ph-chat-keys-v1';
+const keyCacheUrl = (chatId: string, keyId: string) => `/__chatkey/${encodeURIComponent(chatId)}/${encodeURIComponent(keyId)}`;
+async function cacheKeyCopy(chatId: string, keyId: string, key: CryptoKey): Promise<boolean> {
+  try {
+    if (typeof caches === 'undefined') return false;
+    const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+    let bin = '';
+    raw.forEach((b) => (bin += String.fromCharCode(b)));
+    const cache = await caches.open(KEY_CACHE);
+    await cache.put(keyCacheUrl(chatId, keyId), new Response(btoa(bin), { headers: { 'Content-Type': 'text/plain' } }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function hasKeyCopy(chatId: string, keyId: string): Promise<boolean> {
+  try {
+    if (typeof caches === 'undefined') return true;
+    return !!(await (await caches.open(KEY_CACHE)).match(keyCacheUrl(chatId, keyId)));
+  } catch {
+    return true;
+  }
 }
 
 // ── Is encryption on? (the migration has been applied) ──────────────
@@ -194,14 +237,18 @@ const sendingChecked = new Map<string, number>();
 
 const storeKey = (chatId: string, keyId: string) => `chatkey:${chatId}:${keyId}`;
 
-async function keep(chatId: string, keyId: string, key: CryptoKey) {
+/** Keeps a key in memory and for the notification helper (IndexedDB + the Cache Storage copy). True when both copies are saved. */
+async function keep(chatId: string, keyId: string, key: CryptoKey): Promise<boolean> {
   let m = held.get(chatId);
   if (!m) held.set(chatId, (m = new Map()));
-  if (!m.has(keyId)) {
-    m.set(keyId, key);
-    // Also read by the service worker to show notifications
-    await idbSet(storeKey(chatId, keyId), key).catch(() => undefined);
-  }
+  if (m.has(keyId)) return true;
+  m.set(keyId, key);
+  // Also read by the service worker to show notifications
+  const [stored, copied] = await Promise.all([
+    idbSet(storeKey(chatId, keyId), key).then(() => true, () => false),
+    cacheKeyCopy(chatId, keyId, key),
+  ]);
+  return stored && copied;
 }
 
 /** Every key this device has been sent for a chat (from the phone, then the server) */
@@ -394,7 +441,8 @@ export async function currentDeviceId(): Promise<string | null> {
   }
 }
 
-const KEPT_KEY = (userId: string) => `chat_keys_kept_${userId}`;
+// v2: every key is gone through once more, to add the Cache Storage copy on phones that kept keys before it
+const KEPT_KEY = (userId: string) => `chat_keys_kept2_${userId}`;
 
 /**
  * Every chat key sealed for this phone, opened and kept on the phone, so the
@@ -420,18 +468,25 @@ export async function keepAllKeys(userId: string): Promise<number> {
   if (error) throw error;
   const rows = (data || []) as { chat_id: string; key_id: string; wrapped_key: string; from_public_key: string; created_at: string }[];
   let kept = 0;
+  // A key that couldn't be saved is tried again next time (the mark stays where it was)
+  let allSaved = true;
   for (const row of rows) {
-    if (held.get(row.chat_id)?.has(row.key_id)) continue;
-    const stored = await idbGet<CryptoKey>(storeKey(row.chat_id, row.key_id)).catch(() => undefined);
-    if (stored) continue;
+    const inMemory = held.get(row.chat_id)?.get(row.key_id);
+    const stored = inMemory ?? (await idbGet<CryptoKey>(storeKey(row.chat_id, row.key_id)).catch(() => undefined));
+    if (stored) {
+      // Already kept: make sure the second copy exists too
+      if (!(await hasKeyCopy(row.chat_id, row.key_id)) && !(await cacheKeyCopy(row.chat_id, row.key_id, stored))) allSaved = false;
+      if (!inMemory) await keep(row.chat_id, row.key_id, stored);
+      continue;
+    }
     try {
-      await keep(row.chat_id, row.key_id, await unseal(device, row.chat_id, row.key_id, row.wrapped_key, row.from_public_key));
+      if (!(await keep(row.chat_id, row.key_id, await unseal(device, row.chat_id, row.key_id, row.wrapped_key, row.from_public_key)))) allSaved = false;
       kept++;
     } catch {
       /* sealed for an older copy of this device */
     }
   }
-  const newest = rows[rows.length - 1]?.created_at;
+  const newest = allSaved ? rows[rows.length - 1]?.created_at : undefined;
   if (newest) {
     try {
       localStorage.setItem(KEPT_KEY(userId), newest);
