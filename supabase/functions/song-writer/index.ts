@@ -1325,6 +1325,11 @@ Deno.serve(async (req) => {
     if (typeof input.watchTest === 'string') {
       const { data: d } = await supabaseAdmin.from('song_drafts').select('id, audio_url, brief').eq('id', input.watchTest).maybeSingle();
       if (!(d?.brief as { check?: boolean } | null)?.check) return json({ ...out, error: 'Not a test draft' });
+      // {"watchTest": "<id>", "peek": true}: how it's going, without removing it
+      if (input.peek) {
+        const { data: p } = await supabaseAdmin.from('song_drafts').select('audio_status, audio_url, audio_error, audio_job, music_requested_at, updated_at').eq('id', d!.id).maybeSingle();
+        return json({ ...out, peek: p });
+      }
       const { data: urls } = await supabaseAdmin.from('song_drafts').select('instrumental_url, vocals_url').eq('id', d!.id).maybeSingle();
       if (d!.audio_url) await removeAudio(d!.audio_url);
       await removeAudio(urls?.instrumental_url);
