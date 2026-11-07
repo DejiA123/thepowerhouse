@@ -235,11 +235,14 @@ def _pipeline(lang: str):
 
 @app.function(
     image=voice_image,
-    gpu="T4",
+    # Whichever is free first: waiting for a T4 alone made a cold start take 45 s+ once
+    gpu=["T4", "L4"],
     volumes={"/models": models},
     secrets=[modal.Secret.from_name("ace-step-api")],
     timeout=300,
-    scaledown_window=180,
+    # Awake 10 minutes after the last piece, so a listening session rarely waits for a
+    # cold start (~28 s) between chapters
+    scaledown_window=600,
     max_containers=2,
 )
 @modal.concurrent(max_inputs=8)
