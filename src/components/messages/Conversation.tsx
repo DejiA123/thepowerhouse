@@ -13,7 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { GroupChatService, asDeletedNote, readable, senderName, signalsTopic, type ChatMessage, type ChatPin, type GroupChat } from '@/services/groupChatService';
 import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
-import { ChatSearchSheet, ClearChatDialog, EncryptionInfo, ForwardSheet, MessageInfoSheet, SolidLock, StarredSheet } from './ChatPanels';
+import { ChatSearchSheet, ClearChatDialog, EncryptionInfo, ForwardSheet, SolidLock, StarredSheet } from './ChatPanels';
+import { MessageInfoScreen } from './MessageInfo';
 import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
@@ -61,6 +62,8 @@ type Reaction = { emoji: string; user_id: string; id: string };
 
 const PAGE = 50;
 const GROUP_GAP_MS = 5 * 60 * 1000;
+/** The message drawn in Message info does nothing when touched */
+const noAction = () => undefined;
 /** "Delete for everyone" for 2 days after sending, like WhatsApp (the database checks too) */
 const DELETE_FOR_EVERYONE_MS = 2 * 24 * 3600_000;
 
@@ -100,6 +103,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [forwardFor, setForwardFor] = useState<ChatMessage | ChatMessage[] | null>(null);
   const [infoFor, setInfoFor] = useState<ChatMessage | null>(null);
+  const closeInfo = useCallback(() => setInfoFor(null), []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
   const [starred, setStarred] = useState<Set<string>>(() => new Set());
@@ -1209,6 +1213,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         quote={quotes[m.id] ?? null}
         onQuoteTap={jumpTo}
         onReply={startReply}
+        onInfo={isOwn && !m.imported_from ? setInfoFor : undefined}
         starred={starred.has(m.id)}
         highlighted={highlightId === m.id}
         myId={me.id}
@@ -1553,7 +1558,30 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       />
       <ChatSearchSheet open={searchOpen} chatId={chat.id} myId={me.id} onOpenChange={setSearchOpen} onOpenMessage={openFound} />
       <StarredSheet open={starredOpen} chatId={chat.id} myId={me.id} onOpenChange={setStarredOpen} onOpenMessage={openFound} version={starVersion} />
-      <MessageInfoSheet message={infoFor} chatId={chat.id} myId={me.id} readMarks={readMarks} onClose={() => setInfoFor(null)}
+      <MessageInfoScreen
+        message={infoFor ? messages.find((x) => x.id === infoFor.id) ?? infoFor : null}
+        chatId={chat.id}
+        privateChat={privateChat}
+        myId={me.id}
+        readMarks={readMarks}
+        onClose={closeInfo}
+        renderBubble={(m) => (
+          <MessageBubble
+            message={m}
+            isOwn
+            isFirst
+            isLast
+            reactions={reactionGroups[m.id] || EMPTY}
+            seen={!!othersReadUpTo && othersReadUpTo >= m.created_at}
+            onOpenActions={noAction}
+            onToggleReaction={noAction}
+            onOpenImage={noAction}
+            quote={quotes[m.id] ?? null}
+            starred={starred.has(m.id)}
+            myId={me.id}
+            pollVotes={votesFor[m.id]}
+          />
+        )}
       />
 
       <ImageViewer url={viewImage} onClose={() => setViewImage(null)} />
