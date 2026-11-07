@@ -18,7 +18,10 @@ import { getRequestUser, supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 const GEMINI = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI = Deno.env.get('OPENAI_API_KEY') ?? '';
 const ELEVEN = Deno.env.get('ELEVENLABS_API_KEY') ?? '';
-const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.1-pro-preview';
+// Fast first (generous free allowance, answers in seconds); the stronger model as backup
+const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.8-flash';
+const BACKUP_MODEL = Deno.env.get('SONG_BACKUP_MODEL') ?? 'gemini-3.1-pro-preview';
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 const WRITES_PER_DAY = 25;
 const SONGS_PER_DAY = 4;
@@ -174,13 +177,18 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
 async function writeSong(b: Brief) {
   const errors: string[] = [];
   if (GEMINI) {
-    const queue = [SONG_MODEL, 'gemini-3.1-pro-preview', 'gemini-3.8-flash'];
+    const queue = [SONG_MODEL, BACKUP_MODEL];
     const tried = new Set<string>();
     while (queue.length && tried.size < 5) {
       const model = queue.shift()!;
       if (tried.has(model)) continue;
       tried.add(model);
-      const r = await gemini(model, b);
+      let r = await gemini(model, b);
+      // Busy for a moment: one more try
+      if (r.status === 503 || r.status === 500) {
+        await new Promise((res) => setTimeout(res, 2000));
+        r = await gemini(model, b);
+      }
       if (r.song || r.refused) return r;
       errors.push(r.error!);
       // A retired model's error names its replacement ("… use models/<name> …"): try that next
@@ -216,10 +224,10 @@ function compositionPlan(song: Song, brief: Brief) {
       lines: lines.slice(0, 16),
     };
   });
-  // Keep the whole song under four minutes
+  // Keep the whole song to about three minutes (it has to be made within the function's time)
   const total = sections.reduce((a, s) => a + s.duration_ms, 0);
-  if (total > 235000) {
-    const k = 235000 / total;
+  if (total > 180000) {
+    const k = 180000 / total;
     sections = sections.map((s) => ({ ...s, duration_ms: Math.max(4000, Math.round(s.duration_ms * k)) }));
   }
   return {
@@ -243,6 +251,22 @@ async function makeMusic(song: Song, brief: Brief): Promise<{ audio?: Uint8Array
   });
   if (!res.ok) return { error: `music ${res.status}: ${(await res.text()).slice(0, 400)}` };
   return { audio: new Uint8Array(await res.arrayBuffer()) };
+}
+
+/** Makes the music, stores it and marks the draft ready (or failed, with the reason) */
+async function produce(id: string, churchId: string, song: Song, brief: Brief) {
+  try {
+    const m = await makeMusic(song, brief);
+    if (!m.audio) throw new Error(m.error ?? 'no audio');
+    const path = `${churchId}/${id}-${Date.now()}.mp3`;
+    const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: 'audio/mpeg', upsert: true });
+    if (up.error) throw new Error(up.error.message);
+    const url = supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url }).eq('id', id);
+  } catch (e) {
+    console.error('[song-writer] music failed', String(e));
+    await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: String(e).slice(0, 500) }).eq('id', id);
+  }
 }
 
 // ── Requests ──────────────────────────────────────────────────────────
@@ -279,11 +303,17 @@ Deno.serve(async (req) => {
     if (input.write) {
       const r = await writeSong(brief);
       out.write = r.song ? { ok: true, title: r.song.title, sections: r.song.sections.map((s) => s.name), first: r.song.sections[0]?.lines.slice(0, 2) } : r;
-      if (input.music && r.song) {
-        const short = { ...r.song, sections: r.song.sections.slice(0, 2) };
-        const m = await makeMusic(short, brief);
-        out.music = m.audio ? { ok: true, bytes: m.audio.length } : m;
-      }
+      if (r.song) out.song = r.song;
+    }
+    if (input.music) {
+      // A short two-section test (about half a minute)
+      const t0 = Date.now();
+      const test: Song = { title: 'Test', key: 'G', bpm: 84, time_signature: '4/4', feel: '', scripture: [], summary: '', sections: [
+        { name: 'Verse', lines: ['[G]You were faithful in the [C]morning', '[Em]You were faithful through the [D]night'] },
+        { name: 'Chorus', lines: ['[G]Great is Your [D]faithfulness', '[C]Lord, I will [G]sing'] },
+      ], arrangement: { choir: '', band: '' }, music_style: 'warm gospel choir with piano and organ' };
+      const m = await makeMusic(test, brief);
+      out.music = m.audio ? { ok: true, bytes: m.audio.length, seconds: Math.round((Date.now() - t0) / 1000) } : m;
     }
     return json(out);
   }
@@ -330,22 +360,15 @@ Deno.serve(async (req) => {
       .from('song_drafts').select('id', { count: 'exact', head: true })
       .eq('created_by', user.id).gte('music_requested_at', startOfDay());
     if ((count ?? 0) >= SONGS_PER_DAY) return json({ error: `You've made ${SONGS_PER_DAY} songs' music today. Try again tomorrow.` }, 429);
-    await supabaseAdmin.from('song_drafts').update({ audio_status: 'making', audio_error: null, music_requested_at: new Date().toISOString() }).eq('id', id);
-    const m = await makeMusic(draft.song as Song, draft.brief as Brief);
-    if (!m.audio) {
-      console.error('[song-writer] music failed', m.error);
-      await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: m.error?.slice(0, 500) }).eq('id', id);
-      return json({ error: 'The music couldn\'t be made just now. Please try again later.' }, 503);
-    }
-    const path = `${draft.church_id}/${id}-${Date.now()}.mp3`;
-    const up = await supabaseAdmin.storage.from('song-drafts').upload(path, m.audio, { contentType: 'audio/mpeg', upsert: true });
-    if (up.error) {
-      await supabaseAdmin.from('song_drafts').update({ audio_status: 'failed', audio_error: up.error.message }).eq('id', id);
-      return json({ error: 'Couldn\'t save the music. Please try again.' }, 500);
-    }
-    const url = supabaseAdmin.storage.from('song-drafts').getPublicUrl(path).data.publicUrl;
-    const { data: saved } = await supabaseAdmin.from('song_drafts').update({ audio_status: 'ready', audio_url: url }).eq('id', id).select('*').single();
-    return json({ draft: saved });
+    const { data: making } = await supabaseAdmin
+      .from('song_drafts')
+      .update({ audio_status: 'making', audio_error: null, music_requested_at: new Date().toISOString() })
+      .eq('id', id).select('*').single();
+    // Made in the background: the phone gets an answer at once and watches the draft
+    const work = produce(id, draft.church_id as string, draft.song as Song, draft.brief as Brief);
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+    else await work;
+    return json({ draft: making });
   }
 
   return json({ error: 'Unknown action' }, 400);
