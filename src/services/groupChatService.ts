@@ -4,7 +4,7 @@ import { sendPush } from "@/lib/push";
 import { dropCachedMessages, peekCachedMessages, readCachedMessages, writeCachedMessages } from "@/lib/chatCache";
 import { broadcast, emitLocal, onBroadcast, uniqueTopic } from "@/lib/realtime";
 import { mentionsIn, previewText } from "@/components/messages/chatUtils";
-import { WAITING_TEXT, decryptMessage, e2eReady, encryptMany, encryptMessage, isEncrypted, membersChanged, shareKeys } from "@/lib/chatCrypto";
+import { WAITING_TEXT, decryptMessage, e2eReady, encryptLike, encryptMany, encryptMessage, isEncrypted, membersChanged, sealForEveryone, shareKeys } from "@/lib/chatCrypto";
 
 export interface GroupChat {
     id: string;
@@ -295,14 +295,18 @@ export const asDeletedNote = (m: ChatMessage): ChatMessage => ({
 /** Is the imported_from column there? (unread counts leave imported history out) */
 let importColumns: Promise<boolean> | null = null;
 /** A new message's notification line, encrypted like the message (null if that fails: the server then uses the message) */
-async function notificationPreview(userId: string, chatId: string, text: string): Promise<string | null> {
+async function notificationPreview(userId: string, chatId: string, content: string, text: string): Promise<string | null> {
     try {
         const line = previewText(text);
-        return await encryptMessage(userId, chatId, line.length > 160 ? `${line.slice(0, 159)}…` : line);
+        // With exactly the message's own key (the server checks they match)
+        return await encryptLike(userId, chatId, content, line.length > 160 ? `${line.slice(0, 159)}…` : line);
     } catch {
         return null;
     }
 }
+
+/** Waits for `work`, but never more than `ms` (a notification is never held back long) */
+const atMost = (work: Promise<unknown>, ms: number) => Promise.race([work.catch(() => undefined), new Promise((r) => setTimeout(r, ms))]);
 
 const hasImportColumns = () => {
     if (!importColumns) {
@@ -859,10 +863,14 @@ export class GroupChatService {
         // Who it mentions (ids only, never the text): they're notified even if they muted the group
         const mentions = mentionsIn(text);
         if (encrypted) {
-            // The notification's line ("📷 Photo", the text…), encrypted with the same key, so
-            // the other phones can show what it says however long the message is
-            void notificationPreview(user.id, chatId, text)
-                .then((e2ePreview) => sendPush({ type: 'chat-message', messageId: message.id, ...(e2ePreview && { e2ePreview }), ...(mentions.length && { mentions }) }));
+            // The notification's line ("📷 Photo", the text…), encrypted with the message's own
+            // key, so the other phones can show what it says however long the message is. First
+            // every member's phone is given that key if it hasn't got it, so each notification
+            // carries a copy that phone can open (waits at most 4 s, then it goes anyway).
+            void Promise.all([
+                notificationPreview(user.id, chatId, saved.content, text),
+                atMost(sealForEveryone(user.id, chatId, saved.content), 4000),
+            ]).then(([e2ePreview]) => sendPush({ type: 'chat-message', messageId: message.id, ...(e2ePreview && { e2ePreview }), ...(mentions.length && { mentions }) }));
         } else {
             sendPush({ type: 'chat-message', messageId: message.id, ...(mentions.length && { mentions }) });
         }

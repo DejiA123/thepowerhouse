@@ -402,6 +402,47 @@ export async function encryptMessage(userId: string, chatId: string, text: strin
   return `${E2E_PREFIX}${keyId}:${toB64(iv)}:${toB64(ct)}`;
 }
 
+/**
+ * Encrypt `text` with exactly the key `content` (an encrypted message) was sent with: the
+ * notification's line for that message. Using "the current key" instead could pick a newer
+ * one (it's re-checked every minute), and the server then refused the line as not matching.
+ */
+export async function encryptLike(userId: string, chatId: string, content: string, text: string): Promise<string> {
+  const keyId = content.startsWith(E2E_PREFIX) ? content.slice(E2E_PREFIX.length).split(':')[0] : '';
+  const key = keyId ? held.get(chatId)?.get(keyId) ?? (await keyFor(userId, chatId, keyId)) : null;
+  if (!key) return encryptMessage(userId, chatId, text);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(chatId) }, key, enc.encode(text));
+  return `${E2E_PREFIX}${keyId}:${toB64(iv)}:${toB64(ct)}`;
+}
+
+/** When each chat's message key was last checked against every member's phones */
+const sealedChecked = new Map<string, number>();
+
+/**
+ * Before a message's notification goes out: every current member's phone gets this
+ * message's key if it hasn't got it, so the notification can carry a copy sealed for each
+ * phone and always open (a phone added since the last check, within the minute
+ * `sendingKey` waits, otherwise showed "🔒 New message"). At most every 10 s per chat and key.
+ */
+export async function sealForEveryone(userId: string, chatId: string, content: string): Promise<void> {
+  const keyId = content.startsWith(E2E_PREFIX) ? content.slice(E2E_PREFIX.length).split(':')[0] : '';
+  if (!keyId) return;
+  const mark = `${chatId}|${keyId}`;
+  if (Date.now() - (sealedChecked.get(mark) ?? 0) < 10_000) return;
+  sealedChecked.set(mark, Date.now());
+  const device = await myDevice(userId);
+  const key = held.get(chatId)?.get(keyId) ?? (await keyFor(userId, chatId, keyId));
+  if (!device || !key) return;
+  const [{ devices }, have] = await Promise.all([
+    memberDevices(chatId),
+    supabase.from('chat_keys' as never).select('device_id').eq('chat_id', chatId).eq('key_id', keyId),
+  ]);
+  if (have.error) throw have.error;
+  const has = new Set(((have.data || []) as { device_id: string }[]).map((h) => h.device_id));
+  await sealFor(device, chatId, keyId, key, devices.filter((t) => !has.has(t.id)));
+}
+
 /** Many messages at once (importing a chat): one key, no extra lookups */
 export async function encryptMany(userId: string, chatId: string, texts: string[]): Promise<string[]> {
   const { keyId, key } = await sendingKey(userId, chatId);
