@@ -270,7 +270,7 @@ const ComposeSongPage = () => {
               <>
                 <audio controls preload="metadata" src={current.audio_url} className="w-full" />
                 <div className="mt-3 flex gap-2">
-                  <a href={current.audio_url} download={`${current.title}.mp3`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
+                  <a href={current.audio_url} download={`${current.title}.${current.audio_url.split('?')[0].split('.').pop() || 'mp3'}`} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground">
                     <Download className="h-4 w-4" /> Save
                   </a>
                   {mine && (
