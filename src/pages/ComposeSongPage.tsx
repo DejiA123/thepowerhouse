@@ -89,16 +89,17 @@ const FEELS = [
 ];
 const KEYS = ['', 'C', 'D', 'Eb', 'E', 'F', 'G', 'Ab', 'A', 'Bb'];
 const WRITING = ['Reading the Scripture…', 'Finding the words…', 'Shaping the chorus…', 'Setting the chords…', 'Writing the choir parts…'];
-const MAKING_MAX_MS = 5 * 60_000;
+/** The function gives a song up after 25 minutes (the first song wakes the music server) */
+const MAKING_MAX_MS = 26 * 60_000;
 
 /** The church's music service: which one is connected (the key itself never leaves the server) */
 interface MusicService {
   services: { service: 'acemusic' | 'huggingface'; hint: string | null; updated_at: string }[];
   canManage: boolean;
-  platform: { acemusic: boolean; huggingface: boolean; lyria: boolean; elevenlabs: boolean };
+  platform: { acestep?: boolean; acemusic: boolean; huggingface: boolean; lyria: boolean; elevenlabs: boolean };
 }
 const SERVICE_NAME = { acemusic: 'ACE Music', huggingface: 'Hugging Face' } as const;
-const hasService = (m: MusicService | null) => !!m && (m.services.length > 0 || m.platform.acemusic || m.platform.huggingface);
+const hasService = (m: MusicService | null) => !!m && (m.services.length > 0 || !!m.platform.acestep || m.platform.acemusic || m.platform.huggingface);
 
 type Answer = { draft?: Draft; refused?: string; error?: string } & Partial<MusicService>;
 
@@ -175,18 +176,28 @@ const ComposeSongPage = () => {
     }
   }, [openId, drafts]);
 
-  // While the music is being made, look every few seconds
+  // While the music is being made, ask every few seconds (the function looks at the
+  // music server's task and stores the song when it's ready; the draft itself if that fails)
   useEffect(() => {
     if (poll.current) window.clearInterval(poll.current);
     if (current?.audio_status !== 'making') return;
+    let busy = false;
     poll.current = window.setInterval(async () => {
-      const { data } = await supabase.from('song_drafts' as never).select('*').eq('id', current.id).maybeSingle();
-      if (data) {
-        const d = data as unknown as Draft;
-        setCurrent(d);
-        setDrafts((list) => list?.map((x) => (x.id === d.id ? d : x)) ?? list);
+      if (busy || document.hidden) return;
+      busy = true;
+      const r = await call({ action: 'music-check', draftId: current.id });
+      let d = r.draft;
+      if (!d) {
+        const { data } = await supabase.from('song_drafts' as never).select('*').eq('id', current.id).maybeSingle();
+        d = (data as unknown as Draft) ?? undefined;
       }
-    }, 5000);
+      busy = false;
+      if (d) {
+        const next = d;
+        setCurrent((c) => (c && c.id === next.id ? next : c));
+        setDrafts((list) => list?.map((x) => (x.id === next.id ? next : x)) ?? list);
+      }
+    }, 6000);
     return () => {
       if (poll.current) window.clearInterval(poll.current);
     };
@@ -306,7 +317,7 @@ const ComposeSongPage = () => {
                 <Loader2 className="h-6 w-6 shrink-0 animate-spin text-blue-600" />
                 <div>
                   <p className="text-[15px] font-semibold text-foreground">Making the music…</p>
-                  <p className="text-[13px] text-muted-foreground">Voices, choir and band. It takes a minute or two; you can leave this page and come back.</p>
+                  <p className="text-[13px] text-muted-foreground">Voices, choir and band. It takes a minute or two (the first song of the day can take a few minutes). You can leave this page and come back.</p>
                 </div>
               </div>
             ) : mine ? (
