@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, Copy, Minus, Pencil, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, Minus, PenLine, Pencil, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
 import { chordSheetText, pieces, prefersFlats, transposeKey, transposeLine } from '@/lib/chordSheet';
@@ -41,7 +41,7 @@ const ChordLine = ({ line, steps, flats, showChords }: { line: string; steps: nu
  * over the words; change key, hide the chords, copy it; the choir's and the
  * band's notes underneath.
  */
-const SongSheet = ({ song, onRename }: { song: ComposedSong; onRename?: (title: string) => Promise<boolean> }) => {
+const SongSheet = ({ song, onRename, onEdit }: { song: ComposedSong; onRename?: (title: string) => Promise<boolean>; onEdit?: () => void }) => {
   const [steps, setSteps] = useState(0);
   const [naming, setNaming] = useState<string | null>(null);
   const saveName = async () => {
@@ -125,6 +125,11 @@ const SongSheet = ({ song, onRename }: { song: ComposedSong; onRename?: (title: 
         <button type="button" onClick={copy} className="flex items-center gap-1.5 rounded-full bg-muted px-3.5 py-2 text-[13px] font-semibold text-foreground">
           <Copy className="h-4 w-4" /> Copy
         </button>
+        {onEdit && (
+          <button type="button" onClick={onEdit} className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white">
+            <PenLine className="h-4 w-4" /> Edit the words
+          </button>
+        )}
       </div>
 
       <div className="mt-5 space-y-5 font-serif text-[17px] text-foreground">
