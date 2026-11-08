@@ -797,17 +797,20 @@ async function finish(id: string, churchId: string, m: Made) {
   if (madeAudio) await Promise.all([saveSections(id, madeAudio.bytes, madeAudio.mime, 45_000), makeStems(id, 110_000)]);
 }
 
-// ── Music only / voices only: the same recording split by the music server (Demucs) ──
+// ── Music only / voices only: the same recording split by the music server (RoFormer) ──
 const STEMS_BUSY_MS = 4 * 60_000;
+/** `stems_model` of a split made by the RoFormer models (null = the old Demucs split, made again) */
+const stemsDone = (model: string | null | undefined) => !!model && model.startsWith('roformer');
 
 /**
  * Splits a song's recording into the music only and the voices only, and keeps both on
  * R2 beside it. One split at a time per song (`stems_at`); 'busy' while another runs.
  */
 async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy' | 'failed'> {
-  const { data: d } = await supabaseAdmin.from('song_drafts').select('church_id, audio_url, audio_status, instrumental_url, stems_at').eq('id', id).maybeSingle();
+  const { data: d } = await supabaseAdmin.from('song_drafts').select('church_id, audio_url, audio_status, instrumental_url, vocals_url, stems_model, stems_at').eq('id', id).maybeSingle();
   if (!d || d.audio_status !== 'ready' || !d.audio_url) return 'failed';
-  if (d.instrumental_url) return 'done';
+  // An old split (Demucs) keeps playing until the new one is ready
+  if (d.instrumental_url && stemsDone(d.stems_model)) return 'done';
   if (d.stems_at && Date.now() - Date.parse(d.stems_at) < STEMS_BUSY_MS) return 'busy';
   const srv = await musicServer();
   if (!srv?.separate) return 'failed';
@@ -820,9 +823,16 @@ async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy'
     const res = await fetch(srv.separate, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: d.audio_url, key: srv.key }),
+      // The server waits for its split job this long, then answers 202 (still working)
+      body: JSON.stringify({ url: d.audio_url, key: srv.key, wait: Math.max(20, Math.round(timeoutMs / 1000) - 15) }),
       signal: AbortSignal.timeout(timeoutMs),
     });
+    if (res.status === 202) {
+      // Still being split on the server (e.g. its models were downloading): the same job is
+      // picked up by the next call, so let one come in about 45 s
+      await supabaseAdmin.from('song_drafts').update({ stems_at: new Date(Date.now() - STEMS_BUSY_MS + 45_000).toISOString() }).eq('id', id).eq('stems_at', started);
+      return 'busy';
+    }
     if (!res.ok) throw new Error(`music server ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const out = await res.json();
     if (!out?.instrumental || !out?.vocals) throw new Error('music server: no versions in the answer');
@@ -838,8 +848,12 @@ async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy'
       await removeAudio(voices);
       return 'failed';
     }
-    await supabaseAdmin.from('song_drafts').update({ instrumental_url: music, vocals_url: voices, stems_at: null }).eq('id', id);
-    console.log(`[song-writer] split ${id} in ${out.seconds}s (server)`);
+    const stems_model = out.model === 'instrumental_clean' ? 'roformer-clean' : 'roformer-single';
+    await supabaseAdmin.from('song_drafts').update({ instrumental_url: music, vocals_url: voices, stems_model, stems_at: null }).eq('id', id);
+    // The old split's files go once the new ones are in place
+    if (d.instrumental_url && d.instrumental_url !== music) await removeAudio(d.instrumental_url);
+    if (d.vocals_url && d.vocals_url !== voices) await removeAudio(d.vocals_url);
+    console.log(`[song-writer] split ${id} in ${out.seconds}s (${out.model ?? 'server'})`);
     return 'done';
   } catch (e) {
     const timedOut = /timeout|abort/i.test(String(e));
@@ -1465,6 +1479,17 @@ Deno.serve(async (req) => {
         if (!d.instrumental_url) runs.push(makeStems(d.id, 110_000));
         if (d.audio_sections === null) runs.push(sectionsFor(d.id, 90_000));
       }
+      // Songs still on the old split (Demucs) are split again, two at a time
+      const { data: old } = await supabaseAdmin
+        .from('song_drafts')
+        .select('id')
+        .eq('audio_status', 'ready')
+        .not('audio_url', 'is', null)
+        .not('instrumental_url', 'is', null)
+        .is('stems_model', null)
+        .gt('created_at', new Date(Date.now() - 60 * 86_400_000).toISOString())
+        .limit(2);
+      for (const d of old ?? []) if (!(ready ?? []).some((r) => r.id === d.id)) runs.push(makeStems(d.id, 110_000));
       await Promise.all(runs);
     })();
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
