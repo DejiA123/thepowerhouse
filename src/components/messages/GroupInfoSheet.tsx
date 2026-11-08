@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { appAlert } from '@/lib/appAlert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserAvatar from '@/components/common/UserAvatar';
+import ProfilePhotoViewer from './ProfilePhotoViewer';
 import { GroupChatService, type GroupChat } from '@/services/groupChatService';
 import { isPrivateChat, uploadChatImage } from './chatUtils';
 import { WallpaperSheet } from './ChatWallpaper';
@@ -223,6 +224,8 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
     };
   }, [open, contactId]);
   const [uploading, setUploading] = useState(false);
+  /** The profile photo shown full screen (tap the photo at the top) */
+  const [photoOpen, setPhotoOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isCreator = chat.created_by === userId || chat.created_by_user === userId;
@@ -374,7 +377,16 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
               <Loader2 className="my-10 h-6 w-6 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <UserAvatar name={otherName} src={other?.user?.avatar_url} seed={other?.user_id ?? chat.id} online={online} className="h-24 w-24 text-3xl" />
+                <button
+                  type="button"
+                  onClick={() => other?.user?.avatar_url && setPhotoOpen(true)}
+                  disabled={!other?.user?.avatar_url}
+                  className="rounded-full disabled:cursor-default"
+                  aria-label={`See ${otherName}'s photo`}
+                >
+                  <UserAvatar name={otherName} src={other?.user?.avatar_url} seed={other?.user_id ?? chat.id} online={online} className="h-24 w-24 text-3xl" />
+                </button>
+                <ProfilePhotoViewer src={photoOpen ? other?.user?.avatar_url ?? null : null} title={otherName} onClose={() => setPhotoOpen(false)} />
                 <h2 className="mt-4 text-xl font-semibold text-foreground">{otherName}</h2>
                 {(online || privateStatus) && (
                   <p className={online ? 'mt-1 text-sm text-emerald-600 dark:text-emerald-400' : 'mt-1 text-sm text-muted-foreground'}>
@@ -425,7 +437,21 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
             {/* Header */}
             <div className="flex flex-col items-center px-6 pb-5 pt-8 text-center">
               <div className="relative">
-                <UserAvatar name={chat.name} src={chat.avatar_url} seed={chat.id} className="h-24 w-24 text-3xl" />
+                <button
+                  type="button"
+                  onClick={() => chat.avatar_url && setPhotoOpen(true)}
+                  disabled={!chat.avatar_url}
+                  className="rounded-full disabled:cursor-default"
+                  aria-label="See the group photo"
+                >
+                  <UserAvatar name={chat.name} src={chat.avatar_url} seed={chat.id} className="h-24 w-24 text-3xl" />
+                </button>
+                <ProfilePhotoViewer
+                  src={photoOpen ? chat.avatar_url ?? null : null}
+                  title={chat.name || 'Group'}
+                  onClose={() => setPhotoOpen(false)}
+                  onEdit={canManage ? () => fileRef.current?.click() : undefined}
+                />
                 {canManage && (
                   <>
                     <button
