@@ -188,6 +188,9 @@ separator_image = (
     .pip_install(
         "torch==2.5.1",
         "torchaudio==2.5.1",
+        # onnx2torch (needed by audio-separator) asks for any torchvision; the newest needs
+        # a newer torch, so keep the one made for torch 2.5.1
+        "torchvision==0.20.1",
         "audio-separator[gpu]==0.48.0",
         "fastapi[standard]==0.115.6",
     )
