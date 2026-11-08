@@ -16,6 +16,8 @@ export interface YouTubeVideo {
   title: string;
   thumbnail: string;
   publishedAt: string;
+  /** When it went live, for a past live service (lines its chat replay up with the video) */
+  liveStartedAt?: string;
 }
 
 export interface LiveStatus {
@@ -57,11 +59,12 @@ export async function latestVideos(force = false): Promise<YouTubeVideo[]> {
     if (data?.isFallback || (data?.channelId && data.channelId !== CHANNEL_ID)) throw new Error('not the channel\'s own videos');
     const videos: YouTubeVideo[] = (data?.videos ?? [])
       .filter((v: { id?: string }) => typeof v.id === 'string')
-      .map((v: { id: string; title?: string; thumbnail?: string; publishedAt?: string }) => ({
+      .map((v: { id: string; title?: string; thumbnail?: string; publishedAt?: string; liveStartedAt?: string }) => ({
         id: v.id,
         title: decodeEntities(v.title || ''),
         thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`,
         publishedAt: v.publishedAt || '',
+        ...(v.liveStartedAt && { liveStartedAt: v.liveStartedAt }),
       }));
     if (videos.length) {
       try {
@@ -198,7 +201,7 @@ export function useLiveStatus(): LiveStatus {
 export const embedUrl = (videoId: string) =>
   isChannelId(videoId)
     ? `https://www.youtube-nocookie.com/embed/live_stream?channel=${videoId}&autoplay=1&playsinline=1`
-    : `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+    : `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
 
 export const relativeDate = (iso: string) => {
   const d = new Date(iso);

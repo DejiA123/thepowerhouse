@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
 import LiveChat, { LiveChatReplay } from "@/components/LiveChat";
 import LiveControls from "@/components/LiveControls";
+import { useYouTubeTime } from "@/hooks/useYouTubeTime";
 import { track } from "@/lib/activity";
 import {
   CHANNEL_URL,
@@ -60,6 +61,10 @@ const ChurchVideos = () => {
     if (playing && activeVideo) track('video_watched', { title: activeVideo.title, live: !!activeVideo.isLive });
   }, [playing, activeVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Where the player is, so a past service's chat replay keeps time with the video
+  const [frame, setFrame] = useState<HTMLIFrameElement | null>(null);
+  const videoTime = useYouTubeTime(frame, playing && !!activeVideo?.liveStartedAt && !activeVideo.isLive);
+
   const poster = (video: Playable) => (isChannelId(video.id) ? null : `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`);
 
   return (
@@ -109,6 +114,7 @@ const ChurchVideos = () => {
               {playing ? (
                 <iframe
                   key={activeVideo.id}
+                  ref={setFrame}
                   className="h-full w-full"
                   src={embedUrl(activeVideo.id)}
                   title={activeVideo.title}
@@ -154,7 +160,7 @@ const ChurchVideos = () => {
             {/* The church's own chat always; YouTube's too when the live video is known */}
             {activeVideo.isLive && <LiveChat videoId={activeVideo.id} youtube={!isChannelId(activeVideo.id)} />}
             {/* A past service: the comments people made while it was live (like YouTube's chat replay) */}
-            {!activeVideo.isLive && <LiveChatReplay videoId={activeVideo.id} publishedAt={activeVideo.publishedAt} />}
+            {!activeVideo.isLive && <LiveChatReplay videoId={activeVideo.id} publishedAt={activeVideo.publishedAt} startedAt={activeVideo.liveStartedAt} videoTime={playing ? videoTime : null} />}
           </div>
 
           {(videos.length > 1 || (liveVideo && videos.length > 0) || (picked && liveVideo)) && (
