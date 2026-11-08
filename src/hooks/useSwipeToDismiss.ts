@@ -6,10 +6,16 @@ const SKIP = 'input, textarea, select, [contenteditable="true"], [role="slider"]
 const isTouchDevice = () =>
   typeof window !== 'undefined' && ('ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0);
 
+/** The strip at the top of a sheet (where its handle sits) that always pulls it down */
+const GRAB_ZONE_PX = 56;
+
 /**
  * Pull a sheet or modal down to close it, like on iOS. The drag only begins
  * when the finger moves downward on content that is scrolled to the top, so
- * scrolling, sliders and text fields behave as normal.
+ * scrolling, sliders and text fields behave as normal. The top strip (the
+ * handle's area, `GRAB_ZONE_PX`) pulls it down however far the content is
+ * scrolled: once scrolled, the content under the top used to swallow the drag,
+ * so the sheet couldn't be closed by pulling until scrolled back up (Nov 2026).
  *
  * Returns a ref callback for the element that moves.
  */
@@ -31,11 +37,12 @@ export function useSwipeToDismiss(onDismiss: () => void, enabled = true) {
       return prev?.hasAttribute('data-state') ? prev : null;
     };
 
-    // Anything between the finger and the sheet that is scrolled, or wants the gesture itself
-    const blocked = (target: EventTarget | null) => {
+    // Anything between the finger and the sheet that is scrolled, or wants the gesture itself;
+    // in the top strip only the latter counts
+    const blocked = (target: EventTarget | null, inGrabZone: boolean) => {
       for (let n = target as HTMLElement | null; n; n = n.parentElement) {
         if (n.matches?.(SKIP)) return true;
-        if (n.scrollTop > 0) return true;
+        if (!inGrabZone && n.scrollTop > 0) return true;
         if (n === el) break;
       }
       return false;
@@ -53,7 +60,8 @@ export function useSwipeToDismiss(onDismiss: () => void, enabled = true) {
     };
 
     const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1 || blocked(e.target)) {
+      const inGrabZone = e.touches.length === 1 && e.touches[0].clientY - el.getBoundingClientRect().top < GRAB_ZONE_PX;
+      if (e.touches.length !== 1 || blocked(e.target, inGrabZone)) {
         state = 'off';
         return;
       }
