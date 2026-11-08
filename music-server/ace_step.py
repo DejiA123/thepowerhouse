@@ -15,6 +15,7 @@ the server's address and key to the app (Supabase Vault, platform entry).
 """
 import json
 import os
+import pathlib
 import subprocess
 import threading
 import time
@@ -22,6 +23,7 @@ import urllib.error
 import urllib.request
 
 import modal
+import modal.exception
 
 # ACE-Step 1.5, pinned (Nov 2026); update deliberately
 ACE_COMMIT = "ca1e85fe9430179831e6bc6be790c332190a3866"
@@ -169,55 +171,69 @@ def watchdog(proc):
 
 
 # ── Music only / voices only (Compose a song) ─────────────────────────────
-# The finished song split in two with Demucs (htdemucs, MIT): the same recording without
-# the voices (instrumental, to sing or read along to) and the voices alone (to learn the
-# parts). ACE-Step's own track extraction needs its slower base model, so it isn't used.
-# song-writer calls this after a song is made (and for older songs on first open).
+# The finished song split in two: the same recording without the voices (instrumental, to
+# sing or read along to) and the voices alone (to learn the parts). Demucs (htdemucs) left
+# an audible "ghost" of the voices and thinned the instruments, so (Nov 2026) the split is
+# made by the music-separation community's cleanest instrumental pair, "Instrumental
+# Clean" in python-audio-separator (MIT): Gabox's MelBand-RoFormer Fv7z (the least voice
+# bleed) with unwa's BS-RoFormer Resurrection Inst (the fullest), merged spectrally
+# (uvr_max_spec). If that fails, ByteDance/viperx's BS-RoFormer (SDR 12.97) alone.
+# song-writer calls `separate` after a song is made (and for older songs on first open).
+# A split runs as a job (`split_song`): `separate` waits for it up to `wait` seconds, then
+# answers 202 and the next call picks up the same job, so a slow first split (models
+# downloading) is never thrown away.
 separator_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg")
     .pip_install(
         "torch==2.5.1",
         "torchaudio==2.5.1",
-        "demucs==4.0.1",
-        "soundfile==0.12.1",
-        "lameenc==1.7.0",
+        "audio-separator[gpu]==0.48.0",
         "fastapi[standard]==0.115.6",
     )
-    .env({"TORCH_HOME": "/models/torch"})
 )
+SEPARATION_MODELS = "/models/separator"
+SPLIT_FALLBACK = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
+splits = modal.Dict.from_name("song-splits", create_if_missing=True)
+
+
+def _split(song: str, out: str, preset: str | None):
+    """Instrumental and vocals WAVs of one recording (an ensemble preset, or the fallback)"""
+    from audio_separator.separator import Separator
+
+    sep = Separator(
+        model_file_dir=SEPARATION_MODELS,
+        output_dir=out,
+        output_format="WAV",
+        ensemble_preset=preset,
+    )
+    sep.load_model() if preset else sep.load_model(SPLIT_FALLBACK)
+    files = [f if os.path.isabs(f) else os.path.join(out, f) for f in sep.separate(song)]
+    music = next((f for f in files if "(instrumental)" in f.lower()), None)
+    voices = next((f for f in files if "(vocals)" in f.lower()), None)
+    if not music or not voices:
+        raise RuntimeError(f"unexpected stems: {[os.path.basename(f) for f in files]}")
+    return music, voices
+
+
+def _mp3(wav: str) -> bytes:
+    mp3 = wav.rsplit(".", 1)[0] + ".mp3"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-codec:a", "libmp3lame", "-b:a", "192k", mp3], check=True)
+    return pathlib.Path(mp3).read_bytes()
 
 
 @app.function(
     image=separator_image,
-    gpu="T4",
+    gpu=["L4", "T4"],
     volumes={"/models": models},
-    secrets=[modal.Secret.from_name("ace-step-api")],
-    timeout=600,
+    timeout=900,
     scaledown_window=120,
     max_containers=2,
 )
-@modal.fastapi_endpoint(method="POST")
-def separate(body: dict):
-    """
-    POST {"url": "<the song's mp3>", "key": "<the server key>"}. Answers
-    {"instrumental": <base64 mp3>, "vocals": <base64 mp3>, "seconds": <time taken>}.
-    """
+def split_song(url: str) -> dict:
     import base64
-    import hmac
-    import pathlib
     import tempfile
     import urllib.request as req
-
-    from fastapi import HTTPException
-
-    key = os.environ.get("ACESTEP_API_KEY", "")
-    given = str(body.get("key", ""))
-    if not key or not hmac.compare_digest(given, key):
-        raise HTTPException(status_code=401, detail="Not allowed")
-    url = str(body.get("url", ""))
-    if not url.startswith("https://"):
-        raise HTTPException(status_code=400, detail="Give the song's https address")
 
     started = time.time()
     work = pathlib.Path(tempfile.mkdtemp())
@@ -226,21 +242,81 @@ def separate(body: dict):
     download = req.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; ChurchSpace-music/1.0)"})
     with req.urlopen(download, timeout=60) as res:
         song.write_bytes(res.read(60 * 1024 * 1024))
-    run = subprocess.run(
-        ["python", "-m", "demucs", "--two-stems=vocals", "-n", "htdemucs", "--mp3", "--mp3-bitrate", "192", "-o", str(work / "out"), str(song)],
-        capture_output=True,
-        text=True,
-    )
-    folder = work / "out" / "htdemucs" / "song"
-    music, voices = folder / "no_vocals.mp3", folder / "vocals.mp3"
-    if run.returncode != 0 or not music.exists() or not voices.exists():
-        raise HTTPException(status_code=500, detail=f"Couldn't split the song: {(run.stderr or run.stdout)[-400:]}")
-    models.commit()  # keep the separation model on the volume for next time
+    try:
+        model = "instrumental_clean"
+        music, voices = _split(str(song), str(work / "clean"), model)
+    except Exception as e:  # noqa: BLE001
+        print(f"[separate] ensemble failed ({e}); using {SPLIT_FALLBACK}", flush=True)
+        model = SPLIT_FALLBACK
+        music, voices = _split(str(song), str(work / "single"), None)
+    models.commit()  # keep the separation models on the volume for next time
     return {
-        "instrumental": base64.b64encode(music.read_bytes()).decode(),
-        "vocals": base64.b64encode(voices.read_bytes()).decode(),
+        "instrumental": base64.b64encode(_mp3(music)).decode(),
+        "vocals": base64.b64encode(_mp3(voices)).decode(),
         "seconds": round(time.time() - started, 1),
+        "model": model,
     }
+
+
+@app.function(
+    image=modal.Image.debian_slim(python_version="3.11").pip_install("fastapi[standard]==0.115.6"),
+    secrets=[modal.Secret.from_name("ace-step-api")],
+    timeout=300,
+    max_containers=2,
+)
+@modal.concurrent(max_inputs=8)
+@modal.fastapi_endpoint(method="POST")
+def separate(body: dict):
+    """
+    POST {"url": "<the song's mp3>", "key": "<the server key>", "wait": <seconds, ≤240>}.
+    Answers {"instrumental": <base64 mp3>, "vocals": <base64 mp3>, "seconds", "model"}, or
+    202 {"status": "working"} while the split is still being made (ask again later).
+    """
+    import hashlib
+    import hmac
+
+    from fastapi import HTTPException
+    from fastapi.responses import JSONResponse
+
+    key = os.environ.get("ACESTEP_API_KEY", "")
+    given = str(body.get("key", ""))
+    if not key or not hmac.compare_digest(given, key):
+        raise HTTPException(status_code=401, detail="Not allowed")
+    url = str(body.get("url", ""))
+    if not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Give the song's https address")
+    try:
+        wait = min(max(float(body.get("wait", 100)), 1.0), 240.0)
+    except (TypeError, ValueError):
+        wait = 100.0
+
+    tag = hashlib.sha256(url.encode()).hexdigest()
+    call = None
+    known = splits.get(tag)
+    if known:
+        try:
+            call = modal.FunctionCall.from_id(known)
+        except Exception:  # noqa: BLE001
+            call = None
+    if call is None:
+        call = split_song.spawn(url)
+        splits[tag] = call.object_id
+    asked = time.time()
+    try:
+        out = call.get(timeout=wait)
+    except modal.exception.FunctionTimeoutError:
+        splits.pop(tag, None)
+        raise HTTPException(status_code=500, detail="Couldn't split the song: it took too long")
+    except (TimeoutError, modal.exception.TimeoutError):
+        if time.time() - asked < wait - 1:  # not our wait running out: the job itself failed
+            splits.pop(tag, None)
+            raise HTTPException(status_code=500, detail="Couldn't split the song")
+        return JSONResponse({"status": "working"}, status_code=202)
+    except Exception as e:  # noqa: BLE001
+        splits.pop(tag, None)
+        raise HTTPException(status_code=500, detail=f"Couldn't split the song: {str(e)[-400:]}")
+    splits.pop(tag, None)
+    return out
 
 
 # ── The read-aloud Bible voice (non-narrated translations) ────────────────
