@@ -9,6 +9,7 @@ import { appAlert } from '@/lib/appAlert';
 import { cn } from '@/lib/utils';
 import UserAvatar from '@/components/common/UserAvatar';
 import { church } from '@/config/church';
+import { CHANNEL_ID, isChannelId } from '@/services/youtube';
 
 interface LiveMessage {
   id: string;
@@ -21,10 +22,30 @@ interface LiveMessage {
 }
 
 const QUICK = ['🙏 Amen', '🙌 Hallelujah', '❤️', '🔥'];
-/** A service's comments: the last few hours (a channel's live page has no video id to keep services apart) */
+/** Comments made while only the channel was known (no video id yet) count for a service this long */
 const WINDOW_MS = 6 * 3600_000;
+const HOUR = 3600_000;
+/** At most this many comments are shown (the newest while live, the first ones in a replay) */
+const MAX = 500;
+const COLUMNS = 'id, user_id, author_name, author_avatar, body, created_at';
 const table = () => supabase.from('live_chat_messages' as never);
 const time = (iso: string) => new Date(iso.replace(/(\.\d{3})\d+/, '$1')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/**
+ * Which saved comments belong to a service. Comments are kept for good, keyed by the
+ * YouTube video. When the team marks "We're live" before YouTube gives the broadcast's
+ * own id, comments are saved under the channel's id, so a video also takes the channel's
+ * comments from around its time: the last 6 hours while live, or from 2 hours before to
+ * 12 hours after it was published for a replay.
+ */
+function scoped(videoId: string, around: { from: number; to: number } | null) {
+  const q = table().select(COLUMNS);
+  if (isChannelId(videoId)) return q.eq('video_id', videoId).gt('created_at', new Date(Date.now() - WINDOW_MS).toISOString());
+  if (!around || !CHANNEL_ID) return q.eq('video_id', videoId);
+  const from = new Date(around.from).toISOString();
+  const to = new Date(around.to).toISOString();
+  return q.or(`video_id.eq.${videoId},and(video_id.eq.${CHANNEL_ID},created_at.gte.${from},created_at.lte.${to})`);
+}
 
 /**
  * The live service's chat. "Church" (first): members comment with their app
@@ -83,12 +104,10 @@ const ChurchChat = ({ videoId }: { videoId: string }) => {
   const atBottom = useRef(true);
 
   const load = useCallback(async () => {
-    const { data, error } = await table()
-      .select('id, user_id, author_name, author_avatar, body, created_at')
-      .eq('video_id', videoId)
-      .gt('created_at', new Date(Date.now() - WINDOW_MS).toISOString())
+    // The whole service's comments (the newest 500), not only the last few hours
+    const { data, error } = await scoped(videoId, { from: Date.now() - WINDOW_MS, to: Date.now() + HOUR })
       .order('created_at', { ascending: false })
-      .limit(150);
+      .limit(MAX);
     if (error) {
       setMessages((prev) => prev ?? []);
       return;
@@ -126,7 +145,7 @@ const ChurchChat = ({ videoId }: { videoId: string }) => {
     setMessages((prev) => [...(prev ?? []), temp]);
     setText('');
     setSending(true);
-    const { data, error } = await table().insert({ video_id: videoId, body: clean } as never).select('id, user_id, author_name, author_avatar, body, created_at').single();
+    const { data, error } = await table().insert({ video_id: videoId, body: clean } as never).select(COLUMNS).single();
     setSending(false);
     if (error) {
       setMessages((prev) => (prev ?? []).filter((m) => m.id !== temp.id));
@@ -163,7 +182,7 @@ const ChurchChat = ({ videoId }: { videoId: string }) => {
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <p className="text-[15px] font-semibold text-foreground">Say hello to everyone watching 👋</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">Comments here are seen live by everyone at {church.name} watching in the app.</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">Comments here are seen live by everyone at {church.name} watching in the app, and kept with the service afterwards.</p>
           </div>
         ) : (
           messages.map((m) => {
@@ -232,6 +251,80 @@ const ChurchChat = ({ videoId }: { videoId: string }) => {
           >
             Sign in to comment
           </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Live chat replay, like YouTube's: a past service shows the comments people made while it
+ * was live (read-only, the chat is closed). Nothing shows for a video nobody commented on.
+ */
+export const LiveChatReplay = ({ videoId, publishedAt }: { videoId: string; publishedAt?: string }) => {
+  const { user } = useAuth();
+  const isAdmin = useIsAdmin();
+  const [messages, setMessages] = useState<LiveMessage[] | null>(null);
+  const [open, setOpen] = useState(true);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const published = publishedAt ? Date.parse(publishedAt) : NaN;
+
+  const load = useCallback(async () => {
+    const around = Number.isFinite(published) ? { from: published - 2 * HOUR, to: published + 12 * HOUR } : null;
+    const { data, error } = await scoped(videoId, around).order('created_at', { ascending: true }).limit(MAX);
+    if (!error) setMessages((data as LiveMessage[] | null) ?? []);
+  }, [videoId, published]);
+
+  useEffect(() => {
+    setMessages(null);
+    setOpen(true);
+    void load();
+  }, [load]);
+  useLiveRefresh([{ table: 'live_chat_messages', filter: `video_id=eq.${videoId}` }], load);
+
+  const remove = async (m: LiveMessage) => {
+    setChosen(null);
+    setMessages((prev) => (prev ?? []).filter((x) => x.id !== m.id));
+    const { error } = await supabase.rpc('remove_live_chat_message' as never, { _id: m.id } as never);
+    if (error) {
+      appAlert("Couldn't remove the comment", 'Please try again.', 'error');
+      void load();
+    }
+  };
+
+  if (!messages?.length || isChannelId(videoId)) return null;
+  const day = (iso: string) => new Date(iso.replace(/(\.\d{3})\d+/, '$1')).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-card dark:border-slate-800" data-testid="chat-replay">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2.5 text-left" aria-expanded={open}>
+        <MessageSquare className="h-4 w-4 shrink-0 text-red-600" />
+        <span className="text-[14px] font-semibold text-foreground">Live chat replay</span>
+        <span className="text-[12.5px] text-muted-foreground">· {messages.length >= MAX ? `${MAX}+` : messages.length} {messages.length === 1 ? 'comment' : 'comments'}</span>
+        <span className="ml-auto text-[12px] text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="max-h-[360px] space-y-2.5 overflow-y-auto overscroll-contain border-t border-border/60 px-3 py-3">
+          <p className="text-center text-[12px] text-muted-foreground">Comments from the live service · {day(messages[0].created_at)}</p>
+          {messages.map((m) => {
+            const canRemove = !!user && (m.user_id === user.id || !!isAdmin);
+            return (
+              <div key={m.id} className="flex items-start gap-2.5">
+                <UserAvatar name={m.author_name} src={m.author_avatar} seed={m.user_id} className="h-8 w-8 shrink-0" />
+                <button type="button" onClick={() => canRemove && setChosen((c) => (c === m.id ? null : m.id))} className="min-w-0 flex-1 text-left">
+                  <span className="mr-1.5 text-[13px] font-semibold text-muted-foreground">{m.user_id === user?.id ? 'You' : m.author_name}</span>
+                  <span className="text-[14.5px] leading-snug text-foreground [overflow-wrap:anywhere]">{m.body}</span>
+                  <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">{time(m.created_at)}</span>
+                </button>
+                {chosen === m.id && canRemove && (
+                  <button onClick={() => remove(m)} className="flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[12px] font-semibold text-red-600 dark:bg-red-950/40" aria-label="Remove comment">
+                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <p className="pt-1 text-center text-[12px] text-muted-foreground">The live chat has ended</p>
         </div>
       )}
     </div>

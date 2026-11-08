@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, ExternalLink } from "lucide-react";
-import LiveChat from "@/components/LiveChat";
+import LiveChat, { LiveChatReplay } from "@/components/LiveChat";
 import { CHANNEL_ID, embedUrl } from "@/services/youtube";
 import { church } from '@/config/church';
 
@@ -69,6 +69,12 @@ const VideoModal = ({ isOpen, onClose, videoId, title, isLive = false }: VideoMo
         {isOpen && isLive && (
           <div className="bg-background px-3 pb-3">
             <LiveChat videoId={videoId} youtube={!channelStream} />
+          </div>
+        )}
+        {/* A past service: its saved live chat (shows nothing if nobody commented) */}
+        {isOpen && !isLive && videoId && (
+          <div className="bg-background px-3 empty:hidden [&:has(>*)]:pb-3">
+            <LiveChatReplay videoId={videoId} />
           </div>
         )}
       </DialogContent>

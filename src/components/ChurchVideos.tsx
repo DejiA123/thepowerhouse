@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
-import LiveChat from "@/components/LiveChat";
+import LiveChat, { LiveChatReplay } from "@/components/LiveChat";
 import LiveControls from "@/components/LiveControls";
 import { track } from "@/lib/activity";
 import {
@@ -153,6 +153,8 @@ const ChurchVideos = () => {
             </div>
             {/* The church's own chat always; YouTube's too when the live video is known */}
             {activeVideo.isLive && <LiveChat videoId={activeVideo.id} youtube={!isChannelId(activeVideo.id)} />}
+            {/* A past service: the comments people made while it was live (like YouTube's chat replay) */}
+            {!activeVideo.isLive && <LiveChatReplay videoId={activeVideo.id} publishedAt={activeVideo.publishedAt} />}
           </div>
 
           {(videos.length > 1 || (liveVideo && videos.length > 0) || (picked && liveVideo)) && (
