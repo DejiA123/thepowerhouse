@@ -317,19 +317,29 @@ export const BibleChapterContent = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // The page follows the audio to its next (or previous) chapter only when it was showing
+  // the chapter the audio was on. Someone reading another chapter or book stays there: the
+  // audio's chapter number used to be applied to the book on screen, so reading Romans while
+  // Mark 14 played jumped the page to Romans 15 (Nov 2026).
+  const shownRef = useRef({ book: selectedBook, chapter: selectedChapter });
+  shownRef.current = { book: selectedBook, chapter: selectedChapter };
+  const wasShowing = (from?: { book: string; chapter: number }) =>
+    !from || (normalizeBookApiName(from.book) === normalizeBookApiName(shownRef.current.book) && from.chapter === shownRef.current.chapter);
+
   // Set up callbacks for global audio context
   useEffect(() => {
     if (globalAudio) {
-      globalAudio.setChapterChangeCallback((chapter: number, isAutoPlay: boolean) => {
-        console.log('🎵 Global audio: Chapter change callback triggered', { chapter, isAutoPlay });
+      globalAudio.setChapterChangeCallback((chapter, isAutoPlay, from) => {
+        if (!wasShowing(from)) return;
         onChapterChange?.(chapter, isAutoPlay);
       });
 
-      globalAudio.setBookChangeCallback((book: string, chapter: number, isAutoPlay: boolean) => {
-        console.log('🎵 Global audio: Book change callback triggered', { book, chapter, isAutoPlay });
+      globalAudio.setBookChangeCallback((book, chapter, isAutoPlay, from) => {
+        if (!wasShowing(from)) return;
         onBookChange?.(book, chapter, isAutoPlay);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalAudio, onChapterChange, onBookChange]);
 
   // Highlights, notes and study notes for this chapter
