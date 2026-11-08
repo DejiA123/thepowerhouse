@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, Highlighter, GraduationCap, Settings, Share2, Eraser, Music } from "lucide-react";
+import { Search, Play, Pause, ChevronLeft, ChevronRight, ChevronDown, X, Copy, NotebookPen, Headphones, SkipBack, SkipForward, Loader2, Highlighter, GraduationCap, Settings, Share2, Eraser, Music, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BibleChapter } from "@/types/bible";
 import { enhancedApiBibleService } from "@/services/enhancedApiBibleService";
@@ -1471,6 +1471,21 @@ const BibleAudioBar = ({
       <div className="h-[3px] bg-white/10">
         <div className="h-full bg-blue-400 transition-[width] duration-500" style={{ width: `${progress}%` }} />
       </div>
+      {/* Reading another chapter than the one playing: switch the audio to it in one tap */}
+      {!playingHere && (
+        <div className="flex items-center gap-2 border-b border-white/10 py-1.5 pl-3.5 pr-1.5" data-testid="play-this-chapter">
+          <span className="min-w-0 flex-1 truncate text-[12.5px] text-white/75">
+            You're reading <span className="font-semibold text-white">{bookName(selectedBook)} {selectedChapter}</span>
+          </span>
+          <button
+            onClick={onListen}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-blue-500 px-3 text-[13px] font-semibold text-white transition hover:bg-blue-400 active:scale-95"
+            aria-label={`Play ${bookName(selectedBook)} ${selectedChapter} instead`}
+          >
+            <Play className="h-3.5 w-3.5 fill-current" /> Play it instead
+          </button>
+        </div>
+      )}
       <div className="flex items-center gap-1.5 py-2 pl-2 pr-1.5">
         <button
           onClick={() => globalAudio.goToPreviousChapter()}
@@ -1514,9 +1529,11 @@ const BibleAudioBar = ({
         {!saved && onOfflineOpen ? (
           <button
             onClick={onOfflineOpen}
-            className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/85 hover:bg-white/20"
+            className="shrink-0 rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
+            aria-label="Download for offline listening"
+            title="Download for offline listening"
           >
-            Download
+            <Download className="h-4 w-4" />
           </button>
         ) : null}
         <button
