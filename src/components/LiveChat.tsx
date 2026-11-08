@@ -259,28 +259,62 @@ const ChurchChat = ({ videoId }: { videoId: string }) => {
 
 /**
  * Live chat replay, like YouTube's: a past service shows the comments people made while it
- * was live (read-only, the chat is closed). Nothing shows for a video nobody commented on.
+ * was live (read-only, the chat is closed). With the service's start time (YouTube's
+ * actualStartTime) and the player's position, comments appear as the video reaches the
+ * moment they were written, as on YouTube; otherwise (not playing, or "Show all") the
+ * whole list. Nothing shows for a video nobody commented on.
  */
-export const LiveChatReplay = ({ videoId, publishedAt }: { videoId: string; publishedAt?: string }) => {
+export const LiveChatReplay = ({
+  videoId,
+  publishedAt,
+  startedAt,
+  videoTime = null,
+}: {
+  videoId: string;
+  publishedAt?: string;
+  /** When the service went live */
+  startedAt?: string;
+  /** Where the player is (seconds), or null when it isn't playing */
+  videoTime?: number | null;
+}) => {
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
   const [messages, setMessages] = useState<LiveMessage[] | null>(null);
   const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
   const published = publishedAt ? Date.parse(publishedAt) : NaN;
+  const start = startedAt ? Date.parse(startedAt) : NaN;
 
   const load = useCallback(async () => {
-    const around = Number.isFinite(published) ? { from: published - 2 * HOUR, to: published + 12 * HOUR } : null;
+    const around = Number.isFinite(start)
+      ? { from: start - HOUR / 2, to: start + 8 * HOUR }
+      : Number.isFinite(published)
+        ? { from: published - 2 * HOUR, to: published + 12 * HOUR }
+        : null;
     const { data, error } = await scoped(videoId, around).order('created_at', { ascending: true }).limit(MAX);
     if (!error) setMessages((data as LiveMessage[] | null) ?? []);
-  }, [videoId, published]);
+  }, [videoId, published, start]);
 
   useEffect(() => {
     setMessages(null);
     setOpen(true);
+    setShowAll(false);
     void load();
   }, [load]);
   useLiveRefresh([{ table: 'live_chat_messages', filter: `video_id=eq.${videoId}` }], load);
+
+  const synced = Number.isFinite(start) && videoTime !== null && !showAll;
+  const at = (iso: string) => Date.parse(iso.replace(/(\.\d{3})\d+/, '$1'));
+  const shown = synced ? (messages ?? []).filter((m) => at(m.created_at) <= start + (videoTime as number) * 1000) : messages ?? [];
+
+  // In time with the video: new comments scroll in at the bottom (unless you scrolled up to read)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && synced && atBottom.current) el.scrollTop = el.scrollHeight;
+  }, [shown.length, synced]);
 
   const remove = async (m: LiveMessage) => {
     setChosen(null);
@@ -294,38 +328,69 @@ export const LiveChatReplay = ({ videoId, publishedAt }: { videoId: string; publ
 
   if (!messages?.length || isChannelId(videoId)) return null;
   const day = (iso: string) => new Date(iso.replace(/(\.\d{3})\d+/, '$1')).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  const total = messages.length >= MAX ? `${MAX}+` : `${messages.length}`;
 
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-card dark:border-slate-800" data-testid="chat-replay">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2.5 text-left" aria-expanded={open}>
         <MessageSquare className="h-4 w-4 shrink-0 text-red-600" />
         <span className="text-[14px] font-semibold text-foreground">Live chat replay</span>
-        <span className="text-[12.5px] text-muted-foreground">· {messages.length >= MAX ? `${MAX}+` : messages.length} {messages.length === 1 ? 'comment' : 'comments'}</span>
+        <span className="text-[12.5px] text-muted-foreground">· {total} {messages.length === 1 ? 'comment' : 'comments'}</span>
         <span className="ml-auto text-[12px] text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
-        <div className="max-h-[360px] space-y-2.5 overflow-y-auto overscroll-contain border-t border-border/60 px-3 py-3">
-          <p className="text-center text-[12px] text-muted-foreground">Comments from the live service · {day(messages[0].created_at)}</p>
-          {messages.map((m) => {
-            const canRemove = !!user && (m.user_id === user.id || !!isAdmin);
-            return (
-              <div key={m.id} className="flex items-start gap-2.5">
-                <UserAvatar name={m.author_name} src={m.author_avatar} seed={m.user_id} className="h-8 w-8 shrink-0" />
-                <button type="button" onClick={() => canRemove && setChosen((c) => (c === m.id ? null : m.id))} className="min-w-0 flex-1 text-left">
-                  <span className="mr-1.5 text-[13px] font-semibold text-muted-foreground">{m.user_id === user?.id ? 'You' : m.author_name}</span>
-                  <span className="text-[14.5px] leading-snug text-foreground [overflow-wrap:anywhere]">{m.body}</span>
-                  <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">{time(m.created_at)}</span>
-                </button>
-                {chosen === m.id && canRemove && (
-                  <button onClick={() => remove(m)} className="flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[12px] font-semibold text-red-600 dark:bg-red-950/40" aria-label="Remove comment">
-                    <Trash2 className="h-3.5 w-3.5" /> Remove
+        <>
+          {Number.isFinite(start) && (
+            <div className="flex items-center gap-2 border-t border-border/60 px-3 py-1.5 text-[12px] text-muted-foreground" data-testid="replay-mode">
+              {synced ? (
+                <>
+                  <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60 motion-reduce:hidden" /><span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" /></span>
+                  <span className="min-w-0 flex-1">In time with the video</span>
+                  <button type="button" onClick={() => setShowAll(true)} className="font-semibold text-blue-600 dark:text-blue-400">Show all</button>
+                </>
+              ) : videoTime !== null ? (
+                <>
+                  <span className="min-w-0 flex-1">All comments</span>
+                  <button type="button" onClick={() => { atBottom.current = true; setShowAll(false); }} className="font-semibold text-blue-600 dark:text-blue-400">Play along with the video</button>
+                </>
+              ) : (
+                <span>Play the video to see the comments as they happened</span>
+              )}
+            </div>
+          )}
+          <div
+            ref={scrollRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+            }}
+            className="max-h-[360px] min-h-[120px] space-y-2.5 overflow-y-auto overscroll-contain border-t border-border/60 px-3 py-3"
+          >
+            <p className="text-center text-[12px] text-muted-foreground">Comments from the live service · {day(messages[0].created_at)}</p>
+            {synced && shown.length === 0 && (
+              <p className="py-4 text-center text-[13px] text-muted-foreground">Comments will appear here as the service plays</p>
+            )}
+            {shown.map((m) => {
+              const canRemove = !!user && (m.user_id === user.id || !!isAdmin);
+              return (
+                <div key={m.id} className="flex items-start gap-2.5 animate-in fade-in duration-300 motion-reduce:animate-none">
+                  <UserAvatar name={m.author_name} src={m.author_avatar} seed={m.user_id} className="h-8 w-8 shrink-0" />
+                  <button type="button" onClick={() => canRemove && setChosen((c) => (c === m.id ? null : m.id))} className="min-w-0 flex-1 text-left">
+                    <span className="mr-1.5 text-[13px] font-semibold text-muted-foreground">{m.user_id === user?.id ? 'You' : m.author_name}</span>
+                    <span className="text-[14.5px] leading-snug text-foreground [overflow-wrap:anywhere]">{m.body}</span>
+                    <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">{time(m.created_at)}</span>
                   </button>
-                )}
-              </div>
-            );
-          })}
-          <p className="pt-1 text-center text-[12px] text-muted-foreground">The live chat has ended</p>
-        </div>
+                  {chosen === m.id && canRemove && (
+                    <button onClick={() => remove(m)} className="flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[12px] font-semibold text-red-600 dark:bg-red-950/40" aria-label="Remove comment">
+                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {(!synced || shown.length === messages.length) && <p className="pt-1 text-center text-[12px] text-muted-foreground">The live chat has ended</p>}
+          </div>
+        </>
       )}
     </div>
   );

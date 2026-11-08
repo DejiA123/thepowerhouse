@@ -32,6 +32,8 @@ export interface Video {
   thumbnail: string;
   publishedAt: string;
   channelTitle: string;
+  /** When a past live service actually started (YouTube's liveStreamingDetails), for the chat replay */
+  liveStartedAt?: string;
 }
 
 let cache: { videos: Video[]; at: number; source: string } | null = null;
@@ -72,6 +74,7 @@ export function videosFromApi(details: any, channelId = CHANNEL_ID): Video[] {
       thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
       publishedAt: v.snippet.publishedAt ?? '',
       channelTitle: v.snippet.channelTitle ?? '',
+      ...(v.liveStreamingDetails?.actualStartTime && { liveStartedAt: v.liveStreamingDetails.actualStartTime }),
     }))
     .sort(newestFirst);
 }
@@ -118,7 +121,7 @@ async function fromApi(key: string): Promise<Video[]> {
   const ids: string[] = (list?.items ?? []).map((i: any) => i?.contentDetails?.videoId).filter(Boolean);
   if (!ids.length) return [];
   const details = await getJson(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${ids.join(',')}&key=${key}`,
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status,liveStreamingDetails&id=${ids.join(',')}&key=${key}`,
   );
   return videosFromApi(details);
 }
