@@ -17,6 +17,12 @@ import { track } from '@/lib/activity';
 // ── Background Audio Persistence Helpers ──
 const AUDIO_STATE_KEY = 'powerhouse_audio_state';
 
+/** A chapter of the audio Bible */
+export interface AudioPlace {
+  book: string;
+  chapter: number;
+}
+
 interface PersistedAudioState {
   book: string;
   chapter: number;
@@ -219,8 +225,9 @@ interface GlobalAudioContextType {
   setLoopBook: (enabled: boolean) => void;
   goToNextChapter: () => void;
   goToPreviousChapter: () => void;
-  setChapterChangeCallback: (callback: (chapter: number, isAutoPlay: boolean) => void) => void;
-  setBookChangeCallback: (callback: (book: string, chapter: number, isAutoPlay: boolean) => void) => void;
+  /** The audio moved to another chapter; `from` is the chapter it was on, so a page follows only if it showed that one */
+  setChapterChangeCallback: (callback: (chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) => void;
+  setBookChangeCallback: (callback: (book: string, chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) => void;
   playTrack: (url: string, title: string, artist: string, image?: string) => Promise<void>;
 }
 
@@ -263,8 +270,8 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [audioState]);
 
   const isAutoAdvancingRef = useRef<boolean>(false);
-  const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean) => void) | null>(null);
-  const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean) => void) | null>(null);
+  const chapterChangeCallbackRef = useRef<((chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) | null>(null);
+  const bookChangeCallbackRef = useRef<((book: string, chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) | null>(null);
   const nextChapterUrlRef = useRef<{ url: string; book: string; chapter: number; playable?: string } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const autoAdvanceRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -854,9 +861,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     // Starts synchronously (no waiting) when the next chapter was got ready ahead
+    const from: AudioPlace = { book: currentBook, chapter: currentChapter || 1 };
     playBibleChapterMP3(next.book, next.chapter, currentVersion, autoPlayNext, loopChapter);
-    if (next.newBook) bookChangeCallbackRef.current?.(next.book, next.chapter, true);
-    else chapterChangeCallbackRef.current?.(next.chapter, true);
+    if (next.newBook) bookChangeCallbackRef.current?.(next.book, next.chapter, true, from);
+    else chapterChangeCallbackRef.current?.(next.chapter, true, from);
 
     setTimeout(() => {
       isAutoAdvancingRef.current = false;
@@ -868,9 +876,10 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!currentBook) return;
     const prev = previousChapterBefore(currentBook, currentChapter || 1);
     if (!prev) return;
+    const from: AudioPlace = { book: currentBook, chapter: currentChapter || 1 };
     playBibleChapterMP3(prev.book, prev.chapter, currentVersion, autoPlayNext, loopChapter);
-    if (prev.newBook) bookChangeCallbackRef.current?.(prev.book, prev.chapter, false);
-    else chapterChangeCallbackRef.current?.(prev.chapter, false);
+    if (prev.newBook) bookChangeCallbackRef.current?.(prev.book, prev.chapter, false, from);
+    else chapterChangeCallbackRef.current?.(prev.chapter, false, from);
   }, [playBibleChapterMP3]);
 
   useEffect(() => {
@@ -1317,11 +1326,11 @@ export const GlobalAudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setAudioState(prev => ({ ...prev, loopBook: enabled }));
   }, []);
 
-  const setChapterChangeCallback = useCallback((callback: (chapter: number, isAutoPlay: boolean) => void) => {
+  const setChapterChangeCallback = useCallback((callback: (chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) => {
     chapterChangeCallbackRef.current = callback;
   }, []);
 
-  const setBookChangeCallback = useCallback((callback: (book: string, chapter: number, isAutoPlay: boolean) => void) => {
+  const setBookChangeCallback = useCallback((callback: (book: string, chapter: number, isAutoPlay: boolean, from?: AudioPlace) => void) => {
     bookChangeCallbackRef.current = callback;
   }, []);
 
