@@ -149,7 +149,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (data || []).forEach((row: any) => {
       ids.push(row.chat_id);
       // What call screens show: for a private chat, the other person's name
-      if (row.group_chats?.name) chatNamesRef.current[row.chat_id] = chatTitle(row.group_chats, me?.name);
+      if (row.group_chats?.name) chatNamesRef.current[row.chat_id] = chatTitle({ id: row.chat_id, ...row.group_chats }, me?.name);
       if (row.group_chats && isPrivateChat(row.group_chats)) privateChatsRef.current.add(row.chat_id);
     });
     chatIdsRef.current = ids;

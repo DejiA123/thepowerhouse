@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * One-to-one chats show the other person's profile photo (like WhatsApp), not
- * the chat's own picture (empty for them, so only initials showed). Looked up
+ * One-to-one chats show the other person's profile photo and name (like WhatsApp),
+ * not the chat's own picture (empty for them, so only initials showed) or its stored
+ * "A & B" name. Looked up
  * once for many chats, kept in memory and on the phone so it shows instantly.
  */
 export interface ChatPeer {
   id: string;
   avatar: string | null;
+  /** Their name as it is now (null until looked up) */
+  name?: string | null;
 }
 
 const KEY = 'chat_peers_v1';
@@ -38,7 +41,7 @@ export async function loadChatPeers(myId: string, chatIds: string[]) {
   want.forEach((id) => asked.set(id, now));
   const { data, error } = await supabase
     .from('chat_participants')
-    .select('chat_id, user_id, user:user_id ( avatar_url )')
+    .select('chat_id, user_id, user:user_id ( avatar_url, full_name )')
     .in('chat_id', want)
     .neq('user_id', myId);
   if (error) {
@@ -46,10 +49,10 @@ export async function loadChatPeers(myId: string, chatIds: string[]) {
     return;
   }
   let changed = false;
-  for (const row of (data || []) as unknown as { chat_id: string; user_id: string; user: { avatar_url: string | null } | null }[]) {
-    const next = { id: row.user_id, avatar: row.user?.avatar_url || null };
+  for (const row of (data || []) as unknown as { chat_id: string; user_id: string; user: { avatar_url: string | null; full_name: string | null } | null }[]) {
+    const next = { id: row.user_id, avatar: row.user?.avatar_url || null, name: row.user?.full_name?.trim() || null };
     const prev = memory.get(row.chat_id);
-    if (!prev || prev.id !== next.id || prev.avatar !== next.avatar) {
+    if (!prev || prev.id !== next.id || prev.avatar !== next.avatar || prev.name !== next.name) {
       memory.set(row.chat_id, next);
       changed = true;
     }
@@ -67,7 +70,7 @@ export function refreshChatPeers() {
   asked = new Map();
 }
 
-/** The other person of each of these private chats (re-renders when photos arrive) */
+/** The other person of each of these private chats (re-renders when photos and names arrive) */
 export function useChatPeers(myId: string | undefined, privateChatIds: string[]) {
   const [, setTick] = useState(0);
   const key = privateChatIds.join(',');
