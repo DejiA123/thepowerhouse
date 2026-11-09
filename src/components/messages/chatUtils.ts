@@ -1,13 +1,21 @@
 import { supabase } from '@/integrations/supabase/client';
 import { plainFormatting } from './whatsappFormat';
 import { encryptFile, encryptedFileType, isEncryptedFile } from '@/lib/chatCrypto';
+import { chatPeer } from '@/lib/chatPhotos';
 
 /** A chat between two friends (made from Social Circle), named "A & B". */
 export const isPrivateChat = (chat: { description?: string | null }) => chat.description === 'Private chat';
 
-/** What to call a chat: for a private chat, the other person's name. */
-export function chatTitle(chat: { name: string; description?: string | null }, myName?: string) {
-  if (!isPrivateChat(chat) || !chat.name.includes(' & ')) return chat.name;
+/**
+ * What to call a chat: for a private chat, only the other person's name (never "A & B").
+ * Their name is looked up from the chat's members (`useChatPeers`); until it arrives, the
+ * stored "A & B" name is split by matching my own name.
+ */
+export function chatTitle(chat: { id?: string; name: string; description?: string | null }, myName?: string) {
+  if (!isPrivateChat(chat)) return chat.name;
+  const peerName = chat.id ? chatPeer(chat.id)?.name : null;
+  if (peerName) return peerName;
+  if (!chat.name.includes(' & ')) return chat.name;
   const [a, b] = chat.name.split(' & ');
   const mine = (myName || '').trim().toLowerCase();
   const first = mine.split(/\s+/)[0];

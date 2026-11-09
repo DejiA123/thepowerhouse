@@ -8,7 +8,8 @@ import { appAlert } from '@/lib/appAlert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserAvatar from '@/components/common/UserAvatar';
 import { GroupChatService, senderName, type ChatMessage, type ChatSummary, type GroupChat } from '@/services/groupChatService';
-import { chatTitle, formatClock, formatDayLabel, previewText } from './chatUtils';
+import { chatTitle, formatClock, formatDayLabel, isPrivateChat, previewText } from './chatUtils';
+import { useChatPeers } from '@/lib/chatPhotos';
 
 /** Like WhatsApp: a message goes to at most 5 chats at once */
 export const FORWARD_LIMIT = 5;
@@ -51,9 +52,10 @@ const SearchBox = ({ value, onChange, placeholder, autoFocus }: { value: string;
 // ── Forward ─────────────────────────────────────────────────────────
 
 /** Pick up to 5 chats and send them a copy of the message, marked "Forwarded" */
-export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
+export const ForwardSheet = ({ message, myId, myName, onClose, onForwarded }: {
   /** One message, or several chosen together (sent in order) */
   message: ChatMessage | ChatMessage[] | null;
+  myId: string;
   myName: string;
   onClose: () => void;
   /** The copies that were sent (one per chat) */
@@ -64,6 +66,8 @@ export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
   const [picked, setPicked] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const open = !!message;
+  // One-to-one chats: the other person's own name and photo
+  const peerOf = useChatPeers(myId, (chats || []).filter((c) => isPrivateChat(c)).map((c) => c.id));
 
   useEffect(() => {
     if (!open) return;
@@ -132,7 +136,7 @@ export const ForwardSheet = ({ message, myName, onClose, onForwarded }: {
                 aria-pressed={on}
                 className={cn('flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition active:bg-muted', full && 'opacity-40')}
               >
-                <UserAvatar name={title} src={c.avatar_url} seed={c.id} className="h-11 w-11" />
+                <UserAvatar name={title} src={isPrivateChat(c) ? peerOf(c.id)?.avatar ?? c.avatar_url : c.avatar_url} seed={c.id} className="h-11 w-11" />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-foreground">{title}</span>
                 <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-blue-600 bg-blue-600 text-white' : 'border-muted-foreground/40')}>
                   {on && <Check className="h-4 w-4" />}

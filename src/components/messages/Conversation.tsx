@@ -1532,6 +1532,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
       <ForwardSheet
         message={forwardFor}
+        myId={me.id}
         myName={me.name}
         onClose={() => setForwardFor(null)}
         onForwarded={(sent) => sent.filter((m) => m.chat_id === chat.id).forEach((m) => {

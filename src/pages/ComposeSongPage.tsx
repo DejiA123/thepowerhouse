@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import SongSheet, { type ComposedSong } from '@/components/choir/SongSheet';
 import MusicProgress from '@/components/choir/MusicProgress';
+import SplitProgress from '@/components/choir/SplitProgress';
 import SongWordsEditor from '@/components/choir/SongWordsEditor';
 import { SongParts } from '@/components/choir/SongParts';
 import { partForSections, usePartPlayer, type PartTime } from '@/lib/songParts';
@@ -252,7 +253,9 @@ const ComposeSongPage = () => {
   // Songs made before the split get theirs on first open (asked again while it's busy).
   const [version, setVersion] = useState<Version>('full');
   useEffect(() => setVersion('full'), [current?.id, current?.audio_url]);
-  const [stemsWaiting, setStemsWaiting] = useState(false);
+  // While they're made: a live progress card. When the split began is kept on the phone,
+  // so coming back to the page carries on from the right place.
+  const [split, setSplit] = useState<{ startedAt: number; done?: boolean } | null>(null);
   const askedStems = useRef(new Set<string>());
   const stemsFor = current?.audio_status === 'ready' && current.audio_url && !current.instrumental_url ? { id: current.id, url: current.audio_url } : null;
   useEffect(() => {
@@ -263,11 +266,18 @@ const ComposeSongPage = () => {
     if (asked.has(key)) return;
     asked.add(key);
     let stop = false;
-    setStemsWaiting(true);
+    const startedAt = splitStart(d.id, d.url);
+    setSplit({ startedAt });
     void (async () => {
-      for (let tries = 0; tries < 10 && !stop; tries++) {
-        const r = (await call({ action: 'stems', draftId: d.id })) as { state?: string; instrumental_url?: string | null; vocals_url?: string | null };
+      // Each ask waits on the server up to ~2 minutes; keep asking while it's still busy
+      while (!stop && Date.now() - startedAt < SPLIT_GIVE_UP_MS) {
+        const r = (await call({ action: 'stems', draftId: d.id }).catch(() => ({ state: 'busy' }))) as { state?: string; instrumental_url?: string | null; vocals_url?: string | null };
+        if (stop) return;
         if (r.instrumental_url) {
+          forgetSplit(d.id);
+          setSplit({ startedAt, done: true });
+          await new Promise((ok) => setTimeout(ok, 800));
+          if (stop) return;
           const patch = { instrumental_url: r.instrumental_url, vocals_url: r.vocals_url ?? null };
           setCurrent((c) => (c && c.id === d.id ? { ...c, ...patch } : c));
           setDrafts((list) => list?.map((x) => (x.id === d.id ? { ...x, ...patch } : x)) ?? list);
@@ -276,11 +286,12 @@ const ComposeSongPage = () => {
         if (r.state !== 'busy') break;
         await new Promise((ok) => setTimeout(ok, 15_000));
       }
-      if (!stop) setStemsWaiting(false);
+      if (!stop) setSplit(null);
     })();
     return () => {
       stop = true;
       asked.delete(key);
+      setSplit(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per song and recording
   }, [stemsFor?.id, stemsFor?.url]);
@@ -599,7 +610,8 @@ const ComposeSongPage = () => {
                   value={version}
                   onChange={switchVersion}
                   ready={!!current.instrumental_url && !!current.vocals_url}
-                  waiting={stemsWaiting}
+                  split={split}
+                  songS={parts?.[parts.length - 1]?.end ?? (audioEl && Number.isFinite(audioEl.duration) ? audioEl.duration : null)}
                 />
                 <audio ref={setAudioEl} controls preload="metadata" src={versionUrl ?? current.audio_url} className="mt-3 w-full" />
                 <SongParts parts={parts} loading={partsLoading} player={partPlayer} />
@@ -951,13 +963,50 @@ const VERSION_NOTE: Record<Version, string> = {
   voices: 'Just the singers: good for learning the parts.',
 };
 
+/** When each song's split began (on this phone), so the progress carries on after leaving the page */
+const SPLIT_KEY = 'song_split_started_v1';
+const SPLIT_GIVE_UP_MS = 15 * 60_000;
+function readSplits(): Record<string, { url: string; t: number }> {
+  try {
+    return JSON.parse(localStorage.getItem(SPLIT_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+function writeSplits(all: Record<string, { url: string; t: number }>) {
+  try {
+    localStorage.setItem(SPLIT_KEY, JSON.stringify(all));
+  } catch {
+    /* private window */
+  }
+}
+function splitStart(id: string, url: string) {
+  const all = readSplits();
+  const known = all[id];
+  if (known && known.url === url && Date.now() - known.t < SPLIT_GIVE_UP_MS) return known.t;
+  // Drop old entries, then note this one
+  for (const [k, v] of Object.entries(all)) if (Date.now() - v.t > SPLIT_GIVE_UP_MS) delete all[k];
+  all[id] = { url, t: Date.now() };
+  writeSplits(all);
+  return all[id].t;
+}
+function forgetSplit(id: string) {
+  const all = readSplits();
+  delete all[id];
+  writeSplits(all);
+}
+
 /** Full song / Music only / Voices only (the last two once the music server has split it) */
-const VersionSwitch = ({ value, onChange, ready, waiting }: { value: Version; onChange: (v: Version) => void; ready: boolean; waiting: boolean }) => {
+const VersionSwitch = ({ value, onChange, ready, split, songS }: {
+  value: Version;
+  onChange: (v: Version) => void;
+  ready: boolean;
+  split: { startedAt: number; done?: boolean } | null;
+  songS: number | null;
+}) => {
   if (!ready) {
-    return waiting ? (
-      <p className="flex items-center gap-2 text-[13px] text-muted-foreground" data-testid="versions-waiting">
-        <Loader2 className="h-4 w-4 animate-spin" /> Making the music-only and voices-only versions…
-      </p>
+    return split ? (
+      <SplitProgress startedAt={split.startedAt} songS={songS} done={split.done} />
     ) : null;
   }
   return (
