@@ -497,10 +497,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (engineRef.current) finishCall(engineRef.current, 'hangup');
   }, [finishCall]);
 
-  // Caller: stop ringing everyone if nobody picks up
+  // Caller: the ringing plays from the Call tap on, through the call's own output (so it
+  // follows Speaker / earpiece and plays whatever the silent switch says). If the phone
+  // wouldn't play it, the sound engine rings instead. Stop ringing everyone if nobody picks up.
   useEffect(() => {
     if (!engine || !call?.isInitiator || call.status !== 'waiting') return;
-    const stop = startRingtone('outgoing');
+    let stop: (() => void) | null = null;
+    const fallback = setTimeout(() => {
+      if (engine.ringbackState() === 'playing') return;
+      engine.stopRingback();
+      stop = startRingtone('outgoing');
+    }, 400);
     const timeout = setTimeout(() => {
       if (engine.getSnapshot().status === 'waiting') {
         appAlert('No answer', `${call.chatName} didn't pick up.`);
@@ -508,7 +515,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }, RING_TIMEOUT_MS);
     return () => {
-      stop();
+      clearTimeout(fallback);
+      stop?.();
       clearTimeout(timeout);
     };
   }, [engine, call?.isInitiator, call?.status, call?.chatName, finishCall]);

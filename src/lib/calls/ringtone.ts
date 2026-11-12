@@ -74,6 +74,9 @@ export function startRingtone(kind: 'incoming' | 'outgoing'): () => void {
 
   const cycle = () => {
     if (stopped) return;
+    // The phone paused the sound engine (e.g. when the microphone started, iPhone says
+    // "interrupted"): ask again every ring, rather than staying silent for the whole call
+    if (c && c.state !== 'running') c.resume().catch(() => undefined);
     if (c && c.state === 'running') {
       const t = c.currentTime + 0.05;
       if (kind === 'incoming') {
@@ -84,8 +87,8 @@ export function startRingtone(kind: 'incoming' | 'outgoing'): () => void {
         tone(c, [783.99], t + 1.2, 0.18, 0.18);
         tone(c, [1046.5], t + 1.4, 0.34, 0.16);
       } else {
-        tone(c, [400, 450], t, 0.4, 0.06);
-        tone(c, [400, 450], t + 0.6, 0.4, 0.06);
+        tone(c, [400, 450], t, 0.4, 0.12);
+        tone(c, [400, 450], t + 0.6, 0.4, 0.12);
       }
     }
     if (kind === 'incoming' && 'vibrate' in navigator) {
