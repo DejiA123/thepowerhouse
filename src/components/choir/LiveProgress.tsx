@@ -10,19 +10,25 @@ export interface Stage { from: number; text: string }
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+/**
+ * Never still: steady to 88% at the expected time, then it keeps creeping towards 99%
+ * for as long as it takes (a bar parked at 96% made people think it was stuck).
+ */
 function progressAt(elapsedS: number, expectedS: number) {
-  const steady = 0.9 * Math.min(1, elapsedS / expectedS);
+  const steady = 0.88 * Math.min(1, elapsedS / expectedS);
   const over = Math.max(0, elapsedS - expectedS);
-  return Math.min(0.97, steady + 0.07 * (1 - Math.exp(-over / Math.max(8, expectedS / 2))));
+  return Math.min(0.995, steady + 0.11 * (over / (over + expectedS * 1.5)));
 }
+
+/** Past the usual time: say so plainly, with a line that changes every few seconds */
+const OVERTIME = ['Taking longer than usual, still working', 'Still going, please keep this page open', 'Nearly there, thank you for waiting'];
 
 function leftText(leftS: number) {
   if (leftS > 90) return `About ${Math.round(leftS / 60)} minutes left`;
   if (leftS > 40) return 'About a minute left';
   if (leftS > 6) return `About ${Math.max(5, Math.round(leftS / 5) * 5)} seconds left`;
   if (leftS > 0) return 'A few seconds left';
-  // Well past the usual time: say so plainly (a bar parked at 96% looked stuck)
-  if (leftS < -20) return 'Taking longer than usual, still working';
+  if (leftS < -12) return OVERTIME[Math.floor(-leftS / 8) % OVERTIME.length];
   return 'Finishing off, nearly done';
 }
 
@@ -50,7 +56,9 @@ const LiveProgress = ({ title, startedAt, expectedS, stages, stageOverride, done
   const elapsed = Math.max(0, (now - startedAt) / 1000);
   const p = done ? 1 : progressAt(elapsed, expectedS);
   const stage = done ? 'Done' : stageOverride || [...stages].reverse().find((s) => p >= s.from)?.text || stages[0]?.text;
-  const pct = Math.floor(p * 100);
+  // Past the expected time the number shows tenths, so it's seen to keep moving
+  const overtime = !done && elapsed > expectedS;
+  const pct = overtime ? (Math.floor(p * 1000) / 10).toFixed(1) : Math.floor(p * 100);
 
   return (
     <div className={className} data-testid={testId} aria-live="polite">
@@ -72,7 +80,7 @@ const LiveProgress = ({ title, startedAt, expectedS, stages, stageOverride, done
         aria-label={title}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={pct}
+        aria-valuenow={Math.floor(p * 100)}
       >
         <div
           className="music-bar relative h-full rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-500 transition-[width] duration-300 ease-linear"

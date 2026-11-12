@@ -41,6 +41,10 @@ interface Draft {
   /** The same recording without the voices, and the voices alone (music server, Demucs) */
   instrumental_url?: string | null;
   vocals_url?: string | null;
+  /** The backing track: the studio playing the song again with no singer at all */
+  backing_url?: string | null;
+  backing_status?: 'none' | 'making' | 'ready' | 'failed' | null;
+  backing_job?: { requested_at?: string; task_id?: string; studio?: boolean } | null;
   music_requested_at: string | null;
   created_at: string;
 }
@@ -313,6 +317,28 @@ const ComposeSongPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per song and recording
   }, [stemsFor?.id, stemsFor?.url]);
   const versionUrl = current ? (version === 'music' ? current.instrumental_url : version === 'voices' ? current.vocals_url : current.audio_url) || current.audio_url : null;
+  // The backing track: asked for by the writer, then watched until it's there
+  const makeBacking = async () => {
+    if (!current) return;
+    const r = await call({ action: 'backing', draftId: current.id });
+    if (r.draft) setCurrent(r.draft);
+    else appAlert("Couldn't start the backing track", r.error ?? 'Please try again.', 'error');
+  };
+  const backingId = current?.backing_status === 'making' ? current.id : null;
+  useEffect(() => {
+    if (!backingId) return;
+    let stop = false;
+    const tick = async () => {
+      const r = await call({ action: 'backing-check', draftId: backingId });
+      if (!stop && r.draft) setCurrent((c) => (c && c.id === backingId ? { ...c, backing_status: r.draft!.backing_status, backing_url: r.draft!.backing_url, backing_job: r.draft!.backing_job } : c));
+    };
+    const t = window.setInterval(tick, 6000);
+    return () => {
+      stop = true;
+      window.clearInterval(t);
+    };
+  }, [backingId]);
+
   /** Switching version carries on from the same moment (and keeps playing if it was) */
   const resume = useRef<{ t: number; play: boolean } | null>(null);
   const switchVersion = (v: Version) => {
@@ -693,6 +719,10 @@ const ComposeSongPage = () => {
             )}
           </div>
 
+          {current.audio_status === 'ready' && current.audio_url && (mine || (current.backing_status === 'ready' && current.backing_url)) && (
+            <BackingTrack draft={current} mine={mine} onMake={makeBacking} />
+          )}
+
           {mine && (
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button type="button" onClick={toggleShare} className="flex items-center justify-center gap-1.5 rounded-2xl bg-muted py-3 text-[14px] font-semibold text-foreground">
@@ -1027,6 +1057,80 @@ function forgetSplit(id: string) {
   delete all[id];
   writeSplits(all);
 }
+
+const BACKING_STAGES: Stage[] = [
+  { from: 0, text: 'Sending the song to the studio' },
+  { from: 0.08, text: 'Getting the studio ready' },
+  { from: 0.3, text: 'Planning the arrangement for the band' },
+  { from: 0.45, text: 'Laying down the drums and bass' },
+  { from: 0.6, text: 'Adding the keys, organ and guitars' },
+  { from: 0.78, text: 'Mixing the band' },
+  { from: 0.9, text: 'Saving the backing track' },
+];
+
+/**
+ * The backing track: the studio plays the song's style, key and tempo again with no
+ * singer at all, for writing and singing your own song on top. ("Music only" is the sung
+ * recording with the voices taken out, which always leaves a trace of them.) It's a fresh
+ * performance, so it has its own player; made only when the writer asks.
+ */
+const BackingTrack = ({ draft, mine, onMake }: { draft: Draft; mine: boolean; onMake: () => Promise<void> }) => {
+  const [asking, setAsking] = useState(false);
+  const status = draft.backing_status ?? 'none';
+  const make = async () => {
+    setAsking(true);
+    await onMake();
+    setAsking(false);
+  };
+  const started = Date.parse(draft.backing_job?.requested_at ?? '') || Date.now();
+  return (
+    <div className="mt-3 rounded-[22px] border border-slate-200/70 bg-card p-4 shadow-sm dark:border-slate-800" data-testid="backing-track">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+          <Music2 className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold text-foreground">Backing track</p>
+          <p className="text-[12.5px] leading-snug text-muted-foreground">The band only, with no singer at all. For writing and singing your own song on top.</p>
+        </div>
+      </div>
+      {status === 'ready' && draft.backing_url ? (
+        <>
+          <audio controls preload="metadata" src={draft.backing_url} className="mt-3 w-full" data-testid="backing-audio" />
+          <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+            A fresh performance in {draft.song.key}, {draft.song.bpm} BPM: the same style, key and tempo as the song, not note for note.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <SaveSong url={draft.backing_url} title={`${draft.title} (backing track)`} />
+            {mine && (
+              <button type="button" onClick={make} disabled={asking} className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-muted py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-50">
+                <RotateCcw className="h-4 w-4" /> Make another
+              </button>
+            )}
+          </div>
+        </>
+      ) : status === 'making' ? (
+        <LiveProgress
+          testId="backing-progress"
+          className="mt-4"
+          title="Making the backing track"
+          startedAt={started}
+          expectedS={draft.backing_job?.task_id ? 150 : 240}
+          stages={BACKING_STAGES}
+          note="You can leave this page; the backing track keeps being made and will be here when you come back."
+        />
+      ) : (
+        <>
+          {status === 'failed' && <p className="mt-3 text-[13.5px] text-red-600 dark:text-red-400">The backing track couldn't be made last time. Try again in a little while.</p>}
+          <button type="button" onClick={make} disabled={asking} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-[15px] font-semibold text-white disabled:opacity-60">
+            {asking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Music2 className="h-5 w-5" />} Make the backing track
+          </button>
+          <p className="mt-2 text-[12.5px] text-muted-foreground">The studio plays the song again in the same style, key and tempo. It takes a few minutes.</p>
+        </>
+      )}
+    </div>
+  );
+};
 
 /** Full song / Music only / Voices only (the last two once the music server has split it) */
 const VersionSwitch = ({ value, onChange, ready, split, songS }: {
