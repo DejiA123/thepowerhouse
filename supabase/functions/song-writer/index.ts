@@ -300,31 +300,78 @@ function parsed(text: string, who: string): { song?: Song; refused?: string; err
   }
 }
 
-/** Ask the models in order until one answers, within `limitMs` of the function's time */
+/** A model with no answer after this long is overtaken: the next one starts beside it */
+const HEDGE_MS = 12_000;
+/** No single attempt may take longer than this (an overloaded model took 44 s to say so) */
+const ATTEMPT_MS = 35_000;
+
+/**
+ * Ask the models until one answers, within `limitMs` of the function's time. They're
+ * started in order, but never one whole wait after another: an overloaded model took
+ * 44 s to answer "busy" and was then tried again, which used up all the time and ended
+ * in "The song helper is busy" (Nov 2026). Now the next model starts as soon as one
+ * fails, or after 12 s with no answer (a good answer takes ~8 s), and the first whole
+ * song wins. A model that fails fast with 500/503 gets one more try at the end.
+ */
 async function generate(ask: Ask, limitMs: number, only?: string) {
   const errors: string[] = [];
   const started = Date.now();
   const left = () => limitMs - (Date.now() - started);
+  type Out = { song?: Song; refused?: string; error?: string; status?: number };
   if (GEMINI) {
     const queue = only ? [only] : [...MODELS];
     const tried = new Set<string>();
-    while (queue.length && tried.size < 5 && left() > 8_000) {
-      const model = queue.shift()!;
-      if (tried.has(model)) continue;
-      tried.add(model);
-      const budget = () => Math.max(5_000, Math.min(50_000, left() - 3_000));
-      let r = await gemini(model, ask, budget());
-      // Busy for a moment: one more try
-      if ((r.status === 503 || r.status === 500) && left() > 20_000) {
-        await new Promise((res) => setTimeout(res, 2000));
-        r = await gemini(model, ask, budget());
-      }
-      if (r.song || r.refused) return r;
-      errors.push(r.error!);
-      // A retired model's error names its replacement ("… use models/<name> …"): try that next
-      const next = r.error?.match(/use models\/([a-z0-9.\-]+)/i)?.[1];
-      if (next && !tried.has(next)) queue.unshift(next);
-    }
+    const retried = new Set<string>();
+    const won = await new Promise<Out | null>((resolve) => {
+      let running = 0;
+      let settled = false;
+      let hedge: ReturnType<typeof setTimeout> | undefined;
+      const finish = (r: Out | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hedge);
+        clearTimeout(end);
+        resolve(r);
+      };
+      const end = setTimeout(() => finish(null), Math.max(1_000, limitMs - 1_000));
+      const startNext = () => {
+        if (settled) return;
+        clearTimeout(hedge);
+        let model: string | undefined;
+        while (queue.length && !model) {
+          const m = queue.shift()!;
+          if (!tried.has(m) || (retried.has(m) && tried.size <= 6)) model = m;
+        }
+        if (!model || tried.size >= 6 || left() < 6_000) {
+          if (!running) finish(null);
+          return;
+        }
+        const name = model;
+        const again = tried.has(name);
+        tried.add(name);
+        if (again) retried.delete(name);
+        running++;
+        const t0 = Date.now();
+        gemini(name, ask, Math.max(5_000, Math.min(ATTEMPT_MS, left() - 2_000))).then((r) => {
+          running--;
+          if (settled) return;
+          if (r.song || r.refused) return finish(r);
+          errors.push(r.error ?? `${name}: no song`);
+          // A retired model's error names its replacement ("… use models/<name> …"): try that next
+          const next = r.error?.match(/use models\/([a-z0-9.\-]+)/i)?.[1];
+          if (next && !tried.has(next)) queue.unshift(next);
+          // Busy for a moment (it said so quickly): one more try, after the others
+          if (!again && (r.status === 503 || r.status === 500) && Date.now() - t0 < 8_000) {
+            retried.add(name);
+            queue.push(name);
+          }
+          startNext();
+        });
+        if (queue.length) hedge = setTimeout(startNext, HEDGE_MS);
+      };
+      startNext();
+    });
+    if (won) return won;
   }
   if (OPENAI && left() > 10_000) {
     const r = await openai(ask).catch((e) => ({ error: `openai: ${String(e).slice(0, 80)}` }) as { song?: Song; refused?: string; error?: string });
@@ -358,10 +405,12 @@ function keptQuotes(song: Song, b: Brief) {
  */
 async function writeSong(b: Brief, only?: string) {
   const started = Date.now();
-  const first = await generate({ system: SYSTEM, prompt: userPrompt(b), temperature: 0.95 }, 95_000, only);
+  const first = await generate({ system: SYSTEM, prompt: userPrompt(b), temperature: 0.95 }, 80_000, only);
   if (!first.song) return first;
-  const left = 128_000 - (Date.now() - started);
-  if (left < 15_000) return { ...first, revised: false };
+  // The editor's pass is a bonus: on a slow day the first draft stands rather than making
+  // the writer wait (at most 30 s more, and the whole request well inside the limit)
+  const left = Math.min(30_000, 115_000 - (Date.now() - started));
+  if (left < 12_000) return { ...first, revised: false };
   const second = await generate({ system: EDITOR, prompt: editorPrompt(first.song, b), temperature: 0.5 }, left, only);
   const good =
     second.song &&
@@ -1084,6 +1133,25 @@ async function serverReady(srv: Server): Promise<'ready' | 'loading' | 'waking'>
   }
 }
 
+/**
+ * Wakes the server a church's music will be made on, so it's loading its models while
+ * the song is being written and read (a song sent to a sleeping studio took ~4½ minutes,
+ * to an awake one ~2). Asking /health is enough: the server loads its models as it starts.
+ */
+async function warmServer(churchId: string | null | undefined) {
+  try {
+    const srv = await musicServer();
+    if (!srv) return;
+    const use = serverFor(srv, await churchStudio(churchId));
+    await fetch(`${use.url}/health`, { headers: { Authorization: `Bearer ${use.key}` }, signal: AbortSignal.timeout(90_000), redirect: 'manual' }).then((r) => r.body?.cancel());
+  } catch {
+    /* still waking: the request itself started it */
+  }
+}
+const inBackground = (work: Promise<unknown>) => {
+  if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+};
+
 /** One look at a task: still making (0), done (1, with the song), failed (2), or unknown to the server */
 async function serverQuery(srv: Server, taskId: string): Promise<{ state: 'making' | 'done' | 'failed' | 'lost'; made?: Made }> {
   try {
@@ -1372,6 +1440,11 @@ Deno.serve(async (req) => {
       }
     }
     // {"storage": true}: how much the R2 bucket holds, by top folder (chat-media, songs, lyrics…)
+    // {"stemsReport": true}: how each song with music was split (null = the old Demucs split)
+    if (input.stemsReport) {
+      const { data } = await supabaseAdmin.from('song_drafts').select('id, title, stems_model, stems_at, instrumental_url, created_at').eq('audio_status', 'ready').order('created_at', { ascending: false }).limit(40);
+      out.stems = (data ?? []).map((d) => ({ id: d.id, title: String(d.title ?? '').slice(0, 40), model: d.stems_model, has: !!d.instrumental_url, claim: d.stems_at, made: d.created_at }));
+    }
     if (input.storage && r2()) {
       const u = await r2Usage();
       out.storage = { total_mb: Math.round(u.bytes / 1048576), free_gb: 10, folders: Object.fromEntries(u.folders.map((f) => [f.folder, { files: f.files, mb: Math.round(f.bytes / 104857.6) / 10 }])) };
@@ -1510,9 +1583,17 @@ Deno.serve(async (req) => {
   const user = await getRequestUser(req);
   if (!user) return json({ error: 'Sign in to compose songs.' }, 401);
 
+  // The page asks for this when a song with no music yet is opened: the studio starts waking
+  if (input.action === 'warm') {
+    inBackground(warmServer(clean(input.churchId, 40) || null));
+    return json({ ok: true });
+  }
+
   if (input.action === 'write') {
     const brief = briefFrom(input);
     if (!brief) return json({ error: 'Say what the song is about.' }, 400);
+    // The music server wakes while the words are written
+    inBackground(warmServer(clean(input.churchId, 40) || null));
     const r = await writeSong(brief);
     if (r.refused) return json({ refused: r.refused }, 200);
     if (!r.song) {
