@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Type, Play, BookOpen, Repeat, Repeat1, Download, ChevronRight, GraduationCap, BookDown } from "lucide-react";
 import { useBiblePreferences } from "@/hooks/useBiblePreferences";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
+import { openBiblesOnly } from "@/lib/openBibles";
 import WorshipMusicSettings from "./WorshipMusicSettings";
-import AiVoiceSettings from "./AiVoiceSettings";
 
 interface BibleMenuDialogProps {
   isOpen: boolean;
@@ -227,8 +227,7 @@ export const BibleMenuDialog = ({
 
             <h3 className="px-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">Listening</h3>
 
-            <AiVoiceSettings />
-
+            {/* The Audio Bible voices card (AiVoiceSettings) is hidden at the church's request (Nov 2026): everyone hears the saved or default voice */}
             <WorshipMusicSettings />
 
             {/* Auto-Play Next Chapter */}
@@ -376,6 +375,12 @@ export const BibleMenuDialog = ({
               <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 dark:text-slate-600" />
             </button>
 
+            {/* The narrated recordings' credit (their licences ask for it), kept now the voices card is hidden; Church Space doesn't play them */}
+            {!openBiblesOnly && (
+              <p className="px-1 pt-2 text-center text-[11.5px] leading-snug text-slate-400 dark:text-slate-500">
+                Audio recordings by Faith Comes By Hearing, and The Listener's Bible (NIV, read by Max McLean).
+              </p>
+            )}
           </div>
         </div>
       </DialogContent>
