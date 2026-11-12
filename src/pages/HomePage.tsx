@@ -8,7 +8,7 @@ import { useAfterFirstScreen } from "@/hooks/useAfterFirstScreen";
 import { church, hasFeature } from "@/config/church";
 
 // Further down the page: loaded just after the first screen is showing
-const DailyScripture = lazyWithReload(() => import("@/components/DailyScripture"));
+const ShortsRail = lazyWithReload(() => import("@/components/home/ShortsRail"));
 const EventCountdown = lazyWithReload(() => import("@/components/EventCountdown"));
 const ChurchVideos = lazyWithReload(() => import("@/components/ChurchVideos"));
 
@@ -29,7 +29,7 @@ const HomePage = () => {
         <NotificationPrompt />
       </div>
 
-      {/* Greeting, search, carry on, the big picture buttons, verse of the day and banners */}
+      {/* Greeting, search, the big picture buttons, verse of the day and banners */}
       <HomeToday banners={banners} />
 
       {showRest && (
@@ -37,7 +37,7 @@ const HomePage = () => {
           <div className="mx-auto mt-8 max-w-5xl space-y-6 px-4">
             {/* Service times come with the church's campuses; sermons with its YouTube channel */}
             {church.campuses.length > 0 && <EventCountdown />}
-            <DailyScripture showVerse={false} />
+            <ShortsRail />
             {hasFeature('watch') && <ChurchVideos />}
           </div>
         </Suspense>
