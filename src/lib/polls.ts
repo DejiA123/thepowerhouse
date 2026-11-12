@@ -11,13 +11,15 @@ export interface PollVote {
   message_id: string;
   user_id: string;
   option_index: number;
+  /** When it was cast (votes made on this phone just now have none yet) */
+  created_at?: string;
 }
 
 const table = () => supabase.from('chat_poll_votes' as never);
 
 /** Every vote in a chat (polls are few; one small query) */
 export async function getPollVotes(chatId: string): Promise<PollVote[]> {
-  const { data, error } = await table().select('message_id, user_id, option_index').eq('chat_id', chatId).limit(5000);
+  const { data, error } = await table().select('message_id, user_id, option_index, created_at').eq('chat_id', chatId).limit(5000);
   if (error) throw error;
   return (data as PollVote[] | null) ?? [];
 }

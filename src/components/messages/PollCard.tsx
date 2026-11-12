@@ -6,16 +6,19 @@ import UserAvatar from '@/components/common/UserAvatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { POLL_TEMPLATES, type PollVote } from '@/lib/polls';
-import { GroupChatService } from '@/services/groupChatService';
-import { MAX_POLL_OPTIONS, type Poll } from './chatUtils';
+import { chatPeopleCached, type CardPerson } from '@/lib/cardViews';
+import { MAX_POLL_OPTIONS, timeMs, type Poll } from './chatUtils';
+import { When } from './MessageInfo';
 
 /**
  * A poll in a chat, like WhatsApp's: tap an option to vote (tap it again to take
  * the vote back; "Select one or more" polls take several). Counts and bars move
- * as people vote; "View votes" shows who picked what.
+ * as people vote; "View votes" shows who picked what, and when. The group's admins
+ * (`adminView`) also see how many have voted out of everyone ("View votes (5 of 8)")
+ * and who hasn't voted yet: the members who were in the group when it was sent.
  */
 export const PollCard = ({
-  poll, votes, myId, isOwn, onVote, chatId, meta,
+  poll, votes, myId, isOwn, onVote, chatId, meta, adminView = false, sentAt,
 }: {
   poll: Poll;
   votes: PollVote[];
@@ -24,12 +27,34 @@ export const PollCard = ({
   onVote?: (option: number) => void;
   chatId: string;
   meta: React.ReactNode;
+  adminView?: boolean;
+  /** When the poll was sent (who could have voted) */
+  sentAt?: string;
 }) => {
   const [showVotes, setShowVotes] = useState(false);
   const counts = poll.options.map((_, i) => votes.filter((v) => v.option_index === i).length);
   const mine = new Set(votes.filter((v) => v.user_id === myId).map((v) => v.option_index));
-  const voters = new Set(votes.map((v) => v.user_id)).size;
+  const voterIds = useMemo(() => new Set(votes.map((v) => v.user_id)), [votes]);
+  const voters = voterIds.size;
   const most = Math.max(1, ...counts);
+  // The group's members, for admins: everyone who could vote, and who hasn't yet
+  const [people, setPeople] = useState<CardPerson[] | null>(null);
+  useEffect(() => {
+    if (!adminView) return;
+    let stale = false;
+    chatPeopleCached(chatId).then((list) => !stale && setPeople(list)).catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [adminView, chatId, showVotes]);
+  const notVoted = useMemo(() => {
+    if (!adminView || !people) return null;
+    const sent = sentAt ? timeMs(sentAt) : Date.now();
+    return people
+      .filter((p) => !voterIds.has(p.id) && (!p.joinedAt || p.joinedAt <= sent + 1000))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [adminView, people, voterIds, sentAt]);
+  const label = notVoted ? `View votes (${voters} of ${voters + notVoted.length})` : `View votes${voters ? ` (${voters})` : ''}`;
 
   return (
     <div className="min-w-[230px] max-w-[300px] py-0.5" data-testid="poll">
@@ -88,35 +113,34 @@ export const PollCard = ({
           }}
           className={cn('-ml-1 rounded-full px-1 py-1 text-[13.5px] font-semibold', isOwn ? 'text-white' : 'text-blue-600 dark:text-blue-400')}
         >
-          View votes{voters ? ` (${voters})` : ''}
+          {label}
         </button>
         {meta}
       </div>
-      <PollVotesSheet open={showVotes} onOpenChange={setShowVotes} poll={poll} votes={votes} chatId={chatId} />
+      <PollVotesSheet open={showVotes} onOpenChange={setShowVotes} poll={poll} votes={votes} chatId={chatId} notVoted={notVoted} myId={myId} />
     </div>
   );
 };
 
-type Member = { id: string; name: string; avatar: string | null };
-const namesCache = new Map<string, Member[]>();
-
-/** Who voted for what */
-const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId }: { open: boolean; onOpenChange: (open: boolean) => void; poll: Poll; votes: PollVote[]; chatId: string }) => {
+/** Who voted for what (and when); for the group's admins, who hasn't voted yet */
+const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, notVoted, myId }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  poll: Poll;
+  votes: PollVote[];
+  chatId: string;
+  /** Admins only: members who haven't voted (null: not shown) */
+  notVoted: CardPerson[] | null;
+  myId?: string;
+}) => {
   const isMobile = useIsMobile();
-  const [members, setMembers] = useState<Member[] | null>(() => namesCache.get(chatId) ?? null);
+  const [members, setMembers] = useState<CardPerson[] | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let stale = false;
-    GroupChatService.getParticipants(chatId)
-      .then((list) => {
-        const out = list.map((p) => {
-          const u = (p as unknown as { user?: { full_name?: string | null; avatar_url?: string | null; email?: string | null } }).user;
-          return { id: p.user_id, name: u?.full_name || u?.email?.split('@')[0] || 'Member', avatar: u?.avatar_url ?? null };
-        });
-        namesCache.set(chatId, out);
-        if (!stale) setMembers(out);
-      })
+    chatPeopleCached(chatId)
+      .then((list) => !stale && setMembers(list))
       .catch(() => !stale && setMembers((m) => m ?? []));
     return () => {
       stale = true;
@@ -124,6 +148,7 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId }: { open: boo
   }, [open, chatId]);
 
   const byId = useMemo(() => new Map((members ?? []).map((m) => [m.id, m])), [members]);
+  const nameOf = (id: string) => (id === myId ? 'You' : byId.get(id)?.name ?? 'A former member');
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -135,7 +160,7 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId }: { open: boo
           </button>
         </div>
         <SheetDescription className="sr-only">Who voted for each option</SheetDescription>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/30 px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.25rem)] pt-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/30 px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.25rem)] pt-4" data-testid="poll-details">
           <p className="rounded-2xl bg-card px-4 py-3 text-[16px] font-semibold text-foreground shadow-sm">{poll.question}</p>
           {poll.options.map((option, i) => {
             const who = votes.filter((v) => v.option_index === i);
@@ -156,7 +181,8 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId }: { open: boo
                       return (
                         <li key={v.user_id} className="flex items-center gap-3 px-4 py-2">
                           <UserAvatar name={m?.name ?? 'Member'} src={m?.avatar} seed={v.user_id} className="h-9 w-9" />
-                          <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{m?.name ?? 'A former member'}</span>
+                          <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{nameOf(v.user_id)}</span>
+                          {v.created_at && <When iso={v.created_at} />}
                         </li>
                       );
                     })}
@@ -165,6 +191,27 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId }: { open: boo
               </section>
             );
           })}
+          {notVoted && (
+            <section className="rounded-2xl bg-card shadow-sm" data-testid="poll-not-voted">
+              <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
+                <p className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">Not voted yet</p>
+                <span className="shrink-0 text-[13px] text-muted-foreground">{notVoted.length}</span>
+              </div>
+              {notVoted.length === 0 ? (
+                <p className="px-4 py-3 text-[13.5px] text-muted-foreground">Everyone has voted</p>
+              ) : (
+                <ul className="py-1">
+                  {notVoted.map((p) => (
+                    <li key={p.id} className="flex items-center gap-3 px-4 py-2">
+                      <UserAvatar name={p.name} src={p.avatar} seed={p.id} className="h-9 w-9" />
+                      <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{nameOf(p.id)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="border-t border-border/50 px-4 py-2.5 text-[12px] text-muted-foreground">Only the group’s admins see who hasn’t voted.</p>
+            </section>
+          )}
         </div>
       </SheetContent>
     </Sheet>

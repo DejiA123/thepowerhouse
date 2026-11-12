@@ -149,6 +149,8 @@ interface Props {
   /** A poll's votes, and voting on it */
   pollVotes?: PollVote[];
   onVote?: (message: ChatMessage, option: number) => void;
+  /** The group's admins also see who hasn't voted yet */
+  pollAdmin?: boolean;
 }
 
 const NO_VOTES: PollVote[] = [];
@@ -159,7 +161,7 @@ const SWIPE_MAX_PX = 84;
 
 const MessageBubble = ({
   message, isOwn, isFirst, isLast, reactions, seen, onOpenActions, onToggleReaction, onOpenImage, onRetry, onCall,
-  quote, onQuoteTap, onReply, onInfo, starred, highlighted, myId, selecting, selected, onToggleSelect, pollVotes, onVote,
+  quote, onQuoteTap, onReply, onInfo, starred, highlighted, myId, selecting, selected, onToggleSelect, pollVotes, onVote, pollAdmin,
 }: Props) => {
   const { imageUrl, videoUrl, text } = parseMessageContent(message.content);
   const call = parseCall(message.content);
@@ -470,6 +472,8 @@ const MessageBubble = ({
                 chatId={message.chat_id}
                 onVote={onVote && !message.pending && !message.failed ? (option) => onVote(message, option) : undefined}
                 meta={meta}
+                adminView={pollAdmin}
+                sentAt={message.created_at}
               />
             )}
             {file && <FileCard file={file} isOwn={isOwn} />}

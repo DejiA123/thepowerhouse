@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ArrowLeft, Eye, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CardSeenSummary } from '@/lib/cardViews';
 import { ChatWallpaper } from './ChatWallpaper';
@@ -18,7 +18,6 @@ export const SeenByLine = ({ summary, onOpen, tone = 'plain', className }: {
   className?: string;
 }) => {
   if (!summary || summary.total === 0) return null;
-  const everyone = summary.seen.length === summary.total;
   return (
     <button
       type="button"
@@ -27,7 +26,7 @@ export const SeenByLine = ({ summary, onOpen, tone = 'plain', className }: {
         onOpen();
       }}
       className={cn(
-        'inline-flex min-h-[28px] items-center gap-1.5 rounded-full px-2 text-[12px] font-medium active:opacity-70',
+        'inline-flex min-h-[28px] items-center rounded-full px-2 text-[12px] font-medium active:opacity-70',
         tone === 'amber'
           ? 'text-amber-900 hover:bg-amber-100/80 dark:text-amber-200 dark:hover:bg-amber-900/40'
           : 'text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40',
@@ -36,7 +35,6 @@ export const SeenByLine = ({ summary, onOpen, tone = 'plain', className }: {
       aria-label={`Seen by ${summary.seen.length} of ${summary.total}. See who`}
       data-testid="seen-by"
     >
-      <Eye className={cn('h-3.5 w-3.5', everyone && 'text-blue-600 dark:text-blue-400')} />
       <span className="tabular-nums">Seen by {summary.seen.length} of {summary.total}</span>
     </button>
   );
