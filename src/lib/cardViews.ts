@@ -208,15 +208,26 @@ export interface CardPerson {
 export async function getChatPeople(chatId: string): Promise<CardPerson[]> {
   const { data, error } = await supabase
     .from('chat_participants')
-    .select('user_id, joined_at, user:user_id ( full_name, avatar_url )')
+    .select('user_id, joined_at, user:user_id ( full_name, avatar_url, email )')
     .eq('chat_id', chatId);
   if (error) throw error;
-  return ((data ?? []) as unknown as { user_id: string; joined_at: string | null; user: { full_name: string | null; avatar_url: string | null } | null }[]).map((p) => ({
+  return ((data ?? []) as unknown as { user_id: string; joined_at: string | null; user: { full_name: string | null; avatar_url: string | null; email?: string | null } | null }[]).map((p) => ({
     id: p.user_id,
-    name: p.user?.full_name?.trim() || 'Member',
+    name: p.user?.full_name?.trim() || p.user?.email?.split('@')[0] || 'Member',
     avatar: p.user?.avatar_url ?? null,
     joinedAt: p.joined_at ? Date.parse(p.joined_at.replace(/(\.\d{3})\d+/, '$1')) || 0 : 0,
   }));
+}
+
+/** The group's members, shared by everything on screen that needs them (asked at most every 30 s) */
+const peopleCache = new Map<string, { at: number; list: Promise<CardPerson[]> }>();
+export function chatPeopleCached(chatId: string): Promise<CardPerson[]> {
+  const known = peopleCache.get(chatId);
+  if (known && Date.now() - known.at < 30_000) return known.list;
+  const list = getChatPeople(chatId);
+  peopleCache.set(chatId, { at: Date.now(), list });
+  list.catch(() => peopleCache.delete(chatId));
+  return list;
 }
 
 export interface CardSeenSummary {

@@ -1307,6 +1307,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         onToggleSelect={togglePick}
         pollVotes={votesFor[m.id]}
         onVote={vote}
+        pollAdmin={canManage}
       />,
     );
   });
