@@ -35,7 +35,7 @@ const STEPS: Step[] = [
     first: 4,
     emoji: '👆',
     title: 'Tap a picture to start',
-    body: 'Read the Bible, watch a service, give, pray and more. One tap and you are there.',
+    body: 'Read the Bible, message your church, find your team, learn and more. One tap and you are there.',
   },
   {
     target: 'search',
