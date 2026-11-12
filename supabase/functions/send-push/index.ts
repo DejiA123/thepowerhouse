@@ -457,6 +457,63 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...result });
     }
 
+    // ── Someone asked to join a group on its choir's page ───────────
+    // Only the asker's own request, still waiting, and only once a day per person and
+    // group (claimed with notified_at), so it can never be used to nag the admins.
+    if (type === 'chat-join-request') {
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const chatId = typeof body.chatId === 'string' && /^[0-9a-f-]{36}$/i.test(body.chatId) ? body.chatId : '';
+      if (!chatId) return json({ error: 'Nothing to send' }, 400);
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: claimed } = await supabaseAdmin
+        .from('chat_join_requests')
+        .update({ notified_at: new Date().toISOString() })
+        .eq('chat_id', chatId)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+        .or(`notified_at.is.null,notified_at.lt.${dayAgo}`)
+        .select('requested_at');
+      if (!claimed?.length) return json({ ok: true, skipped: 'already-told' });
+      const { data: chat } = await supabaseAdmin.from('group_chats').select('name, description, created_by, church_id').eq('id', chatId).maybeSingle();
+      if (!chat || chat.description === PRIVATE_CHAT) return json({ error: 'Not found' }, 404);
+
+      // The group's admins and its creator, while they're in it; a group with neither
+      // goes to its church's admins (they can manage any group)
+      const [{ data: admins }, { data: members }, { count: waiting }] = await Promise.all([
+        supabaseAdmin.from('group_admins').select('user_id').eq('chat_id', chatId),
+        supabaseAdmin.from('chat_participants').select('user_id').eq('chat_id', chatId),
+        supabaseAdmin.from('chat_join_requests').select('user_id', { count: 'exact', head: true }).eq('chat_id', chatId).eq('status', 'pending'),
+      ]);
+      const inGroup = new Set(((members ?? []) as { user_id: string }[]).map((m) => m.user_id));
+      let recipients = [...new Set([...((admins ?? []) as { user_id: string }[]).map((a) => a.user_id), chat.created_by].filter(Boolean))]
+        .filter((id) => inGroup.has(id as string) && id !== user.id) as string[];
+      if (!recipients.length) {
+        const { data: churchAdmins } = await supabaseAdmin
+          .from('user_roles')
+          .select('user_id')
+          .eq('church_id', chat.church_id)
+          .eq('is_active', true)
+          .in('role', ['administrator', 'pastor']);
+        recipients = [...new Set(((churchAdmins ?? []) as { user_id: string }[]).map((r) => r.user_id))].filter((id) => id !== user.id);
+      }
+      if (!recipients.length) return json({ ok: true, skipped: 'no-admins' });
+      const name = await displayName(user.id);
+      const others = Math.max(0, (waiting ?? 1) - 1);
+      const result = await sendToSubscriptions(await subscriptionsForUsers(recipients), {
+        kind: 'general',
+        title: chat.name || 'Group',
+        body: others > 0
+          ? `${name} and ${others} ${others === 1 ? 'other' : 'others'} asked to join`
+          : `${name} asked to join`,
+        url: `/group-chats?chat=${chatId}&requests=1`,
+        // One notification per group that updates as more people ask
+        tag: `chat-join-${chatId}`,
+        renotify: true,
+        data: { chatId },
+      }, { ttl: 60 * 60 * 24 * 3, urgency: 'normal' });
+      return json({ ok: true, ...result });
+    }
+
     // ── Prayer Wall: someone is praying for your request ────────────
     if (type === 'prayer-prayed') {
       if (!user) return json({ error: 'Unauthorized' }, 401);

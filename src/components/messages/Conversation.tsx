@@ -21,6 +21,7 @@ import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
 import GroupInfoSheet from './GroupInfoSheet';
+import { JoinRequestsBanner } from './JoinRequests';
 import { ChatWallpaper } from './ChatWallpaper';
 import { peekCachedMessages, readCachedMessages, writeCachedMessages } from '@/lib/chatCache';
 import {
@@ -1479,6 +1480,9 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       {choirLocation && (
         <SetlistBanner location={choirLocation} count={setlist ? setlist.length : null} onOpen={() => setSetlistOpen(true)} />
       )}
+
+      {/* The group's admins: people who asked to join on the choir's page */}
+      <JoinRequestsBanner chatId={chat.id} chatName={chat.name} enabled={canManage} />
 
       {/* Messages */}
       <div className="relative min-h-0 flex-1">

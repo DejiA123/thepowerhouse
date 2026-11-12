@@ -20,6 +20,7 @@ import { isPrivateChat, uploadChatImage } from './chatUtils';
 import { WallpaperSheet } from './ChatWallpaper';
 import InviteLinkSheet from './InviteLinkSheet';
 import AddMembersSheet from './AddMembersSheet';
+import { JoinRequestsRow } from './JoinRequests';
 import { ChoirPickerSheet } from './ChoirChat';
 import { RemindersSheet } from './ChatReminders';
 import { listReminders } from '@/lib/chatReminders';
@@ -599,6 +600,8 @@ const GroupInfoSheet = ({ chat, userId, open, onOpenChange, onChatUpdated, onLef
                   {/* Like WhatsApp: add people, or share the group's link, right above the members */}
                   {canManage && !editing && (
                     <>
+                      {/* Asked on the choir's page (only admins can see these) */}
+                      <JoinRequestsRow chatId={chat.id} chatName={chat.name} open={open} onAdded={load} />
                       <button onClick={() => setAdding(true)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted">
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white"><UserPlus className="h-5 w-5" /></span>
                         <span className="font-medium text-foreground">Add members</span>
