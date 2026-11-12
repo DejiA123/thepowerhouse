@@ -357,6 +357,21 @@ const ComposeSongPage = () => {
     });
   }, [user]);
 
+  // My song with no music yet is open: the music studio starts waking (it takes a couple of
+  // minutes to load), so "Make the full song" is quicker. At most once every 4 minutes.
+  const needsMusic = !!current && !!user && current.created_by === user.id && !current.audio_url && current.audio_status !== 'making';
+  useEffect(() => {
+    if (!needsMusic) return;
+    try {
+      const last = Number(sessionStorage.getItem('music_warm_at') || 0);
+      if (Date.now() - last < 4 * 60_000) return;
+      sessionStorage.setItem('music_warm_at', String(Date.now()));
+    } catch {
+      /* no storage: just ask */
+    }
+    void call({ action: 'warm', churchId: currentChurchId });
+  }, [needsMusic, current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // The song open in the address (?song=<id>), so Back returns to the list
   useEffect(() => {
     if (!openId) return setCurrent(null);
