@@ -7,7 +7,7 @@ import { GroupChatService, type ChatMessage } from '@/services/groupChatService'
 import { ChatWallpaper } from './ChatWallpaper';
 import { formatClock, formatDayLabel } from './chatUtils';
 
-interface Person {
+export interface Person {
   id: string;
   name: string;
   avatar: string | null;
@@ -30,7 +30,7 @@ function whenLabel(iso: string) {
   return { day, time: formatClock(d.toISOString()) };
 }
 
-const When = ({ iso }: { iso: string | null | undefined }) => {
+export const When = ({ iso }: { iso: string | null | undefined }) => {
   if (!iso) return null;
   const { day, time } = whenLabel(iso);
   return (
@@ -40,27 +40,30 @@ const When = ({ iso }: { iso: string | null | undefined }) => {
   );
 };
 
-const Heading = ({ seen, children }: { seen: boolean; children: React.ReactNode }) => (
+export const Heading = ({ seen, children }: { seen: boolean; children: React.ReactNode }) => (
   <h3 className="mb-2 mt-6 flex items-center gap-2 px-3 text-[13px] font-medium uppercase tracking-wide text-muted-foreground">
     {seen ? <CheckCheck className="h-[18px] w-[18px] text-blue-600 dark:text-blue-400" /> : <Check className="h-[18px] w-[18px]" />}
     {children}
   </h3>
 );
 
-const Card = ({ children }: { children: React.ReactNode }) => (
+export const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06]">{children}</div>
 );
 
-const Row = ({ person, when }: { person: Person; when?: string | null }) => (
+const Row = ({ person, when, note }: { person: Person; when?: string | null; note?: string | null }) => (
   <div className="flex min-h-[64px] items-center gap-3 px-4 py-2" data-testid="info-person">
     <UserAvatar name={person.name} src={person.avatar} seed={person.id} className="h-11 w-11" />
-    <span className="min-w-0 flex-1 truncate text-[16px] text-foreground">{person.name}</span>
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-[16px] text-foreground">{person.name}</span>
+      {note && <span className="block truncate text-[13px] text-muted-foreground">{note}</span>}
+    </span>
     <When iso={when} />
   </div>
 );
 
 /** A list that shows the first few names, then "•••" for the rest (like WhatsApp) */
-const People = ({ list, timeOfPerson, empty }: { list: Person[]; timeOfPerson?: (p: Person) => string | null | undefined; empty: string }) => {
+export const People = ({ list, timeOfPerson, noteOf, empty }: { list: Person[]; timeOfPerson?: (p: Person) => string | null | undefined; noteOf?: (p: Person) => string | null; empty: string }) => {
   const [all, setAll] = useState(false);
   const shown = all ? list : list.slice(0, FIRST);
   return (
@@ -69,7 +72,7 @@ const People = ({ list, timeOfPerson, empty }: { list: Person[]; timeOfPerson?: 
         <p className="px-4 py-4 text-[15px] text-muted-foreground">{empty}</p>
       ) : (
         <div className="divide-y divide-border/60">
-          {shown.map((p) => <Row key={p.id} person={p} when={timeOfPerson?.(p)} />)}
+          {shown.map((p) => <Row key={p.id} person={p} when={timeOfPerson?.(p)} note={noteOf?.(p)} />)}
           {list.length > shown.length && (
             <button
               type="button"

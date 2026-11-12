@@ -11,6 +11,8 @@ import {
   NATIONAL, type ChoirSongRow, type SongCardGroup,
 } from '@/lib/choirChat';
 import { formatClock } from './chatUtils';
+import { useSeenWhenVisible, type CardSeenSummary } from '@/lib/cardViews';
+import { SeenByLine } from './CardInfo';
 
 const sheetClass = 'flex max-h-[92dvh] w-full flex-col gap-0 overflow-hidden rounded-t-3xl p-0 sm:h-full sm:max-w-md sm:rounded-none [&>button]:hidden';
 
@@ -122,12 +124,23 @@ const SongRow = ({ song, onPlay, onLyrics, compact = false }: { song: ChoirSongR
  * In a choir's chat: "New in Praise Set" each time songs are added on the choir
  * page, with Play and Lyrics. Several added together make one card.
  */
-export const ChoirSongCard = ({ group, location, onView, onPlay }: { group: SongCardGroup; location: string; onView: (v: SongView) => void; onPlay: (song: ChoirSongRow) => void }) => {
+export const ChoirSongCard = ({ group, location, onView, onPlay, onSeen, seenBy }: {
+  group: SongCardGroup;
+  location: string;
+  onView: (v: SongView) => void;
+  onPlay: (song: ChoirSongRow) => void;
+  /** Records the card (all its songs) once it has really been on screen */
+  onSeen?: () => void;
+  /** The group's admins: "Seen by 5 of 8", which opens who has seen it */
+  seenBy?: { summary: CardSeenSummary | null; onOpen: () => void };
+}) => {
   const { day } = splitSetType(group.setType);
   const many = group.songs.length > 1;
+  // A new song on the card (it grew) asks to be recorded again
+  const ref = useSeenWhenVisible<HTMLDivElement>(onSeen, `${group.id}:${group.songs.length}`);
   return (
     <div className="my-1.5 flex justify-start" data-testid="song-card">
-      <div className="w-[min(88%,340px)] overflow-hidden rounded-[20px] rounded-bl-md border border-border/60 bg-card shadow-sm">
+      <div ref={ref} className="w-[min(88%,340px)] overflow-hidden rounded-[20px] rounded-bl-md border border-border/60 bg-card shadow-sm">
         <div className="flex items-center gap-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-2.5 text-white">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/20"><Music2 className="h-4 w-4" /></span>
           <div className="min-w-0 flex-1">
@@ -143,7 +156,10 @@ export const ChoirSongCard = ({ group, location, onView, onPlay }: { group: Song
           ))}
           {group.songs.length > 8 && <p className="py-2 text-center text-[12.5px] text-muted-foreground">+ {group.songs.length - 8} more in the setlist</p>}
         </div>
-        <p className="px-3.5 pb-1.5 text-right text-[11px] text-muted-foreground">{formatClock(group.at)}</p>
+        <div className="flex items-center justify-between gap-2 px-2 pb-1.5 pl-1.5">
+          {seenBy?.summary && seenBy.summary.total > 0 ? <SeenByLine summary={seenBy.summary} onOpen={seenBy.onOpen} /> : <span />}
+          <p className="pr-1.5 text-right text-[11px] text-muted-foreground">{formatClock(group.at)}</p>
+        </div>
       </div>
     </div>
   );
