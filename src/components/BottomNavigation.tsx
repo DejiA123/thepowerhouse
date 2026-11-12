@@ -55,7 +55,7 @@ const BottomNavigation = () => {
 
   // ── The lens ────────────────────────────────────────────────────────
   const [pressing, setPressing] = useState(false);
-  const drag = useRef<{ id: number; startX: number; moved: boolean; lastX: number; lastT: number; stretch: number } | null>(null);
+  const drag = useRef<{ id: number; startX: number; moved: boolean; held: boolean; lastX: number; lastT: number; stretch: number; timer?: ReturnType<typeof setTimeout> } | null>(null);
   const handled = useRef(false);
   const frame = useRef(0);
 
@@ -66,20 +66,32 @@ const BottomNavigation = () => {
     const row = rowRef.current;
     if (!lens || !row) return;
     const w = lens.offsetWidth;
-    const sx = (held ? 1.16 : 1) * (1 + stretch * 0.28);
-    const sy = (held ? 1.16 : 1) * (1 - stretch * 0.12);
+    // Gentle, like YouVersion: a little bigger while held, a little stretch with speed
+    const sx = (held ? 1.1 : 1) * (1 + stretch * 0.12);
+    const sy = (held ? 1.1 : 1) * (1 - stretch * 0.05);
     lens.style.transform = `translate3d(${x - w / 2}px, -50%, 0) scale(${sx}, ${sy})`;
     // The magnified tabs inside the lens line up with the real ones under it
     if (magRef.current) {
       magRef.current.style.width = `${row.clientWidth}px`;
       magRef.current.style.transformOrigin = `${x}px 50%`;
-      magRef.current.style.transform = `translateX(${w / 2 - x}px) scale(${held ? 1.12 : 1})`;
+      magRef.current.style.transform = `translateX(${w / 2 - x}px) scale(${held ? 1.06 : 1})`;
     }
   }, []);
 
-  // At rest: on the open tab (springs there when it changes)
+  // At rest: on the open tab (glides there when it changes; placed without moving the first time)
+  const placedOnce = useRef(false);
   useLayoutEffect(() => {
-    if (!drag.current) place(slot() * (active + 0.5));
+    if (drag.current) return;
+    const lens = lensRef.current;
+    if (!placedOnce.current && lens) {
+      placedOnce.current = true;
+      lens.style.transition = 'none';
+      place(slot() * (active + 0.5));
+      void lens.offsetWidth;
+      requestAnimationFrame(() => (lens.style.transition = ''));
+      return;
+    }
+    place(slot() * (active + 0.5));
   }, [active, place]);
   useLayoutEffect(() => {
     const onResize = () => !drag.current && place(slot() * (active + 0.5));
@@ -98,11 +110,19 @@ const BottomNavigation = () => {
     if (e.button !== 0 || !rowRef.current) return;
     rowRef.current.setPointerCapture?.(e.pointerId);
     const x = xIn(e.clientX);
-    drag.current = { id: e.pointerId, startX: e.clientX, moved: false, lastX: x, lastT: performance.now(), stretch: 0 };
-    setPressing(true);
+    const d = { id: e.pointerId, startX: e.clientX, moved: false, held: false, lastX: x, lastT: performance.now(), stretch: 0 } as NonNullable<typeof drag.current>;
+    drag.current = d;
     handled.current = true;
+    // A quick tap just opens the tab (the pill glides there); the lens only comes up for a hold or a slide
+    d.timer = setTimeout(() => drag.current === d && hold(d), 200);
+  };
+
+  const hold = (d: NonNullable<typeof drag.current>) => {
+    if (d.held) return;
+    d.held = true;
+    setPressing(true);
     if ('vibrate' in navigator) navigator.vibrate?.(6);
-    place(x, 0, true);
+    place(d.lastX, 0, true);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -110,6 +130,12 @@ const BottomNavigation = () => {
     if (!d || d.id !== e.pointerId) return;
     if (Math.abs(e.clientX - d.startX) > 6) d.moved = true;
     const x = xIn(e.clientX);
+    if (!d.held) {
+      d.lastX = x;
+      if (!d.moved) return;
+      clearTimeout(d.timer);
+      hold(d);
+    }
     const now = performance.now();
     const speed = Math.abs(x - d.lastX) / Math.max(8, now - d.lastT); // px per ms
     d.stretch = Math.min(1, d.stretch * 0.6 + speed * 0.5);
@@ -123,6 +149,7 @@ const BottomNavigation = () => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     drag.current = null;
+    clearTimeout(d.timer);
     cancelAnimationFrame(frame.current);
     setPressing(false);
     const s = slot();
@@ -147,9 +174,14 @@ const BottomNavigation = () => {
         <span className="relative flex flex-col items-center gap-[3px]">
           <span className="relative flex h-7 items-center justify-center">
             {item.id === 'me' && !magnified && <CountBadge count={unreadChats} className="-right-3 -top-1.5" label={unreadChats === 1 ? 'unread chat' : 'unread chats'} />}
-            <Icon className={`h-[25px] w-[25px] ${isActive ? 'text-primary' : 'text-slate-800 dark:text-slate-100'}`} strokeWidth={isActive ? 2.4 : 2} />
+            {/* The open tab: filled and black, like YouVersion (the Church outline keeps its cross) */}
+            <Icon
+              className="h-[25px] w-[25px] text-slate-900 dark:text-white"
+              strokeWidth={isActive ? 2.3 : 1.9}
+              fill={isActive && item.id !== 'church' ? 'currentColor' : 'none'}
+            />
           </span>
-          <span className={`text-[11.5px] leading-none ${isActive ? 'font-bold text-primary' : 'font-semibold text-slate-800 dark:text-slate-100'}`}>{item.title}</span>
+          <span className={`text-[11.5px] leading-none ${isActive ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-800 dark:text-slate-200'}`}>{item.title}</span>
         </span>
       );
       return magnified ? (
