@@ -374,6 +374,38 @@ export type Database = {
           },
         ]
       }
+      chat_card_views: {
+        Row: {
+          chat_id: string
+          item_id: string
+          kind: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          item_id: string
+          kind: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          item_id?: string
+          kind?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_card_views_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_devices: {
         Row: {
           created_at: string
@@ -430,6 +462,38 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_invite_links: {
+        Row: {
+          chat_id: string
+          code: string
+          created_at: string
+          created_by: string | null
+          revoked_at: string | null
+        }
+        Insert: {
+          chat_id: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          revoked_at?: string | null
+        }
+        Update: {
+          chat_id?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_invite_links_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
             referencedColumns: ["id"]
           },
         ]
@@ -590,7 +654,9 @@ export type Database = {
           id: string
           joined_at: string | null
           last_read_at: string | null
+          marked_unread: boolean
           muted_until: string | null
+          pinned_at: string | null
           user_id: string
         }
         Insert: {
@@ -600,7 +666,9 @@ export type Database = {
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
+          marked_unread?: boolean
           muted_until?: string | null
+          pinned_at?: string | null
           user_id: string
         }
         Update: {
@@ -610,7 +678,9 @@ export type Database = {
           id?: string
           joined_at?: string | null
           last_read_at?: string | null
+          marked_unread?: boolean
           muted_until?: string | null
+          pinned_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -662,6 +732,187 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_poll_votes: {
+        Row: {
+          chat_id: string
+          created_at: string
+          message_id: string
+          option_index: number
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          message_id: string
+          option_index: number
+          user_id?: string
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          message_id?: string
+          option_index?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_poll_votes_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_poll_votes_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_read_log: {
+        Row: {
+          chat_id: string
+          id: number
+          read_at: string
+          read_up_to: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          id?: never
+          read_at?: string
+          read_up_to: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          id?: never
+          read_at?: string
+          read_up_to?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_read_log_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_reminder_sends: {
+        Row: {
+          chat_id: string
+          id: string
+          message: string
+          pushed_at: string | null
+          reminder_id: string | null
+          sent_at: string
+          set_by: string | null
+        }
+        Insert: {
+          chat_id: string
+          id?: string
+          message: string
+          pushed_at?: string | null
+          reminder_id?: string | null
+          sent_at?: string
+          set_by?: string | null
+        }
+        Update: {
+          chat_id?: string
+          id?: string
+          message?: string
+          pushed_at?: string | null
+          reminder_id?: string | null
+          sent_at?: string
+          set_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_reminder_sends_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_reminder_sends_reminder_id_fkey"
+            columns: ["reminder_id"]
+            isOneToOne: false
+            referencedRelation: "chat_reminders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_reminders: {
+        Row: {
+          active: boolean
+          at_time: string
+          chat_id: string
+          created_at: string
+          created_by: string | null
+          day_of_month: number | null
+          days: number[]
+          ends_on: string | null
+          id: string
+          last_sent_at: string | null
+          message: string
+          next_run_at: string | null
+          on_date: string | null
+          repeat: string
+          time_zone: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          at_time: string
+          chat_id: string
+          created_at?: string
+          created_by?: string | null
+          day_of_month?: number | null
+          days?: number[]
+          ends_on?: string | null
+          id?: string
+          last_sent_at?: string | null
+          message: string
+          next_run_at?: string | null
+          on_date?: string | null
+          repeat?: string
+          time_zone?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          at_time?: string
+          chat_id?: string
+          created_at?: string
+          created_by?: string | null
+          day_of_month?: number | null
+          days?: number[]
+          ends_on?: string | null
+          id?: string
+          last_sent_at?: string | null
+          message?: string
+          next_run_at?: string | null
+          on_date?: string | null
+          repeat?: string
+          time_zone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_reminders_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
             referencedColumns: ["id"]
           },
         ]
@@ -859,6 +1110,35 @@ export type Database = {
             columns: ["church_id"]
             isOneToOne: false
             referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      choir_chat_links: {
+        Row: {
+          chat_id: string
+          location: string
+          set_at: string
+          set_by: string | null
+        }
+        Insert: {
+          chat_id: string
+          location: string
+          set_at?: string
+          set_by?: string | null
+        }
+        Update: {
+          chat_id?: string
+          location?: string
+          set_at?: string
+          set_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "choir_chat_links_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: true
+            referencedRelation: "group_chats"
             referencedColumns: ["id"]
           },
         ]
@@ -1125,6 +1405,27 @@ export type Database = {
           },
         ]
       }
+      church_compose_settings: {
+        Row: {
+          church_id: string
+          studio: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          church_id: string
+          studio?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          church_id?: string
+          studio?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       church_members: {
         Row: {
           church_id: string
@@ -1156,6 +1457,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      church_service_keys: {
+        Row: {
+          church_id: string
+          hint: string | null
+          secret_id: string
+          service: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          church_id: string
+          hint?: string | null
+          secret_id: string
+          service: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          church_id?: string
+          hint?: string | null
+          secret_id?: string
+          service?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       churches: {
         Row: {
@@ -1423,6 +1751,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_custom: boolean | null
+          is_private: boolean
           name: string
         }
         Insert: {
@@ -1437,6 +1766,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_custom?: boolean | null
+          is_private?: boolean
           name: string
         }
         Update: {
@@ -1451,6 +1781,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_custom?: boolean | null
+          is_private?: boolean
           name?: string
         }
         Relationships: [
@@ -1553,6 +1884,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      live_chat_messages: {
+        Row: {
+          author_avatar: string | null
+          author_name: string
+          body: string
+          church_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          author_avatar?: string | null
+          author_name?: string
+          body: string
+          church_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          user_id?: string
+          video_id: string
+        }
+        Update: {
+          author_avatar?: string | null
+          author_name?: string
+          body?: string
+          church_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: []
       }
       live_services: {
         Row: {
@@ -1808,6 +2175,7 @@ export type Database = {
           id: string
           links: string | null
           phone: string | null
+          phone_visible: boolean
           updated_at: string
           user_metadata: Json | null
         }
@@ -1820,6 +2188,7 @@ export type Database = {
           id: string
           links?: string | null
           phone?: string | null
+          phone_visible?: boolean
           updated_at?: string
           user_metadata?: Json | null
         }
@@ -1832,6 +2201,7 @@ export type Database = {
           id?: string
           links?: string | null
           phone?: string | null
+          phone_visible?: boolean
           updated_at?: string
           user_metadata?: Json | null
         }
@@ -2123,6 +2493,7 @@ export type Database = {
         Row: {
           auth: string
           created_at: string
+          device_id: string | null
           endpoint: string
           failure_count: number
           id: string
@@ -2136,6 +2507,7 @@ export type Database = {
         Insert: {
           auth: string
           created_at?: string
+          device_id?: string | null
           endpoint: string
           failure_count?: number
           id?: string
@@ -2149,6 +2521,7 @@ export type Database = {
         Update: {
           auth?: string
           created_at?: string
+          device_id?: string | null
           endpoint?: string
           failure_count?: number
           id?: string
@@ -2348,6 +2721,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      song_drafts: {
+        Row: {
+          audio_error: string | null
+          audio_job: Json | null
+          audio_sections: Json | null
+          audio_status: string
+          audio_url: string | null
+          backing_job: Json | null
+          backing_status: string
+          backing_url: string | null
+          brief: Json
+          church_id: string
+          created_at: string
+          created_by: string
+          id: string
+          instrumental_url: string | null
+          location: string | null
+          music_requested_at: string | null
+          shared: boolean
+          song: Json
+          stems_at: string | null
+          stems_model: string | null
+          title: string
+          updated_at: string
+          vocals_url: string | null
+        }
+        Insert: {
+          audio_error?: string | null
+          audio_job?: Json | null
+          audio_sections?: Json | null
+          audio_status?: string
+          audio_url?: string | null
+          backing_job?: Json | null
+          backing_status?: string
+          backing_url?: string | null
+          brief?: Json
+          church_id?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          instrumental_url?: string | null
+          location?: string | null
+          music_requested_at?: string | null
+          shared?: boolean
+          song: Json
+          stems_at?: string | null
+          stems_model?: string | null
+          title?: string
+          updated_at?: string
+          vocals_url?: string | null
+        }
+        Update: {
+          audio_error?: string | null
+          audio_job?: Json | null
+          audio_sections?: Json | null
+          audio_status?: string
+          audio_url?: string | null
+          backing_job?: Json | null
+          backing_status?: string
+          backing_url?: string | null
+          brief?: Json
+          church_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          instrumental_url?: string | null
+          location?: string | null
+          music_requested_at?: string | null
+          shared?: boolean
+          song?: Json
+          stems_at?: string | null
+          stems_model?: string | null
+          title?: string
+          updated_at?: string
+          vocals_url?: string | null
+        }
+        Relationships: []
       }
       songwriting_contributions: {
         Row: {
@@ -2773,6 +3224,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activity_seconds: { Args: { v: string }; Returns: number }
+      add_chat_members: {
+        Args: { _chat_id: string; _user_ids: string[] }
+        Returns: number
+      }
       admin_activity_members: {
         Args: { search?: string }
         Returns: {
@@ -2780,17 +3236,62 @@ export type Database = {
           avatar_url: string
           full_name: string
           last_at: string
+          minutes_week: number
           user_id: string
         }[]
       }
       admin_activity_overview: { Args: never; Returns: Json }
+      admin_storage_usage: { Args: never; Returns: Json }
+      admin_usage: { Args: { days?: number; tz?: string }; Returns: Json }
       answer_join_request: {
         Args: { p_accept: boolean; p_user: string }
         Returns: undefined
       }
+      can_invite_to_chat: { Args: { _chat_id: string }; Returns: boolean }
+      can_manage_chat: { Args: { _chat_id: string }; Returns: boolean }
       can_view_sensitive_profile_data: {
         Args: { _profile_user_id: string }
         Returns: boolean
+      }
+      chat_admin_ids: { Args: { _chat_id: string }; Returns: string[] }
+      chat_card_seen: {
+        Args: { _chat_id: string; _reminders: string[]; _songs: string[] }
+        Returns: {
+          item_id: string
+          kind: string
+          seen_at: string
+          user_id: string
+        }[]
+      }
+      chat_invite_link: {
+        Args: { _chat_id: string; _reset?: boolean }
+        Returns: string
+      }
+      chat_invite_preview: {
+        Args: { _code: string }
+        Returns: {
+          avatar_url: string
+          chat_id: string
+          description: string
+          is_member: boolean
+          members: number
+          name: string
+        }[]
+      }
+      chat_is_private: { Args: { _chat_id: string }; Returns: boolean }
+      chat_message_reads: {
+        Args: { _message_id: string }
+        Returns: {
+          read_at: string
+          user_id: string
+        }[]
+      }
+      chat_reminder_next: {
+        Args: {
+          _after: string
+          r: Database["public"]["Tables"]["chat_reminders"]["Row"]
+        }
+        Returns: string
       }
       choir_can_edit: { Args: { _location: string }; Returns: boolean }
       choir_module_location: { Args: { _module_id: string }; Returns: string }
@@ -2850,6 +3351,20 @@ export type Database = {
         }[]
       }
       current_church_id: { Args: never; Returns: string }
+      delete_chat_message: { Args: { _message_id: string }; Returns: boolean }
+      deleted_chat_messages: {
+        Args: { _chat_id: string; _from?: string; _to?: string }
+        Returns: {
+          avatar_url: string
+          chat_id: string
+          created_at: string
+          full_name: string
+          id: string
+          imported_as: string
+          imported_from: string
+          user_id: string
+        }[]
+      }
       follow_up_access: { Args: never; Returns: boolean }
       follow_up_unlock: { Args: { _passcode: string }; Returns: boolean }
       get_resource_download_count: {
@@ -2880,6 +3395,7 @@ export type Database = {
         Returns: boolean
       }
       in_call: { Args: { _call_id: string }; Returns: boolean }
+      in_chat_or_manager: { Args: { _chat_id: string }; Returns: boolean }
       in_current_church: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_chat_member: { Args: { _chat_id: string }; Returns: boolean }
@@ -2891,7 +3407,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_chat_by_invite: { Args: { _code: string }; Returns: string }
       join_church: { Args: { target: string }; Returns: string }
+      link_chat_to_choir: {
+        Args: { _chat_id: string; _location: string }
+        Returns: undefined
+      }
       log_youtube_api_usage: {
         Args: {
           _api_calls_made?: number
@@ -2903,6 +3424,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_chat_cards_seen: {
+        Args: { _chat_id: string; _reminders: string[]; _songs: string[] }
+        Returns: number
+      }
+      my_app_setup: { Args: { _device: string }; Returns: Json }
+      my_phone: {
+        Args: never
+        Returns: {
+          phone: string
+          phone_visible: boolean
+        }[]
+      }
+      profile_phone: { Args: { _user_id: string }; Returns: string }
+      put_service_key: {
+        Args: { _by: string; _church: string; _key: string; _service: string }
+        Returns: undefined
+      }
       record_resource_download: {
         Args: {
           _ip_address?: unknown
@@ -2912,9 +3450,79 @@ export type Database = {
         }
         Returns: string
       }
+      remove_chat_member: {
+        Args: { _chat_id: string; _user_id: string }
+        Returns: undefined
+      }
+      remove_live_chat_message: { Args: { _id: string }; Returns: undefined }
+      remove_service_key: {
+        Args: { _church: string; _service: string }
+        Returns: undefined
+      }
       reserved_church_slug: { Args: { _slug: string }; Returns: boolean }
+      run_due_chat_reminders: {
+        Args: never
+        Returns: {
+          chat_id: string
+          id: string
+          message: string
+          pushed_at: string | null
+          reminder_id: string | null
+          sent_at: string
+          set_by: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_reminder_sends"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      send_chat_reminder_now: {
+        Args: { _reminder_id: string }
+        Returns: {
+          chat_id: string
+          id: string
+          message: string
+          pushed_at: string | null
+          reminder_id: string | null
+          sent_at: string
+          set_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chat_reminder_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      service_key: {
+        Args: { _church: string; _service: string }
+        Returns: string
+      }
+      set_chat_admin: {
+        Args: { _admin: boolean; _chat_id: string; _user_id: string }
+        Returns: undefined
+      }
+      set_chat_private: {
+        Args: { _chat_id: string; _private: boolean }
+        Returns: undefined
+      }
       set_church_join_mode: {
         Args: { p_join_mode: string }
+        Returns: undefined
+      }
+      set_my_phone: {
+        Args: { _phone: string; _visible: boolean }
+        Returns: undefined
+      }
+      update_chat_info: {
+        Args: {
+          _avatar_url?: string
+          _chat_id: string
+          _description?: string
+          _name?: string
+        }
         Returns: undefined
       }
     }
