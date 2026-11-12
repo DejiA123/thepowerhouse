@@ -85,7 +85,7 @@ import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendPush } from "@/lib/push";
-import ChoirNotifyButton from "@/components/notifications/ChoirNotifyButton";
+import { useChoirSongAlerts } from "@/lib/choirAlerts";
 import ChoirChatButton from "@/components/choir/ChoirChatButton";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
@@ -1590,6 +1590,8 @@ const ChoirPage = () => {
 
     const navigate = useNavigate();
     const { locationId } = useParams(); // The choir branch (a campus id, or "national")
+    // Song alerts are always on: opening a choir's page follows it
+    useChoirSongAlerts(locationId);
     const [searchParams] = useSearchParams(); // Added for deep linking
     const { user } = useAuth();
 
@@ -5064,13 +5066,8 @@ const ChoirPage = () => {
                             <ArrowLeft className="w-5 h-5 mr-1" />
                             {view === 'home' ? 'Teams' : 'Choir'}
                         </button>
-                        {locationId && (
-                            <div className="flex min-w-0 items-center gap-2">
-                                {/* The choir's group chat, from every part of the choir */}
-                                <ChoirChatButton locationId={locationId} />
-                                <ChoirNotifyButton location={locationId} />
-                            </div>
-                        )}
+                        {/* The choir's group chat, from every part of the choir (song alerts are always on: no button) */}
+                        {locationId && <ChoirChatButton locationId={locationId} />}
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4"> {/* Mobile Responsive Layout */}
