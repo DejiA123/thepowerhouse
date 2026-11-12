@@ -1,330 +1,197 @@
-
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CalendarPlus, Check, Clock, MapPin, Play, Users } from "lucide-react";
 import { useLiveRefresh } from "@/hooks/useLiveRefresh";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Users, Bell, Check } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { serviceAttendanceService } from "@/services/serviceAttendanceService";
+import { appAlert } from "@/lib/appAlert";
 import { church } from '@/config/church';
 
+/**
+ * Home's next-service card (redesigned Nov 2026): a deep blue card with a live countdown
+ * on glass tiles, "I'm coming" (counted live for everyone, `service_attendance`), Add to
+ * calendar (an .ics file the phone's calendar opens), and while the service is on, "We're
+ * live" with Watch now. Sunday at 10:00, the church's main service.
+ */
+const SERVICE_HOUR = 10;
+const SERVICE_MINUTES = 90;
+
+/** The next Sunday service (today's, until it has finished) */
+function nextService(now = new Date()) {
+  const d = new Date(now);
+  d.setHours(SERVICE_HOUR, 0, 0, 0);
+  const daysAhead = (7 - now.getDay()) % 7;
+  d.setDate(d.getDate() + daysAhead);
+  if (now.getTime() > d.getTime() + SERVICE_MINUTES * 60_000) d.setDate(d.getDate() + 7);
+  return d;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** An .ics file for the phone's calendar (local time, with a 30-minute reminder) */
+function addToCalendar(start: Date) {
+  const stamp = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const end = new Date(start.getTime() + SERVICE_MINUTES * 60_000);
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Church Space//EN', 'BEGIN:VEVENT',
+    `UID:${stamp(start)}-sunday@churchspace`, `DTSTAMP:${stamp(new Date())}`,
+    `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
+    `SUMMARY:Sunday Service · ${church.name}`, `LOCATION:${church.name}`,
+    'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:Sunday Service in 30 minutes', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Sunday Service.ics';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+const Tile = ({ value, label }: { value: number; label: string }) => (
+  <div className="flex flex-col items-center rounded-2xl border border-white/15 bg-white/10 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-md">
+    <span key={value} className="font-outfit text-[34px] font-bold leading-none tabular-nums text-white animate-in fade-in duration-300">{pad(value)}</span>
+    <span className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-100/80">{label}</span>
+  </div>
+);
+
 const EventCountdown = () => {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0
-  });
-  const [reminderSet, setReminderSet] = useState(false);
-  const [attendees, setAttendees] = useState(0);
-  const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Calculate next Sunday at 10:00 AM
-  const getNextSunday = () => {
-    const now = new Date();
-    const today = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
-    let daysUntilSunday;
-
-    if (today === 0) { // Today is Sunday
-      if (currentHour < 10 || (currentHour === 10 && currentMinute < 0)) {
-        // Service hasn't started yet today
-        daysUntilSunday = 0;
-      } else {
-        // Service already happened today, next Sunday
-        daysUntilSunday = 7;
-      }
-    } else {
-      // Days until next Sunday
-      daysUntilSunday = 7 - today;
-    }
-
-    const nextSunday = new Date(now);
-    nextSunday.setDate(now.getDate() + daysUntilSunday);
-    nextSunday.setHours(10, 0, 0, 0); // 10:00 AM
-
-    return nextSunday;
-  };
-
-  const upcomingEvent = {
-    title: "Sunday Service",
-    date: getNextSunday().toDateString(),
-    time: "10:00 AM",
-    location: church.name,
-    capacity: 500
-  };
-
-  // Format date and time for database
-  const serviceDate = getNextSunday().toISOString().split('T')[0]; // YYYY-MM-DD
-  const serviceTime = "10:00:00"; // HH:MM:SS
-
-  // How many are coming, and whether I am (kept live as people tap "I'm coming")
-  const loadAttendance = async () => {
-    if (!user) return;
-    try {
-      setAttendees(await serviceAttendanceService.getAttendanceCount(serviceDate, serviceTime));
-      setReminderSet(await serviceAttendanceService.isUserAttending(user.id, serviceDate, serviceTime));
-    } catch (error) {
-      console.error('Error loading attendance data:', error);
-    }
-  };
+  const [now, setNow] = useState(() => new Date());
+  const [coming, setComing] = useState(false);
+  const [attendees, setAttendees] = useState(0);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    loadAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, serviceDate, serviceTime]);
-
-  useLiveRefresh([{ table: 'service_attendance', filter: `service_date=eq.${serviceDate}` }], loadAttendance, { enabled: !!user });
-
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const nextService = getNextSunday();
-      const now = new Date();
-      const difference = nextService.getTime() - now.getTime();
-
-      if (difference > 0) {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-        setTimeLeft({ days, hours, minutes, seconds });
-      } else {
-        // Service is happening now or just passed
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      }
-    };
-
-    // Calculate immediately
-    calculateTimeLeft();
-
-    // Update every second
-    const timer = setInterval(calculateTimeLeft, 1000);
-
-    return () => clearInterval(timer);
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const setReminder = async () => {
-    if (reminderSet || !user) return; // Prevent double counting and ensure user is logged in
+  const start = nextService(now);
+  const serviceDate = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+  const serviceTime = `${pad(SERVICE_HOUR)}:00:00`;
+  const left = Math.max(0, start.getTime() - now.getTime());
+  const live = now.getTime() >= start.getTime() && now.getTime() < start.getTime() + SERVICE_MINUTES * 60_000;
+  const days = Math.floor(left / 86_400_000);
+  const hours = Math.floor((left % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((left % 3_600_000) / 60_000);
+  const seconds = Math.floor((left % 60_000) / 1000);
+  const whenLabel = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : 'This Sunday';
 
+  // How many are coming, and whether I am (live as people tap "I'm coming")
+  const loadAttendance = async () => {
     try {
-      // Set attendance in database
-      const success = await serviceAttendanceService.setAttendance(user.id, serviceDate, serviceTime);
-
-      if (!success) {
-        toast({
-          title: "Error",
-          description: "Failed to set attendance. Please try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Update local state
-      setReminderSet(true);
-      setAttendees(prev => prev + 1);
-
-
-      // Request notification permission and set up reminder
-      if ("Notification" in window) {
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
-
-        if (permission === "granted") {
-          toast({
-            title: "Attendance Confirmed!",
-            description: "You'll be notified 30 minutes before the service starts.",
-          });
-
-          // Calculate time for 30 minutes before service
-          const nextService = getNextSunday();
-          const reminderTime = new Date(nextService.getTime() - 30 * 60 * 1000);
-          const now = new Date();
-          const timeUntilReminder = reminderTime.getTime() - now.getTime();
-
-          if (timeUntilReminder > 0) {
-            setTimeout(() => {
-              new Notification("Upcoming Service", {
-                body: `${upcomingEvent.title} starts in 30 minutes at ${upcomingEvent.location}`,
-                icon: "/lovable-uploads/17d2a568-fd22-4680-827b-b659c3433008.png"
-              });
-            }, Math.min(timeUntilReminder, 2147483647)); // Max setTimeout value
-          }
-        } else if (permission === "denied") {
-          toast({
-            title: "Attendance Confirmed!",
-            description: "You're now attending the service. Notifications are disabled in your browser.",
-          });
-        } else {
-          toast({
-            title: "Attendance Confirmed!",
-            description: "You're now attending the service. Please allow notifications when prompted.",
-          });
-        }
-      } else {
-        toast({
-          title: "Attendance Confirmed!",
-          description: "You're now attending the service.",
-        });
-      }
-    } catch (error) {
-      console.error('Error setting reminder:', error);
-      toast({
-        title: "Error",
-        description: "Failed to set attendance. Please try again.",
-        variant: "destructive"
-      });
+      setAttendees(await serviceAttendanceService.getAttendanceCount(serviceDate, serviceTime));
+      if (user) setComing(await serviceAttendanceService.isUserAttending(user.id, serviceDate, serviceTime));
+    } catch {
+      /* quietly keep what's shown */
     }
   };
+  useEffect(() => {
+    void loadAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, serviceDate]);
+  useLiveRefresh([{ table: 'service_attendance', filter: `service_date=eq.${serviceDate}` }], loadAttendance);
 
-  const isServiceHappeningNow = () => {
-    const now = new Date();
-    const today = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
-    return today === 0 && currentHour === 10 && currentMinute >= 0 && currentMinute < 90; // Service lasts 1.5 hours
-  };
-
-  const removeAttendance = async () => {
-    if (!reminderSet || !user) return;
-
-    try {
-      const success = await serviceAttendanceService.removeAttendance(user.id, serviceDate, serviceTime);
-
-      if (success) {
-        setReminderSet(false);
-        setAttendees(prev => prev - 1);
-        toast({
-          title: "Attendance Cancelled",
-          description: "You're no longer attending this service.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to cancel attendance. Please try again.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error removing attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel attendance. Please try again.",
-        variant: "destructive"
-      });
+  const toggleComing = async () => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    const was = coming;
+    setComing(!was);
+    setAttendees((n) => Math.max(0, n + (was ? -1 : 1)));
+    const ok = was
+      ? await serviceAttendanceService.removeAttendance(user.id, serviceDate, serviceTime).catch(() => false)
+      : await serviceAttendanceService.setAttendance(user.id, serviceDate, serviceTime).catch(() => false);
+    setBusy(false);
+    if (!ok) {
+      setComing(was);
+      setAttendees((n) => Math.max(0, n + (was ? 1 : -1)));
+      appAlert("Couldn't save that", 'Check your connection and try again.', 'error');
     }
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl p-1 group shadow-xl shadow-indigo-100/50">
-      {/* Animated border gradient - lighter/softer for light mode */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-indigo-300 to-purple-300 opacity-30 animate-pulse"></div>
+    <section
+      aria-label="Next service"
+      data-testid="next-service"
+      className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0b1640] via-[#1e3a8a] to-[#4c1d95] p-5 text-white shadow-xl shadow-indigo-900/20"
+    >
+      {/* Soft light */}
+      <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-blue-400/30 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-fuchsia-500/25 blur-3xl" />
 
-      <Card className="relative border-0 shadow-none bg-white/80 backdrop-blur-xl text-gray-800 overflow-hidden rounded-[22px]">
-        {/* Background decoration - lighter for light mode */}
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-blue-100 rounded-full blur-3xl pointer-events-none opacity-40"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-purple-100 rounded-full blur-3xl pointer-events-none opacity-40"></div>
+      <div className="relative">
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.14em] text-blue-50 ring-1 ring-white/15">
+            <span className={`h-2 w-2 rounded-full ${live ? 'animate-pulse bg-red-500' : 'bg-emerald-400'}`} />
+            {live ? "We're live" : 'Next service'}
+          </span>
+          <span className="text-[13px] font-semibold text-blue-100/85">{live ? 'Happening now' : whenLabel}</span>
+        </div>
 
-        <CardHeader className="relative z-10 pb-2">
-          <CardTitle className="flex items-center space-x-2 text-indigo-600">
-            <Calendar className="w-5 h-5" />
-            <span className="tracking-wide uppercase text-sm font-bold">Next Service Countdown</span>
-          </CardTitle>
-        </CardHeader>
+        <h2 className="mt-3 font-outfit text-[30px] font-bold leading-tight tracking-tight">Sunday Service</h2>
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14.5px] text-blue-100/90">
+          <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4" /> {SERVICE_HOUR}:00 AM</span>
+          <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {church.name}</span>
+        </p>
 
-        <CardContent className="relative z-10 space-y-6">
-          <div className="text-center">
-            <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-2 tracking-tight">{upcomingEvent.title}</h3>
-            <div className="flex items-center justify-center space-x-4 text-indigo-700 text-sm md:text-base bg-indigo-50/50 py-2 px-4 rounded-full inline-flex backdrop-blur-sm border border-indigo-100/50 shadow-sm">
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-2 text-indigo-500" />
-                <span>{upcomingEvent.time}</span>
-              </div>
-              <div className="w-px h-4 bg-indigo-200"></div>
-              <div className="flex items-center">
-                <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
-                <span>{upcomingEvent.location}</span>
-              </div>
-            </div>
-
-            {isServiceHappeningNow() && (
-              <div className="mt-4 animate-in fade-in zoom-in duration-500">
-                <Badge className="bg-red-500 text-white animate-pulse px-4 py-1 text-sm shadow-md shadow-red-200 border-0">
-                  🔴 LIVE NOW
-                </Badge>
-              </div>
-            )}
+        {live ? (
+          <button
+            type="button"
+            onClick={() => navigate('/services?watch=1')}
+            className="mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-red-500 text-[16px] font-bold text-white shadow-lg shadow-red-900/30 transition active:scale-[0.98]"
+          >
+            <Play className="h-5 w-5 fill-current" /> Watch now
+          </button>
+        ) : (
+          <div className="mt-5 grid grid-cols-4 gap-2.5" aria-label={`${days} days, ${hours} hours, ${minutes} minutes to go`}>
+            <Tile value={days} label="Days" />
+            <Tile value={hours} label="Hours" />
+            <Tile value={minutes} label="Mins" />
+            <Tile value={seconds} label="Secs" />
           </div>
+        )}
 
-          {!isServiceHappeningNow() ? (
-            <div className="grid grid-cols-4 gap-3 md:gap-4">
-              {Object.entries(timeLeft).map(([unit, value]) => (
-                <div key={unit} className="flex flex-col items-center justify-center bg-white border border-gray-100 rounded-2xl p-3 md:p-4 shadow-sm">
-                  <span className="text-3xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-b from-indigo-500 to-purple-600">{value}</span>
-                  <span className="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">{unit}</span>
-                </div>
-              ))}
-            </div>
+        <p className="mt-4 flex items-center gap-2 text-[14px] text-blue-50/90" data-testid="coming-count">
+          <Users className="h-4 w-4" />
+          {attendees > 0 ? (
+            <span><b className="font-bold text-white">{attendees}</b> {attendees === 1 ? 'person is' : 'people are'} coming{coming ? ', including you' : ''}</span>
           ) : (
-            <div className="text-center py-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-              <p className="text-xl font-bold text-indigo-700 animate-pulse">Service is currently in progress!</p>
-              <p className="text-sm text-gray-600 mt-1">Join us now for a powerful time.</p>
-            </div>
+            <span>Be the first to say you're coming</span>
           )}
+        </p>
 
-          <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between text-sm px-1">
-              <div className="flex items-center space-x-2 text-gray-600">
-                <Users className="w-4 h-4 text-indigo-400" />
-                <span>
-                  <span className="text-gray-900 font-bold">{attendees}</span> attending
-                </span>
-              </div>
-              <div className="flex items-center">
-                <div className="h-2 w-24 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.round((attendees / upcomingEvent.capacity) * 100)}%` }}
-                  ></div>
-                </div>
-                <span className="ml-2 text-xs text-indigo-600 font-mono font-semibold">
-                  {Math.round((attendees / upcomingEvent.capacity) * 100)}%
-                </span>
-              </div>
-            </div>
-
-            {!isServiceHappeningNow() && (
-              <Button
-                className={`w-full h-12 text-base font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all duration-300 transform active:scale-95 ${reminderSet
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0'
-                    : 'bg-white text-gray-900 hover:bg-gray-50 border border-gray-200/60'
-                  }`}
-                onClick={reminderSet ? removeAttendance : setReminder}
-                disabled={!user}
-              >
-                {reminderSet ? (
-                  <>
-                    <Check className="w-5 h-5 mr-2" />
-                    Attending Confirmed
-                  </>
-                ) : (
-                  <>
-                    <Bell className="w-5 h-5 mr-2 text-indigo-600" />
-                    {user ? 'Set Reminder' : 'Login to Set Reminder'}
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <div className="mt-4 flex gap-2.5">
+          <button
+            type="button"
+            onClick={toggleComing}
+            disabled={busy}
+            aria-pressed={coming}
+            className={`flex h-[50px] flex-1 items-center justify-center gap-2 rounded-2xl text-[15.5px] font-bold transition active:scale-[0.98] ${
+              coming ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-900/30' : 'bg-white text-slate-900 shadow-lg shadow-black/20'
+            }`}
+            data-testid="im-coming"
+          >
+            {coming ? <><Check className="h-5 w-5" /> You're coming</> : user ? "I'm coming 🙌" : "Sign in · I'm coming"}
+          </button>
+          <button
+            type="button"
+            onClick={() => addToCalendar(start)}
+            aria-label="Add to calendar"
+            className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20 backdrop-blur transition active:scale-95"
+          >
+            <CalendarPlus className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+    </section>
   );
 };
 

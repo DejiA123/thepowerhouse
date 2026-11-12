@@ -23,8 +23,8 @@ export interface HomeBanner {
 const greetingFor = (hour: number) => (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening');
 
 /**
- * The top of the home page, made to be obvious at a glance: a greeting that
- * asks "What would you like to do today?", a big search box, eight big picture
+ * The top of the home page, made to be obvious at a glance: a greeting (no date,
+ * no question: the church's choice, Nov 2026), a big search box, eight big picture
  * buttons, then the verse of the day and the church's photo banners. (No "Carry on
  * reading" card, the church's choice, Nov 2026: the Bible opens where you left off,
  * and the mini player at the bottom carries on listening.)
@@ -69,14 +69,10 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
       {/* Greeting */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">
-            {today.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
           <h1 className="font-outfit text-[30px] font-bold leading-[1.15] tracking-tight text-foreground md:text-4xl">
             {user ? `${greetingFor(today.getHours())}${firstName ? `, ${firstName}` : ''}` : 'Welcome!'}
             <span aria-hidden> 👋</span>
           </h1>
-          <p className="mt-1 text-[16.5px] text-muted-foreground">What would you like to do today?</p>
         </div>
         {user ? (
           <button onClick={() => navigate('/me')} aria-label="Me" className="shrink-0">
@@ -104,7 +100,7 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
         What are you looking for?
       </button>
 
-      {/* The big picture buttons (no heading: the greeting above already asks what they'd like to do) */}
+      {/* The big picture buttons */}
       <div data-tour="tiles" role="group" aria-label="Quick links" className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {HOME_TILES.map((t) => (
           <div key={t.id} className="contents">
