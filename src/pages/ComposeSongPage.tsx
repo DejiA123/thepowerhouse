@@ -168,6 +168,9 @@ interface MusicService {
 const SERVICE_NAME = { acemusic: 'ACE Music', huggingface: 'Hugging Face' } as const;
 const hasService = (m: MusicService | null) => !!m && (m.services.length > 0 || !!m.platform.acestep || m.platform.acemusic || m.platform.huggingface);
 
+/** How long an open song with no music keeps the music studio awake */
+const WARM_FOR_MS = 7 * 60_000;
+
 type Answer = { draft?: Draft; refused?: string; error?: string } & Partial<MusicService>;
 
 /** The function's own message for an error (it answers JSON with "error") */
@@ -400,20 +403,44 @@ const ComposeSongPage = () => {
     });
   }, [user]);
 
-  // My song with no music yet is open: the music studio starts waking (it takes a couple of
-  // minutes to load), so "Make the full song" is quicker. At most once every 4 minutes.
+  // My song with no music yet is open: the music studio is woken and kept awake, so "Make
+  // the full song" starts at once. The studio takes ~3 minutes to load and sleeps after 3
+  // idle minutes, so one early ping only helped for a moment: the page now asks again
+  // every 100 s while it's on screen, for at most 7 minutes per song (the studio costs
+  // credit while it's awake).
   const needsMusic = !!current && !!user && current.created_by === user.id && !current.audio_url && current.audio_status !== 'making';
+  const warmId = needsMusic ? current!.id : null;
   useEffect(() => {
-    if (!needsMusic) return;
-    try {
-      const last = Number(sessionStorage.getItem('music_warm_at') || 0);
-      if (Date.now() - last < 4 * 60_000) return;
-      sessionStorage.setItem('music_warm_at', String(Date.now()));
-    } catch {
-      /* no storage: just ask */
-    }
-    void call({ action: 'warm', churchId: currentChurchId });
-  }, [needsMusic, current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!warmId) return;
+    const key = `music_warm_${warmId}`;
+    const read = (): { first: number; last: number } => {
+      try {
+        return JSON.parse(sessionStorage.getItem(key) || 'null') ?? { first: 0, last: 0 };
+      } catch {
+        return { first: 0, last: 0 };
+      }
+    };
+    const ping = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      const seen = read();
+      const first = seen.first || now;
+      if (now - first > WARM_FOR_MS || now - seen.last < 80_000) return;
+      try {
+        sessionStorage.setItem(key, JSON.stringify({ first, last: now }));
+      } catch {
+        /* no storage: just ask */
+      }
+      void call({ action: 'warm', churchId: currentChurchId });
+    };
+    ping();
+    const t = window.setInterval(ping, 100_000);
+    document.addEventListener('visibilitychange', ping);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', ping);
+    };
+  }, [warmId]);
 
   // The song open in the address (?song=<id>), so Back returns to the list
   useEffect(() => {
