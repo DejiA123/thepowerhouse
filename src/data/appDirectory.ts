@@ -197,16 +197,16 @@ export const DESTINATIONS: Destination[] = ALL_DESTINATIONS.filter((d) => !d.fea
 /** A place by its id (undefined for a part this church has switched off) */
 export const destination = (id: string): Destination | undefined => DESTINATIONS.find((d) => d.id === id);
 
-/** The big picture buttons on Home, in order. */
+/** The big picture buttons on Home, in order (the church's choice, Nov 2026: Bible, Messages, My team, Learn, Watch, Give, Pray, What's on). */
 const ALL_HOME_TILES: { id: string; title: string; subtitle: string; icon: LucideIcon; color: TileColor; to: string | (() => string); feature?: FeatureId }[] = [
   { id: 'bible', title: 'Read the Bible', subtitle: 'Read and listen', icon: BookOpen, color: 'blue', to: '/bible' },
+  { id: 'messages', title: 'Messages', subtitle: 'Chat with church', icon: MessageCircle, color: 'indigo', to: '/group-chats' },
+  { id: 'teams', feature: 'teams', title: 'My team', subtitle: 'Choir and more', icon: Users, color: 'green', to: '/groups' },
+  { id: 'learn', title: 'Learn', subtitle: 'Plans and lessons', icon: GraduationCap, color: 'violet', to: '/learn' },
   { id: 'watch', feature: 'watch', title: 'Watch', subtitle: 'Live and past', icon: PlayCircle, color: 'red', to: '/services?watch=1' },
   { id: 'give', feature: 'giving', title: 'Give', subtitle: 'Tithes and offerings', icon: Heart, color: 'pink', to: '/give' },
   { id: 'prayer', feature: 'prayerWall', title: 'Pray', subtitle: 'Ask for prayer', icon: HandHeart, color: 'amber', to: '/prayer' },
-  { id: 'messages', title: 'Messages', subtitle: 'Chat with church', icon: MessageCircle, color: 'indigo', to: '/group-chats' },
-  { id: 'teams', feature: 'teams', title: 'My team', subtitle: 'Choir and more', icon: Users, color: 'green', to: '/groups' },
   { id: 'events', feature: 'events', title: "What's on", subtitle: 'Events this week', icon: CalendarDays, color: 'orange', to: '/news' },
-  { id: 'learn', title: 'Learn', subtitle: 'Plans and lessons', icon: GraduationCap, color: 'violet', to: '/learn' },
 ];
 export const HOME_TILES = ALL_HOME_TILES.filter((t) => !t.feature || hasFeature(t.feature));
 
