@@ -159,9 +159,8 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
         </button>
       </div>
 
-      {/* The big picture buttons */}
-      <h2 className="mb-2.5 mt-6 px-1 text-[12.5px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Tap a picture</h2>
-      <div data-tour="tiles" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {/* The big picture buttons (no heading: the greeting above already asks what they'd like to do) */}
+      <div data-tour="tiles" role="group" aria-label="Quick links" className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {HOME_TILES.map((t) => (
           <div key={t.id} className="contents">
             <span className="md:hidden">
