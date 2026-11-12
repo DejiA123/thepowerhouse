@@ -2077,7 +2077,7 @@ body.modal-open {
 
 /* ── Bottom bar: "liquid glass", like YouVersion's (iOS 26) ─────────────────
    A floating frosted capsule; the open tab sits on a soft pill, which swells into
-   a clear lens with a rainbow rim while the bar is held (BottomNavigation.tsx). */
+   a clear glass lens (no colour: the church's choice) while the bar is held (BottomNavigation.tsx). */
 .liquid-capsule {
   background: rgba(255, 255, 255, 0.62);
   -webkit-backdrop-filter: blur(22px) saturate(185%);
@@ -2134,14 +2134,14 @@ body.modal-open {
 .liquid-lens.is-held .liquid-mag {
   opacity: 1;
 }
-/* The rainbow rim of the lens (a 2 px ring of shifting colour) */
+/* The lens's clear glass edge: a thin bright rim, brighter at the top (no colour) */
 .liquid-lens::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(from 200deg, #ff8be6, #8ad8ff, #9dffb0, #ffe58a, #ffa3a3, #ff8be6);
+  padding: 1.5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.35) 55%, rgba(255, 255, 255, 0.8));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -2150,7 +2150,10 @@ body.modal-open {
   pointer-events: none;
 }
 .liquid-lens.is-held::after {
-  opacity: 0.9;
+  opacity: 1;
+}
+.dark .liquid-lens::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12) 55%, rgba(255, 255, 255, 0.35));
 }
 @media (prefers-reduced-motion: reduce) {
   .liquid-lens,

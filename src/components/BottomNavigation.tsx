@@ -9,7 +9,7 @@ import CountBadge from "@/components/common/CountBadge";
  * The five places everything lives (phones): Home, Bible, Church, Teams, Me, on a
  * floating "liquid glass" capsule like YouVersion's (iOS 26). The tab you're in sits
  * on a soft pill. Hold anywhere on the bar and the pill swells into a clear glass lens
- * with a rainbow rim that follows the finger, magnifying the tabs under it and
+ * (no rainbow: the church's choice) that follows the finger, magnifying the tabs under it and
  * stretching as it moves; let go and it springs onto the tab under the finger and opens
  * it. A plain tap opens a tab as before; keyboards use the links. (Safari can't bend
  * the page behind glass as iOS does natively, so the lens magnifies the bar's own
