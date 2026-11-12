@@ -562,6 +562,23 @@ function aceCaption(song: Song, brief: Brief) {
   ].filter(Boolean).join(', ').slice(0, 900);
 }
 
+/** The same style with no singers at all, for the backing track ("[Instrumental]" as the words) */
+function backingCaption(song: Song, brief: Brief) {
+  const style = STYLES[brief.style ?? 'gospel_choir'] ?? STYLES.gospel_choir;
+  const [genre, sound] = style.sound.split(':');
+  // The style's own notes may name voices ("call and response", "choir"): only the band is wanted
+  const band = (text: string) =>
+    text.split(/[,;.]/).map((t) => t.trim()).filter((t) => t && !/vocal|voice|choir|sing|sung|lead|harmon|chant|shout|ad[- ]?lib|call and response|lyric|word/i.test(t)).join(', ');
+  return [
+    'instrumental backing track, no vocals, no singing, no choir, no humming',
+    christianGenre(genre),
+    band(sound ?? ''),
+    band(song.music_style ?? '').slice(0, 220),
+    'full band playing the whole arrangement: intro, verses, lifted choruses, bridge build, ending',
+    'live church band session, warm professional mix, instruments only',
+  ].filter(Boolean).join(', ').slice(0, 900);
+}
+
 /** The words with ACE-Step's section tags ([Verse 1], [Chorus] …); round brackets stay as the choir's answers */
 function aceLyrics(song: Song) {
   return song.sections
@@ -935,6 +952,82 @@ async function makeStems(id: string, timeoutMs: number): Promise<'done' | 'busy'
   }
 }
 
+// ── The backing track: the studio plays the song again with no singer at all ──
+interface BackingJob { requested_at: string; sent_at?: string; task_id?: string; studio?: boolean }
+
+/**
+ * One step of making a song's backing track (asked for by the page every few seconds, by
+ * the cron watch every minute, and for ~100 s by the request that started it): send it
+ * once the studio is awake with its models loaded, then collect it when it's done.
+ */
+async function advanceBacking(id: string): Promise<'making' | 'ready' | 'failed' | 'none'> {
+  const { data: d } = await supabaseAdmin.from('song_drafts').select('church_id, song, brief, backing_status, backing_job, backing_url').eq('id', id).maybeSingle();
+  if (!d) return 'none';
+  if (d.backing_status !== 'making') return (d.backing_status as 'ready' | 'failed' | 'none') ?? 'none';
+  const job = (d.backing_job ?? {}) as BackingJob;
+  const fail = async () => {
+    await supabaseAdmin.from('song_drafts').update({ backing_status: 'failed', backing_job: null }).eq('id', id).eq('backing_status', 'making');
+    return 'failed' as const;
+  };
+  if (!job.requested_at || Date.now() - Date.parse(job.requested_at) > MAKING_LIMIT_MS) return fail();
+  const base = await musicServer();
+  if (!base) return fail();
+  const studio = job.studio ?? (await churchStudio(d.church_id as string));
+  const srv = serverFor(base, studio && !!base.studio);
+  const onStudio = studio && !!base.studio;
+
+  if (!job.task_id) {
+    // A send with no answer yet is given two minutes before another is tried
+    if (job.sent_at && Date.now() - Date.parse(job.sent_at) < 120_000) return 'making';
+    if ((await serverReady(srv)) !== 'ready') return 'making';
+    const sent_at = new Date().toISOString();
+    const claim = supabaseAdmin.from('song_drafts').update({ backing_job: { ...job, studio, sent_at } }).eq('id', id).eq('backing_status', 'making');
+    const { data: mine } = await (job.sent_at ? claim.eq('backing_job->>sent_at', job.sent_at) : claim.is('backing_job->>sent_at', null)).select('id');
+    if (!mine?.length) return 'making';
+    const r = await serverSubmit(srv, d.song as Song, (d.brief ?? {}) as Brief, 60_000, onStudio, true);
+    if (r.taskId) await supabaseAdmin.from('song_drafts').update({ backing_job: { ...job, studio, sent_at, task_id: r.taskId } }).eq('id', id).eq('backing_status', 'making');
+    else if (r.error) console.error('[song-writer] backing send failed', r.error);
+    return 'making';
+  }
+
+  const q = await serverQuery(srv, job.task_id);
+  if (q.state === 'making') return 'making';
+  if (q.state === 'lost') {
+    // The studio restarted and forgot it: send it again
+    await supabaseAdmin.from('song_drafts').update({ backing_job: { requested_at: job.requested_at, studio } }).eq('id', id).eq('backing_status', 'making');
+    return 'making';
+  }
+  if (q.state === 'failed' || !q.made?.audio) {
+    console.error('[song-writer] backing failed', q.made?.error);
+    return fail();
+  }
+  const url = await storeAudio(`${d.church_id}/${id}-${Date.now()}-backing.mp3`, q.made.audio, q.made.mime ?? 'audio/mpeg');
+  const { data: saved } = await supabaseAdmin.from('song_drafts').update({ backing_url: url, backing_status: 'ready', backing_job: null }).eq('id', id).eq('backing_status', 'making').select('id');
+  if (!saved?.length) {
+    await removeAudio(url); // someone else collected it first
+    return 'ready';
+  }
+  if (d.backing_url && d.backing_url !== url) await removeAudio(d.backing_url);
+  console.log(`[song-writer] backing track made for ${id}`);
+  return 'ready';
+}
+
+/** Keeps a backing track moving for a while inside one request (the page and the cron carry on after) */
+async function watchBacking(id: string, forMs = 100_000) {
+  const until = Date.now() + forMs;
+  while (Date.now() < until) {
+    const state = await advanceBacking(id).catch(() => 'making' as const);
+    if (state !== 'making') return;
+    await new Promise((r) => setTimeout(r, 6_000));
+  }
+}
+
+/** Starts a backing track for a song (the writer asked, or a signed check) */
+async function startBacking(id: string, churchId: string) {
+  const studio = await churchStudio(churchId);
+  await supabaseAdmin.from('song_drafts').update({ backing_status: 'making', backing_job: { requested_at: new Date().toISOString(), studio } }).eq('id', id);
+}
+
 // ── Listen by part: where each section is in the recording ─────────────
 interface PartTime { name: string; start: number; end: number }
 
@@ -1105,12 +1198,12 @@ async function churchStudio(churchId: string | null | undefined): Promise<boolea
 }
 
 /** Sends the song to the server (it answers at once with a task; asleep, it first wakes up) */
-async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number, studio = false): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
+async function serverSubmit(srv: Server, song: Song, brief: Brief, timeoutMs: number, studio = false, backing = false): Promise<{ taskId?: string; error?: string; timedOut?: boolean }> {
   const body: Record<string, unknown> = {
-    prompt: aceCaption(song, brief),
-    lyrics: aceLyrics(song),
+    prompt: backing ? backingCaption(song, brief) : aceCaption(song, brief),
+    lyrics: backing ? '[Instrumental]' : aceLyrics(song),
     thinking: true,
-    vocal_language: aceLanguage(brief),
+    vocal_language: backing ? 'unknown' : aceLanguage(brief),
     audio_duration: aceSeconds(song),
     batch_size: 1,
     audio_format: 'mp3',
@@ -1461,6 +1554,20 @@ Deno.serve(async (req) => {
       }
     }
     // {"storage": true}: how much the R2 bucket holds, by top folder (chat-media, songs, lyrics…)
+    // {"backingOf": "<draft id>"}: starts that song's backing track; {"backingStep": id}: one step + its state
+    if (typeof input.backingOf === 'string') {
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('church_id').eq('id', input.backingOf).maybeSingle();
+      if (d) {
+        await startBacking(input.backingOf, d.church_id as string);
+        inBackground(watchBacking(input.backingOf));
+        out.backing = 'started';
+      }
+    }
+    if (typeof input.backingStep === 'string') {
+      out.state = await advanceBacking(input.backingStep);
+      const { data: d } = await supabaseAdmin.from('song_drafts').select('backing_status, backing_job, backing_url').eq('id', input.backingStep).maybeSingle();
+      out.backing = d;
+    }
     // {"stemsReport": true}: how each song with music was split (null = the old Demucs split)
     if (input.stemsReport) {
       const { data } = await supabaseAdmin.from('song_drafts').select('id, title, stems_model, stems_at, instrumental_url, created_at').eq('audio_status', 'ready').order('created_at', { ascending: false }).limit(40);
@@ -1573,6 +1680,9 @@ Deno.serve(async (req) => {
         if (!d.instrumental_url) runs.push(makeStems(d.id, 110_000));
         if (d.audio_sections === null) runs.push(sectionsFor(d.id, 90_000));
       }
+      // Backing tracks being made keep moving with nobody on the page
+      const { data: backing } = await supabaseAdmin.from('song_drafts').select('id').eq('backing_status', 'making').limit(4);
+      for (const d of backing ?? []) runs.push(watchBacking(d.id, 50_000));
       // Songs still on the old split (Demucs) are split again, two at a time
       const { data: old } = await supabaseAdmin
         .from('song_drafts')
@@ -1735,15 +1845,40 @@ Deno.serve(async (req) => {
   }
 
   // Deleting a song also removes its audio (so storage never fills with songs nobody has)
+  // A clean backing track (no singer at all), made when the song's writer asks
+  if (input.action === 'backing') {
+    const id = clean(input.draftId, 40);
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('created_by, church_id, audio_status, backing_status, backing_job').eq('id', id).maybeSingle();
+    if (!draft || draft.created_by !== user.id) return json({ error: 'Only the song\'s writer can make its backing track.' }, 403);
+    if (draft.audio_status !== 'ready') return json({ error: 'Make the full song first.' }, 400);
+    const asked = Date.parse(((draft.backing_job ?? {}) as BackingJob).requested_at ?? '');
+    if (draft.backing_status === 'making' && asked && Date.now() - asked < MAKING_LIMIT_MS) return json({ error: 'The backing track is already being made.' }, 409);
+    await startBacking(id, draft.church_id as string);
+    inBackground(watchBacking(id));
+    const { data: after } = await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle();
+    return json({ draft: after });
+  }
+
+  // The page asks every few seconds while a backing track is made
+  if (input.action === 'backing-check') {
+    const id = clean(input.draftId, 40);
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('created_by, shared').eq('id', id).maybeSingle();
+    if (!draft || (draft.created_by !== user.id && !draft.shared)) return json({ error: 'Not found' }, 404);
+    await advanceBacking(id).catch(() => undefined);
+    const { data: after } = await supabaseAdmin.from('song_drafts').select('*').eq('id', id).maybeSingle();
+    return json({ draft: after });
+  }
+
   if (input.action === 'delete') {
     const id = clean(input.draftId, 40);
-    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, audio_url, instrumental_url, vocals_url').eq('id', id).maybeSingle();
+    const { data: draft } = await supabaseAdmin.from('song_drafts').select('id, created_by, audio_url, instrumental_url, vocals_url, backing_url').eq('id', id).maybeSingle();
     if (!draft || draft.created_by !== user.id) return json({ error: 'Only the song\'s writer can delete it.' }, 403);
     const { error } = await supabaseAdmin.from('song_drafts').delete().eq('id', id);
     if (error) return json({ error: "Couldn't delete it. Please try again." }, 500);
     await removeAudio(draft.audio_url);
     await removeAudio(draft.instrumental_url);
     await removeAudio(draft.vocals_url);
+    await removeAudio(draft.backing_url);
     return json({ deleted: true });
   }
 
