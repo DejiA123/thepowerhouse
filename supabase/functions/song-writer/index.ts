@@ -322,6 +322,9 @@ async function generate(ask: Ask, limitMs: number, only?: string) {
     const queue = only ? [only] : [...MODELS];
     const tried = new Set<string>();
     const retried = new Set<string>();
+    // Models that said "busy" or "too many requests": asked once more if every model fails
+    const momentary: string[] = [];
+    let secondRound = false;
     const won = await new Promise<Out | null>((resolve) => {
       let running = 0;
       let settled = false;
@@ -340,10 +343,22 @@ async function generate(ask: Ask, limitMs: number, only?: string) {
         let model: string | undefined;
         while (queue.length && !model) {
           const m = queue.shift()!;
-          if (!tried.has(m) || (retried.has(m) && tried.size <= 6)) model = m;
+          if (!tried.has(m) || retried.has(m)) model = m;
         }
-        if (!model || tried.size >= 6 || left() < 6_000) {
-          if (!running) finish(null);
+        if (!model || (tried.size >= 6 && !tried.has(model)) || left() < 6_000) {
+          if (running) return;
+          // Everything failed with time to spare (e.g. the free allowance's per-minute
+          // limit): wait a few seconds and ask the momentarily busy ones once more
+          if (!secondRound && !only && momentary.length && left() > 25_000) {
+            secondRound = true;
+            for (const m of momentary) {
+              retried.add(m);
+              queue.push(m);
+            }
+            hedge = setTimeout(startNext, 5_000);
+            return;
+          }
+          finish(null);
           return;
         }
         const name = model;
@@ -364,6 +379,8 @@ async function generate(ask: Ask, limitMs: number, only?: string) {
           if (!again && (r.status === 503 || r.status === 500) && Date.now() - t0 < 8_000) {
             retried.add(name);
             queue.push(name);
+          } else if (!secondRound && (r.status === 429 || r.status === 503 || r.status === 500 || r.status === 504) && !momentary.includes(name)) {
+            momentary.push(name);
           }
           startNext();
         });
