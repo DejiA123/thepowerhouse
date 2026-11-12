@@ -180,6 +180,23 @@ async function call(body: Record<string, unknown>): Promise<Answer> {
 }
 
 /**
+ * Writes one song, and doesn't give up on a busy moment: if the song helper says it's
+ * busy (or the connection drops), it's asked again by itself, up to three times in all,
+ * while the progress card keeps going. Only a real answer (a song, or "that one isn't
+ * for the song helper") or three failures end it.
+ */
+async function writeOne(body: Record<string, unknown>): Promise<Answer> {
+  let last: Answer = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 2500));
+    last = await call(body);
+    if (last.draft || last.refused) return last;
+    if (!/busy|went wrong|connection/i.test(last.error ?? '')) return last;
+  }
+  return last;
+}
+
+/**
  * Choir page → Compose a song. Say what the song is about; the song helper writes a
  * full Christian song (words, chords, choir and band notes) as the writer's draft;
  * then, if wanted, the full song with music. Drafts are the writer's own until shared.
@@ -423,7 +440,7 @@ const ComposeSongPage = () => {
     setWriteRun({ at: Date.now(), count: howMany, done: false });
     // Several songs from one brief: each is written separately, so they all differ
     const results = await Promise.all(
-      Array.from({ length: howMany }, () => call({ action: 'write', ...b, language: b.language === 'English' ? '' : b.language, location: locationId, churchId: currentChurchId })),
+      Array.from({ length: howMany }, () => writeOne({ action: 'write', ...b, language: b.language === 'English' ? '' : b.language, location: locationId, churchId: currentChurchId })),
     );
     const written = results.flatMap((r) => (r.draft ? [r.draft] : []));
     const refused = results.find((r) => r.refused)?.refused;
