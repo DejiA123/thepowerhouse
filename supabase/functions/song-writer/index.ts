@@ -39,7 +39,9 @@ const ENV_KEYS: Record<Service, string> = { acemusic: Deno.env.get('ACEMUSIC_API
 // Timed on this key (Nov 2026): gemini-3.5-flash wrote a full song in ~10 s; 3.8-flash is
 // often overloaded on the free tier; flash-lite ~9 s; pro is beyond the free allowance
 const SONG_MODEL = Deno.env.get('SONG_MODEL') ?? 'gemini-3.5-flash';
-const MODELS = [...new Set([SONG_MODEL, 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.1-pro-preview'])];
+// Each model has its own allowance and its own busy moments, so a long list means a song
+// always gets written. The often-overloaded 3.8-flash and the slow pro come last.
+const MODELS = [...new Set([SONG_MODEL, 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.1-pro-preview'])];
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const ADMIN_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') ?? '';
 // No daily limits (the church's choice): only the services' own allowances apply
@@ -345,7 +347,7 @@ async function generate(ask: Ask, limitMs: number, only?: string) {
           const m = queue.shift()!;
           if (!tried.has(m) || retried.has(m)) model = m;
         }
-        if (!model || (tried.size >= 6 && !tried.has(model)) || left() < 6_000) {
+        if (!model || (tried.size >= 10 && !tried.has(model)) || left() < 6_000) {
           if (running) return;
           // Everything failed with time to spare (e.g. the free allowance's per-minute
           // limit): wait a few seconds and ask the momentarily busy ones once more

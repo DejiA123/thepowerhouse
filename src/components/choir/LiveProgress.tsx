@@ -21,6 +21,8 @@ function leftText(leftS: number) {
   if (leftS > 40) return 'About a minute left';
   if (leftS > 6) return `About ${Math.max(5, Math.round(leftS / 5) * 5)} seconds left`;
   if (leftS > 0) return 'A few seconds left';
+  // Well past the usual time: say so plainly (a bar parked at 96% looked stuck)
+  if (leftS < -20) return 'Taking longer than usual, still working';
   return 'Finishing off, nearly done';
 }
 
