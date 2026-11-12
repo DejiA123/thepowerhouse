@@ -13,6 +13,47 @@
  * the streams keep flowing. If the relay can't start, it falls back to the
  * per-person elements, so a call never goes silent.
  */
+/**
+ * The ringing you hear while the other phone rings (UK/Ireland double ring: 400 + 450 Hz,
+ * 0.4 s on, 0.2 s off, 0.4 s on, 2 s off), as a short WAV made once and looped.
+ */
+let ringbackUrl: string | null = null;
+function ringbackSrc() {
+  if (ringbackUrl) return ringbackUrl;
+  const rate = 16000;
+  const seconds = 3;
+  const n = rate * seconds;
+  const data = new DataView(new ArrayBuffer(44 + n * 2));
+  const text = (at: number, s: string) => [...s].forEach((ch, i) => data.setUint8(at + i, ch.charCodeAt(0)));
+  text(0, 'RIFF');
+  data.setUint32(4, 36 + n * 2, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  data.setUint32(16, 16, true);
+  data.setUint16(20, 1, true); // PCM
+  data.setUint16(22, 1, true); // mono
+  data.setUint32(24, rate, true);
+  data.setUint32(28, rate * 2, true);
+  data.setUint16(32, 2, true);
+  data.setUint16(34, 16, true);
+  text(36, 'data');
+  data.setUint32(40, n * 2, true);
+  const bursts = [[0, 0.4], [0.6, 1.0]];
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    const burst = bursts.find(([a, b]) => t >= a && t < b);
+    let v = 0;
+    if (burst) {
+      // 8 ms fades, so it doesn't click
+      const edge = Math.min(1, (t - burst[0]) / 0.008, (burst[1] - t) / 0.008);
+      v = edge * 0.24 * (Math.sin(2 * Math.PI * 400 * t) + Math.sin(2 * Math.PI * 450 * t));
+    }
+    data.setInt16(44 + i * 2, Math.round(v * 32767), true);
+  }
+  ringbackUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/wav' }));
+  return ringbackUrl;
+}
+
 export class CallAudio {
   private host = document.createElement('div');
   private elements: HTMLAudioElement[] = [];
@@ -28,7 +69,13 @@ export class CallAudio {
   /** Why the relay isn't used (for the sound report) */
   relayNote = '';
 
-  constructor(size: number, opts: { relay?: boolean } = {}) {
+  // The ringing the caller hears: one more switchable player, so it follows Speaker / earpiece
+  private ringEl: HTMLAudioElement | null = null;
+  private ringWanted = false;
+  /** 'playing', 'off', or 'failed' (the phone wouldn't play it: the caller falls back to the sound engine's ring) */
+  ringbackState: 'playing' | 'off' | 'failed' = 'off';
+
+  constructor(size: number, opts: { relay?: boolean; ringback?: boolean } = {}) {
     this.host.hidden = true;
     for (let i = 0; i < size; i++) {
       const el = document.createElement('audio');
@@ -39,6 +86,55 @@ export class CallAudio {
     }
     document.body.appendChild(this.host);
     if (opts.relay) this.startRelay();
+    if (opts.ringback) this.startRingback();
+  }
+
+  /**
+   * The caller's ringing, started straight from the Call tap (iPhone only lets sound start
+   * from a tap). A plain <audio>, so it plays whatever the silent switch says, like a call,
+   * and it moves with the call's sound between earpiece and loudspeaker (setOutput).
+   */
+  private startRingback() {
+    try {
+      const el = document.createElement('audio');
+      el.setAttribute('playsinline', '');
+      el.loop = true;
+      el.preload = 'auto';
+      el.src = ringbackSrc();
+      this.host.appendChild(el);
+      this.ringEl = el;
+      this.ringWanted = true;
+      // The phone paused it (e.g. while the microphone started): carry on while still ringing
+      el.addEventListener('pause', () => {
+        if (this.ringWanted && this.ringEl === el) setTimeout(() => this.ringWanted && el.paused && el.play().catch(() => undefined), 250);
+      });
+      el.play().then(
+        () => {
+          if (this.ringWanted) this.ringbackState = 'playing';
+          else el.pause();
+        },
+        (e) => {
+          this.ringbackState = 'failed';
+          console.warn('[call] the ringing would not play', e);
+        },
+      );
+    } catch (e) {
+      this.ringbackState = 'failed';
+      console.warn('[call] no ringing player', e);
+    }
+  }
+
+  /** Stop the caller's ringing (someone answered, or the call ended); it doesn't come back */
+  stopRingback() {
+    this.ringWanted = false;
+    if (this.ringbackState === 'playing') this.ringbackState = 'off';
+    const el = this.ringEl;
+    if (!el) return;
+    el.pause();
+    el.removeAttribute('src');
+    el.load();
+    el.remove();
+    this.ringEl = null;
   }
 
   /** Called straight from the tap (Call / Answer): iPhone only starts sound from a tap */
@@ -147,6 +243,11 @@ export class CallAudio {
   wake() {
     if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume();
     if (this.relayEl?.paused) this.relayEl.play().catch(() => undefined);
+    if (this.ringWanted && this.ringEl?.paused) {
+      this.ringEl.play().then(() => {
+        if (this.ringWanted) this.ringbackState = 'playing';
+      }).catch(() => undefined);
+    }
   }
 
   /** Why the last choice of output was refused (shown in the sound report) */
@@ -155,7 +256,7 @@ export class CallAudio {
   /** Send everyone's voice to this output ('' = the phone's own choice). False if the browser refused (e.g. no recent tap). */
   async setOutput(deviceId: string) {
     // The relay player carries everyone's voice; the others too, so a fallback keeps the choice
-    const targets = this.relayEl ? [this.relayEl, ...this.elements] : this.elements;
+    const targets = [...(this.relayEl ? [this.relayEl] : []), ...this.elements, ...(this.ringEl ? [this.ringEl] : [])];
     try {
       await Promise.all(targets.map((el) => el.setSinkId(deviceId)));
       // Make sure it took (some versions quietly keep the old one)
@@ -168,7 +269,7 @@ export class CallAudio {
         return false;
       }
       // Playing ones pick the new output up straight away
-      [...this.playing.values(), ...(this.relayEl ? [this.relayEl] : [])].forEach((el) => {
+      [...this.playing.values(), ...(this.relayEl ? [this.relayEl] : []), ...(this.ringEl && this.ringWanted ? [this.ringEl] : [])].forEach((el) => {
         if (el.paused) el.play().catch(() => undefined);
       });
       this.wake();
@@ -183,12 +284,14 @@ export class CallAudio {
 
   /** For the sound report */
   describe() {
-    return this.mode === 'relay'
+    const ring = this.ringbackState === 'off' ? '' : `; ringing: ${this.ringbackState}`;
+    return (this.mode === 'relay'
       ? `relay (one player for everyone; sound engine ${this.ctx?.state ?? 'none'}, ${this.sources.size} voice${this.sources.size === 1 ? '' : 's'} mixed)`
-      : `direct (one player each)${this.relayNote ? `; relay not used: ${this.relayNote}` : ''}`;
+      : `direct (one player each)${this.relayNote ? `; relay not used: ${this.relayNote}` : ''}`) + ring;
   }
 
   stop() {
+    this.stopRingback();
     this.sources.forEach(({ source }) => {
       try {
         source.disconnect();

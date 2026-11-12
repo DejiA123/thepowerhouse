@@ -155,8 +155,17 @@ export class CallEngine {
 
   private set(patch: Partial<CallSnapshot>) {
     this.snapshot = { ...this.snapshot, ...patch };
+    // The caller's ringing stops once someone answers (or the call ends)
+    const { status, participants } = this.snapshot;
+    if (status === 'active' || status === 'ended' || participants.length > 0) this.audioOut?.stopRingback();
     this.listeners.forEach((l) => l());
   }
+
+  /** The caller's ringing: 'playing' (the call's own player), 'off', or 'failed' (use the sound engine's ring instead) */
+  ringbackState = () => this.audioOut?.ringbackState ?? 'off';
+
+  /** Stop the call's own ringing player (e.g. the sound engine rings instead) */
+  stopRingback = () => this.audioOut?.stopRingback();
 
   private updateParticipant(userId: string, patch: Partial<CallParticipant>) {
     const exists = this.snapshot.participants.some((p) => p.userId === userId);
@@ -205,7 +214,11 @@ export class CallEngine {
   async start() {
     try {
       // iPhone: everyone's voice through one switchable player (newer iOS ignores the switch on call audio played directly)
-      this.audioOut = new CallAudio(MAX_PARTICIPANTS - 1, { relay: /iPhone|iPod/.test(navigator.userAgent) && 'setSinkId' in HTMLMediaElement.prototype });
+      // The caller hears ringing from the Call tap on, through the call's own (switchable) output
+      this.audioOut = new CallAudio(MAX_PARTICIPANTS - 1, {
+        relay: /iPhone|iPod/.test(navigator.userAgent) && 'setSinkId' in HTMLMediaElement.prototype,
+        ringback: this.snapshot.isInitiator,
+      });
       const ice = getIceServers();
       const stream = await this.getMedia();
       if (this.destroyed) {

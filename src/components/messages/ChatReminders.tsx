@@ -24,6 +24,8 @@ import {
   type Repeat,
 } from '@/lib/chatReminders';
 import { formatClock, linkify } from './chatUtils';
+import { useSeenWhenVisible, type CardSeenSummary } from '@/lib/cardViews';
+import { SeenByLine } from './CardInfo';
 import { plainFormatting, renderFormatted } from './whatsappFormat';
 
 /**
@@ -51,24 +53,40 @@ const Formatted = ({ text }: { text: string }) => (
   </>
 );
 
-/** A sent reminder in the chat: its own card, among the messages by time */
-export const ReminderCard = ({ send }: { send: ReminderSend }) => (
-  <div className="my-2 flex justify-center px-2" data-reminder-card={send.id}>
-    <div className="w-full max-w-[min(85%,26rem)] overflow-hidden rounded-2xl bg-amber-50 shadow-sm ring-1 ring-amber-200/80 dark:bg-amber-950/40 dark:ring-amber-800/60">
-      <div className="flex items-center gap-2 border-b border-amber-200/70 px-3.5 py-2 dark:border-amber-800/50">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white">
-          <AlarmClock className="h-3.5 w-3.5" />
-        </span>
-        <span className="flex-1 text-[13px] font-semibold text-amber-900 dark:text-amber-200">Reminder</span>
-        <span className="text-[11.5px] text-amber-800/80 dark:text-amber-300/80">{formatClock(send.sent_at)}</span>
+/**
+ * A sent reminder in the chat: its own card, among the messages by time. `onSeen` records
+ * it once it has really been on screen; the group's admins also get "Seen by 5 of 8"
+ * (`seenBy`), which opens who has seen it.
+ */
+export const ReminderCard = ({ send, onSeen, seenBy }: {
+  send: ReminderSend;
+  onSeen?: () => void;
+  seenBy?: { summary: CardSeenSummary | null; onOpen: () => void };
+}) => {
+  const ref = useSeenWhenVisible<HTMLDivElement>(onSeen, send.id);
+  return (
+    <div className="my-2 flex justify-center px-2" data-reminder-card={send.id}>
+      <div ref={ref} className="w-full max-w-[min(85%,26rem)] overflow-hidden rounded-2xl bg-amber-50 shadow-sm ring-1 ring-amber-200/80 dark:bg-amber-950/40 dark:ring-amber-800/60">
+        <div className="flex items-center gap-2 border-b border-amber-200/70 px-3.5 py-2 dark:border-amber-800/50">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white">
+            <AlarmClock className="h-3.5 w-3.5" />
+          </span>
+          <span className="flex-1 text-[13px] font-semibold text-amber-900 dark:text-amber-200">Reminder</span>
+          <span className="text-[11.5px] text-amber-800/80 dark:text-amber-300/80">{formatClock(send.sent_at)}</span>
+        </div>
+        <div className="whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-snug text-foreground [overflow-wrap:anywhere] [word-break:break-word]">
+          <Formatted text={send.message} />
+        </div>
+        <p className="px-3.5 pb-2 text-[11px] text-amber-800/70 dark:text-amber-300/70">Automated reminder from the group’s admins</p>
+        {seenBy?.summary && seenBy.summary.total > 0 && (
+          <div className="-mt-1 flex justify-end border-t border-amber-200/60 px-2 py-1 dark:border-amber-800/40">
+            <SeenByLine summary={seenBy.summary} onOpen={seenBy.onOpen} tone="amber" />
+          </div>
+        )}
       </div>
-      <div className="whitespace-pre-wrap px-3.5 py-2.5 text-[15px] leading-snug text-foreground [overflow-wrap:anywhere] [word-break:break-word]">
-        <Formatted text={send.message} />
-      </div>
-      <p className="px-3.5 pb-2 text-[11px] text-amber-800/70 dark:text-amber-300/70">Automated reminder from the group’s admins</p>
     </div>
-  </div>
-);
+  );
+};
 
 const blank = (): ReminderDraft => ({ message: '', repeat: 'weekly', days: [6], day_of_month: 1, on_date: null, at_time: '09:00', ends_on: null, active: true });
 const fromReminder = (r: ChatReminder): ReminderDraft => ({

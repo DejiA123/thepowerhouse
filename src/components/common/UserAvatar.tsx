@@ -22,10 +22,18 @@ const hash = (value: string) => {
 /** Stable colour per person, so names are easy to tell apart in group chats. */
 export const nameColor = (seed: string) => TEXT_PALETTE[hash(seed || '?') % TEXT_PALETTE.length];
 
+/**
+ * The first letters of the first and last words that have one. Emoji and symbols are
+ * skipped, never cut in half ("Galway Choir 🎶" is "GC", not "G" plus half an emoji).
+ */
 export const initials = (name?: string | null) => {
-  const parts = (name || '?').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  const firsts = (name || '')
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0])
+    .filter((c): c is string => !!c);
+  if (firsts.length === 0) return '?';
+  return (firsts[0] + (firsts.length > 1 ? firsts[firsts.length - 1] : '')).toUpperCase();
 };
 
 interface Props {

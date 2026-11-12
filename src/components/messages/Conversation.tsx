@@ -15,6 +15,8 @@ import { broadcast } from '@/lib/realtime';
 import MessageBubble, { type Quote, type ReactionGroup } from './MessageBubble';
 import { ChatSearchSheet, ClearChatDialog, EncryptionInfo, ForwardSheet, SolidLock, StarredSheet } from './ChatPanels';
 import { MessageInfoScreen } from './MessageInfo';
+import { CardInfoScreen } from './CardInfo';
+import { cachedCanManage, canManageChat, getCardSeen, getChatPeople, noteCardSeen, summariseCard, type CardPerson, type CardSeenRow } from '@/lib/cardViews';
 import ChatComposer from './ChatComposer';
 import MessageActionsSheet from './MessageActionsSheet';
 import ImageViewer from './ImageViewer';
@@ -31,7 +33,7 @@ import { track } from '@/lib/activity';
 import { useKeyboardSafeHeight } from '@/hooks/useKeyboardSafeHeight';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { useChatPeers } from '@/lib/chatPhotos';
-import { cachedChoirLink, getChoirLink, getCurrentSetlist, getSongsAddedSince, groupSongCards, type ChoirLink, type ChoirSongRow } from '@/lib/choirChat';
+import { cachedChoirLink, getChoirLink, getCurrentSetlist, getSongsAddedSince, groupSongCards, type ChoirLink, type ChoirSongRow, type SongCardGroup } from '@/lib/choirChat';
 import { getPollVotes, nextVotes, setMyVotes, votesByPoll, type PollVote } from '@/lib/polls';
 import { ChoirSongCard, SetlistBanner, SetlistSheet, SongSheet, useSongPlayer, type SongView } from './ChoirChat';
 import { ReminderCard } from './ChatReminders';
@@ -387,6 +389,60 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     if (lastReminder && atBottomRef.current) requestAnimationFrame(() => scrollToBottom(true));
   }, [lastReminder, scrollToBottom]);
 
+  // ── Who has seen the reminder and song cards (the group's admins) ───
+  // Every member's phone records a card once it's really on screen (noteCardSeen); the
+  // group's admins see "Seen by 5 of 8" on each card and, one tap away, who and when.
+  const groupChat = !isPrivateChat(chat);
+  const [canManage, setCanManage] = useState(() => groupChat && cachedCanManage(me.id, chat.id));
+  useEffect(() => {
+    setCanManage(groupChat && cachedCanManage(me.id, chat.id));
+    if (!groupChat) return;
+    let stale = false;
+    canManageChat(me.id, chat.id).then((yes) => !stale && setCanManage(yes)).catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [chat.id, groupChat, me.id]);
+  const [cardPeople, setCardPeople] = useState<CardPerson[] | null>(null);
+  const [cardSeen, setCardSeen] = useState<CardSeenRow[] | null>(null);
+  const [cardInfo, setCardInfo] = useState<{ kind: 'reminder' | 'song'; id: string } | null>(null);
+  const closeCardInfo = useCallback(() => setCardInfo(null), []);
+  useEffect(() => {
+    setCardPeople(null);
+    setCardSeen(null);
+    setCardInfo(null);
+  }, [chat.id]);
+  const reminderIds = useMemo(() => reminderSends.map((r) => r.id), [reminderSends]);
+  const songIds = useMemo(() => songRows.map((r) => r.id), [songRows]);
+  const cardKey = `${reminderIds.join(',')}|${songIds.join(',')}`;
+  const refreshCardSeen = useCallback(() => {
+    if (!canManage || (!reminderIds.length && !songIds.length)) return;
+    getCardSeen(chat.id, reminderIds, songIds).then((rows) => rows && setCardSeen(rows)).catch(() => undefined);
+    getChatPeople(chat.id).then(setCardPeople).catch(() => undefined);
+  }, [canManage, chat.id, cardKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    refreshCardSeen();
+  }, [refreshCardSeen]);
+  useLiveRefresh([], refreshCardSeen, { enabled: canManage && (reminderIds.length > 0 || songIds.length > 0), pollMs: 30_000 });
+  // Someone saw a card (or read on), told by their phone: refresh shortly, once
+  const seenRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshCardSeenSoon = useCallback(() => {
+    if (!canManage) return;
+    if (seenRefreshTimer.current) clearTimeout(seenRefreshTimer.current);
+    seenRefreshTimer.current = setTimeout(refreshCardSeen, 1200);
+  }, [canManage, refreshCardSeen]);
+  useEffect(() => () => {
+    if (seenRefreshTimer.current) clearTimeout(seenRefreshTimer.current);
+  }, []);
+  const refreshCardSeenSoonRef = useRef(refreshCardSeenSoon);
+  refreshCardSeenSoonRef.current = refreshCardSeenSoon;
+  const reminderSummary = useCallback((r: ReminderSend) =>
+    cardPeople && cardSeen ? summariseCard('reminder', [r.id], r.sent_at, cardPeople, cardSeen, [me.id, r.set_by]) : null,
+  [cardPeople, cardSeen, me.id]);
+  const songSummary = useCallback((card: SongCardGroup) =>
+    cardPeople && cardSeen ? summariseCard('song', card.songs.map((s) => s.id), card.at, cardPeople, cardSeen, [me.id]) : null,
+  [cardPeople, cardSeen, me.id]);
+
   // ── Polls ─────────────────────────────────────────────────────────
   const refreshVotes = useCallback(() => {
     getPollVotes(chat.id).then(setPollVotes).catch(() => undefined);
@@ -446,6 +502,10 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         // Someone read up to here: my ✓✓ show it straight away
         const at = String(signal.payload.at);
         setReadMarks((prev) => (prev[signal.from!] >= at ? prev : { ...prev, [signal.from!]: at }));
+        // Reading on past a card counts as seeing it
+        refreshCardSeenSoonRef.current();
+      } else if (signal.type === 'cards-seen' && signal.from !== me.id) {
+        refreshCardSeenSoonRef.current();
       } else if (signal.type === 'reaction' && signal.payload?.messageId) {
         GroupChatService.getReactions([signal.payload.messageId]).then((r) =>
           setReactions((prev) => ({ ...prev, [signal.payload.messageId]: r[signal.payload.messageId] || [] })),
@@ -1149,8 +1209,33 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const songCards = choirLocation ? groupSongCards(songRows).filter((g) => timeMs(g.at) >= oldestShown) : [];
   // Song cards and reminder cards, in time order, placed among the messages
   const timelineCards: { id: string; at: string; node: React.ReactNode }[] = [
-    ...songCards.map((card) => ({ id: card.id, at: card.at, node: <ChoirSongCard key={card.id} group={card} location={choirLocation!} onView={setSongView} onPlay={playSong} /> })),
-    ...reminderSends.filter((r) => timeMs(r.sent_at) >= oldestShown).map((r) => ({ id: `reminder-${r.id}`, at: r.sent_at, node: <ReminderCard key={`reminder-${r.id}`} send={r} /> })),
+    ...songCards.map((card) => ({
+      id: card.id,
+      at: card.at,
+      node: (
+        <ChoirSongCard
+          key={card.id}
+          group={card}
+          location={choirLocation!}
+          onView={setSongView}
+          onPlay={playSong}
+          onSeen={() => noteCardSeen(chat.id, me.id, 'song', card.songs.map((s) => s.id))}
+          seenBy={canManage ? { summary: songSummary(card), onOpen: () => setCardInfo({ kind: 'song', id: card.id }) } : undefined}
+        />
+      ),
+    })),
+    ...reminderSends.filter((r) => timeMs(r.sent_at) >= oldestShown).map((r) => ({
+      id: `reminder-${r.id}`,
+      at: r.sent_at,
+      node: (
+        <ReminderCard
+          key={`reminder-${r.id}`}
+          send={r}
+          onSeen={() => noteCardSeen(chat.id, me.id, 'reminder', [r.id])}
+          seenBy={canManage ? { summary: reminderSummary(r), onOpen: () => setCardInfo({ kind: 'reminder', id: r.id }) } : undefined}
+        />
+      ),
+    })),
   ].sort((a, b) => timeMs(a.at) - timeMs(b.at));
   let cardAt = 0;
   const rendered: React.ReactNode[] = [];
@@ -1559,6 +1644,25 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       />
       <ChatSearchSheet open={searchOpen} chatId={chat.id} myId={me.id} onOpenChange={setSearchOpen} onOpenMessage={openFound} />
       <StarredSheet open={starredOpen} chatId={chat.id} myId={me.id} onOpenChange={setStarredOpen} onOpenMessage={openFound} version={starVersion} />
+      {(() => {
+        // Reminder info / Songs info: who has seen the card (the group's admins)
+        const reminder = cardInfo?.kind === 'reminder' ? reminderSends.find((r) => r.id === cardInfo.id) : undefined;
+        const songCard = cardInfo?.kind === 'song' && choirLocation ? groupSongCards(songRows).find((g) => g.id === cardInfo.id) : undefined;
+        const open = !!(canManage && (reminder || songCard));
+        return (
+          <CardInfoScreen
+            open={open}
+            title={reminder ? 'Reminder info' : 'Songs info'}
+            postedAt={reminder?.sent_at ?? songCard?.at ?? new Date().toISOString()}
+            summary={reminder ? reminderSummary(reminder) : songCard ? songSummary(songCard) : null}
+            songCount={songCard?.songs.length}
+            onClose={closeCardInfo}
+            renderCard={() =>
+              reminder ? <ReminderCard send={reminder} /> : songCard ? <ChoirSongCard group={songCard} location={choirLocation!} onView={setSongView} onPlay={playSong} /> : null
+            }
+          />
+        );
+      })()}
       <MessageInfoScreen
         message={infoFor ? messages.find((x) => x.id === infoFor.id) ?? infoFor : null}
         chatId={chat.id}
