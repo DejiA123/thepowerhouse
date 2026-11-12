@@ -1308,6 +1308,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         pollVotes={votesFor[m.id]}
         onVote={vote}
         pollAdmin={canManage}
+        pollReadMarks={canManage && m.content.startsWith('::poll::') ? readMarks : undefined}
       />,
     );
   });

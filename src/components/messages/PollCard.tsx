@@ -7,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { POLL_TEMPLATES, type PollVote } from '@/lib/polls';
 import { chatPeopleCached, type CardPerson } from '@/lib/cardViews';
+import { GroupChatService } from '@/services/groupChatService';
 import { MAX_POLL_OPTIONS, timeMs, type Poll } from './chatUtils';
 import { When } from './MessageInfo';
 
@@ -14,11 +15,13 @@ import { When } from './MessageInfo';
  * A poll in a chat, like WhatsApp's: tap an option to vote (tap it again to take
  * the vote back; "Select one or more" polls take several). Counts and bars move
  * as people vote; "View votes" shows who picked what, and when. The group's admins
- * (`adminView`) also see how many have voted out of everyone ("View votes (5 of 8)")
- * and who hasn't voted yet: the members who were in the group when it was sent.
+ * (`adminView`) also see how many have voted and seen it out of everyone ("View votes
+ * (5 of 8)", "Seen by 7 of 8") and, in Poll details, who has seen it without voting (with
+ * when) and who hasn't seen it yet: the members who were in the group when it was sent.
+ * Seen = read up to it (`readMarks`, live), voted, or its time from `chat_message_reads`.
  */
 export const PollCard = ({
-  poll, votes, myId, isOwn, onVote, chatId, meta, adminView = false, sentAt,
+  poll, votes, myId, isOwn, onVote, chatId, meta, adminView = false, sentAt, messageId, senderId, readMarks,
 }: {
   poll: Poll;
   votes: PollVote[];
@@ -30,6 +33,10 @@ export const PollCard = ({
   adminView?: boolean;
   /** When the poll was sent (who could have voted) */
   sentAt?: string;
+  /** Admins: the poll message (for when each person saw it), its sender, and how far each member has read */
+  messageId?: string;
+  senderId?: string;
+  readMarks?: Record<string, string>;
 }) => {
   const [showVotes, setShowVotes] = useState(false);
   const counts = poll.options.map((_, i) => votes.filter((v) => v.option_index === i).length);
@@ -55,6 +62,34 @@ export const PollCard = ({
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   }, [adminView, people, voterIds, sentAt]);
   const label = notVoted ? `View votes (${voters} of ${voters + notVoted.length})` : `View votes${voters ? ` (${voters})` : ''}`;
+
+  // Who has seen it (admins): read up to it, voted, sent it, or me; with when, from the read log
+  const sent = sentAt ? timeMs(sentAt) : 0;
+  const [reads, setReads] = useState<Record<string, string | null>>({});
+  const readUpTo = useMemo(
+    () => Object.entries(readMarks ?? {}).filter(([, at]) => timeMs(at) >= sent).map(([id]) => id).sort().join(','),
+    [readMarks, sent],
+  );
+  useEffect(() => {
+    if (!adminView || !messageId) return;
+    let stale = false;
+    // A moment after someone new reads up to it, ask for their time
+    const t = setTimeout(() => {
+      GroupChatService.getMessageReads(messageId).then((r) => !stale && setReads(r)).catch(() => undefined);
+    }, readUpTo ? 600 : 0);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
+  }, [adminView, messageId, readUpTo, showVotes]);
+  const hasSeen = (id: string) =>
+    id === myId || id === senderId || voterIds.has(id) || id in reads || (!!readMarks?.[id] && timeMs(readMarks[id]) >= sent);
+  const firstVote = (id: string) => votes.filter((v) => v.user_id === id && v.created_at).map((v) => v.created_at!).sort()[0] ?? null;
+  const seenAt = (id: string) => reads[id] ?? firstVote(id);
+  const seenNotVoted = notVoted?.filter((p) => hasSeen(p.id)) ?? null;
+  const notSeen = notVoted?.filter((p) => !hasSeen(p.id)) ?? null;
+  const seenCount = notVoted && seenNotVoted ? voters + seenNotVoted.length : null;
+  const total = notVoted ? voters + notVoted.length : null;
 
   return (
     <div className="min-w-[230px] max-w-[300px] py-0.5" data-testid="poll">
@@ -103,35 +138,66 @@ export const PollCard = ({
           );
         })}
       </div>
-      <div className={cn('mt-2.5 flex items-center justify-between gap-2 border-t pt-1.5', isOwn ? 'border-white/20' : 'border-border/70')}>
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowVotes(true);
-          }}
-          className={cn('-ml-1 rounded-full px-1 py-1 text-[13.5px] font-semibold', isOwn ? 'text-white' : 'text-blue-600 dark:text-blue-400')}
-        >
-          {label}
-        </button>
+      <div className={cn('mt-2.5 flex items-end justify-between gap-2 border-t pt-1.5', isOwn ? 'border-white/20' : 'border-border/70')}>
+        <div className="flex min-w-0 flex-col items-start">
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowVotes(true);
+            }}
+            className={cn('-ml-1 rounded-full px-1 py-1 text-[13.5px] font-semibold', isOwn ? 'text-white' : 'text-blue-600 dark:text-blue-400')}
+          >
+            {label}
+          </button>
+          {seenCount !== null && total ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowVotes(true);
+              }}
+              className={cn('-ml-1 -mt-1 rounded-full px-1 py-0.5 text-[12px] font-medium', isOwn ? 'text-white/85' : 'text-muted-foreground')}
+              data-testid="poll-seen-by"
+            >
+              Seen by {seenCount} of {total}
+            </button>
+          ) : null}
+        </div>
         {meta}
       </div>
-      <PollVotesSheet open={showVotes} onOpenChange={setShowVotes} poll={poll} votes={votes} chatId={chatId} notVoted={notVoted} myId={myId} />
+      <PollVotesSheet
+        open={showVotes}
+        onOpenChange={setShowVotes}
+        poll={poll}
+        votes={votes}
+        chatId={chatId}
+        myId={myId}
+        admin={notVoted && seenNotVoted && notSeen && seenCount !== null && total !== null ? { seenNotVoted, notSeen, seenAt, seenCount, total, voters } : null}
+      />
     </div>
   );
 };
 
-/** Who voted for what (and when); for the group's admins, who hasn't voted yet */
-const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, notVoted, myId }: {
+/** Who voted for what (and when); for the group's admins, who has seen it without voting and who hasn't seen it */
+const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, myId, admin }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   poll: Poll;
   votes: PollVote[];
   chatId: string;
-  /** Admins only: members who haven't voted (null: not shown) */
-  notVoted: CardPerson[] | null;
   myId?: string;
+  /** Admins only (null: not shown) */
+  admin: {
+    seenNotVoted: CardPerson[];
+    notSeen: CardPerson[];
+    seenAt: (id: string) => string | null;
+    seenCount: number;
+    total: number;
+    voters: number;
+  } | null;
 }) => {
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<CardPerson[] | null>(null);
@@ -161,7 +227,14 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, notVoted, myI
         </div>
         <SheetDescription className="sr-only">Who voted for each option</SheetDescription>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/30 px-4 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1.25rem)] pt-4" data-testid="poll-details">
-          <p className="rounded-2xl bg-card px-4 py-3 text-[16px] font-semibold text-foreground shadow-sm">{poll.question}</p>
+          <div className="rounded-2xl bg-card px-4 py-3 shadow-sm">
+            <p className="text-[16px] font-semibold text-foreground">{poll.question}</p>
+            {admin && (
+              <p className="mt-1 text-[13px] text-muted-foreground" data-testid="poll-summary">
+                Seen by {admin.seenCount} of {admin.total} · Voted {admin.voters} of {admin.total}
+              </p>
+            )}
+          </div>
           {poll.options.map((option, i) => {
             const who = votes.filter((v) => v.option_index === i);
             return (
@@ -191,17 +264,41 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, notVoted, myI
               </section>
             );
           })}
-          {notVoted && (
+          {admin && (
             <section className="rounded-2xl bg-card shadow-sm" data-testid="poll-not-voted">
               <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
-                <p className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">Not voted yet</p>
-                <span className="shrink-0 text-[13px] text-muted-foreground">{notVoted.length}</span>
+                <p className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">Seen, not voted yet</p>
+                <span className="shrink-0 text-[13px] text-muted-foreground">{admin.seenNotVoted.length}</span>
               </div>
-              {notVoted.length === 0 ? (
-                <p className="px-4 py-3 text-[13.5px] text-muted-foreground">Everyone has voted</p>
+              {admin.seenNotVoted.length === 0 ? (
+                <p className="px-4 py-3 text-[13.5px] text-muted-foreground">{admin.notSeen.length ? 'No one' : 'Everyone who has seen it has voted'}</p>
               ) : (
                 <ul className="py-1">
-                  {notVoted.map((p) => (
+                  {admin.seenNotVoted.map((p) => {
+                    const at = p.id === myId ? null : admin.seenAt(p.id);
+                    return (
+                      <li key={p.id} className="flex items-center gap-3 px-4 py-2">
+                        <UserAvatar name={p.name} src={p.avatar} seed={p.id} className="h-9 w-9" />
+                        <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{nameOf(p.id)}</span>
+                        {at ? <When iso={at} /> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          )}
+          {admin && (
+            <section className="rounded-2xl bg-card shadow-sm" data-testid="poll-not-seen">
+              <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
+                <p className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">Not seen yet</p>
+                <span className="shrink-0 text-[13px] text-muted-foreground">{admin.notSeen.length}</span>
+              </div>
+              {admin.notSeen.length === 0 ? (
+                <p className="px-4 py-3 text-[13.5px] text-muted-foreground">Everyone has seen it</p>
+              ) : (
+                <ul className="py-1">
+                  {admin.notSeen.map((p) => (
                     <li key={p.id} className="flex items-center gap-3 px-4 py-2">
                       <UserAvatar name={p.name} src={p.avatar} seed={p.id} className="h-9 w-9" />
                       <span className="min-w-0 flex-1 truncate text-[15px] text-foreground">{nameOf(p.id)}</span>
@@ -209,7 +306,7 @@ const PollVotesSheet = ({ open, onOpenChange, poll, votes, chatId, notVoted, myI
                   ))}
                 </ul>
               )}
-              <p className="border-t border-border/50 px-4 py-2.5 text-[12px] text-muted-foreground">Only the group’s admins see who hasn’t voted.</p>
+              <p className="border-t border-border/50 px-4 py-2.5 text-[12px] text-muted-foreground">Only the group’s admins see who has seen the poll or hasn’t voted.</p>
             </section>
           )}
         </div>
