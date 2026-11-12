@@ -86,6 +86,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendPush } from "@/lib/push";
 import ChoirNotifyButton from "@/components/notifications/ChoirNotifyButton";
+import ChoirChatButton from "@/components/choir/ChoirChatButton";
 import { useGlobalAudio } from "@/contexts/GlobalAudioContext";
 import {
     DndContext,
@@ -5063,7 +5064,13 @@ const ChoirPage = () => {
                             <ArrowLeft className="w-5 h-5 mr-1" />
                             {view === 'home' ? 'Teams' : 'Choir'}
                         </button>
-                        {locationId && <ChoirNotifyButton location={locationId} />}
+                        {locationId && (
+                            <div className="flex min-w-0 items-center gap-2">
+                                {/* The choir's group chat, from every part of the choir */}
+                                <ChoirChatButton locationId={locationId} />
+                                <ChoirNotifyButton location={locationId} />
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4"> {/* Mobile Responsive Layout */}

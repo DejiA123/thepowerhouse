@@ -320,6 +320,8 @@ type PushEvent =
   | { type: 'choir-song'; table: 'weekly' | 'library'; ids: string[] }
   /** "X added you to <group>": the server checks the sender manages the group and that they were just added */
   | { type: 'chat-added'; chatId: string; userIds: string[] }
+  /** "Tessie asked to join <group>" for its admins: the server checks my request is real and still waiting */
+  | { type: 'chat-join-request'; chatId: string }
   | { type: 'prayer-prayed'; prayerRequestId: string }
   | { type: 'test' };
 

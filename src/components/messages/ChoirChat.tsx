@@ -273,7 +273,7 @@ export const ChoirPickerSheet = ({ open, onOpenChange, chatId, current, canChang
         <SheetHeader title="Choir" onClose={() => onOpenChange(false)} />
         <SheetDescription className="px-4 pt-3 text-[13.5px] text-muted-foreground">
           {canChange
-            ? 'Songs added to this choir’s setlist appear here with Play and Lyrics, and the setlist is pinned at the top of the chat.'
+            ? 'Songs added to this choir’s setlist appear here with Play and Lyrics, and the setlist is pinned at the top of the chat. The chat also shows on the choir’s page: members open it in one tap, and others can join it (a private group: ask you to add them).'
             : 'Only the group’s admins can change this.'}
         </SheetDescription>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1rem)] pt-2">

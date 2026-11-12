@@ -1167,6 +1167,59 @@ export class GroupChatService {
         chatsChanged();
     }
 
+    /**
+     * Join a choir's chat from the choir page: a community group adds me at once
+     * ('joined'); a private group saves a request and tells its admins ('asked').
+     */
+    static async askToJoin(chatId: string): Promise<'member' | 'joined' | 'asked'> {
+        markSelfJoin(chatId);
+        const { data, error } = await supabase.rpc('ask_to_join_chat' as never, { _chat_id: chatId } as never);
+        if (error) {
+            // Before the database update: a community group can still be joined the old way
+            if (/function|schema cache|does not exist/i.test(error.message)) {
+                await GroupChatService.joinChat(chatId);
+                return 'joined';
+            }
+            throw new Error(error.message);
+        }
+        const result = data as unknown as 'member' | 'joined' | 'asked';
+        if (result === 'asked') {
+            // "Tessie asked to join Galway Choir" for the group's admins (the server checks it's a real, fresh request)
+            sendPush({ type: 'chat-join-request', chatId });
+        } else {
+            membersChanged(chatId);
+            chatsChanged();
+        }
+        return result;
+    }
+
+    /** Requests to join this group, for its admins (the database shows them to nobody else) */
+    static async joinRequests(chatId: string): Promise<{ user_id: string; requested_at: string; name: string; avatar_url: string | null }[]> {
+        const { data, error } = await supabase
+            .from('chat_join_requests' as never)
+            .select('user_id, requested_at')
+            .eq('chat_id', chatId)
+            .eq('status', 'pending')
+            .order('requested_at', { ascending: true })
+            .limit(100);
+        if (error) return []; // before the database update
+        const rows = (data as unknown as { user_id: string; requested_at: string }[]) ?? [];
+        if (!rows.length) return [];
+        const { data: people } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', rows.map((r) => r.user_id));
+        const byId = new Map(((people ?? []) as { id: string; full_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+        return rows.map((r) => ({
+            ...r,
+            name: byId.get(r.user_id)?.full_name?.trim() || 'Someone',
+            avatar_url: byId.get(r.user_id)?.avatar_url ?? null,
+        }));
+    }
+
+    /** Say no to a request to join (yes is Add: addMembers) */
+    static async declineJoinRequest(chatId: string, userId: string): Promise<void> {
+        const { error } = await supabase.rpc('decline_chat_join_request' as never, { _chat_id: chatId, _user_id: userId } as never);
+        if (error) throw new Error(error.message);
+    }
+
     // ── Invite links (like WhatsApp) ─────────────────────────────────
     /** The group's invite link code (its admins, creator or a church admin); reset makes a new one */
     static async inviteCode(chatId: string, reset = false): Promise<string> {
