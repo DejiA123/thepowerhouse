@@ -2077,7 +2077,8 @@ body.modal-open {
 
 /* ── Bottom bar: "liquid glass", like YouVersion's (iOS 26) ─────────────────
    A floating frosted capsule; the open tab sits on a soft pill, which swells into
-   a clear glass lens (no colour: the church's choice) while the bar is held (BottomNavigation.tsx). */
+   a clear glass lens (no colour: the church's choice) while the bar is held. Its
+   movement is a spring run in BottomNavigation.tsx, so no transform transition here. */
 .liquid-capsule {
   background: rgba(255, 255, 255, 0.62);
   -webkit-backdrop-filter: blur(22px) saturate(185%);
@@ -2095,44 +2096,30 @@ body.modal-open {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 .liquid-lens {
-  background: rgba(15, 23, 42, 0.07);
+  background: rgba(15, 23, 42, 0.075);
   will-change: transform;
-  /* Glides onto a tab with just a touch of settle, like YouVersion's */
   transition:
-    transform 380ms cubic-bezier(0.25, 1.12, 0.4, 1),
-    background-color 220ms ease,
-    box-shadow 220ms ease;
+    background-color 260ms ease,
+    box-shadow 260ms ease;
 }
 .dark .liquid-lens {
   background: rgba(255, 255, 255, 0.12);
 }
-.liquid-lens .liquid-mag {
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
+/* Held: clear glass over the tabs (they show through it, the one under it grows a little) */
 .liquid-lens.is-held {
-  /* Follows the finger with no lag */
-  transition:
-    transform 70ms linear,
-    background-color 220ms ease,
-    box-shadow 220ms ease;
-  /* Over the tabs while held: you see the magnified ones inside it, not both */
   z-index: 20;
-  background: rgba(255, 255, 255, 0.84);
-  -webkit-backdrop-filter: blur(6px) saturate(190%) brightness(1.08);
-  backdrop-filter: blur(6px) saturate(190%) brightness(1.08);
+  background: rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: saturate(170%) brightness(1.06);
+  backdrop-filter: saturate(170%) brightness(1.06);
   box-shadow:
-    0 8px 22px rgba(15, 23, 42, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.85),
-    inset 0 3px 7px rgba(255, 255, 255, 0.85),
-    inset 0 -4px 9px rgba(15, 23, 42, 0.1);
+    0 6px 18px rgba(15, 23, 42, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    inset 0 2px 5px rgba(255, 255, 255, 0.75),
+    inset 0 -3px 7px rgba(15, 23, 42, 0.06);
 }
 .dark .liquid-lens.is-held {
-  background: rgba(44, 44, 50, 0.78);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.35), inset 0 3px 7px rgba(255, 255, 255, 0.25);
-}
-.liquid-lens.is-held .liquid-mag {
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), inset 0 2px 5px rgba(255, 255, 255, 0.18);
 }
 /* The lens's clear glass edge: a thin bright rim, brighter at the top (no colour) */
 .liquid-lens::after {
@@ -2140,13 +2127,13 @@ body.modal-open {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.35) 55%, rgba(255, 255, 255, 0.8));
+  padding: 1.25px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.4) 55%, rgba(255, 255, 255, 0.85));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
-  transition: opacity 200ms ease;
+  transition: opacity 220ms ease;
   pointer-events: none;
 }
 .liquid-lens.is-held::after {
@@ -2161,3 +2148,4 @@ body.modal-open {
     transition: background-color 120ms ease;
   }
 }
+
