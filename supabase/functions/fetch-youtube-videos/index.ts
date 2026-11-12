@@ -12,6 +12,13 @@
 //     feed (no key or quota; YouTube links Shorts there as /shorts/).
 //  3. Both failed: the last good list (up to a day old), else an empty list
 //     (the app then keeps what it already has, or links to the channel).
+//
+// `{ "kind": "shorts" }` asks instead for the channel's newest Shorts (Home's "Daily
+// inspiration" reels), newest first, with no key and no quota first (the church's
+// choice: no allowances): the public RSS feed of the channel's Shorts-only list
+// ("UUSH" + the channel id without "UC", its 15 newest); then the channel's own feed
+// (its /shorts/ links); only if both fail, the Data API (that list, or the uploads
+// filtered to 3 minutes or less, 2–3 units). Playing is YouTube's embed, which has no quota.
 import { church } from '../_shared/church.ts';
 
 const corsHeaders = {
@@ -36,8 +43,10 @@ export interface Video {
   liveStartedAt?: string;
 }
 
-let cache: { videos: Video[]; at: number; source: string } | null = null;
-let inFlight: Promise<{ videos: Video[]; source: string; apiCalls: number }> | null = null;
+type Kind = 'sermons' | 'shorts';
+const caches: Record<Kind, { videos: Video[]; at: number; source: string } | null> = { sermons: null, shorts: null };
+const inFlights: Record<Kind, Promise<{ videos: Video[]; source: string; apiCalls: number }> | null> = { sermons: null, shorts: null };
+const SHORTS_LIMIT = 12;
 
 const decodeXml = (text: string) =>
   text
@@ -105,6 +114,54 @@ export function videosFromFeed(xml: string, channelId = CHANNEL_ID): Video[] {
     .sort(newestFirst);
 }
 
+/** Details (YouTube Data API) → this channel's public Shorts (3 minutes or less), newest first. */
+export function shortsFromApi(details: any, channelId = CHANNEL_ID): Video[] {
+  return (details?.items ?? [])
+    .filter((v: any) => {
+      const seconds = durationSeconds(v?.contentDetails?.duration);
+      return v?.id &&
+        v.snippet?.channelId === channelId &&
+        v.status?.privacyStatus === 'public' &&
+        v.snippet?.liveBroadcastContent === 'none' &&
+        seconds > 0 && seconds <= MAX_SHORT_SECONDS;
+    })
+    .map((v: any) => ({
+      id: v.id,
+      title: v.snippet.title ?? '',
+      description: (v.snippet.description ?? '').slice(0, 140),
+      thumbnail: v.snippet.thumbnails?.maxres?.url || v.snippet.thumbnails?.standard?.url || v.snippet.thumbnails?.high?.url || `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+      publishedAt: v.snippet.publishedAt ?? '',
+      channelTitle: v.snippet.channelTitle ?? '',
+    }))
+    .sort(newestFirst);
+}
+
+/** The RSS feed's Shorts (YouTube links them as /shorts/). */
+export function shortsFromFeed(xml: string, channelId = CHANNEL_ID): Video[] {
+  const feedChannel = /<yt:channelId>([^<]+)<\/yt:channelId>/.exec(xml.split('<entry>')[0])?.[1]?.trim();
+  if (feedChannel && feedChannel !== channelId) return [];
+  const channelTitle = decodeXml(/<author>\s*<name>([^<]*)<\/name>/.exec(xml)?.[1] ?? '');
+  return xml
+    .split('<entry>')
+    .slice(1)
+    .map((entry) => {
+      const id = /<yt:videoId>([\w-]{11})<\/yt:videoId>/.exec(entry)?.[1];
+      const entryChannel = /<yt:channelId>([^<]+)<\/yt:channelId>/.exec(entry)?.[1]?.trim();
+      const link = /<link rel="alternate" href="([^"]+)"/.exec(entry)?.[1] ?? '';
+      if (!id || (entryChannel && entryChannel !== channelId) || !link.includes('/shorts/')) return null;
+      return {
+        id,
+        title: decodeXml(/<title>([^<]*)<\/title>/.exec(entry)?.[1] ?? ''),
+        description: decodeXml(/<media:description>([\s\S]*?)<\/media:description>/.exec(entry)?.[1] ?? '').slice(0, 140),
+        thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+        publishedAt: /<published>([^<]+)<\/published>/.exec(entry)?.[1] ?? '',
+        channelTitle,
+      } as Video;
+    })
+    .filter((v): v is Video => !!v)
+    .sort(newestFirst);
+}
+
 async function getJson(url: string) {
   const res = await fetch(url);
   const body = await res.json().catch(() => null);
@@ -126,10 +183,73 @@ async function fromApi(key: string): Promise<Video[]> {
   return videosFromApi(details);
 }
 
-async function fromFeed(): Promise<Video[]> {
+async function shortsListIds(key: string, playlistId: string, max: number): Promise<string[]> {
+  const list = await getJson(
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${playlistId}&maxResults=${max}&key=${key}`,
+  );
+  return (list?.items ?? []).map((i: any) => i?.contentDetails?.videoId).filter(Boolean);
+}
+
+async function shortsFromApiKey(key: string): Promise<{ videos: Video[]; apiCalls: number }> {
+  let ids: string[] = [];
+  let apiCalls = 1;
+  try {
+    // The channel's Shorts-only list: "UUSH" + the channel id without its "UC"
+    ids = await shortsListIds(key, `UUSH${CHANNEL_ID.slice(2)}`, 20);
+  } catch {
+    ids = [];
+  }
+  if (!ids.length) {
+    // Not readable: the newest uploads, of which the 3-minute ones are the Shorts
+    ids = await shortsListIds(key, `UU${CHANNEL_ID.slice(2)}`, 50);
+    apiCalls++;
+  }
+  if (!ids.length) return { videos: [], apiCalls };
+  const details = await getJson(
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${ids.join(',')}&key=${key}`,
+  );
+  return { videos: shortsFromApi(details), apiCalls: apiCalls + 1 };
+}
+
+async function feedXml(): Promise<string> {
   const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`);
   if (!res.ok) throw new Error(`YouTube feed ${res.status}`);
-  return videosFromFeed(await res.text());
+  return res.text();
+}
+
+async function fromFeed(): Promise<Video[]> {
+  return videosFromFeed(await feedXml());
+}
+
+/** The public RSS feed of the channel's Shorts-only list (no key, no quota): every entry is a Short. */
+async function shortsFromPlaylistFeed(): Promise<Video[]> {
+  const res = await fetch(`https://www.youtube.com/feeds/videos.xml?playlist_id=UUSH${CHANNEL_ID.slice(2)}`);
+  if (!res.ok) throw new Error(`YouTube Shorts feed ${res.status}`);
+  const xml = await res.text();
+  // The playlist feed's entries link to /watch: mark them as Shorts for the shared parser
+  return shortsFromFeed(xml.replace(/<link rel="alternate" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/g, '<link rel="alternate" href="https://www.youtube.com/shorts/$1"'));
+}
+
+async function latestShorts(): Promise<{ videos: Video[]; source: string; apiCalls: number }> {
+  // 1. No key, no quota: the Shorts list's own feed
+  try {
+    const videos = await shortsFromPlaylistFeed();
+    if (videos.length) return { videos: videos.slice(0, SHORTS_LIMIT), source: 'shorts-feed', apiCalls: 0 };
+  } catch (error) {
+    console.warn('Shorts feed unavailable:', error instanceof Error ? error.message : error);
+  }
+  // 2. No key, no quota: the channel's feed (its newest 15 uploads; Shorts linked as /shorts/)
+  try {
+    const videos = shortsFromFeed(await feedXml());
+    if (videos.length) return { videos: videos.slice(0, SHORTS_LIMIT), source: 'feed', apiCalls: 0 };
+  } catch (error) {
+    console.warn('Channel feed unavailable:', error instanceof Error ? error.message : error);
+  }
+  // 3. Only then the Data API, if there's a key
+  const key = Deno.env.get('YOUTUBE_API_KEY');
+  if (!key) return { videos: [], source: 'none', apiCalls: 0 };
+  const got = await shortsFromApiKey(key);
+  return { videos: got.videos.slice(0, SHORTS_LIMIT), source: 'api', apiCalls: got.apiCalls };
 }
 
 async function latest(): Promise<{ videos: Video[]; source: string; apiCalls: number }> {
@@ -170,27 +290,31 @@ const respond = (body: Record<string, unknown>, cacheState: string) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+  const kind: Kind = body?.kind === 'shorts' || new URL(req.url).searchParams.get('kind') === 'shorts' ? 'shorts' : 'sermons';
+  const cache = caches[kind];
+
   if (cache && Date.now() - cache.at < FRESH_MS) {
-    return respond({ videos: cache.videos, source: cache.source, cachedAt: new Date(cache.at).toISOString() }, 'HIT');
+    return respond({ kind, videos: cache.videos, source: cache.source, cachedAt: new Date(cache.at).toISOString() }, 'HIT');
   }
 
   try {
     // Everyone asking at once shares one lookup
-    inFlight ??= latest().finally(() => {
-      inFlight = null;
+    inFlights[kind] ??= (kind === 'shorts' ? latestShorts() : latest()).finally(() => {
+      inFlights[kind] = null;
     });
-    const { videos, source, apiCalls } = await inFlight;
-    if (!videos.length) throw new Error('No videos found on the channel');
-    cache = { videos, at: Date.now(), source };
+    const { videos, source, apiCalls } = await inFlights[kind]!;
+    if (!videos.length) throw new Error(kind === 'shorts' ? 'No Shorts found on the channel' : 'No videos found on the channel');
+    caches[kind] = { videos, at: Date.now(), source };
     await logApiUsage(apiCalls, true);
-    return respond({ videos, source, cachedAt: new Date(cache.at).toISOString() }, 'MISS');
+    return respond({ kind, videos, source, cachedAt: new Date(caches[kind]!.at).toISOString() }, 'MISS');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Could not fetch the latest videos:', message);
     await logApiUsage(0, false, message);
     if (cache && Date.now() - cache.at < STALE_MS) {
-      return respond({ videos: cache.videos, source: cache.source, stale: true, cachedAt: new Date(cache.at).toISOString() }, 'STALE');
+      return respond({ kind, videos: cache.videos, source: cache.source, stale: true, cachedAt: new Date(cache.at).toISOString() }, 'STALE');
     }
-    return respond({ videos: [], error: 'YouTube is unavailable right now' }, 'ERROR');
+    return respond({ kind, videos: [], error: 'YouTube is unavailable right now' }, 'ERROR');
   }
 });

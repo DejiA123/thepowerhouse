@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronRight, Pause, Play, Search } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HOME_TILES, TILE } from '@/data/appDirectory';
 import { openSearch } from '@/lib/appEvents';
 import { PictureTile } from '@/components/page/PageKit';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { useGlobalAudio } from '@/contexts/GlobalAudioContext';
-import { useBiblePreferences } from '@/hooks/useBiblePreferences';
-import { normalizeBookApiName } from '@/components/bible/bookUtils';
-import { bookDisplayName } from '@/services/bibleSmartSearch';
 import UserAvatar from '@/components/common/UserAvatar';
 import VerseOfTheDay from './VerseOfTheDay';
 
@@ -28,16 +24,15 @@ const greetingFor = (hour: number) => (hour < 12 ? 'Good morning' : hour < 17 ? 
 
 /**
  * The top of the home page, made to be obvious at a glance: a greeting that
- * asks "What would you like to do today?", a big search box, carry on where
- * you left off, eight big picture buttons, then the verse of the day and the
- * church's photo banners.
+ * asks "What would you like to do today?", a big search box, eight big picture
+ * buttons, then the verse of the day and the church's photo banners. (No "Carry on
+ * reading" card, the church's choice, Nov 2026: the Bible opens where you left off,
+ * and the mini player at the bottom carries on listening.)
  */
 const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
   const navigate = useNavigate();
   const { unreadChats } = useNotifications();
   const { user } = useAuth();
-  const audio = useGlobalAudio();
-  const { preferences } = useBiblePreferences();
   const [slide, setSlide] = useState(0);
   const carousel = useRef<HTMLDivElement>(null);
   const userTouched = useRef(false);
@@ -68,15 +63,6 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
     });
     if (best !== slide) setSlide(best);
   };
-
-  // "Continue" — the audio Bible if something is loaded, otherwise the last chapter read
-  const listening = audio?.audioState.hasAudio && audio.audioState.isBibleMode;
-  const lastBook = normalizeBookApiName(preferences.preferredBook || 'genesis');
-  const lastChapter = preferences.preferredChapter || 1;
-
-  const continueLabel = listening
-    ? `${audio!.audioState.trackTitle}${audio!.audioState.duration ? ` · ${Math.max(1, Math.round((audio!.audioState.duration - audio!.audioState.currentTime) / 60))} min left` : ''}`
-    : `${bookDisplayName(lastBook)} ${lastChapter}`;
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-4">
@@ -117,47 +103,6 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
         <Search className="h-6 w-6 shrink-0 text-blue-600 dark:text-blue-400" />
         What are you looking for?
       </button>
-
-      {/* Carry on where you left off */}
-      <div className="mt-4 flex items-center gap-3.5 rounded-[20px] border border-border/70 bg-card p-3.5 shadow-sm md:max-w-xl">
-        {listening ? (
-          <button
-            onClick={() => (audio!.audioState.isPlaying ? audio!.pause() : audio!.resume())}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 transition active:scale-90"
-            aria-label={audio!.audioState.isPlaying ? 'Pause' : 'Play'}
-          >
-            {audio!.audioState.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
-          </button>
-        ) : (
-          <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white', TILE.blue)}>
-            <BookOpen className="h-6 w-6" />
-          </span>
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[12.5px] font-bold uppercase tracking-[0.06em] text-blue-600 dark:text-blue-400">
-            {listening ? 'Carry on listening' : 'Carry on reading'}
-          </span>
-          <span className="block truncate font-outfit text-[17px] font-semibold text-foreground">{continueLabel}</span>
-          {listening && audio!.audioState.duration > 0 && (
-            <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
-              <span
-                className="block h-full rounded-full bg-blue-600"
-                style={{ width: `${Math.min(100, (100 * audio!.audioState.currentTime) / audio!.audioState.duration)}%` }}
-              />
-            </span>
-          )}
-        </span>
-        <button
-          onClick={() =>
-            listening
-              ? navigate(`/bible?book=${audio!.audioState.currentBook}&chapter=${audio!.audioState.currentChapter}`)
-              : navigate(`/bible?book=${lastBook}&chapter=${lastChapter}`)
-          }
-          className="h-11 shrink-0 rounded-full bg-blue-600 px-5 text-[15px] font-semibold text-white shadow-md shadow-blue-600/25 transition active:scale-95"
-        >
-          Open
-        </button>
-      </div>
 
       {/* The big picture buttons (no heading: the greeting above already asks what they'd like to do) */}
       <div data-tour="tiles" role="group" aria-label="Quick links" className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
