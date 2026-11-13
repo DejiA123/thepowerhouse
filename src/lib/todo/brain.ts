@@ -70,8 +70,18 @@ export function aboutLabel(min: number): string {
   return durationLabel(Math.max(step, Math.ceil(min / step) * step));
 }
 
-/** With the planning-fallacy buffer */
-export const bufferedMinutes = (t: Todo) => Math.ceil(remainingMinutes(t) * BUFFER);
+/**
+ * Your own pace, once the app has seen it (insights.ts `paceOf`: how long tasks really took
+ * you against your guess, from 3+ tasks finished in focus): it replaces the general 1.5.
+ */
+let buffer = BUFFER;
+export function setPersonalBuffer(b: number | null) {
+  buffer = b && Number.isFinite(b) ? Math.min(3, Math.max(1.1, b)) : BUFFER;
+}
+export const personalBuffer = () => (buffer === BUFFER ? null : buffer);
+
+/** With the planning-fallacy buffer (or your own pace) */
+export const bufferedMinutes = (t: Todo) => Math.ceil(remainingMinutes(t) * buffer);
 
 /** "2 h 30 min", "45 min" */
 export function durationLabel(min: number): string {
@@ -159,7 +169,7 @@ export function planLabel(t: Todo, now: Date): string | null {
 export function startByLabel(t: Todo, now: Date): string | null {
   const s = startBy(t);
   if (!s || isOverdue(t, now)) return null;
-  const need = aboutLabel(bufferedMinutes(t));
+  const need = aboutLabel(bufferedMinutes(t)) + (personalBuffer() ? ' at your pace' : '');
   const when = s.dayOnly ? dayLabel(s.at, now) : whenLabel(s.at, now);
   const late = s.dayOnly ? startOfDay(s.at) < startOfDay(now) : s.at < now;
   if (late) return `You're behind: it needs about ${need}, start now`;
@@ -257,8 +267,12 @@ export function doNext(todos: Todo[], now: Date, skip: Set<string> = new Set()):
 export const todayOrder = (todos: Todo[], now: Date) =>
   todos.filter((t) => inToday(t, now)).map((t) => score(t, now)).sort((a, b) => b.score - a.score).map((p) => p.todo);
 
+// ── The coach's two timed ways in ("What's stopping you?", and tips on "Is it working?")
+export const GAME = { minutes: 10, note: 'Beat the clock: as much as you can in 10 minutes, then you may stop.' };
+export const ROUGH = { minutes: 15, note: 'Rough version only. Messy is allowed: you can make it good later.' };
+
 // ── Putting it off ──────────────────────────────────────────────────
-export type Later = 'hour' | 'tonight' | 'tomorrow' | 'weekend' | 'nextweek';
+export type Later = 'hour' | 'afternoon' | 'tonight' | 'tomorrow' | 'weekend' | 'nextweek';
 
 /** When "Not now" moves it to */
 export function laterTime(kind: Later, now: Date): Date {
@@ -266,6 +280,8 @@ export function laterTime(kind: Later, now: Date): Date {
   switch (kind) {
     case 'hour':
       return new Date(Math.ceil((now.getTime() + 60 * MIN) / (15 * MIN)) * 15 * MIN);
+    case 'afternoon':
+      return now.getHours() < 13 ? t(now, 14) : t(addDays(now, 1), 14);
     case 'tonight':
       return now.getHours() < 19 ? t(now, 19) : new Date(now.getTime() + 60 * MIN);
     case 'tomorrow':

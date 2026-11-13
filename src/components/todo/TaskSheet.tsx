@@ -5,7 +5,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { newNoteId } from '@/lib/offlineNotes';
 import {
-  addDays, durationLabel, endOfDay, laterTime, localDay, remainingMinutes, startByLabel, whenLabel,
+  addDays, durationLabel, endOfDay, laterTime, localDay, personalBuffer, remainingMinutes, startByLabel, whenLabel,
 } from '@/lib/todo/brain';
 import { breakDown } from '@/lib/todo/helper';
 import { loadFriends, savedFriends, tellCommit } from '@/lib/todo/buddy';
@@ -112,6 +112,7 @@ const TaskSheet = ({
   const plan = todo.plan_at ? new Date(todo.plan_at) : null;
   const due = todo.due_at ? new Date(todo.due_at) : null;
   const insight = startByLabel(todo, now);
+  const pace = personalBuffer();
   const today = localDay(now);
   const nextFriday = addDays(now, ((5 - now.getDay() + 7) % 7) || 7);
 
@@ -332,7 +333,10 @@ const TaskSheet = ({
             </div>
             {insight && (
               <p className={cn('mt-2.5 rounded-xl px-3 py-2.5 text-[13.5px] font-medium leading-snug', /behind|today/i.test(insight) ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200' : 'bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-200')} data-testid="start-by">
-                {insight}. {todo.estimate_min || steps.length ? '' : 'Set how long it takes for a better guess. '}People usually need about half as long again as they expect, so that’s built in.
+                {insight}. {todo.estimate_min || steps.length ? '' : 'Set how long it takes for a better guess. '}
+                {pace
+                  ? 'That allows for how long things really take you, learned from your own finished tasks.'
+                  : 'People usually need about half as long again as they expect, so that’s built in.'}
               </p>
             )}
             {!insight && (todo.estimate_min || steps.length > 0) && (

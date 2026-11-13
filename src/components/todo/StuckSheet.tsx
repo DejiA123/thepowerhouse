@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BatteryLow, Footprints, Frown, Mountain, Sparkles, Trash2, Wind } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { nextStep } from '@/lib/todo/brain';
+import { GAME, ROUGH, nextStep } from '@/lib/todo/brain';
 import type { Todo } from '@/lib/todo/types';
 import { SheetTop, sheetClass } from './parts';
 
@@ -25,7 +25,16 @@ export type StuckAction =
   | { kind: 'someday' }
   | { kind: 'delete' };
 
-const StuckSheet = ({ todo, onClose, onAction }: { todo: Todo | null; onClose: () => void; onAction: (a: StuckAction) => void }) => {
+import type { StuckReason } from '@/lib/todo/insights';
+export type { StuckReason };
+
+const StuckSheet = ({ todo, onClose, onAction, onReason }: {
+  todo: Todo | null;
+  onClose: () => void;
+  onAction: (a: StuckAction) => void;
+  /** The answer picked (for "Is it working?": what gets in the way most) */
+  onReason?: (reason: StuckReason) => void;
+}) => {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState<'pick' | 'first' | 'drop'>('pick');
   const [first, setFirst] = useState('');
@@ -37,11 +46,11 @@ const StuckSheet = ({ todo, onClose, onAction }: { todo: Todo | null; onClose: (
   }, [todo]);
 
   const put = todo?.snoozes ?? 0;
-  const reasons = [
+  const reasons: { id: StuckReason; icon: typeof Mountain; title: string; detail: string; go: () => void }[] = [
     { id: 'big', icon: Mountain, title: 'It feels too big', detail: 'Break it into tiny steps', go: () => onAction({ kind: 'breakdown' }) },
     { id: 'where', icon: Footprints, title: 'I don’t know where to start', detail: 'Decide the very first move', go: () => setMode('first') },
-    { id: 'boring', icon: Wind, title: 'It’s boring', detail: 'Make it a 10-minute game', go: () => onAction({ kind: 'focus', minutes: 10, note: 'Beat the clock: as much as you can in 10 minutes, then you may stop.' }) },
-    { id: 'perfect', icon: Frown, title: 'I’m afraid it won’t be good enough', detail: 'Do a rough version on purpose', go: () => onAction({ kind: 'focus', minutes: 15, note: 'Rough version only. Messy is allowed: you can make it good later.' }) },
+    { id: 'boring', icon: Wind, title: 'It’s boring', detail: 'Make it a 10-minute game', go: () => onAction({ kind: 'focus', ...GAME }) },
+    { id: 'perfect', icon: Frown, title: 'I’m afraid it won’t be good enough', detail: 'Do a rough version on purpose', go: () => onAction({ kind: 'focus', ...ROUGH }) },
     { id: 'tired', icon: BatteryLow, title: 'I’m tired or there’s no time now', detail: 'Pick a real time for it', go: () => onAction({ kind: 'later' }) },
     { id: 'drop', icon: Trash2, title: 'I don’t actually need to do it', detail: 'Let it go', go: () => setMode('drop') },
   ];
@@ -58,7 +67,10 @@ const StuckSheet = ({ todo, onClose, onAction }: { todo: Todo | null; onClose: (
             reasons.map((r) => (
               <button
                 key={r.id}
-                onClick={r.go}
+                onClick={() => {
+                  onReason?.(r.id);
+                  r.go();
+                }}
                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-muted active:bg-muted"
                 data-testid={`stuck-${r.id}`}
               >

@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLiveRefresh } from '@/hooks/useLiveRefresh';
 import { newNoteId } from '@/lib/offlineNotes';
-import { localDay, nextOccurrence } from './brain';
+import { localDay, nextOccurrence, setPersonalBuffer } from './brain';
+import { eventsOf, logEvent, subscribeEvents } from './events';
+import { paceOf } from './insights';
 import { TODO_COLUMNS, type Todo } from './types';
 
 /**
@@ -155,8 +157,18 @@ export async function loadTodos(u: string): Promise<void> {
   setList(u, merged);
 }
 
+/** Start-by dates follow your own pace once the app has seen it (insights.ts `paceOf`) */
+const paced = new Set<string>();
+function applyPace(u: string) {
+  paced.add(u);
+  setPersonalBuffer(paceOf(eventsOf(u)).buffer);
+}
+
 /** The phone's copy, without loading or listening (a card elsewhere in the app) */
-export const peekTodos = (u: string): Todo[] => getList(u);
+export const peekTodos = (u: string): Todo[] => {
+  if (!paced.has(u)) applyPace(u);
+  return getList(u);
+};
 
 // ── Changes ─────────────────────────────────────────────────────────
 export function addTodo(u: string, fields: Partial<Todo> & { title: string }): Todo {
@@ -183,7 +195,20 @@ export function addTodo(u: string, fields: Partial<Todo> & { title: string }): T
   };
   enqueue(u, t.id, 'upsert');
   setList(u, [...getList(u), t]);
+  if (t.plan_at) logEvent(u, t.id, 'planned', { for: t.plan_at });
   return t;
+}
+
+/** What "Is it working?" needs to know about a change: planned, or put off */
+function noteChange(u: string, before: Todo, after: Todo) {
+  const now = Date.now();
+  // "Not now": just before the new plan, so the plan it replaced counts as put off
+  if ((after.snoozes ?? 0) > (before.snoozes ?? 0)) {
+    logEvent(u, after.id, 'snoozed', { from: before.plan_at, to: after.plan_at, due: after.due_at }, new Date(now - 1));
+  }
+  if ((after.plan_at ?? null) !== (before.plan_at ?? null) && after.status === 'open') {
+    logEvent(u, after.id, 'planned', { for: after.plan_at ?? null });
+  }
 }
 
 export function updateTodo(u: string, id: string, patch: Partial<Todo>) {
@@ -195,18 +220,32 @@ export function updateTodo(u: string, id: string, patch: Partial<Todo>) {
   if (patch.title !== undefined) next[i].title = (patch.title.trim() || list[i].title).slice(0, 300);
   enqueue(u, id, 'upsert');
   setList(u, next);
+  noteChange(u, list[i], next[i]);
 }
 
 export function deleteTodo(u: string, id: string) {
+  const t = getList(u).find((x) => x.id === id);
   enqueue(u, id, 'delete');
-  setList(u, getList(u).filter((t) => t.id !== id));
+  setList(u, getList(u).filter((x) => x.id !== id));
+  if (t?.status === 'open') logEvent(u, id, 'dropped', { how: 'delete' });
 }
 
+/** How it was finished: the focus screen, the list, the task, a fresh start */
+export type DoneVia = 'focus' | 'list' | 'sheet' | 'fresh';
+
 /** Done: a repeating task comes round again as a new one */
-export function completeTodo(u: string, id: string): Todo | null {
+export function completeTodo(u: string, id: string, via: DoneVia = 'list'): Todo | null {
   const t = getList(u).find((x) => x.id === id);
   if (!t) return null;
   const now = new Date();
+  logEvent(u, id, 'done', {
+    due: t.due_at,
+    all_day: !!t.due_all_day,
+    plan: t.plan_at,
+    via,
+    estimate: t.estimate_min ?? null,
+    focus_min: Math.round(t.focus_min ?? 0),
+  }, now);
   updateTodo(u, id, { status: 'done', done_at: now.toISOString(), steps: t.steps.map((s) => ({ ...s, done: true })) });
   const again = nextOccurrence(t, now);
   if (!again) return null;
@@ -272,6 +311,12 @@ export function useTodos() {
 
   useEffect(() => {
     if (!u) return;
+    applyPace(u);
+    const offPace = subscribeEvents((who) => {
+      if (who !== u) return;
+      applyPace(u);
+      setTodos([...getList(u)]);
+    });
     setTodos(getList(u));
     setFocusDays(focusDaysOf(u));
     const on = (who: string) => {
@@ -283,6 +328,7 @@ export function useTodos() {
     void loadTodos(u).finally(() => setLoaded(true));
     return () => {
       listeners.delete(on);
+      offPace();
     };
   }, [u]);
 
@@ -309,7 +355,7 @@ export function useTodos() {
     add: (fields: Partial<Todo> & { title: string }) => addTodo(u, fields),
     update: (id: string, patch: Partial<Todo>) => updateTodo(u, id, patch),
     remove: (id: string) => deleteTodo(u, id),
-    complete: (id: string) => completeTodo(u, id),
+    complete: (id: string, via?: DoneVia) => completeTodo(u, id, via),
     reopen: (id: string) => reopenTodo(u, id),
     logFocus: (id: string, minutes: number) => logFocus(u, id, minutes),
   };

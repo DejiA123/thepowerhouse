@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowUp, Bell, Brain, Check, CheckCircle2, ChevronRight, Clock, Flame, ListChecks, Play, Shuffle, Sparkles, Sun, Timer, Trash2 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowUp, Bell, Brain, Check, CheckCircle2, ChevronRight, Clock, Flame, ListChecks, Play, Shuffle, Sparkles, Sun, Target, Timer, Trash2 } from 'lucide-react';
 import { Page, PageTitle, Segmented } from '@/components/page/PageKit';
 import { TILE } from '@/data/appDirectory';
 import { appAlert } from '@/lib/appAlert';
@@ -9,17 +9,19 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import EnableNotificationsCard from '@/components/notifications/EnableNotificationsCard';
 import SwipeRow from '@/components/common/SwipeRow';
 import {
-  doNext, doNextIn, doneThisWeek, durationLabel, focusThisWeek, isSomeday, isUpcoming, localDay, nextMoment, nextStep, overdueOf,
+  GAME, ROUGH, doNext, doNextIn, doneThisWeek, durationLabel, focusThisWeek, isSomeday, isUpcoming, localDay, nextMoment, nextStep, overdueOf,
   sameDay, streak, todayOrder, verseOfTheDay, whenLabel, type DayBlock,
 } from '@/lib/todo/brain';
 import { parseQuickAdd, type QuickAdd } from '@/lib/todo/parse';
-import { ensureTodoSettings, useTodos, type TodoSettings } from '@/lib/todo/store';
+import { ensureTodoSettings, useTodos, type DoneVia, type TodoSettings } from '@/lib/todo/store';
+import { lastEvent, logEvent, useTodoEvents } from '@/lib/todo/events';
+import { computeInsights } from '@/lib/todo/insights';
 import { tellDone } from '@/lib/todo/buddy';
 import { newNoteId } from '@/lib/offlineNotes';
 import type { Todo } from '@/lib/todo/types';
 import TaskRow from '@/components/todo/TaskRow';
 import TaskSheet from '@/components/todo/TaskSheet';
-import FocusMode from '@/components/todo/FocusMode';
+import FocusMode, { type FocusResult } from '@/components/todo/FocusMode';
 import LaterSheet from '@/components/todo/LaterSheet';
 import StuckSheet, { type StuckAction } from '@/components/todo/StuckSheet';
 import TodoSettingsSheet from '@/components/todo/TodoSettingsSheet';
@@ -42,7 +44,9 @@ const BUDGETS = [5, 15, 30, 60];
  */
 const TodoPage = () => {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const { userId, todos, focusDays, loaded, add, update, remove, complete, reopen, logFocus } = useTodos();
+  const events = useTodoEvents();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -80,19 +84,28 @@ const TodoPage = () => {
 
   const byId = (id: string | null | undefined) => (id ? todos.find((t) => t.id === id) ?? null : null);
 
-  // From a notification: /todo?task=<id>&start=1 starts it, /todo?task=<id> opens it
+  // From a notification or a tip on "Is it working?": /todo?task=<id>&start=1 starts it,
+  // &stuck=1 asks what's stopping you, &breakdown=1 breaks it into steps, &focus=rough|game
+  // starts a rough version (15 min) or a race against the clock (10 min), /todo?task=<id>
+  // opens it; /todo?open=plan|fresh opens Plan my day or A fresh start
   useEffect(() => {
     const id = params.get('task');
-    if (!id) return;
+    const opening = params.get('open');
+    if (!id && !opening) return;
     const t = byId(id);
-    if (!t && !loaded) return; // wait for the list
+    if (id && !t && !loaded) return; // wait for the list
     if (t) {
-      if (params.get('start') && t.status === 'open') setFocus({ id, start: null });
-      else setEditing({ id });
+      const way = params.get('focus');
+      if (way && t.status === 'open') setFocus({ id: t.id, start: way === 'rough' ? ROUGH : GAME });
+      else if (params.get('start') && t.status === 'open') setFocus({ id: t.id, start: null });
+      else if (params.get('stuck') && t.status === 'open') setStuckFor(t.id);
+      else if (params.get('breakdown') && t.status === 'open') setEditing({ id: t.id, breakdown: true });
+      else setEditing({ id: t.id });
     }
+    if (opening === 'plan') setPlanOpen(true);
+    if (opening === 'fresh') setFreshOpen(true);
     const next = new URLSearchParams(params);
-    next.delete('task');
-    next.delete('start');
+    for (const k of ['task', 'start', 'stuck', 'breakdown', 'focus', 'open']) next.delete(k);
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, loaded, todos.length]);
@@ -126,6 +139,8 @@ const TodoPage = () => {
   const verse = verseOfTheDay(now);
   const plannedToday = open.some((t) => t.plan_at && sameDay(new Date(t.plan_at), now) && new Date(t.plan_at) > now);
   const needsPush = pushState !== 'on' && pushState !== 'loading' && open.some((t) => t.plan_at && new Date(t.plan_at) > now);
+  // "Is it working?": the card's line, and when your plans really happen (for "Not now")
+  const insights = useMemo(() => computeInsights(todos, events, now), [todos, events, now]);
 
   // ── Actions ───────────────────────────────────────────────────────
   const addQuick = () => {
@@ -143,8 +158,8 @@ const TodoPage = () => {
     appAlert(`${items.length} ${items.length === 1 ? 'task' : 'tasks'} added`, 'Your head is clearer already. Now: Do next, or plan your day.', 'success');
   };
 
-  const finish = (t: Todo) => {
-    const again = complete(t.id);
+  const finish = (t: Todo, via: DoneVia = 'list') => {
+    const again = complete(t.id, via);
     setSkip(new Set());
     setBudget(null);
     setBurst((b) => b + 1);
@@ -157,7 +172,7 @@ const TodoPage = () => {
     appAlert(n === 1 ? 'Done! First one today 🎉' : `Done! That’s ${n} today 🎉`, lines.join(' ') || 'One less thing on your mind.', 'success');
     if (t.buddy_id) void tellDone(t.buddy_id, t);
   };
-  const toggle = (t: Todo) => (t.status === 'done' ? reopen(t.id) : finish(t));
+  const toggle = (t: Todo, via: DoneVia = 'list') => (t.status === 'done' ? reopen(t.id) : finish(t, via));
   const start = (t: Todo, minutes?: number | null) => setFocus({ id: t.id, start: minutes ? { minutes } : null });
   const notNow = (t: Todo) => (t.snoozes >= 1 ? setStuckFor(t.id) : setLaterFor(t.id));
   const pickToday = (t: Todo) => {
@@ -186,6 +201,12 @@ const TodoPage = () => {
     );
   };
 
+  /** A focus session ended (10 seconds or more: an accidental open isn't a session) */
+  const noteFocus = (id: string, r: FocusResult | null, done: boolean) => {
+    if (!r || r.seconds < 10) return;
+    logEvent(userId, id, 'focused', { minutes: Math.round(r.seconds / 6) / 10, initial: r.initial, done });
+  };
+
   const onStuck = (t: Todo, a: StuckAction) => {
     setStuckFor(null);
     if (a.kind === 'breakdown') {
@@ -205,6 +226,7 @@ const TodoPage = () => {
     } else if (a.kind === 'someday') {
       setFocus(null);
       update(t.id, { plan_at: null, due_at: null, due_all_day: false, today_on: null });
+      logEvent(userId, t.id, 'dropped', { how: 'someday' });
       appAlert('Kept for someday', 'No dates, no reminders. It’s there if you need it.');
     } else {
       setFocus(null);
@@ -432,6 +454,26 @@ const TodoPage = () => {
         </div>
       )}
 
+      {/* Is it working? */}
+      {todos.length > 0 && (
+        <button
+          onClick={() => navigate('/todo/insights')}
+          className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-slate-200/70 bg-card px-4 py-3 text-left shadow-sm transition active:scale-[0.99] dark:border-slate-800"
+          data-testid="insights-open"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
+            <Target className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold text-foreground">Is it working?</span>
+            <span className="block text-[13px] leading-snug text-muted-foreground">
+              {insights.short ? `${insights.headline}: ${insights.short.charAt(0).toLowerCase()}${insights.short.slice(1)}` : 'What really happens with your plans, and what the app is learning about you'}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </button>
+      )}
+
       {needsPush && (
         <EnableNotificationsCard compact className="mt-3" title="Turn on reminders" description="So the app can nudge you when it’s time to start." />
       )}
@@ -522,7 +564,7 @@ const TodoPage = () => {
         onDone={() => {
           if (!editTodo) return;
           setEditing(null);
-          toggle(editTodo);
+          toggle(editTodo, 'sheet');
         }}
       />
       <FocusMode
@@ -532,7 +574,14 @@ const TodoPage = () => {
           const t = byId(id);
           if (t && (t.focus_end_at ?? null) !== end) update(id, { focus_end_at: end });
         }}
-        onClose={(mins) => {
+        onBegin={(id, minutes) => {
+          // Once per start (a screen that opens twice doesn't count twice)
+          const last = lastEvent(userId, id, 'started');
+          if (last && Date.now() - Date.parse(last.at) < 60_000) return;
+          logEvent(userId, id, 'started', { planned_for: byId(id)?.plan_at ?? null, minutes });
+        }}
+        onClose={(mins, result) => {
+          if (focusTodo) noteFocus(focusTodo.id, result, false);
           if (focusTodo && mins) {
             logFocus(focusTodo.id, mins);
             appAlert(`${mins} min focused`, 'Every bit counts. Come back to it when you’re ready.', 'success');
@@ -543,18 +592,24 @@ const TodoPage = () => {
           if (!focusTodo) return;
           update(focusTodo.id, { steps: focusTodo.steps.map((s) => (s.id === stepId ? { ...s, done: true } : s)) });
         }}
-        onComplete={(mins) => {
+        onComplete={(mins, result) => {
           if (!focusTodo) return;
+          noteFocus(focusTodo.id, result, true);
           if (mins) logFocus(focusTodo.id, mins);
           const t = focusTodo;
           update(t.id, { focus_end_at: null });
           setFocus(null);
-          finish(t);
+          finish(t, 'focus');
         }}
         onStuck={() => focusTodo && setStuckFor(focusTodo.id)}
       />
-      <LaterSheet todo={byId(laterFor)} onClose={() => setLaterFor(null)} onPick={(when) => byId(laterFor) && planFor(byId(laterFor)!, when)} />
-      <StuckSheet todo={byId(stuckFor)} onClose={() => setStuckFor(null)} onAction={(a) => byId(stuckFor) && onStuck(byId(stuckFor)!, a)} />
+      <LaterSheet todo={byId(laterFor)} best={insights.bestLater} onClose={() => setLaterFor(null)} onPick={(when) => byId(laterFor) && planFor(byId(laterFor)!, when)} />
+      <StuckSheet
+        todo={byId(stuckFor)}
+        onClose={() => setStuckFor(null)}
+        onAction={(a) => byId(stuckFor) && onStuck(byId(stuckFor)!, a)}
+        onReason={(reason) => stuckFor && logEvent(userId, stuckFor, 'stuck', { reason })}
+      />
       <TodoSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} userId={userId} settings={settings} onSaved={setSettings} />
       <PlanDaySheet open={planOpen} onOpenChange={setPlanOpen} todos={todos} onApply={applyPlan} />
       <BrainDumpSheet open={!!dump} onOpenChange={(o) => !o && setDump(null)} initial={dump?.text} onAdd={addMany} />
@@ -563,7 +618,7 @@ const TodoPage = () => {
         onOpenChange={setFreshOpen}
         overdue={overdue}
         onChange={(id, patch) => update(id, patch)}
-        onDone={(t) => finish(t)}
+        onDone={(t) => finish(t, 'fresh')}
       />
       <Confetti burst={burst} />
     </Page>
