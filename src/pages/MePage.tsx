@@ -63,6 +63,7 @@ const MePage = () => {
         <PlaceRow id="messages" count={unreadChats} />
         <PlaceRow id="friends" />
         <PlaceRow id="notes" />
+        <PlaceRow id="todo" />
         <PlaceRow id="learn" />
       </ListGroup>
 

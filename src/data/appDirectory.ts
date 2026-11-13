@@ -25,6 +25,7 @@ import {
   Mic,
   Music,
   NotebookPen,
+  ListChecks,
   PenTool,
   PlayCircle,
   Settings,
@@ -73,6 +74,7 @@ export function sectionForPath(pathname: string): SectionId {
   const p = pathname.toLowerCase();
   if (p === '/' || p === '/intro') return 'home';
   if (p.startsWith('/bible-notes')) return 'me';
+  if (p.startsWith('/todo')) return 'me';
   if (p.startsWith('/bible')) return 'bible';
   if (/^\/(groups|serve|follow-up-team|team-follow-up|fellowship-group)/.test(p)) return 'teams';
   if (/^\/(me|settings|group-chats|social$|auth|help|learn|resources|terms-of-service|privacy-policy)/.test(p)) return 'me';
@@ -181,6 +183,7 @@ const ALL_DESTINATIONS: Destination[] = [
   { id: 'messages', title: 'Messages', subtitle: 'Chats and calls with church family', icon: MessageCircle, color: 'indigo', crumb: 'Me › Messages', path: '/group-chats', keywords: 'chat chats message messages group chat call video whatsapp text' },
   { id: 'friends', title: 'Friends', subtitle: 'Find and add friends from church', icon: Users, color: 'amber', crumb: 'Me › Friends', path: '/social', keywords: 'social circle friends people members find' },
   { id: 'notes', title: 'My notes', subtitle: 'Sermon and Bible study notes', icon: NotebookPen, color: 'violet', crumb: 'Me › My notes', path: '/bible-notes', keywords: 'notes sermon notes write journal highlights' },
+  { id: 'todo', title: 'To do', subtitle: 'Beat procrastination, one small step at a time', icon: ListChecks, color: 'green', crumb: 'Me › To do', path: '/todo', keywords: 'to do todo to-do tasks task list checklist reminders reminder procrastination focus timer pomodoro deadline plan planner productivity habits goals' },
   { id: 'learn', title: 'Learn', subtitle: 'Bible plans, studies and notes', icon: GraduationCap, color: 'violet', crumb: 'Me › Learn', path: '/learn', keywords: 'learn grow study studies devotional course' },
   { id: 'studies', title: 'Bible studies', subtitle: 'Prayer, faith, giving and more', icon: Lightbulb, color: 'amber', crumb: 'Me › Learn › Studies', path: '/learn', keywords: 'study studies interactive session humility faith word of god' },
   { id: 'settings', title: 'Settings', subtitle: 'Your profile, notifications and display', icon: Settings, color: 'slate', crumb: 'Me › Settings', path: '/settings', keywords: 'settings profile account password notifications text size font dark mode theme language photo chat wallpaper background' },

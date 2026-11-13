@@ -22,6 +22,7 @@ import NoteCard from '@/components/notes/NoteCard';
 import NoteEditor, { type NoteDraftDefaults } from '@/components/notes/NoteEditor';
 import FolderManager from '@/components/notes/FolderManager';
 import FolderDialog from '@/components/notes/FolderDialog';
+import TodoNotesCard from '@/components/todo/TodoNotesCard';
 import { folderColor, nextFolderColor } from '@/components/notes/folderColors';
 import { htmlToText, noteTitle, type NoteRecord } from '@/components/notes/noteUtils';
 
@@ -456,6 +457,8 @@ const BibleNotesPage = () => {
         </div>
       ) : (
         <>
+          {/* To do lives with your notes too */}
+          <TodoNotesCard />
           <RowGroup>
             <Row tile={<ListTile kind="all" />} label="All notes" count={notes.length} onClick={() => openView('all')} />
             <Row tile={<ListTile kind="favourites" />} label="Favourites" count={favouriteCount} onClick={() => openView('favourites')} />

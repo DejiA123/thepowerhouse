@@ -41,26 +41,49 @@ const BottomNavigation = () => {
   const hiddenRef = useRef(keyboardUp);
   hiddenRef.current = keyboardUp;
 
-  // How much of the screen the bar takes, for full-screen layers that stop above it
+  // How much of the screen the bar takes, for full-screen layers that stop above it (an open
+  // chat ends above it, so its message box sits right on top of the bar).
+  // The bar is pinned to the bottom, so that's simply its own height. It used to be "screen
+  // height minus the bar's top", but iPhone can report a stale screen height for a moment
+  // (as the keyboard closes, or as a Home Screen app comes back): that came out as 0, stuck
+  // there, and the open chat ran down behind the bar, hiding the message box (Nov 2026).
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
-    const measure = () => setBottomNavHeight(hiddenRef.current ? 0 : window.innerHeight - nav.getBoundingClientRect().top);
-    measure();
+    const timers: number[] = [];
+    const measure = () => setBottomNavHeight(hiddenRef.current ? 0 : nav.offsetHeight);
+    // Again shortly after anything that moves the screen around (the keyboard animates out)
+    const settle = () => {
+      measure();
+      timers.push(window.setTimeout(measure, 150), window.setTimeout(measure, 500), window.setTimeout(measure, 1200));
+      if (timers.length > 30) timers.splice(0, timers.length - 30);
+    };
+    const onVisible = () => document.visibilityState === 'visible' && settle();
+    settle();
     const observer = new ResizeObserver(measure);
-    observer.observe(nav);
-    window.addEventListener('resize', measure);
-    window.addEventListener('orientationchange', measure);
+    observer.observe(nav, { box: 'border-box' });
+    const vv = window.visualViewport;
+    window.addEventListener('resize', settle);
+    window.addEventListener('orientationchange', settle);
+    window.addEventListener('pageshow', settle);
+    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('focusout', settle);
+    vv?.addEventListener('resize', settle);
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('orientationchange', measure);
+      timers.forEach((t) => window.clearTimeout(t));
+      window.removeEventListener('resize', settle);
+      window.removeEventListener('orientationchange', settle);
+      window.removeEventListener('pageshow', settle);
+      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('focusout', settle);
+      vv?.removeEventListener('resize', settle);
       setBottomNavHeight(0);
     };
   }, []);
   useLayoutEffect(() => {
     const nav = navRef.current;
-    if (nav) setBottomNavHeight(keyboardUp ? 0 : window.innerHeight - nav.getBoundingClientRect().top);
+    if (nav) setBottomNavHeight(keyboardUp ? 0 : nav.offsetHeight);
   }, [keyboardUp]);
 
   // ── The lens: one spring for its place, one for its size ──────────────
