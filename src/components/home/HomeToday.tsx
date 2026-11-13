@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import UserAvatar from '@/components/common/UserAvatar';
 import VerseOfTheDay from './VerseOfTheDay';
+import HomeTodoCard from './HomeTodoCard';
 
 export interface HomeBanner {
   title: string;
@@ -99,6 +100,9 @@ const HomeToday = ({ banners }: { banners: HomeBanner[] }) => {
         <Search className="h-6 w-6 shrink-0 text-blue-600 dark:text-blue-400" />
         What are you looking for?
       </button>
+
+      {/* Your day: To do's next step, right under the greeting (signed in only) */}
+      {user && <HomeTodoCard />}
 
       {/* The big picture buttons */}
       <div data-tour="tiles" role="group" aria-label="Quick links" className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
