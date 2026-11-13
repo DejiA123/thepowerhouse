@@ -2079,6 +2079,19 @@ body.modal-open {
    A floating frosted capsule; the open tab sits on a soft pill, which swells into
    a clear glass lens (no colour: the church's choice) while the bar is held. Its
    movement is a spring run in BottomNavigation.tsx, so no transform transition here. */
+/* The fade under the floating bottom bar (like YouVersion's): the page's own background
+   (--nav-fade, read from the body by BottomNavigation), strong at the very bottom (the home
+   indicator area), clear just above the glass */
+.nav-fade {
+  background: linear-gradient(
+    to top,
+    rgb(var(--nav-fade, 255 255 255) / 0.94) 0%,
+    rgb(var(--nav-fade, 255 255 255) / 0.86) 28%,
+    rgb(var(--nav-fade, 255 255 255) / 0.55) 62%,
+    rgb(var(--nav-fade, 255 255 255) / 0.18) 86%,
+    rgb(var(--nav-fade, 255 255 255) / 0) 100%
+  );
+}
 .liquid-capsule {
   background: rgba(255, 255, 255, 0.62);
   -webkit-backdrop-filter: blur(22px) saturate(185%);

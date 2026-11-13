@@ -282,6 +282,31 @@ const BottomNavigation = () => {
       );
     });
 
+  // The fade under the bar takes the page's real background colour (light, dark and the
+  // colour themes each paint it differently, some with inline styles), and follows changes
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const apply = () => {
+      const m = getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g);
+      if (!m || (m.length > 3 && Number(m[3]) === 0)) return; // transparent: keep the last one
+      nav.style.setProperty('--nav-fade', `${m[0]} ${m[1]} ${m[2]}`);
+    };
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const soon = () => {
+      apply();
+      clearTimeout(t);
+      t = setTimeout(apply, 400); // after the body's 0.3 s colour transition
+    };
+    soon();
+    const watch = new MutationObserver(soon);
+    for (const el of [document.documentElement, document.body]) watch.observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+    return () => {
+      watch.disconnect();
+      clearTimeout(t);
+    };
+  }, []);
+
   return (
     <nav
       ref={navRef}
@@ -291,6 +316,9 @@ const BottomNavigation = () => {
       onTouchStart={(e) => e.stopPropagation()}
       draggable="false"
     >
+      {/* Like YouVersion: the page fades out under the floating bar (and a little above it),
+          in the page's own background colour, so text never runs hard into the glass */}
+      <div aria-hidden className="nav-fade pointer-events-none absolute inset-x-0 bottom-0 -top-8" />
       <div className="liquid-capsule pointer-events-auto relative mx-auto h-[64px] max-w-[560px] rounded-full">
         <div
           ref={rowRef}
