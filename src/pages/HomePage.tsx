@@ -6,6 +6,9 @@ import InstallCard from "@/components/install/InstallCard";
 import HomeToday, { type HomeBanner } from "@/components/home/HomeToday";
 import { useAfterFirstScreen } from "@/hooks/useAfterFirstScreen";
 import { church, hasFeature } from "@/config/church";
+import { PlayCircle } from "lucide-react";
+import { PictureTile } from "@/components/page/PageKit";
+import { TILE } from "@/data/appDirectory";
 
 // Further down the page: loaded just after the first screen is showing
 const ShortsRail = lazyWithReload(() => import("@/components/home/ShortsRail"));
@@ -39,6 +42,12 @@ const HomePage = () => {
             {church.campuses.length > 0 && <EventCountdown />}
             <ShortsRail />
             {hasFeature('watch') && <ChurchVideos />}
+            {/* Watch: live and past services (its tile at the top became To do) */}
+            {hasFeature('watch') && (
+              <div className="md:max-w-sm" data-testid="home-watch">
+                <PictureTile layout="row" icon={PlayCircle} tint={TILE.red} title="Watch" subtitle="Live and past services" onClick={() => navigate('/services?watch=1')} />
+              </div>
+            )}
           </div>
         </Suspense>
       )}
