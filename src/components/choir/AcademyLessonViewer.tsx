@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { safeHtml } from '@/lib/safeHtml';
 import { Button } from "@/components/ui/button";
 import { AcademyModule } from "@/services/choirService";
 import { PlayCircle, Award, ArrowLeft } from "lucide-react";
@@ -72,7 +73,7 @@ export const AcademyLessonViewer = ({ isOpen, onClose, module, onTakeQuiz }: Aca
 
                             <div className="prose prose-lg md:prose-xl dark:prose-invert prose-indigo max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-headings:uppercase prose-p:leading-8 prose-p:text-slate-600 dark:prose-p:text-slate-300">
                                 {module.content ? (
-                                    <div dangerouslySetInnerHTML={{ __html: module.content }} />
+                                    <div dangerouslySetInnerHTML={{ __html: safeHtml(module.content) }} />
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 px-6 bg-slate-50 dark:bg-slate-800/50 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
                                         <PlayCircle className="w-12 h-12 text-indigo-500 mb-4 opacity-50" />
