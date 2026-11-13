@@ -11,7 +11,7 @@ const TaskRow = ({ todo, now, onToggle, onOpen, onStart }: { todo: Todo; now: Da
   const dueSoon = !late && !!deadline(todo) && daysBetween(now, deadline(todo)!) <= 0;
   const plan = planLabel(todo, now);
   const p = progress(todo);
-  const meta: { text: string; tone?: 'red' | 'amber' | 'blue' | 'green'; icon?: 'repeat' | 'offline' }[] = [];
+  const meta: { text: string; tone?: 'red' | 'amber' | 'blue' | 'green' | 'pink'; icon?: 'repeat' | 'offline' }[] = [];
   if (!done) {
     if (due) meta.push({ text: due, tone: late ? 'red' : dueSoon ? 'amber' : undefined });
     if (plan && !(late && plan.startsWith('Planned'))) meta.push({ text: plan, tone: 'blue' });
@@ -23,6 +23,7 @@ const TaskRow = ({ todo, now, onToggle, onOpen, onStart }: { todo: Todo; now: Da
     if (p.total) meta.push({ text: `${p.done}/${p.total} steps`, tone: p.done ? 'green' : undefined });
     if (todo.estimate_min || p.total) meta.push({ text: `~${aboutLabel(remainingMinutes(todo))}` });
     if (todo.snoozes >= 2) meta.push({ text: `Put off ${todo.snoozes}×`, tone: 'amber' });
+    if (todo.buddy_name) meta.push({ text: `${todo.buddy_name.split(' ')[0]} is keeping you to it`, tone: 'pink' });
   } else if (todo.done_at) {
     meta.push({ text: `Done ${new Date(todo.done_at).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}`, tone: 'green' });
   }
@@ -58,6 +59,7 @@ const TaskRow = ({ todo, now, onToggle, onOpen, onStart }: { todo: Todo; now: Da
                     : m.tone === 'amber' ? 'text-amber-600 dark:text-amber-400'
                       : m.tone === 'blue' ? 'text-blue-600 dark:text-blue-400'
                         : m.tone === 'green' ? 'text-emerald-600 dark:text-emerald-400'
+                          : m.tone === 'pink' ? 'text-pink-600 dark:text-pink-400'
                           : 'text-muted-foreground',
                 )}
               >

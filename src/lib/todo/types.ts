@@ -37,6 +37,13 @@ export interface Todo {
   snoozes: number;
   /** Minutes spent on it with the focus timer */
   focus_min: number;
+  /** What you'll treat yourself to when it's done */
+  reward?: string | null;
+  /** A friend keeping you accountable (messaged when you commit and when it's done) */
+  buddy_id?: string | null;
+  buddy_name?: string | null;
+  /** While the focus timer runs: when it runs out (a notification rings if the app is away) */
+  focus_end_at?: string | null;
   created_at: string;
   updated_at?: string;
   /** On this phone only: waiting to reach the account */
@@ -46,5 +53,5 @@ export interface Todo {
 /** The columns the phone may write (never the server's reminder marks) */
 export const TODO_COLUMNS = [
   'id', 'user_id', 'title', 'notes', 'steps', 'why', 'important', 'today_on', 'plan_at', 'due_at', 'due_all_day',
-  'estimate_min', 'repeat', 'status', 'done_at', 'snoozes', 'focus_min', 'created_at',
+  'estimate_min', 'repeat', 'status', 'done_at', 'snoozes', 'focus_min', 'reward', 'buddy_id', 'buddy_name', 'focus_end_at', 'created_at',
 ] as const;

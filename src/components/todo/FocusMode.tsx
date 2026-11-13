@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronRight, HelpCircle, Pause, Play, PartyPopper, X } from 'lucide-react';
+import { Check, ChevronRight, Gift, Headphones, HelpCircle, Pause, Play, PartyPopper, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { nextStep, progress } from '@/lib/todo/brain';
 import type { Todo } from '@/lib/todo/types';
@@ -72,6 +72,61 @@ function chime() {
   }
 }
 
+// ── Calm sound: soft brown noise made on the phone (no download), for shutting out the room
+const noise: { ctx: AudioContext | null; src: AudioBufferSourceNode | null; gain: GainNode | null } = { ctx: null, src: null, gain: null };
+
+/** Must run inside a tap (iPhone only lets sound start from one) */
+function startNoise() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = noise.ctx ?? new Ctx();
+    noise.ctx = ctx;
+    void ctx.resume();
+    if (noise.src) return;
+    const len = ctx.sampleRate * 6;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.5;
+    }
+    // Ease the end into the start so the loop doesn't click
+    const fade = Math.floor(ctx.sampleRate * 0.25);
+    for (let i = 0; i < fade; i++) {
+      const k = i / fade;
+      d[len - fade + i] = d[len - fade + i] * (1 - k) + d[i] * k;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 1.2);
+    src.connect(gain).connect(ctx.destination);
+    src.start();
+    noise.src = src;
+    noise.gain = gain;
+  } catch {
+    /* no sound here */
+  }
+}
+
+function stopNoise() {
+  const { ctx, src, gain } = noise;
+  noise.src = null;
+  noise.gain = null;
+  if (!ctx || !src || !gain) return;
+  try {
+    gain.gain.cancelScheduledValues(ctx.currentTime);
+    gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    src.stop(ctx.currentTime + 0.45);
+  } catch {
+    /* already stopped */
+  }
+}
+
 const FocusMode = ({
   todo,
   start,
@@ -79,6 +134,7 @@ const FocusMode = ({
   onStepDone,
   onComplete,
   onStuck,
+  onTimer,
 }: {
   todo: Todo | null;
   /** Length and a note for this run (from the coach), else 2 minutes the first time, 25 after */
@@ -89,8 +145,11 @@ const FocusMode = ({
   /** The whole task is done: minutes spent */
   onComplete: (minutes: number) => void;
   onStuck: () => void;
+  /** While the timer runs: when it will run out (null when paused or closed), for the "time's up" notification */
+  onTimer?: (todoId: string, endIso: string | null) => void;
 }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [sound, setSound] = useState(false);
   const [, tick] = useState(0);
   const rang = useRef(false);
 
@@ -115,6 +174,43 @@ const FocusMode = ({
     saveSession(s);
     setSession(s);
   }, []);
+
+  // Tell the server when the timer will run out, so a notification rings if you're in
+  // another app (doing the task!). Only when it changes: started, paused, longer, closed.
+  const sentEnd = useRef<string | null | undefined>(undefined);
+  // The task the timer belonged to, so closing still cancels its notification
+  const timerTask = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onTimer) return;
+    const id = session?.todoId ?? timerTask.current;
+    if (!id) return;
+    if (session && session.todoId !== timerTask.current) {
+      // Another task's timer: cancel the old one's notification first
+      if (timerTask.current && sentEnd.current) onTimer(timerTask.current, null);
+      timerTask.current = session.todoId;
+      sentEnd.current = undefined;
+    }
+    let end: string | null = null;
+    if (session?.startedAt) {
+      const left = session.total - elapsedOf(session);
+      if (left > 0) end = new Date(Math.round((Date.now() + left * 1000) / 1000) * 1000).toISOString();
+    }
+    const same = end && sentEnd.current ? Math.abs(Date.parse(end) - Date.parse(sentEnd.current)) < 5000 : end === sentEnd.current;
+    if (same) return;
+    sentEnd.current = end;
+    onTimer(id, end);
+    if (!session) timerTask.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // The calm sound stops when focus closes
+  useEffect(() => {
+    if (!todo) {
+      stopNoise();
+      setSound(false);
+    }
+  }, [todo]);
+  useEffect(() => () => stopNoise(), []);
 
   const running = !!session?.startedAt;
   const elapsed = session ? elapsedOf(session) : 0;
@@ -208,6 +304,20 @@ const FocusMode = ({
           <X className="h-5 w-5" />
         </button>
         <p className="min-w-0 flex-1 truncate text-center text-[14px] font-semibold text-white/70">{todo.title}</p>
+        <button
+          onClick={() => {
+            if (sound) stopNoise();
+            else startNoise();
+            setSound(!sound);
+          }}
+          aria-pressed={sound}
+          aria-label={sound ? 'Turn the calm sound off' : 'Calm sound'}
+          title="Calm sound"
+          className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-95', sound ? 'bg-indigo-400 text-slate-950' : 'bg-white/10')}
+          data-testid="focus-sound"
+        >
+          <Headphones className="h-5 w-5" />
+        </button>
         <button onClick={onStuck} className="flex h-10 items-center gap-1.5 rounded-full bg-white/10 px-3 text-[13.5px] font-semibold transition active:scale-95">
           <HelpCircle className="h-4 w-4" /> Stuck?
         </button>
@@ -310,6 +420,11 @@ const FocusMode = ({
         )}
         {p.total > 0 && <p className="mt-3 text-center text-[13px] text-white/50">{p.done} of {p.total} steps done</p>}
         {todo.why && <p className="mt-4 rounded-2xl bg-white/5 px-4 py-3 text-center text-[14px] italic text-white/75">“{todo.why}”</p>}
+        {todo.reward && (
+          <p className="mt-3 flex items-center justify-center gap-2 text-[14px] text-amber-200/90">
+            <Gift className="h-4 w-4" /> When it’s done: {todo.reward}
+          </p>
+        )}
 
         <div className="flex-1" />
         <button

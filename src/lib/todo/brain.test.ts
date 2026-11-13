@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { doNext, inToday, isSomeday, isUpcoming, laterTime, nextOccurrence, remainingMinutes, score, startBy, startByLabel, streak } from './brain';
+import { doNext, doNextIn, dumpLines, inToday, isSomeday, isUpcoming, laterTime, moveDue, nextOccurrence, planDay, remainingMinutes, score, startBy, startByLabel, streak } from './brain';
 import type { Todo } from './types';
 
 // Wednesday 11 November 2026, 10:00 on the phone
@@ -158,5 +158,75 @@ describe('streak', () => {
     // Focus counts too (5 minutes or more)
     expect(streak([done(10)], { '2026-11-11': 12, '2026-11-09': 3 }, NOW)).toBe(2);
     expect(streak([], {}, NOW)).toBe(0);
+  });
+});
+
+describe('the time you have', () => {
+  test('fits by its next step, or the whole thing', () => {
+    const steps = (m: number) => [{ id: 's', text: 'x', done: false, minutes: m }];
+    expect(doNextIn([todo({ title: 'long', steps: steps(40) }), todo({ title: 'short', steps: steps(10) })], NOW, 15)!.todo.title).toBe('short');
+    expect(doNextIn([todo({ title: 'big', estimate_min: 120 })], NOW, 15)).toBeNull();
+    expect(doNextIn([todo({ title: 'quick', estimate_min: 5 })], NOW, 15)!.todo.title).toBe('quick');
+    // No idea how long: 15 minutes is enough to make a start, 5 isn't
+    expect(doNextIn([todo({ title: 'call' })], NOW, 15)!.todo.title).toBe('call');
+    expect(doNextIn([todo({ title: 'call' })], NOW, 5)).toBeNull();
+  });
+});
+
+describe('plan my day', () => {
+  test('a timeline from the next quarter hour, deadlines with a time first, with gaps', () => {
+    const now = new Date(2026, 10, 11, 10, 7);
+    const a = todo({ title: 'a', estimate_min: 30, important: true });
+    const b = todo({ title: 'b', estimate_min: 20, due_at: iso(2026, 11, 11, 12) });
+    const plan = planDay([a, b], now, { capacityMin: 180 });
+    expect(plan.blocks.map((x) => x.todo.title)).toEqual(['b', 'a']);
+    expect([plan.blocks[0].start.getHours(), plan.blocks[0].start.getMinutes()]).toEqual([10, 15]);
+    expect([plan.blocks[1].start.getHours(), plan.blocks[1].start.getMinutes()]).toEqual([10, 40]);
+    expect(plan.planned).toBe(50);
+    expect(plan.overflow).toEqual([]);
+  });
+  test('never more than the time you have: the rest is listed', () => {
+    const tasks = [60, 60, 60].map((m, i) => todo({ title: `t${i}`, estimate_min: m }));
+    const plan = planDay(tasks, NOW, { capacityMin: 120 });
+    expect(plan.blocks.length).toBe(2);
+    expect(plan.overflow.length).toBe(1);
+  });
+  test('big work gets today’s share, and a break after 90 minutes', () => {
+    const big = todo({ title: 'big', estimate_min: 300 });
+    const small = todo({ title: 'small', estimate_min: 30 });
+    const plan = planDay([big, small], NOW, { capacityMin: 240 });
+    expect(plan.blocks[0]).toMatchObject({ minutes: 90, partial: true });
+    expect(plan.breaks.length).toBe(1);
+    expect(plan.blocks[1].start.getTime()).toBe(plan.breaks[0].end.getTime());
+  });
+  test('a block ending after its deadline is marked late', () => {
+    const now = new Date(2026, 10, 11, 10, 0);
+    const t = todo({ estimate_min: 90, due_at: iso(2026, 11, 11, 11) });
+    expect(planDay([t], now, { capacityMin: 240 }).blocks[0].late).toBe(true);
+  });
+  test('in the small hours it plans the morning; an overdue task isn’t marked late again', () => {
+    const plan = planDay([todo({ estimate_min: 30, due_at: iso(2026, 11, 9, 17) })], new Date(2026, 10, 11, 0, 30), { capacityMin: 120 });
+    expect([plan.from.getDate(), plan.from.getHours()]).toEqual([11, 9]);
+    expect(plan.blocks[0].late).toBe(false);
+  });
+  test('late at night it plans tomorrow from 9', () => {
+    const plan = planDay([todo({ estimate_min: 30 })], new Date(2026, 10, 11, 22, 30), { capacityMin: 120 });
+    expect([plan.from.getDate(), plan.from.getHours()]).toEqual([12, 9]);
+  });
+});
+
+describe('fresh start and brain dump', () => {
+  test('moving a deadline keeps its time if still ahead', () => {
+    const t = todo({ due_at: iso(2026, 11, 9, 17) });
+    const moved = moveDue(t, NOW, NOW);
+    expect(new Date(moved.due_at!).getHours()).toBe(17);
+    expect(moved.due_all_day).toBe(false);
+    const early = moveDue(todo({ due_at: iso(2026, 11, 9, 8) }), NOW, NOW);
+    expect(early.due_all_day).toBe(true);
+  });
+  test('lines from a pasted list', () => {
+    expect(dumpLines('- Buy milk\n• Call John tomorrow\n1. Read 2 chapters of Romans\n[ ] Pay rent\n\n2 chapters a day')).toEqual([
+      'Buy milk', 'Call John tomorrow', 'Read 2 chapters of Romans', 'Pay rent', '2 chapters a day',
+    ]);
   });
 });

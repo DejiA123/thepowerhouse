@@ -8,13 +8,13 @@ import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { pushConfigured, sendToSubscriptions, subscriptionsForUsers } from '../_shared/webpush.ts';
 
 interface Due {
-  kind: 'plan' | 'due' | 'brief';
+  kind: 'plan' | 'due' | 'brief' | 'focus';
   user_id: string;
   todo_id: string;
   title: string;
   step: string | null;
   at: string | null;
-  extra: { why?: string | null; snoozes?: number; count?: number; overdue?: number; important?: boolean } | null;
+  extra: { why?: string | null; snoozes?: number; count?: number; overdue?: number; important?: boolean; reward?: string | null } | null;
 }
 
 const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
@@ -42,6 +42,14 @@ function message(r: Due, tz: string) {
       body: step ? `${title}\nFirst: ${step}` : `${title}\nJust start for 2 minutes. That’s all.`,
       url: `/todo?task=${r.todo_id}&start=1`,
       tag: `todo-plan-${r.todo_id}`,
+    };
+  }
+  if (r.kind === 'focus') {
+    return {
+      title: '⏱ Time’s up. Well done!',
+      body: `${title}\nKeep going while you’re in the flow, or take a break.${r.extra?.reward ? `\nYour reward when it’s done: ${truncate(r.extra.reward, 60)}` : ''}`,
+      url: `/todo?task=${r.todo_id}&start=1`,
+      tag: `todo-focus-${r.todo_id}`,
     };
   }
   if (r.kind === 'due') {

@@ -372,3 +372,149 @@ export function verseOfTheDay(now: Date) {
 }
 
 export { cap };
+
+// ── Fitting the time you have ("I have 15 minutes") ─────────────────
+/** Can you make real progress in this many minutes? (its next step, or the whole thing) */
+export function fitsIn(t: Todo, minutes: number): boolean {
+  const step = nextStep(t);
+  if (step?.minutes) return step.minutes <= minutes;
+  if (remainingMinutes(t) <= minutes) return true;
+  // A step with no time: about STEP_MIN
+  if (step) return minutes >= STEP_MIN;
+  // No idea how long ("Call mum"): a quarter of an hour is enough to make a real start
+  return !t.estimate_min && minutes >= 15;
+}
+
+/** The best thing to do with the time you have */
+export function doNextIn(todos: Todo[], now: Date, minutes: number, skip: Set<string> = new Set()): Pick | null {
+  return doNext(todos.filter((t) => fitsIn(t, minutes)), now, skip);
+}
+
+// ── Plan my day ─────────────────────────────────────────────────────
+export interface DayBlock {
+  todo: Todo;
+  start: Date;
+  end: Date;
+  minutes: number;
+  /** Only today's share of bigger work */
+  partial: boolean;
+  /** Would end after its deadline */
+  late: boolean;
+}
+export interface DayPlan {
+  blocks: DayBlock[];
+  breaks: { start: Date; end: Date }[];
+  /** Didn't fit in the time you have (or before the day ends) */
+  overflow: Todo[];
+  planned: number;
+  /** When the day's plan starts and has to end */
+  from: Date;
+  until: Date;
+}
+
+const GAP_MIN = 5;
+const BREAK_AFTER_MIN = 90;
+const BREAK_MIN = 15;
+const roundUp = (d: Date, minutes: number) => new Date(Math.ceil(d.getTime() / (minutes * MIN)) * minutes * MIN);
+
+/**
+ * Lay the chosen tasks out as a timeline: from now (the next quarter hour) to the end of
+ * your day, deadlines with a time first (soonest first), then the rest in "do next"
+ * order. Big work gets today's share (up to DAILY_FOCUS_MIN). A short gap between tasks
+ * and a 15-minute break after every 90 minutes. Never more than the time you said you
+ * have: what doesn't fit is listed, so you choose what moves instead of the day choosing.
+ * Late at night it plans tomorrow from 9.
+ */
+export function planDay(chosen: Todo[], now: Date, opts: { capacityMin: number; endHour?: number; endMinute?: number }): DayPlan {
+  const endH = opts.endHour ?? 21;
+  const endM = opts.endMinute ?? 0;
+  let from = roundUp(now, 15);
+  // Planning in the small hours: the day starts in the morning
+  if (now.getHours() < 6) from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0);
+  let until = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endH, endM);
+  if (until.getTime() - from.getTime() < 30 * MIN) {
+    const tomorrow = addDays(now, 1);
+    from = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 9, 0);
+    until = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), endH, endM);
+  }
+  const timed = (t: Todo) => {
+    const d = deadline(t);
+    return d && !t.due_all_day && d.getTime() <= until.getTime() ? d.getTime() : null;
+  };
+  const order = [...chosen]
+    .filter((t) => t.status === 'open')
+    .map((t) => ({ t, due: timed(t), s: score(t, now).score }))
+    .sort((a, b) => (a.due !== null || b.due !== null ? (a.due ?? Infinity) - (b.due ?? Infinity) : 0) || b.s - a.s)
+    .map((x) => x.t);
+
+  const blocks: DayBlock[] = [];
+  const breaks: DayPlan['breaks'] = [];
+  const overflow: Todo[] = [];
+  let cursor = from;
+  let planned = 0;
+  let sinceBreak = 0;
+  for (const t of order) {
+    const left = remainingMinutes(t);
+    const minutes = Math.max(5, Math.ceil(Math.min(left, DAILY_FOCUS_MIN) / 5) * 5);
+    if (planned + minutes > opts.capacityMin || cursor.getTime() + minutes * MIN > until.getTime()) {
+      overflow.push(t);
+      continue;
+    }
+    if (sinceBreak + minutes > BREAK_AFTER_MIN && sinceBreak > 0) {
+      const b = { start: cursor, end: new Date(cursor.getTime() + BREAK_MIN * MIN) };
+      if (b.end.getTime() + minutes * MIN > until.getTime()) {
+        overflow.push(t);
+        continue;
+      }
+      breaks.push(b);
+      cursor = b.end;
+      sinceBreak = 0;
+    }
+    const end = new Date(cursor.getTime() + minutes * MIN);
+    const due = deadline(t);
+    // Late: it would end after a deadline that's still ahead (an overdue one is already late)
+    blocks.push({ todo: t, start: cursor, end, minutes, partial: left > minutes, late: !!due && due.getTime() > now.getTime() && end.getTime() > due.getTime() });
+    planned += minutes;
+    sinceBreak += minutes;
+    cursor = new Date(end.getTime() + GAP_MIN * MIN);
+  }
+  return { blocks, breaks, overflow, planned, from, until };
+}
+
+/** Tasks worth adding to today's plan (not already in Today), best first */
+export function worthToday(todos: Todo[], now: Date, max = 6): Todo[] {
+  return todos
+    .filter((t) => t.status === 'open' && !inToday(t, now))
+    .map((t) => score(t, now))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, max)
+    .map((p) => p.todo);
+}
+
+// ── A fresh start for overdue tasks ─────────────────────────────────
+export const overdueOf = (todos: Todo[], now: Date) => todos.filter((t) => isOverdue(t, now));
+
+/** Move a deadline to another day (keeping its time, if it had one and it's still ahead) */
+export function moveDue(t: Todo, day: Date, now: Date): Partial<Todo> {
+  const due = at(t.due_at);
+  if (due && !t.due_all_day) {
+    const moved = new Date(day.getFullYear(), day.getMonth(), day.getDate(), due.getHours(), due.getMinutes());
+    if (moved.getTime() > now.getTime()) return { due_at: moved.toISOString(), due_all_day: false };
+  }
+  return { due_at: endOfDay(day).toISOString(), due_all_day: true };
+}
+
+// ── Brain dump: everything on your mind, one per line ───────────────
+/** Lines of a pasted list (bullets, ticks and "1." numbering removed; "2 chapters" kept) */
+export function dumpLines(text: string): string[] {
+  return text
+    .split(/\r\n|\r|\n|\u2028|\u2029/)
+    .map((line) =>
+      line
+        .replace(/^\s*(?:[-*•·–—▪◦●○]+\s*)?(?:\[[ xX✓]?\]\s*)?(?:\d{1,3}[.)]\s+)?/, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
+    .filter((line) => line.length > 1)
+    .slice(0, 50);
+}

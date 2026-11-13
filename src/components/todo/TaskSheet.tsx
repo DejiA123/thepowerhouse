@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Lightbulb, Loader2, Play, Plus, Sparkles, Star, Sun, Trash2, X } from 'lucide-react';
+import { Check, Gift, HeartHandshake, Lightbulb, Loader2, Play, Plus, Sparkles, Star, Sun, Trash2, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,10 @@ import {
   addDays, durationLabel, endOfDay, laterTime, localDay, remainingMinutes, startByLabel, whenLabel,
 } from '@/lib/todo/brain';
 import { breakDown } from '@/lib/todo/helper';
+import { loadFriends, savedFriends, tellCommit } from '@/lib/todo/buddy';
+import { appAlert } from '@/lib/appAlert';
+import UserAvatar from '@/components/common/UserAvatar';
+import type { Person } from '@/services/socialService';
 import type { Repeat, Todo, TodoStep } from '@/lib/todo/types';
 import { Chip, Section, SheetTop, sheetClass, toLocalInput } from './parts';
 
@@ -34,6 +38,10 @@ const TaskSheet = ({
   const [title, setTitle] = useState('');
   const [why, setWhy] = useState('');
   const [notes, setNotes] = useState('');
+  const [reward, setReward] = useState('');
+  /** Choosing a friend to keep you to it */
+  const [friends, setFriends] = useState<Person[] | null>(null);
+  const [telling, setTelling] = useState(false);
   const [newStep, setNewStep] = useState('');
   const [thinking, setThinking] = useState(false);
   const [tip, setTip] = useState<{ text: string; smart: boolean } | null>(null);
@@ -54,6 +62,8 @@ const TaskSheet = ({
     setTitle(todo.title);
     setWhy(todo.why ?? '');
     setNotes(todo.notes ?? '');
+    setReward(todo.reward ?? '');
+    setFriends(null);
     setNewStep('');
     setTip(null);
     setConfirmDelete(false);
@@ -74,6 +84,7 @@ const TaskSheet = ({
     if (title.trim() && title.trim() !== todo.title) patch.title = title.trim();
     if ((why.trim() || null) !== todo.why) patch.why = why.trim() || null;
     if ((notes.trim() || null) !== todo.notes) patch.notes = notes.trim() || null;
+    if ((reward.trim() || null) !== (todo.reward ?? null)) patch.reward = reward.trim() || null;
     if (Object.keys(patch).length) onChange(patch);
   };
   const close = () => {
@@ -336,6 +347,77 @@ const TaskSheet = ({
                 <Chip key={label} on={todo.repeat === r} onClick={() => onChange({ repeat: r })}>{label}</Chip>
               ))}
             </div>
+          </Section>
+
+          {/* A reward */}
+          <Section title="Your reward when it’s done" hint="Something to look forward to makes starting easier. You’ll see it while you focus, and when you finish.">
+            <div className="relative">
+              <Gift className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-500" />
+              <input
+                value={reward}
+                onChange={(e) => {
+                  setReward(e.target.value);
+                  later('reward', { reward: e.target.value.trim() || null });
+                }}
+                onBlur={flush}
+                maxLength={200}
+                placeholder="e.g. Coffee with a friend, an episode, a walk"
+                className="h-11 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-[15px]"
+              />
+            </div>
+          </Section>
+
+          {/* A friend keeps you to it */}
+          <Section title="Keep me to it" hint={todo.buddy_id ? undefined : 'Telling a friend what you’ll do, and by when, makes you far more likely to do it. They only see this one task.'}>
+            {todo.buddy_id ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-border/70 px-3 py-2.5" data-testid="buddy-set">
+                <HeartHandshake className="h-5 w-5 shrink-0 text-pink-500" />
+                <span className="min-w-0 flex-1 text-[14.5px] leading-snug text-foreground">
+                  <span className="font-semibold">{todo.buddy_name || 'Your friend'}</span> is keeping you to it. They’ll get a message when you tick it done.
+                </span>
+                <button onClick={() => onChange({ buddy_id: null, buddy_name: null })} className="shrink-0 rounded-full px-2 py-1 text-[13px] font-semibold text-muted-foreground hover:bg-muted">
+                  Remove
+                </button>
+              </div>
+            ) : friends === null ? (
+              <button
+                onClick={() => {
+                  setFriends(savedFriends());
+                  void loadFriends().then(setFriends);
+                }}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-pink-50 text-[14.5px] font-semibold text-pink-700 transition active:scale-[0.99] dark:bg-pink-950/30 dark:text-pink-300"
+                data-testid="buddy-pick"
+              >
+                <HeartHandshake className="h-4 w-4" /> Ask a friend to keep me to it
+              </button>
+            ) : friends.length === 0 ? (
+              <p className="rounded-xl bg-muted/60 px-3 py-2.5 text-[13.5px] text-muted-foreground">Add friends in Me → Friends first, then come back.</p>
+            ) : (
+              <ul className="max-h-60 divide-y divide-border/50 overflow-y-auto rounded-2xl border border-border/70" data-testid="buddy-list">
+                {friends.map((f) => (
+                  <li key={f.id}>
+                    <button
+                      disabled={telling}
+                      onClick={async () => {
+                        setTelling(true);
+                        const t = { ...todo, title: title.trim() || todo.title };
+                        onChange({ buddy_id: f.id, buddy_name: f.name });
+                        const sent = await tellCommit(f.id, t);
+                        setTelling(false);
+                        setFriends(null);
+                        if (sent) appAlert(`${f.name.split(' ')[0]} knows now`, 'They’ll get another message when you tick it done.', 'success');
+                        else appAlert('Saved, but the message didn’t send', `Tell ${f.name.split(' ')[0]} yourself, or try again later.`, 'error');
+                      }}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-muted/50 disabled:opacity-60"
+                    >
+                      <UserAvatar name={f.name} src={f.avatar} seed={f.id} className="h-9 w-9" />
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-foreground">{f.name}</span>
+                      {telling ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
 
           {/* Why */}

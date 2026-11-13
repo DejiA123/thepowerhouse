@@ -8,6 +8,7 @@
 --   plan  - the time you said you'd start has come ("Time to start: …")
 --   due   - a deadline with a time is under 2 hours away
 --   brief - your morning plan, at the time you chose, when there's something for today
+--   focus - the focus timer has run out (you're likely working in another app)
 -- claim_todo_reminders() picks them and marks each one sent, so each rings once.
 -- Safe to run again.
 
@@ -29,13 +30,22 @@ create table if not exists public.todos (
   done_at timestamptz,
   snoozes integer not null default 0 check (snoozes between 0 and 1000),
   focus_min integer not null default 0 check (focus_min between 0 and 100000),
+  -- What you'll treat yourself to when it's done
+  reward text check (reward is null or char_length(reward) <= 200),
+  -- A friend keeping you accountable (they get a message when you commit and when it's done)
+  buddy_id uuid,
+  buddy_name text check (buddy_name is null or char_length(buddy_name) <= 120),
+  -- The focus timer runs out then (a notification rings if the app is away)
+  focus_end_at timestamptz,
   plan_notified_at timestamptz,
   due_notified_at timestamptz,
+  focus_notified_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index if not exists todos_user_idx on public.todos (user_id, status);
 create index if not exists todos_plan_idx on public.todos (plan_at) where status = 'open' and plan_notified_at is null;
+create index if not exists todos_focus_idx on public.todos (focus_end_at) where focus_notified_at is null and focus_end_at is not null;
 create index if not exists todos_due_idx on public.todos (due_at) where status = 'open' and due_notified_at is null and not due_all_day;
 
 alter table public.todos enable row level security;
@@ -61,11 +71,13 @@ begin
     if tg_op = 'INSERT' then
       new.plan_notified_at := null;
       new.due_notified_at := null;
+      new.focus_notified_at := null;
     else
       new.user_id := old.user_id;
       new.created_at := old.created_at;
       new.plan_notified_at := case when new.plan_at is distinct from old.plan_at then null else old.plan_notified_at end;
       new.due_notified_at := case when new.due_at is distinct from old.due_at then null else old.due_notified_at end;
+      new.focus_notified_at := case when new.focus_end_at is distinct from old.focus_end_at then null else old.focus_notified_at end;
     end if;
   end if;
   if new.status = 'done' and new.done_at is null then
@@ -186,6 +198,21 @@ begin
   select 'due'::text, c.user_id, c.id, c.title, public.todo_next_step(c.steps), c.due_at, '{}'::jsonb
     from c;
 
+  -- The focus timer ran out (up to 10 minutes late)
+  return query
+  with c as (
+    update public.todos t
+       set focus_notified_at = now()
+     where t.status = 'open'
+       and t.focus_notified_at is null
+       and t.focus_end_at <= now()
+       and t.focus_end_at > now() - interval '10 minutes'
+    returning t.user_id, t.id, t.title, t.steps, t.focus_end_at, t.reward
+  )
+  select 'focus'::text, c.user_id, c.id, c.title, public.todo_next_step(c.steps), c.focus_end_at,
+         jsonb_build_object('reward', c.reward)
+    from c;
+
   -- The morning plan: once a day, from the chosen time (up to 3 hours late), only when
   -- there's something for today
   return query
@@ -268,6 +295,11 @@ begin
               select 1 from public.todos
                where status = 'open' and due_notified_at is null and not due_all_day
                  and due_at > now() and due_at <= now() + interval '2 hours'
+            )
+         or exists (
+              select 1 from public.todos
+               where status = 'open' and focus_notified_at is null and focus_end_at <= now()
+                 and focus_end_at > now() - interval '10 minutes'
             )
          or exists (
               select 1 from public.todo_settings s
