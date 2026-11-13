@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { trackPageBg } from "@/lib/pageBg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
 import { setBottomNavHeight, useKeyboardLiftsPage } from "@/lib/bottomNav";
@@ -282,30 +283,8 @@ const BottomNavigation = () => {
       );
     });
 
-  // The fade under the bar takes the page's real background colour (light, dark and the
-  // colour themes each paint it differently, some with inline styles), and follows changes
-  useEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-    const apply = () => {
-      const m = getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g);
-      if (!m || (m.length > 3 && Number(m[3]) === 0)) return; // transparent: keep the last one
-      nav.style.setProperty('--nav-fade', `${m[0]} ${m[1]} ${m[2]}`);
-    };
-    let t: ReturnType<typeof setTimeout> | undefined;
-    const soon = () => {
-      apply();
-      clearTimeout(t);
-      t = setTimeout(apply, 400); // after the body's 0.3 s colour transition
-    };
-    soon();
-    const watch = new MutationObserver(soon);
-    for (const el of [document.documentElement, document.body]) watch.observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
-    return () => {
-      watch.disconnect();
-      clearTimeout(t);
-    };
-  }, []);
+  // The fade under the bar takes the page's real background colour (lib/pageBg.ts)
+  useEffect(() => trackPageBg(), []);
 
   return (
     <nav
