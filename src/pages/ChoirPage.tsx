@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { safeHtml } from '@/lib/safeHtml';
 import { useKeyboardSafeHeight } from "@/hooks/useKeyboardSafeHeight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6750,7 +6751,7 @@ const ChoirPage = () => {
                                                                             </Button>
                                                                         </div>
                                                                         {module.content && module.content.includes('<') ? (
-                                                                            <div className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed prose prose-lg dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: module.content }} />
+                                                                            <div className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed prose prose-lg dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: safeHtml(module.content) }} />
                                                                         ) : (
                                                                             <p className="text-lg text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
                                                                                 {module.content}

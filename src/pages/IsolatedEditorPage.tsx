@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { safeHtml } from '@/lib/safeHtml';
 import RichTextEditor from '@/components/bible/RichTextEditor';
 
 const IsolatedEditorPage = () => {
@@ -35,10 +36,12 @@ const IsolatedEditorPage = () => {
     // Communicate with parent frame
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            // Security check: verify origin if needed, but for now we trust the app's own origin
-            const { type, payload } = event.data;
-            if (type === 'INIT_CONTENT') {
-                setContent(payload);
+            // Only the app itself (this address, the page that holds this frame) may fill it:
+            // another site framing this page could otherwise put its own script into it
+            if (event.origin !== window.location.origin || event.source !== window.parent) return;
+            const { type, payload } = event.data ?? {};
+            if (type === 'INIT_CONTENT' && typeof payload === 'string') {
+                setContent(safeHtml(payload));
                 setIsReady(true);
             }
         };
@@ -47,13 +50,13 @@ const IsolatedEditorPage = () => {
         // Signal ready with retry mechanism to ensure parent catches it
         const intervalId = setInterval(() => {
             if (window.parent && !isReady) {
-                window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, '*');
+                window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, window.location.origin);
             }
         }, 300);
 
         // Immediate first try
         if (window.parent) {
-            window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, '*');
+            window.parent.postMessage({ type: 'EDITOR_MOUNTED' }, window.location.origin);
         }
 
         return () => {
@@ -64,7 +67,7 @@ const IsolatedEditorPage = () => {
 
     const handleChange = (newContent: string) => {
         if (window.parent) {
-            window.parent.postMessage({ type: 'CONTENT_UPDATE', payload: newContent }, '*');
+            window.parent.postMessage({ type: 'CONTENT_UPDATE', payload: newContent }, window.location.origin);
         }
     };
 
