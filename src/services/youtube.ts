@@ -6,7 +6,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { church } from '@/config/church';
-import { uniqueTopic } from '@/lib/realtime';
 
 export const CHANNEL_ID = church.youtube.channelId;
 export const CHANNEL_URL = `https://www.youtube.com/channel/${CHANNEL_ID}`;
@@ -22,11 +21,9 @@ export interface YouTubeVideo {
 
 export interface LiveStatus {
   live: boolean;
-  /** A video id, or the channel id when the team marked it live without a link */
+  /** The live video's id */
   videoId: string | null;
   title: string | null;
-  /** Marked live by the church team (rather than found on YouTube) */
-  manual?: boolean;
 }
 
 /** "UC…": a channel, played as its current live stream */
@@ -88,24 +85,13 @@ const decodeEntities = (text: string) => {
 };
 
 /**
- * Live right now? A service marked live by the church team comes first (Watch →
- * "We're live"); otherwise the channel is checked on YouTube (the youtube-live
- * backend function; api/youtube-live.js on Vercel while that isn't deployed).
+ * Live right now? The channel is checked on YouTube (the youtube-live backend
+ * function; api/youtube-live.js on Vercel while that isn't deployed). Services
+ * aren't marked live by hand any more (the church's choice, Nov 2026: detection
+ * is automatic), so an old `live_services` row can never leave the app "live".
  */
 export async function liveStatus(): Promise<LiveStatus> {
   const NOT_LIVE: LiveStatus = { live: false, videoId: null, title: null };
-  try {
-    const { data } = await supabase
-      .from('live_services')
-      .select('youtube_video_id, title')
-      .eq('is_live', true)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) return { live: true, videoId: data.youtube_video_id || CHANNEL_ID, title: data.title ?? null, manual: true };
-  } catch {
-    /* checked on YouTube below */
-  }
   if (!CHANNEL_ID) return NOT_LIVE;
   const found = (json: { live?: boolean; videoId?: unknown; title?: string | null } | null): LiveStatus | null =>
     json?.live && typeof json.videoId === 'string' ? { live: true, videoId: json.videoId, title: json.title ?? null } : null;
@@ -147,7 +133,7 @@ function startWatching() {
       const next = await liveStatus().finally(() => {
         checking = false;
       });
-      if (next.live !== current.live || next.videoId !== current.videoId || next.title !== current.title || next.manual !== current.manual) {
+      if (next.live !== current.live || next.videoId !== current.videoId || next.title !== current.title) {
         current = next;
         listeners.forEach((l) => l(current));
       }
@@ -159,25 +145,14 @@ function startWatching() {
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('online', check);
   window.addEventListener('app:resync', check);
-  window.addEventListener('live:recheck', check);
-  // The team pressing "We're live" / "End": everyone sees it at once
-  const channel = supabase
-    .channel(uniqueTopic('live-services'))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'live_services' }, () => check())
-    .subscribe();
   check();
   return () => {
     clearTimeout(timer);
     document.removeEventListener('visibilitychange', onVisible);
     window.removeEventListener('online', check);
     window.removeEventListener('app:resync', check);
-    window.removeEventListener('live:recheck', check);
-    supabase.removeChannel(channel);
   };
 }
-
-/** Recheck straight away (after marking a service live or ended) */
-export const recheckLive = () => window.dispatchEvent(new Event('live:recheck'));
 
 /** Live status, kept up to date while the app is on screen. */
 export function useLiveStatus(): LiveStatus {
