@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronRight, ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
 import LiveChat, { LiveChatReplay } from "@/components/LiveChat";
-import LiveControls from "@/components/LiveControls";
 import { useYouTubeTime } from "@/hooks/useYouTubeTime";
 import { track } from "@/lib/activity";
 import {
@@ -105,8 +104,6 @@ const ChurchVideos = ({ allTo }: { allTo?: string } = {}) => {
           </a>
         )}
       </div>
-
-      <LiveControls live={live} />
 
       {isLoading && !activeVideo ? (
         <div className="flex aspect-video items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/60">
