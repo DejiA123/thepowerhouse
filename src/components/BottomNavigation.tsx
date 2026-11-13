@@ -295,9 +295,10 @@ const BottomNavigation = () => {
       onTouchStart={(e) => e.stopPropagation()}
       draggable="false"
     >
-      {/* Like YouVersion: the page fades out under the floating bar (and a little above it),
-          in the page's own background colour, so text never runs hard into the glass */}
-      <div aria-hidden className="nav-fade pointer-events-none absolute inset-x-0 bottom-0 -top-8" />
+      {/* Like YouVersion: the page fades out only below the floating bar (nothing above it),
+          in the page's own background colour. It starts behind the middle of the glass, so its
+          edge is hidden, and is strong by the bar's bottom edge */}
+      <div aria-hidden className="nav-fade pointer-events-none absolute inset-x-0 bottom-0 top-8" />
       <div className="liquid-capsule pointer-events-auto relative mx-auto h-[64px] max-w-[560px] rounded-full">
         <div
           ref={rowRef}

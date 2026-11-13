@@ -2093,16 +2093,15 @@ body.modal-open {
     rgb(var(--page-bg, 255 255 255) / 0) 100%
   );
 }
-/* The fade under the floating bottom bar (like YouVersion's): the page's own background
-   (--page-bg, read from the body by lib/pageBg.ts), strong at the very bottom (the home
-   indicator area), clear just above the glass */
+/* The fade under the floating bottom bar (like YouVersion's): only below the bar, never
+   above it. The page's own background (--page-bg, lib/pageBg.ts), from behind the middle of
+   the glass (edge hidden) to strong at the very bottom (the home indicator area) */
 .nav-fade {
   background: linear-gradient(
     to top,
-    rgb(var(--page-bg, 255 255 255) / 0.94) 0%,
-    rgb(var(--page-bg, 255 255 255) / 0.86) 28%,
-    rgb(var(--page-bg, 255 255 255) / 0.55) 62%,
-    rgb(var(--page-bg, 255 255 255) / 0.18) 86%,
+    rgb(var(--page-bg, 255 255 255) / 0.95) 0%,
+    rgb(var(--page-bg, 255 255 255) / 0.9) 45%,
+    rgb(var(--page-bg, 255 255 255) / 0.5) 75%,
     rgb(var(--page-bg, 255 255 255) / 0) 100%
   );
 }
