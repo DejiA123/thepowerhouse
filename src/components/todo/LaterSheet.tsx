@@ -1,21 +1,25 @@
 import { useState } from 'react';
-import { CalendarClock, Clock, Coffee, Moon, Sun, Sunrise } from 'lucide-react';
+import { CalendarClock, Clock, Coffee, Moon, Sun, Sunrise, Sunset } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { deadline, laterTime, whenLabel, type Later } from '@/lib/todo/brain';
 import type { Todo } from '@/lib/todo/types';
+import { cn } from '@/lib/utils';
 import { SheetTop, sheetClass, toLocalInput } from './parts';
 
 /**
  * "Not now" never means "never": it means a time. The task is planned for then, and a
  * reminder rings ("Time to start"). It also counts as putting it off, which the coach
- * notices after the second time.
+ * notices after the second time. Once "Is it working?" knows when your plans really
+ * happen (insights.ts `bestLater`), that option says "Works best for you".
  */
-const LaterSheet = ({ todo, onClose, onPick, title = 'When will you do it?' }: {
+const LaterSheet = ({ todo, onClose, onPick, title = 'When will you do it?', best = null }: {
   todo: Todo | null;
   onClose: () => void;
   onPick: (when: Date) => void;
   title?: string;
+  /** The option that matches your best time of day */
+  best?: Later | null;
 }) => {
   const isMobile = useIsMobile();
   const now = new Date();
@@ -24,6 +28,8 @@ const LaterSheet = ({ todo, onClose, onPick, title = 'When will you do it?' }: {
   const late = (d: Date) => !!due && d.getTime() > due.getTime();
   const options: { kind: Later; label: string; icon: typeof Clock }[] = [
     { kind: 'hour', label: 'In an hour', icon: Coffee },
+    // Only when afternoons are when you get going
+    ...(best === 'afternoon' ? [{ kind: 'afternoon' as const, label: now.getHours() < 13 ? 'This afternoon' : 'Tomorrow afternoon', icon: Sunset }] : []),
     { kind: 'tonight', label: now.getHours() < 19 ? 'This evening' : 'A bit later', icon: Moon },
     { kind: 'tomorrow', label: 'Tomorrow morning', icon: Sunrise },
     { kind: 'weekend', label: 'At the weekend', icon: Sun },
@@ -40,17 +46,27 @@ const LaterSheet = ({ todo, onClose, onPick, title = 'When will you do it?' }: {
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(var(--sheet-safe-bottom,env(safe-area-inset-bottom))+1rem)] pt-2">
           {options.map((o) => {
             const at = laterTime(o.kind, now);
+            // "This evening" late at night is just "a bit later": not the evening that works
+            const isBest = best === o.kind && !(o.kind === 'tonight' && now.getHours() >= 19);
             return (
               <button
                 key={o.kind}
                 onClick={() => onPick(at)}
-                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-muted active:bg-muted"
+                className={cn('flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-muted active:bg-muted', isBest && 'bg-emerald-50 dark:bg-emerald-950/30')}
+                data-testid={`later-${o.kind}`}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
                   <o.icon className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold text-foreground">{o.label}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[16px] font-semibold text-foreground">
+                    {o.label}
+                    {isBest && (
+                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11.5px] font-bold text-white" data-testid="later-best">
+                        Works best for you
+                      </span>
+                    )}
+                  </span>
                   <span className="block text-[13px] text-muted-foreground">
                     <span className="capitalize">{whenLabel(at, now)}</span>
                     {late(at) && <span className="font-semibold text-red-600 dark:text-red-400"> · after the deadline</span>}

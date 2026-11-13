@@ -21,6 +21,15 @@ interface Session {
   /** When the current run started (ms), null while paused */
   startedAt: number | null;
   note?: string;
+  /** The length it began with, minutes (did a 2-minute start keep going?) */
+  initial?: number;
+}
+
+/** How a session went, for "Is it working?" */
+export interface FocusResult {
+  seconds: number;
+  /** The length it began with, minutes */
+  initial: number;
 }
 
 const KEY = 'todo_focus_session_v1';
@@ -45,6 +54,8 @@ const saveSession = (s: Session | null) => {
 const elapsedOf = (s: Session, now = Date.now()) => s.before + (s.startedAt ? (now - s.startedAt) / 1000 : 0);
 /** Minutes worth recording (45 seconds counts as one) */
 const minutesOf = (seconds: number) => (seconds >= 45 ? Math.max(1, Math.round(seconds / 60)) : 0);
+const resultOf = (s: Session | null): FocusResult | null =>
+  s ? { seconds: Math.round(elapsedOf(s)), initial: s.initial ?? Math.round(s.total / 60) } : null;
 
 function chime() {
   try {
@@ -135,15 +146,18 @@ const FocusMode = ({
   onComplete,
   onStuck,
   onTimer,
+  onBegin,
 }: {
   todo: Todo | null;
   /** Length and a note for this run (from the coach), else 2 minutes the first time, 25 after */
   start?: { minutes: number; note?: string } | null;
   /** Closed: minutes spent */
-  onClose: (minutes: number) => void;
+  onClose: (minutes: number, result: FocusResult | null) => void;
   onStepDone: (stepId: string) => void;
   /** The whole task is done: minutes spent */
-  onComplete: (minutes: number) => void;
+  onComplete: (minutes: number, result: FocusResult | null) => void;
+  /** A new session began (not one carried on) */
+  onBegin?: (todoId: string, minutes: number) => void;
   onStuck: () => void;
   /** While the timer runs: when it will run out (null when paused or closed), for the "time's up" notification */
   onTimer?: (todoId: string, endIso: string | null) => void;
@@ -163,10 +177,11 @@ const FocusMode = ({
       return;
     }
     const minutes = start?.minutes ?? (todo.focus_min > 0 || progress(todo).done > 0 ? 25 : 2);
-    const fresh: Session = { todoId: todo.id, total: minutes * 60, before: 0, startedAt: Date.now(), note: start?.note };
+    const fresh: Session = { todoId: todo.id, total: minutes * 60, before: 0, startedAt: Date.now(), note: start?.note, initial: minutes };
     saveSession(fresh);
     setSession(fresh);
     rang.current = false;
+    onBegin?.(todo.id, minutes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todo?.id, start]);
 
@@ -250,7 +265,7 @@ const FocusMode = ({
     const s = readSession();
     const mins = s ? minutesOf(elapsedOf(s)) : 0;
     update(null);
-    onClose(mins);
+    onClose(mins, resultOf(s));
   }, [onClose, update]);
 
   // Escape closes
@@ -269,7 +284,8 @@ const FocusMode = ({
   const resume = () => update({ ...session, startedAt: Date.now() });
   const setLength = (min: number) => {
     rang.current = elapsed >= min * 60;
-    update({ ...session, total: min * 60, startedAt: session.startedAt ?? Date.now() });
+    // Picked straight away: that's the length it began with
+    update({ ...session, total: min * 60, startedAt: session.startedAt ?? Date.now(), initial: elapsed < 60 ? min : session.initial });
   };
   const more = (min: number) => {
     rang.current = false;
@@ -277,8 +293,9 @@ const FocusMode = ({
   };
   const finishTask = () => {
     const mins = minutesOf(elapsed);
+    const result = resultOf(session);
     update(null);
-    onComplete(mins);
+    onComplete(mins, result);
   };
 
   const mm = Math.floor(left / 60);
