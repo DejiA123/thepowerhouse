@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
+import { ChevronRight, ExternalLink, Play, Loader2, Video, Radio } from "lucide-react";
+import { Link } from "react-router-dom";
 import LiveChat, { LiveChatReplay } from "@/components/LiveChat";
 import LiveControls from "@/components/LiveControls";
 import { useYouTubeTime } from "@/hooks/useYouTubeTime";
@@ -19,7 +20,11 @@ import { church } from "@/config/church";
 type Playable = YouTubeVideo & { isLive?: boolean };
 
 /** Latest sermons from the church's YouTube channel, played in the app (and the live service, with its chat, while it's on). */
-const ChurchVideos = () => {
+/**
+ * `allTo`: where "All" goes inside the app (Home: the Watch page). Without it (on the Watch
+ * page itself) "All" opens the church's YouTube channel.
+ */
+const ChurchVideos = ({ allTo }: { allTo?: string } = {}) => {
   const [videos, setVideos] = useState<YouTubeVideo[]>(cachedVideos);
   const [isLoading, setIsLoading] = useState(() => cachedVideos().length === 0);
   // A video picked from "Up next" (otherwise the live service, or the newest video)
@@ -81,14 +86,24 @@ const ChurchVideos = () => {
             <p className="text-xs text-muted-foreground">From {church.name} on YouTube</p>
           </div>
         </div>
-        <a
-          href={CHANNEL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
-        >
-          All <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        {allTo ? (
+          <Link
+            to={allTo}
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 py-1.5 pl-3 pr-2 text-[13px] font-semibold text-foreground hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+            data-testid="videos-all"
+          >
+            All <ChevronRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <a
+            href={CHANNEL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+          >
+            All <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
       </div>
 
       <LiveControls live={live} />
