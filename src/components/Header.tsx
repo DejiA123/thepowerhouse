@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { trackPageBg } from "@/lib/pageBg";
 import { ChevronLeft, CircleHelp, Search } from "lucide-react";
@@ -30,9 +30,39 @@ const Header = () => {
   // The bar is the page's own colour, solid (lib/pageBg.ts)
   useEffect(() => trackPageBg(), []);
 
+  // Like YouVersion: no fade at all while the page is at its top (it washed out coloured
+  // banners right under the bar, e.g. a choir's); a soft edge appears only once the page
+  // scrolls under the bar, growing over the first 24 px of scrolling
+  const fadeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const update = (target?: EventTarget | null) => {
+      frame = 0;
+      const el = target instanceof HTMLElement ? target : null;
+      // The page's own scroll (window, or a full-page scroller); small scrollers inside a page don't count
+      const y = el && el.clientHeight > window.innerHeight * 0.6 ? el.scrollTop : window.scrollY;
+      if (fadeRef.current) fadeRef.current.style.opacity = String(Math.min(1, Math.max(0, y / 24)));
+    };
+    const onScroll = (e: Event) => {
+      const target = e.target === document ? null : e.target;
+      if (target instanceof HTMLElement && target.clientHeight <= window.innerHeight * 0.6) return;
+      if (!frame) frame = requestAnimationFrame(() => update(target));
+    };
+    update();
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("scroll", onScroll, { capture: true });
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+  // A new page starts at its top: no fade
+  useEffect(() => {
+    if (fadeRef.current) fadeRef.current.style.opacity = String(Math.min(1, window.scrollY / 24));
+  }, [pathname]);
+
   return (
     // Like YouVersion: a solid bar in the page's colour (no see-through glass, no line), and
-    // the page fades in just below it as it scrolls up
+    // once the page scrolls under it, a soft edge just below it
     <header className="top-bar fixed top-0 w-full z-40">
       <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
         <div className="flex h-12 sm:h-16 items-center justify-between gap-2">
@@ -73,7 +103,7 @@ const Header = () => {
           </div>
         </div>
       </div>
-      <div aria-hidden className="top-fade pointer-events-none absolute inset-x-0 top-full h-7" />
+      <div ref={fadeRef} aria-hidden className="top-fade pointer-events-none absolute inset-x-0 top-full h-5" style={{ opacity: 0 }} />
     </header>
   );
 };
