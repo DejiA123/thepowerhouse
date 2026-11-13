@@ -5083,8 +5083,9 @@ const ChoirPage = () => {
                             )}
                         </div>
 
-                        <div className="flex flex-wrap gap-3"> {/* Buttons visible on all screens */}
-                            {isAdmin && (
+                        <div className="flex flex-wrap gap-3 empty:hidden">
+                            {/* Unlock Portal only on the Songs page (the church's choice, Nov 2026): not on the choir home, Band, Lessons or Singing */}
+                            {isAdmin && view === 'sections' && activeTab === 'vocalists' && (
                                 <Button
                                     className={cn(
                                         "shadow-lg border-none flex-1 md:flex-none font-bold transition-all duration-300",
