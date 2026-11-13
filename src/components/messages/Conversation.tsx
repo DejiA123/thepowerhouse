@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { flushSync } from 'react-dom';
 import { ArrowDown, ArrowLeft, Copy, Forward, Info, Loader2, Phone, PhoneCall, Pin, Star, Trash2, Video, X } from 'lucide-react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { KEYS_ARRIVED, e2eReady } from '@/lib/chatCrypto';
+import { KEYS_ARRIVED, e2eReady, e2eReadyNow } from '@/lib/chatCrypto';
+import { readOpenCache, writeOpenCache } from '@/lib/chatOpenCache';
 import WhatsAppImport from './WhatsAppImport';
 import { cn } from '@/lib/utils';
 import { appAlert } from '@/lib/appAlert';
@@ -63,6 +64,13 @@ interface Props {
 
 type Reaction = { emoji: string; user_id: string; id: string };
 
+/** The first message from someone else after I last read the chat (from the phone's copy) */
+function firstUnreadIn(list: ChatMessage[] | null, myRead: string | null, myId: string): string | null {
+  if (!list?.length || !myRead) return null;
+  const read = new Date(myRead.replace(/(\.\d{3})\d+/, '$1')).getTime();
+  return list.find((m) => m.user_id !== myId && new Date(m.created_at.replace(/(\.\d{3})\d+/, '$1')).getTime() > read && !isAnsweredCall(m.content))?.id ?? null;
+}
+
 const PAGE = 50;
 const GROUP_GAP_MS = 5 * 60 * 1000;
 /** The message drawn in Message info does nothing when touched */
@@ -82,13 +90,16 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const { startCall, joinCall, ongoingCalls, refreshOngoingCall, call } = useCall();
   const onlineIds = useOnlineUsers();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  // The first frame already shows what this phone had last time (the effects below catch up)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => peekCachedMessages(me.id, chat.id) ?? []);
+  const [loading, setLoading] = useState(() => !peekCachedMessages(me.id, chat.id)?.length);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
-  const [readMarks, setReadMarks] = useState<Record<string, string>>({});
-  const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [reactions, setReactions] = useState<Record<string, Reaction[]>>(() => readOpenCache('reactions', me.id, chat.id) ?? {});
+  const [readMarks, setReadMarks] = useState<Record<string, string>>(() => readOpenCache('marks', me.id, chat.id) ?? {});
+  const [memberCount, setMemberCount] = useState<number | null>(() => readOpenCache('members', me.id, chat.id));
+  // Only if the phone has no copy and the server is slow: a skeleton after a moment, never a flash of one
+  const [slowOpen, setSlowOpen] = useState(false);
   // Group info reloaded its members (someone added or removed): the header's count follows
   useEffect(() => {
     const onCount = (e: Event) => {
@@ -122,7 +133,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   // End-to-end encryption is on; a WhatsApp chat can be imported; reload after an import
-  const [encryptedChats, setEncryptedChats] = useState(false);
+  const [encryptedChats, setEncryptedChats] = useState(() => e2eReadyNow() ?? false);
   const [canImport, setCanImport] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [encryptionInfo, setEncryptionInfo] = useState(false);
@@ -136,11 +147,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const [reloadTick, setReloadTick] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [newBelow, setNewBelow] = useState(0);
-  const [unreadAnchor, setUnreadAnchor] = useState<string | null>(null);
+  const [unreadAnchor, setUnreadAnchor] = useState<string | null>(() => firstUnreadIn(peekCachedMessages(me.id, chat.id), readOpenCache<string>('myRead', me.id, chat.id), me.id));
   // A choir's chat: its songs as cards, and this week's setlist under the header
   const [choirLink, setChoirLinkState] = useState<ChoirLink | null>(() => cachedChoirLink(chat.id));
-  const [songRows, setSongRows] = useState<ChoirSongRow[]>([]);
-  const [setlist, setSetlist] = useState<ChoirSongRow[] | null>(null);
+  const [songRows, setSongRows] = useState<ChoirSongRow[]>(() => readOpenCache('songs', me.id, chat.id) ?? []);
+  const [setlist, setSetlist] = useState<ChoirSongRow[] | null>(() => readOpenCache('setlist', me.id, chat.id));
   const [setlistOpen, setSetlistOpen] = useState(false);
   const [songView, setSongView] = useState<SongView>(null);
   const playSong = useSongPlayer(setSongView);
@@ -172,6 +183,13 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
 
   useKeyboardSafeHeight(rootRef);
 
+  /** Mark the chat read up to a message, and remember it on the phone (the "Unread messages" line next time) */
+  const markReadUpTo = useCallback((at: string | undefined) => {
+    if (!at) return;
+    GroupChatService.markAsRead(chat.id, at);
+    writeOpenCache('myRead', me.id, chat.id, at);
+  }, [chat.id, me.id]);
+
   const scrollToBottom = useCallback((smooth = false) => {
     const el = scrollRef.current;
     if (!el) return;
@@ -198,7 +216,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     if (incoming.user_id !== me.id && !incoming.is_deleted) {
       onActivity(incoming);
       if (atBottomRef.current && document.visibilityState === 'visible') {
-        GroupChatService.markAsRead(chat.id, incoming.created_at);
+        markReadUpTo(incoming.created_at);
       } else {
         setNewBelow((n) => n + 1);
       }
@@ -209,7 +227,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         return next;
       });
     }
-  }, [chat.id, me.id, onActivity]);
+  }, [me.id, onActivity, markReadUpTo]);
 
   /** An edit, from this phone or anyone's (the signal is instant, the database feed backs it up) */
   const applyEdit = useCallback((id: string, content: string, editedAt?: string | null) => {
@@ -219,7 +237,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   }, []);
 
   // ── Initial load ──────────────────────────────────────────────────
-  useEffect(() => {
+  // A layout effect: what the phone has is in place before the first frame is painted
+  useLayoutEffect(() => {
     let cancelled = false;
     initialScrollDone.current = false;
     openingUntil.current = Number.POSITIVE_INFINITY;
@@ -238,6 +257,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const cached = peekCachedMessages(me.id, chat.id);
     setLoading(!cached?.length);
     setMessages(cached ?? []);
+    setSlowOpen(false);
+    const slowTimer = setTimeout(() => !cancelled && setSlowOpen(true), 600);
+    // Everything else the chat showed last time, so the first frame is the whole chat (like WhatsApp)
+    setReactions(readOpenCache<Record<string, Reaction[]>>('reactions', me.id, chat.id) ?? {});
+    setReadMarks(readOpenCache<Record<string, string>>('marks', me.id, chat.id) ?? {});
+    setMemberCount(readOpenCache<number>('members', me.id, chat.id));
     if (!cached) {
       readCachedMessages(me.id, chat.id).then((list) => {
         if (cancelled || !list?.length) return;
@@ -246,10 +271,10 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setLoading(false);
       }).catch(() => undefined);
     }
-    setReactions({});
     setHasMore(true);
     setTyping({});
-    setUnreadAnchor(null);
+    // The "Unread messages" line from the phone's copy, so it's there in the first frame
+    setUnreadAnchor(firstUnreadIn(cached, readOpenCache<string>('myRead', me.id, chat.id), me.id));
     setOtherId(null);
 
     (async () => {
@@ -270,8 +295,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         setLoading(false);
         setHasMore(data.length === PAGE);
         setMemberCount(marks?.length ?? null);
+        if (marks) writeOpenCache('members', me.id, chat.id, marks.length);
         if (isPrivateChat(chat)) setOtherId(marks?.find((m) => m.user_id !== me.id)?.user_id ?? null);
-        setReadMarks(Object.fromEntries((marks || []).filter((m) => m.user_id !== me.id && m.last_read_at).map((m) => [m.user_id, m.last_read_at!])));
+        const freshMarks = Object.fromEntries((marks || []).filter((m) => m.user_id !== me.id && m.last_read_at).map((m) => [m.user_id, m.last_read_at!]));
+        setReadMarks(freshMarks);
+        if (marks) writeOpenCache('marks', me.id, chat.id, freshMarks);
 
         const lastRead = membership?.last_read_at;
         const firstUnread = lastRead ? data.find((m) => m.user_id !== me.id && m.created_at > lastRead && !isAnsweredCall(m.content)) : null;
@@ -279,9 +307,15 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
         // The server's messages are in: keep the opening place while pictures, cards and reactions settle
         if (openingUntil.current) openingUntil.current = Date.now() + 2500;
 
-        if (data.length) setReactions(await GroupChatService.getReactions(data.map((m) => m.id)));
+        if (data.length) {
+          const fresh = await GroupChatService.getReactions(data.map((m) => m.id));
+          if (cancelled) return;
+          // Keep reactions that arrived live meanwhile (and ones on messages beyond this page)
+          setReactions((prev) => ({ ...prev, ...Object.fromEntries(data.map((m) => [m.id, fresh[m.id] || []])) }));
+        }
         const last = data[data.length - 1];
         await GroupChatService.markAsRead(chat.id, last?.created_at);
+        if (last && !cancelled) writeOpenCache('myRead', me.id, chat.id, last.created_at);
         onRead();
       } catch (error) {
         console.error('Failed to load messages', error);
@@ -294,6 +328,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     refreshOngoingCall(chat.id);
     return () => {
       cancelled = true;
+      clearTimeout(slowTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id, me.id, reloadTick]);
@@ -301,9 +336,14 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   // Keep this chat's latest messages on the phone, so it opens instantly next time
   useEffect(() => {
     if (loading || !messages.length) return;
-    const t = setTimeout(() => writeCachedMessages(me.id, chat.id, messages), 400);
+    const t = setTimeout(() => {
+      writeCachedMessages(me.id, chat.id, messages);
+      const ids = messages.slice(-60).map((m) => m.id);
+      writeOpenCache('reactions', me.id, chat.id, Object.fromEntries(ids.filter((id) => reactions[id]?.length).map((id) => [id, reactions[id]])));
+      writeOpenCache('marks', me.id, chat.id, readMarks);
+    }, 400);
     return () => clearTimeout(t);
-  }, [messages, loading, me.id, chat.id]);
+  }, [messages, loading, me.id, chat.id, reactions, readMarks]);
 
   useEffect(() => {
     e2eReady().then(setEncryptedChats).catch(() => undefined);
@@ -345,11 +385,11 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   }, [chat.id]);
 
   // ── A choir's chat ────────────────────────────────────────────────
-  useEffect(() => {
+  useLayoutEffect(() => {
     let stale = false;
     setChoirLinkState(cachedChoirLink(chat.id));
-    setSongRows([]);
-    setSetlist(null);
+    setSongRows(readOpenCache<ChoirSongRow[]>('songs', me.id, chat.id) ?? []);
+    setSetlist(readOpenCache<ChoirSongRow[]>('setlist', me.id, chat.id));
     const load = () => getChoirLink(chat.id).then((link) => !stale && setChoirLinkState(link)).catch(() => undefined);
     load();
     const onChanged = (e: Event) => (e as CustomEvent).detail?.chatId === chat.id && load();
@@ -358,32 +398,45 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       stale = true;
       window.removeEventListener('choir-chat:changed', onChanged);
     };
-  }, [chat.id]);
+  }, [chat.id, me.id]);
 
   const choirLocation = choirLink?.location ?? null;
   const refreshChoir = useCallback(() => {
     if (!choirLocation || !choirLink) return;
     // Cards for songs added from a week before the chat was linked (so linking shows this week's)
     const since = new Date(Math.max(timeMs(choirLink.set_at) - 7 * 86400_000, Date.now() - 120 * 86400_000)).toISOString();
-    getSongsAddedSince(choirLocation, since).then(setSongRows).catch(() => undefined);
-    getCurrentSetlist(choirLocation).then(setSetlist).catch(() => setSetlist((prev) => prev ?? []));
-  }, [choirLocation, choirLink]);
+    getSongsAddedSince(choirLocation, since).then((rows) => {
+      setSongRows(rows);
+      writeOpenCache('songs', me.id, chat.id, rows);
+    }).catch(() => undefined);
+    getCurrentSetlist(choirLocation).then((list) => {
+      setSetlist(list);
+      writeOpenCache('setlist', me.id, chat.id, list);
+    }).catch(() => setSetlist((prev) => prev ?? []));
+  }, [choirLocation, choirLink, me.id, chat.id]);
   useEffect(() => {
     refreshChoir();
   }, [refreshChoir]);
   useLiveRefresh(choirLocation ? [{ table: 'choir_weekly_set_songs', filter: `location=eq.${choirLocation}` }] : [], refreshChoir, { enabled: !!choirLocation });
 
   // ── Group reminders the app posted here (cards among the messages, live) ──
-  const [reminderSends, setReminderSends] = useState<ReminderSend[]>([]);
+  const [reminderSends, setReminderSends] = useState<ReminderSend[]>(() => (isPrivateChat(chat) ? [] : readOpenCache('reminders', me.id, chat.id) ?? []));
+  // Keyed on the chat's id only: the chat list hands over a new chat object every time it
+  // refreshes, which used to empty the cards and load them again (they blinked out and back)
+  const privateOne = isPrivateChat(chat);
   const refreshReminders = useCallback(() => {
-    if (isPrivateChat(chat)) return;
-    listSends(chat.id).then(setReminderSends).catch(() => undefined);
-  }, [chat]);
-  useEffect(() => {
-    setReminderSends([]);
+    if (privateOne) return;
+    const chatId = chat.id;
+    listSends(chatId).then((rows) => {
+      setReminderSends(rows);
+      writeOpenCache('reminders', me.id, chatId, rows);
+    }).catch(() => undefined);
+  }, [chat.id, privateOne, me.id]);
+  useLayoutEffect(() => {
+    setReminderSends(privateOne ? [] : readOpenCache<ReminderSend[]>('reminders', me.id, chat.id) ?? []);
     refreshReminders();
-  }, [refreshReminders]);
-  useLiveRefresh([{ table: 'chat_reminder_sends', filter: `chat_id=eq.${chat.id}` }], refreshReminders, { enabled: !isPrivateChat(chat) });
+  }, [refreshReminders]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLiveRefresh([{ table: 'chat_reminder_sends', filter: `chat_id=eq.${chat.id}` }], refreshReminders, { enabled: !privateOne });
   // A new reminder while reading the latest messages: show it, like a new message
   const lastReminder = reminderSends[reminderSends.length - 1]?.id;
   useEffect(() => {
@@ -404,22 +457,30 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
       stale = true;
     };
   }, [chat.id, groupChat, me.id]);
-  const [cardPeople, setCardPeople] = useState<CardPerson[] | null>(null);
-  const [cardSeen, setCardSeen] = useState<CardSeenRow[] | null>(null);
+  const [cardPeople, setCardPeople] = useState<CardPerson[] | null>(() => readOpenCache('cardPeople', me.id, chat.id));
+  const [cardSeen, setCardSeen] = useState<CardSeenRow[] | null>(() => readOpenCache('cardSeen', me.id, chat.id));
   const [cardInfo, setCardInfo] = useState<{ kind: 'reminder' | 'song'; id: string } | null>(null);
   const closeCardInfo = useCallback(() => setCardInfo(null), []);
-  useEffect(() => {
-    setCardPeople(null);
-    setCardSeen(null);
+  useLayoutEffect(() => {
+    setCardPeople(readOpenCache<CardPerson[]>('cardPeople', me.id, chat.id));
+    setCardSeen(readOpenCache<CardSeenRow[]>('cardSeen', me.id, chat.id));
     setCardInfo(null);
-  }, [chat.id]);
+  }, [chat.id, me.id]);
   const reminderIds = useMemo(() => reminderSends.map((r) => r.id), [reminderSends]);
   const songIds = useMemo(() => songRows.map((r) => r.id), [songRows]);
   const cardKey = `${reminderIds.join(',')}|${songIds.join(',')}`;
   const refreshCardSeen = useCallback(() => {
     if (!canManage || (!reminderIds.length && !songIds.length)) return;
-    getCardSeen(chat.id, reminderIds, songIds).then((rows) => rows && setCardSeen(rows)).catch(() => undefined);
-    getChatPeople(chat.id).then(setCardPeople).catch(() => undefined);
+    const chatId = chat.id;
+    getCardSeen(chatId, reminderIds, songIds).then((rows) => {
+      if (!rows) return;
+      setCardSeen(rows);
+      writeOpenCache('cardSeen', me.id, chatId, rows);
+    }).catch(() => undefined);
+    getChatPeople(chatId).then((people) => {
+      setCardPeople(people);
+      writeOpenCache('cardPeople', me.id, chatId, people);
+    }).catch(() => undefined);
   }, [canManage, chat.id, cardKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     refreshCardSeen();
@@ -618,12 +679,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const onVisible = () => {
       if (document.visibilityState === 'visible' && atBottomRef.current) {
         const last = messages[messages.length - 1];
-        if (last) GroupChatService.markAsRead(chat.id, last.created_at);
+        if (last) markReadUpTo(last.created_at);
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [chat.id, messages]);
+  }, [messages, markReadUpTo]);
 
   // ── Scrolling ─────────────────────────────────────────────────────
   const lastMessageId = useRef<string | null>(null);
@@ -649,6 +710,12 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     const last = messages[messages.length - 1];
     if (last && newLatest && (atBottomRef.current || last.user_id === me.id)) scrollToBottom(true);
   }, [messages, me.id, scrollToBottom, unreadAnchor, loading]);
+
+  // While opening, anything that changes the chat's height (cards, "Seen by" lines,
+  // reactions, the encryption notice) is followed in the same frame, before it's painted
+  useLayoutEffect(() => {
+    if (initialScrollDone.current && !restoreScroll.current && Date.now() < openingUntil.current) placeOpening();
+  });
 
   /**
    * Where a chat opens: at the very latest message. Only when the unread
@@ -732,7 +799,8 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    showFloatingDay();
+    // The day label is for the person scrolling, never for the app placing the chat as it opens
+    if (userActive() || floatingDay) showFloatingDay();
     const bottom = nearBottom(el);
     // Only the person scrolling up stops the chat following new messages (the app's own
     // smooth scrolls pass through "not at the bottom" on the way down)
@@ -741,7 +809,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
     if (bottom && newBelow > 0) {
       setNewBelow(0);
       const last = messages[messages.length - 1];
-      if (last) GroupChatService.markAsRead(chat.id, last.created_at);
+      if (last) markReadUpTo(last.created_at);
     }
   };
 
@@ -1524,7 +1592,7 @@ const Conversation = ({ chat, me, onBack, onChatUpdated, onLeft, onActivity, onR
               </button>
             )}
             <div className="flex-1" />
-            {loading ? (
+            {loading && !slowOpen ? null : loading ? (
               <div className="space-y-3 py-6">
                 {[40, 64, 52, 72, 36].map((w, i) => (
                   <div key={i} className={cn('flex', i % 2 ? 'justify-end' : 'justify-start')}>

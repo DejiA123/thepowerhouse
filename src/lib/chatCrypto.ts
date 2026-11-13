@@ -141,6 +141,12 @@ async function hasKeyCopy(chatId: string, keyId: string): Promise<boolean> {
 
 let readyPromise: Promise<boolean> | null = null;
 /** True once the database has the encryption tables. Before that, chats work as they always have. */
+/** What `e2eReady()` last answered (null: not known yet), so a chat can draw its notice at once */
+let readyKnown: boolean | null = null;
+export function e2eReadyNow(): boolean | null {
+  return readyKnown;
+}
+
 export function e2eReady(): Promise<boolean> {
   if (!readyPromise) {
     readyPromise = (async () => {
@@ -148,6 +154,7 @@ export function e2eReady(): Promise<boolean> {
       const { error } = await supabase.from('chat_devices' as never).select('id').limit(1);
       return !error;
     })().catch(() => false);
+    readyPromise.then((ok) => (readyKnown = ok));
     // Not there yet: look again later in the session (it may be applied meanwhile)
     readyPromise.then((ok) => !ok && setTimeout(() => (readyPromise = null), 5 * 60_000));
   }
