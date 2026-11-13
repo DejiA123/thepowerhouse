@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { trackPageBg } from "@/lib/pageBg";
 import { ChevronLeft, CircleHelp, Search } from "lucide-react";
 import { openSearch } from "@/lib/appEvents";
 import { SECTIONS, sectionForPath } from "@/data/appDirectory";
@@ -25,8 +27,13 @@ const Header = () => {
     else navigate(SECTIONS.find((s) => s.id === sectionForPath(pathname))?.path ?? "/");
   };
 
+  // The bar is the page's own colour, solid (lib/pageBg.ts)
+  useEffect(() => trackPageBg(), []);
+
   return (
-    <header className="fixed top-0 w-full z-40 bg-background/85 backdrop-blur-xl border-b border-border/50 shadow-sm">
+    // Like YouVersion: a solid bar in the page's colour (no see-through glass, no line), and
+    // the page fades in just below it as it scrolls up
+    <header className="top-bar fixed top-0 w-full z-40">
       <div className="px-4 pb-2 pt-[calc(0.5rem+max(env(safe-area-inset-top),var(--sat-fallback,0px)))]">
         <div className="flex h-12 sm:h-16 items-center justify-between gap-2">
           {showBack ? (
@@ -66,6 +73,7 @@ const Header = () => {
           </div>
         </div>
       </div>
+      <div aria-hidden className="top-fade pointer-events-none absolute inset-x-0 top-full h-7" />
     </header>
   );
 };
