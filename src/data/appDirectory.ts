@@ -206,7 +206,8 @@ const ALL_HOME_TILES: { id: string; title: string; subtitle: string; icon: Lucid
   { id: 'messages', title: 'Messages', subtitle: 'Chat with church', icon: MessageCircle, color: 'indigo', to: '/group-chats' },
   { id: 'teams', feature: 'teams', title: 'My team', subtitle: 'Choir and more', icon: Users, color: 'green', to: '/groups' },
   { id: 'learn', title: 'Learn', subtitle: 'Plans and lessons', icon: GraduationCap, color: 'violet', to: '/learn' },
-  { id: 'watch', feature: 'watch', title: 'Watch', subtitle: 'Live and past', icon: PlayCircle, color: 'red', to: '/services?watch=1' },
+  // To do took Watch's place (the church's choice, Nov 2026); Watch is a button under the sermons
+  { id: 'todo', title: 'To do', subtitle: 'Small steps today', icon: ListChecks, color: 'teal', to: '/todo' },
   { id: 'give', feature: 'giving', title: 'Give', subtitle: 'Tithes and offerings', icon: Heart, color: 'pink', to: '/give' },
   { id: 'prayer', feature: 'prayerWall', title: 'Pray', subtitle: 'Ask for prayer', icon: HandHeart, color: 'amber', to: '/prayer' },
   { id: 'events', feature: 'events', title: "What's on", subtitle: 'Events this week', icon: CalendarDays, color: 'orange', to: '/news' },
