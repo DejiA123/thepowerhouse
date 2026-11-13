@@ -2149,3 +2149,30 @@ body.modal-open {
   }
 }
 
+
+/* To do: confetti when a task is done, and the tick popping in (reduced motion: none) */
+@keyframes todo-confetti {
+  0% { transform: translate(-50%, 0) rotate(0deg); opacity: 1; }
+  45% { transform: translate(calc(-50% + var(--dx) * 0.6), var(--dy)) rotate(calc(var(--r) * 0.5)); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(var(--dy) + 340px)) rotate(var(--r)); opacity: 0; }
+}
+.todo-confetti-piece {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: todo-confetti 1.3s cubic-bezier(0.15, 0.75, 0.35, 1) forwards;
+}
+@keyframes todo-tick {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.todo-tick { animation: todo-tick 260ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .todo-confetti-piece { display: none; }
+  .todo-tick { animation: none; }
+}

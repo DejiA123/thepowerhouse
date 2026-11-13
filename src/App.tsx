@@ -57,6 +57,7 @@ const PrayerWallPage = lazyPage(() => import("@/pages/PrayerWallPage"));
 const FellowshipGroupPage = lazyPage(() => import("@/pages/FellowshipGroupPage"));
 const SocialMediaPage = lazyPage(() => import("@/pages/SocialMediaPage"));
 const BibleNotesPage = lazyPage(() => import("@/pages/BibleNotesPage"));
+const TodoPage = lazyPage(() => import("@/pages/TodoPage"));
 const EmailConfirmationPage = lazyPage(() => import("@/pages/EmailConfirmationPage"));
 const GoogleSignInPage = lazyPage(() => import("@/pages/GoogleSignInPage"));
 const AdminPage = lazyPage(() => import("@/pages/admin/AdminPage"));
@@ -270,6 +271,14 @@ const AppRoutes = () => {
               element={
                 <ProtectedRoute>
                   <BibleNotesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/todo"
+              element={
+                <ProtectedRoute reason={{ title: 'To do', message: 'Sign in to keep your tasks, on this phone and your others.' }}>
+                  <TodoPage />
                 </ProtectedRoute>
               }
             />
