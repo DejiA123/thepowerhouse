@@ -297,6 +297,57 @@ export function laterTime(kind: Later, now: Date): Date {
   }
 }
 
+// ── Picking a time without typing one ───────────────────────────────
+/** Waking hours for suggested times: nothing before 7:00 or after 21:30 */
+const DAY_START = 7;
+const DAY_END_MIN = 21 * 60 + 30;
+
+/** The next :00 or :30 at least `leadMin` minutes from now */
+function nextHalfHour(now: Date, leadMin: number): Date {
+  return new Date(Math.ceil((now.getTime() + leadMin * MIN) / (30 * MIN)) * 30 * MIN);
+}
+
+/**
+ * "Pick for me": a sensible time without choosing one. Your best time of day once the app
+ * knows it; otherwise the next half hour about half an hour away, as long as it's daytime
+ * (late at night or before 7, tomorrow at 9). Never after the deadline when there's room
+ * before it.
+ */
+export function pickForMe(now: Date, due: Date | null = null, best: Later | null = null): Date {
+  const inDay = (d: Date) => d.getHours() >= DAY_START && d.getHours() * 60 + d.getMinutes() <= DAY_END_MIN;
+  const ok = (d: Date) => d.getTime() > now.getTime() && (!due || d.getTime() <= due.getTime());
+  if (best && best !== 'hour') {
+    const b = laterTime(best, now);
+    if (ok(b) && inDay(b)) return b;
+  }
+  const soon = nextHalfHour(now, 30);
+  if (inDay(soon) && ok(soon)) return soon;
+  // A deadline sooner than that: the soonest quarter hour that still makes it
+  if (due && due.getTime() > now.getTime() + 10 * MIN) {
+    const quick = new Date(Math.ceil((now.getTime() + 10 * MIN) / (15 * MIN)) * 15 * MIN);
+    if (quick.getTime() <= due.getTime()) return quick;
+  }
+  const morning = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (now.getHours() >= DAY_START ? 1 : 0), 9);
+  return ok(morning) || !due ? morning : soon;
+}
+
+/** The times offered for a day (every hour 7:00–21:00), leaving out those already gone */
+export function timesFor(day: Date, now: Date): Date[] {
+  const out: Date[] = [];
+  for (let h = DAY_START; h <= 21; h++) {
+    const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h);
+    if (d.getTime() > now.getTime() + 10 * MIN) out.push(d);
+  }
+  return out;
+}
+
+/** The days offered: today (if it has times left), then the next week */
+export function daysFrom(now: Date, count = 8): Date[] {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Array.from({ length: count }, (_, i) => addDays(today, i));
+  return timesFor(today, now).length ? days : days.slice(1).concat(addDays(today, count));
+}
+
 // ── Repeats ─────────────────────────────────────────────────────────
 function step(d: Date, repeat: Repeat): Date {
   if (repeat === 'daily') return addDays(d, 1);
