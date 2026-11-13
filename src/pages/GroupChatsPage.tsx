@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,7 @@ import NotificationPrompt from '@/components/notifications/NotificationPrompt';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { isAnsweredCall } from '@/components/messages/chatUtils';
+import { useChatSwipeBack } from '@/hooks/useChatSwipeBack';
 
 const CACHE_KEY = (userId: string) => `chat_list_cache_v2_${userId}`;
 
@@ -191,12 +192,20 @@ const GroupChatsPage = () => {
     setChats((prev) => prev.map((c) => (c.id === selectedId ? { ...c, unread: 0 } : c)));
   }, [selectedId]);
 
+  // Like WhatsApp: slide from the left edge of a chat to go back to the list (phones)
+  const listRef = useRef<HTMLElement>(null);
+  const chatRef = useRef<HTMLElement>(null);
+  const resetSwipe = useChatSwipeBack(!!selectedId, chatRef, listRef, closeChat);
+  // The chat closed (or another opened): the page's own layout takes over again, before it's painted
+  useLayoutEffect(() => resetSwipe(), [selectedId, resetSwipe]);
+
   if (!user || !me) return null;
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-background">
+    <div className="relative flex h-full min-h-0 overflow-hidden bg-background">
       {/* Chat list */}
       <aside
+        ref={listRef}
         className={cn(
           'h-full min-h-0 w-full border-border/60 md:w-[360px] md:shrink-0 md:border-r lg:w-[400px]',
           selectedId ? 'hidden md:block' : 'block',
@@ -227,7 +236,7 @@ const GroupChatsPage = () => {
 
       {/* Conversation */}
       {/* min-w-0: a long line (a quoted message) can't widen the chat past the screen */}
-      <section className={cn('h-full min-h-0 min-w-0 flex-1', selectedId ? 'block' : 'hidden md:block')}>
+      <section ref={chatRef} className={cn('h-full min-h-0 min-w-0 flex-1 bg-background', selectedId ? 'block' : 'hidden md:block')}>
         {selectedChat ? (
           <Conversation
             key={selectedChat.id}
