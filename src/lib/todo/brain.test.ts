@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { daysFrom, pickForMe, timesFor } from './brain';
 import { doNext, doNextIn, dumpLines, inToday, isSomeday, isUpcoming, laterTime, moveDue, nextOccurrence, planDay, remainingMinutes, score, startBy, startByLabel, streak } from './brain';
 import type { Todo } from './types';
 
@@ -228,5 +229,35 @@ describe('fresh start and brain dump', () => {
     expect(dumpLines('- Buy milk\n• Call John tomorrow\n1. Read 2 chapters of Romans\n[ ] Pay rent\n\n2 chapters a day')).toEqual([
       'Buy milk', 'Call John tomorrow', 'Read 2 chapters of Romans', 'Pay rent', '2 chapters a day',
     ]);
+  });
+});
+
+describe('picking a time without typing', () => {
+  const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m);
+  test('pick for me: about half an hour away, on the half hour, in the daytime', () => {
+    expect(pickForMe(at(13, 10, 5))).toEqual(at(13, 11, 0));
+    expect(pickForMe(at(13, 10, 40))).toEqual(at(13, 11, 30));
+  });
+  test('pick for me: never in the night', () => {
+    expect(pickForMe(at(13, 3, 44))).toEqual(at(13, 9));
+    expect(pickForMe(at(13, 23, 10))).toEqual(at(14, 9));
+    expect(pickForMe(at(13, 21, 20))).toEqual(at(14, 9));
+  });
+  test('pick for me: makes a close deadline', () => {
+    const t = pickForMe(at(13, 10, 5), at(13, 10, 40));
+    expect(t.getTime()).toBeLessThanOrEqual(at(13, 10, 40).getTime());
+    expect(t.getTime()).toBeGreaterThan(at(13, 10, 5).getTime());
+  });
+  test('pick for me: your best time of day when the app knows it', () => {
+    expect(pickForMe(at(13, 10, 5), null, 'tonight')).toEqual(at(13, 19));
+  });
+  test('times: every hour 7–21, none already gone', () => {
+    expect(timesFor(at(14, 0), at(13, 10)).map((d) => d.getHours())).toEqual([7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]);
+    expect(timesFor(at(13, 0), at(13, 18, 55)).map((d) => d.getHours())).toEqual([20, 21]);
+  });
+  test('days: today while it has times, then tomorrow first', () => {
+    expect(daysFrom(at(13, 10))[0].getDate()).toBe(13);
+    expect(daysFrom(at(13, 21, 30))[0].getDate()).toBe(14);
+    expect(daysFrom(at(13, 10))).toHaveLength(8);
   });
 });
